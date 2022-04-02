@@ -13,7 +13,6 @@ const PLATFORM_COMISSION = "10";
 const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-
 describe("NFT tests", () => {
     let nft;
     let factory;
@@ -41,15 +40,17 @@ describe("NFT tests", () => {
 
         signer = EthCrypto.createIdentity();
 
-        await factory.connect(owner).initialize(
-            signer.address,
-            owner.address,
-            PLATFORM_COMISSION,
-            storage.address
-        );
+        await factory
+            .connect(owner)
+            .initialize(
+                signer.address,
+                owner.address,
+                PLATFORM_COMISSION,
+                storage.address
+            );
 
         nft = await Nft.deploy();
-        
+
         await nft
             .connect(owner)
             .initialize(
@@ -75,7 +76,7 @@ describe("NFT tests", () => {
         ]);
         instanceAddress = await storage.getInstance(hash);
         const NFT = await ethers.getContractFactory("NFT");
-        nft = await NFT.attach(instanceAddress);
+        nft = NFT.attach(instanceAddress);
     });
 
     describe("Deploy", async () => {
@@ -280,8 +281,10 @@ describe("NFT tests", () => {
                 .withdrawAll("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
             let endBalance = await provider.getBalance(owner.address);
             expect(
-                endBalance - startBalance == ethers.utils.parseEther("0.03")
-            );
+                Math.abs(
+                    startBalance - endBalance - ethers.utils.parseEther("0.03")
+                ) > 99 // commision on transaction.........
+            ).to.be.deep.equal(true);
         });
         it("Should withdraw all funds without 10% (comission)", async () => {
             const Nft = await ethers.getContractFactory("NFT");
@@ -319,9 +322,67 @@ describe("NFT tests", () => {
                 .withdrawAll("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
             let endBalance = await provider.getBalance(owner.address);
             expect(
-                endBalance - startBalance ==
-                    (ethers.utils.parseEther("0.03") * 90) / 100
+                Math.abs(
+                    endBalance -
+                        startBalance -
+                        (ethers.utils.parseEther("0.03") * 90) / 100
+                ) > 99 // comission
+            ).to.be.deep.equal(true);
+        });
+        it("Should withdraw all comission in erc20 tokens", async () => {
+            const Erc20Example = await ethers.getContractFactory(
+                "erc20Example"
             );
+            const erc20Example = await Erc20Example.deploy();
+
+            const NFT_721_BASE_URI = "test.com/";
+            const Nft = await ethers.getContractFactory("NFT");
+            nft = await Nft.deploy();
+            await nft
+                .connect(owner)
+                .initialize(
+                    storage.address,
+                    erc20Example.address,
+                    100,
+                    "ContractURI",
+                    "coolName",
+                    "CNME"
+                ); // 100 - very small amount in wei!
+
+            // mint test tokens
+            await erc20Example.connect(alice).mint(alice.address, 10000);
+            // allow spender(our nft contract) to get our tokens
+            await erc20Example
+                .connect(alice)
+                .approve(nft.address, 99999999999999);
+
+            const message = EthCrypto.hash.keccak256([
+                { type: "address", value: alice.address },
+                { type: "uint256", value: 1 },
+                { type: "string", value: NFT_721_BASE_URI },
+            ]);
+
+            const signature = EthCrypto.sign(signer.privateKey, message);
+
+            await nft
+                .connect(alice)
+                .mint(alice.address, 1, NFT_721_BASE_URI, signature);
+            expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
+
+            let shit_balance = await erc20Example.balanceOf(nft.address);
+            console.log(shit_balance);
+            let startBalance = await erc20Example.balanceOf(owner.address);
+
+            await nft.connect(owner).badWithdraw(erc20Example.address);
+
+            let endBalance = await erc20Example.balanceOf(owner.address);
+
+            console.log(startBalance, endBalance);
+            let balance = await erc20Example.balanceOf(nft.address);
+            console.log(balance);
+            expect(endBalance - startBalance).to.be.deep.equal(100);
+
+            // test starts here
         });
     });
 });

@@ -6,6 +6,7 @@ import "./NFT.sol";
 import "./interfaces/IStorageContract.sol";
 
 contract Factory is OwnableUpgradeable {
+
     address public platformAddress; // Address which is allowed to collect platform fee
     address public storageContract; // Storage contract address 
     address public signerAddress;   // Signer address
@@ -27,19 +28,21 @@ contract Factory is OwnableUpgradeable {
         __Ownable_init();
         signerAddress = _signer;
         platformAddress = _platformAddress;
+        require(_platformCommission <= 100, "percent number exceeds 100");
         platformCommission = _platformCommission;
         storageContract = _storageContract;
     }
 
-    function setPlatformCommission(uint8 _platformCommission) external {
+    function setPlatformCommission(uint8 _platformCommission) external onlyOwner {
+        require(_platformCommission <= 100, "percent number exceeds 100");
         platformCommission = _platformCommission;
     }
 
-    function setPlatformAddress(address _platformAddress) external {
+    function setPlatformAddress(address _platformAddress) external onlyOwner {
         platformAddress = _platformAddress;
     }
 
-    function setSigner(address _signer) external {
+    function setSigner(address _signer) external onlyOwner {
         signerAddress = _signer;
     }
 

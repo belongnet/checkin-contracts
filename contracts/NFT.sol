@@ -13,17 +13,18 @@ import "./interfaces/IStorageContract.sol";
 /// @notice this contract does not have constructor and requires to call initialize
 
 contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard {
+    
     address public payingToken; // Current token accepted as a mint payment
     address public storageContract; // Storage contract address
-    uint256 public mintPrice;   // Mint price
+    uint256 public mintPrice; // Mint price
 
-    string public contractURI;  // Contract URI (for OpenSea)
+    string public contractURI; // Contract URI (for OpenSea)
 
-    address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;  
+    address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    mapping(uint256 => string) public metadataUri;  // token ID -> metadata link
-    mapping(address => uint256) public availableForOwner;   // token address -> withdraw amount available for the owner
-    mapping(address => uint256) public availableForPlatform;    // token address -> withdraw amount available for the platform
+    mapping(uint256 => string) public metadataUri; // token ID -> metadata link
+    mapping(address => uint256) public availableForOwner; // token address -> withdraw amount available for the owner
+    mapping(address => uint256) public availableForPlatform; // token address -> withdraw amount available for the platform
 
     /// @dev initialize is called by factory when deployed
     /// @param _storageContract Contract that stores data
@@ -68,25 +69,28 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard {
         _mint(reciever, tokenId);
         metadataUri[tokenId] = tokenUri;
 
-        uint256 amount;
-
-        if (payingToken == ETH) {
-            require(msg.value >= mintPrice, "Not enough ether sent");
-            amount = msg.value;
-        } else {
-            amount = mintPrice;
-            IERC20(payingToken).transferFrom(msg.sender, address(this), amount);
-        }
-
-        uint256 fee;
         address payingToken_ = payingToken;
-        uint8 feePercent = IFactory(IStorageContract(storageContract).factory())
-            .platformCommission();
-        if (feePercent != 0) {
-            fee = (amount * uint256(feePercent)) / 100;
-            availableForPlatform[payingToken_] += fee;
+        uint256 mintPrice_ = mintPrice;
+        if (mintPrice_ > 0) {
+            uint256 amount;
+            if (payingToken_ == ETH) {
+                require(msg.value >= mintPrice, "Not enough ether sent");
+                amount = msg.value;
+            } else {
+                amount = mintPrice;
+                IERC20(payingToken_).transferFrom(msg.sender, address(this), amount);
+            }
+        
+            uint256 fee;
+            uint8 feePercent = IFactory(
+                IStorageContract(storageContract).factory()
+            ).platformCommission();
+            if (feePercent != 0) {
+                fee = (amount * uint256(feePercent)) / 100;
+                availableForPlatform[payingToken_] += fee;
+            }
+            availableForOwner[payingToken_] += amount - fee;
         }
-        availableForOwner[payingToken_] += amount - fee;
     }
 
     /// @notice Returns metadata link for specified ID
@@ -106,12 +110,14 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard {
         uint256 amount;
         if (msg.sender == owner()) {
             amount = availableForOwner[_token];
+            availableForOwner[_token] = 0;
         } else if (
             msg.sender ==
             IFactory(IStorageContract(storageContract).factory())
                 .platformAddress()
         ) {
             amount = availableForPlatform[_token];
+            availableForPlatform[_token] = 0;
         } else {
             revert("Not allowed");
         }
@@ -123,7 +129,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard {
                 IERC20(_token).transfer(msg.sender, amount);
             }
         }
-    }
+    }    
 
     /// @dev sets paying token
     /// @param _payingToken New token address
@@ -145,13 +151,10 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard {
     ) internal view returns (bool) {
         return
             ECDSA.recover(
-                keccak256(
-                    abi.encodePacked(
-                        receiver, 
-                        tokenId,
-                        tokenUri
-                    )
-                ), signature
-            ) == IFactory(IStorageContract(storageContract).factory()).signerAddress();
+                keccak256(abi.encodePacked(receiver, tokenId, tokenUri)),
+                signature
+            ) ==
+            IFactory(IStorageContract(storageContract).factory())
+                .signerAddress();
     }
 }

@@ -24,7 +24,6 @@ contract StorageContract is Ownable {
     function getInstanceInfo(
         uint256 instanceId
     ) public view returns(InstanceInfo memory) {
-        
         address instance = instances[instanceId];
         return _instanceInfos[instance];
     }
@@ -41,6 +40,13 @@ contract StorageContract is Ownable {
         factory = _factory;
     }
 
+    /**
+    * @dev registrates new instance
+    * @param instanceAddress New instance address
+    * @param creator Creator of the new instance
+    * @param name Name of the new NFT
+    * @param symbol Symbol of the new NFT
+    */
     function addInstance(
         address instanceAddress,
         address creator,
@@ -57,7 +63,5 @@ contract StorageContract is Ownable {
         );
         return instances.length;
     }
-
-
 
 }
