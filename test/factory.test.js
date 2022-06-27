@@ -60,12 +60,27 @@ describe('NFT tests', () => {
             const contractURI = "contractURI/123";
             const price = ethers.utils.parseEther("0.05")
 
+            const message = EthCrypto.hash.keccak256([
+                { type: "string", value: nftName },
+                { type: "string", value: nftSymbol },
+                { type: "string", value: contractURI },
+                { type: "uint96", value: BigNumber.from('500') },
+            ]);
+
+            const signature = EthCrypto.sign(signer.privateKey, message);
+
             await factory.connect(alice).produce(
-                nftName,
-                nftSymbol,
-                contractURI,
-                ETH_ADDRESS,
-                price
+                [
+                    nftName,
+                    nftSymbol,
+                    contractURI,
+                    ETH_ADDRESS,
+                    price,
+                    true,
+                    BigNumber.from('1000'),
+                    BigNumber.from('500'),
+                    signature
+                ]
             );
 
             const hash = EthCrypto.hash.keccak256([
@@ -105,28 +120,75 @@ describe('NFT tests', () => {
             const price2 = ethers.utils.parseEther("0.02")
             const price3 = ethers.utils.parseEther("0.03")
 
+            const message1 = EthCrypto.hash.keccak256([
+                { type: "string", value: nftName1 },
+                { type: "string", value: nftSymbol1 },
+                { type: "string", value: contractURI1 },
+                { type: "uint96", value: BigNumber.from('500') },
+            ]);
+
+            const signature1 = EthCrypto.sign(signer.privateKey, message1);
+
             await factory.connect(alice).produce(
-                nftName1,
-                nftSymbol1,
-                contractURI1,
-                ETH_ADDRESS,
-                price1
+                [
+                    nftName1,
+                    nftSymbol1,
+                    contractURI1,
+                    ETH_ADDRESS,
+                    price1,
+                    true,
+                    BigNumber.from('1000'),
+                    BigNumber.from('500'),
+                    signature1
+                ]
             );
+
+            const message2 = EthCrypto.hash.keccak256([
+                { type: "string", value: nftName2 },
+                { type: "string", value: nftSymbol2 },
+                { type: "string", value: contractURI2 },
+                { type: "uint96", value: BigNumber.from('500') },
+
+            ]);
+
+            const signature2 = EthCrypto.sign(signer.privateKey, message2);
 
             await factory.connect(bob).produce(
-                nftName2,
-                nftSymbol2,
-                contractURI2,
-                ETH_ADDRESS,
-                price2
+                [
+                    nftName2,
+                    nftSymbol2,
+                    contractURI2,
+                    ETH_ADDRESS,
+                    price2,
+                    true,
+                    BigNumber.from('1000'),
+                    BigNumber.from('500'),
+                    signature2
+                ]
             );
 
+            const message3 = EthCrypto.hash.keccak256([
+                { type: "string", value: nftName3 },
+                { type: "string", value: nftSymbol3 },
+                { type: "string", value: contractURI3 },
+                { type: "uint96", value: BigNumber.from('500') }
+
+            ]);
+
+            const signature3 = EthCrypto.sign(signer.privateKey, message3);
+
             await factory.connect(charlie).produce(
-                nftName3,
-                nftSymbol3,
-                contractURI3,
-                ETH_ADDRESS,
-                price3
+                [
+                    nftName3,
+                    nftSymbol3,
+                    contractURI3,
+                    ETH_ADDRESS,
+                    price3,
+                    true,
+                    BigNumber.from('1000'),
+                    BigNumber.from('500'),
+                    signature3
+                ]
             );
 
             const hash1 = EthCrypto.hash.keccak256([
@@ -205,21 +267,43 @@ describe('NFT tests', () => {
             const contractURI = "contractURI/123";
             const price = ethers.utils.parseEther("0.05")
 
-            await factory.connect(alice).produce(
-                nftName,
-                nftSymbol,
-                contractURI,
-                ETH_ADDRESS,
-                price
-            );
+            const message = EthCrypto.hash.keccak256([
+                { type: "string", value: nftName },
+                { type: "string", value: nftSymbol },
+                { type: "string", value: contractURI },
+                { type: "uint96", value: BigNumber.from('500') },
 
-            await expect(
-                factory.connect(alice).produce(
+            ]);
+
+            const signature = EthCrypto.sign(signer.privateKey, message);
+
+            await factory.connect(alice).produce(
+                [
                     nftName,
                     nftSymbol,
                     contractURI,
                     ETH_ADDRESS,
-                    price
+                    price,
+                    true,
+                    BigNumber.from('1000'),
+                    BigNumber.from('500'),
+                    signature
+                ]
+            );
+
+            await expect(
+                factory.connect(alice).produce(
+                    [
+                        nftName,
+                        nftSymbol,
+                        contractURI,
+                        ETH_ADDRESS,
+                        price,
+                        true,
+                        BigNumber.from('1000'),
+                        BigNumber.from('500'),    
+                        signature
+                    ]
                 )
             ).to.be.revertedWith("Factory: ALREADY_EXISTS")
 

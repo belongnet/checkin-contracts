@@ -7,6 +7,18 @@ import "./interfaces/IStorageContract.sol";
 
 contract Factory is OwnableUpgradeable {
 
+    struct InstanceInfo {
+        string name;    // name of a new collection
+        string symbol;  // symbol of a new collection
+        string contractURI; // contract URI of a new collection
+        address payingToken;    // paying token of a new collection
+        uint256 mintPrice;  // mint price ofany token of a new collection
+        bool transferable;  // shows if tokens will be transferrable or not
+        uint256 maxTotalSupply; // max total supply of a new collection
+        uint96 feeNumerator;    // total fee amount (in BPS) of a new collection
+        bytes signature;    // BE's signature
+    }
+
     address public platformAddress; // Address which is allowed to collect platform fee
     address public storageContract; // Storage contract address 
     address public signerAddress;   // Signer address
@@ -28,13 +40,11 @@ contract Factory is OwnableUpgradeable {
         __Ownable_init();
         signerAddress = _signer;
         platformAddress = _platformAddress;
-        require(_platformCommission <= 100, "percent number exceeds 100");
         platformCommission = _platformCommission;
         storageContract = _storageContract;
     }
 
     function setPlatformCommission(uint8 _platformCommission) external onlyOwner {
-        require(_platformCommission <= 100, "percent number exceeds 100");
         platformCommission = _platformCommission;
     }
 
@@ -48,34 +58,36 @@ contract Factory is OwnableUpgradeable {
 
     /**
      * @dev produces new instance with defined name and symbol
-     * @param name name of new token
-     * @param symbol symbol of new token
+     * @param _info New instance info
      * @return instance address of new contract
      */
     function produce(
-        string memory name,
-        string memory symbol,
-        string memory contractURI,
-        address _payingToken,
-        uint256 _mintPrice
-    ) public returns (address instance) {
-        _createInstanceValidate(name, symbol);
-        address instanceCreated = _createInstance(name, symbol);
+        InstanceInfo memory _info
+    ) public returns (address) {
+        require(
+            _verifySignature(_info.name, _info.symbol, _info.contractURI, _info.feeNumerator, _info.signature),
+            "Invalid signature"
+        );
+        _createInstanceValidate(_info.name, _info.symbol);
+        address instanceCreated = _createInstance(_info.name, _info.symbol);
         require(
             instanceCreated != address(0),
             "Factory: INSTANCE_CREATION_FAILED"
         );
-        address ms = _msgSender();
-        NFT(instanceCreated).initialize(
+        NFT(payable(instanceCreated)).initialize(
             storageContract,
-            _payingToken,
-            _mintPrice,
-            contractURI,
-            name,
-            symbol
+            _info.payingToken,
+            _info.mintPrice,
+            _info.contractURI,
+            _info.name,
+            _info.symbol,
+            _info.transferable,
+            _info.maxTotalSupply,
+            instanceCreated,
+            _info.feeNumerator,
+            _msgSender()
         );
-        OwnableUpgradeable(instanceCreated).transferOwnership(ms);
-        instance = instanceCreated;
+        return instanceCreated;
     }
 
     function _createInstanceValidate(string memory name, string memory symbol)
@@ -106,4 +118,27 @@ contract Factory is OwnableUpgradeable {
         );
         emit InstanceCreated(name, symbol, instanceAddress, id);
     }
+
+    function _verifySignature(
+        string memory name,
+        string memory symbol,   
+        string memory contractURI,
+        uint96 feeNumerator,
+        bytes memory signature
+    ) public view returns (bool) {
+        return
+            ECDSA.recover(
+                keccak256(
+                    abi.encodePacked(
+                        name, 
+                        symbol,
+                        contractURI,
+                        feeNumerator
+                    )
+                ), signature
+            ) == signerAddress;
+    }
+
+    uint256[49] private __gap;
+
 }
