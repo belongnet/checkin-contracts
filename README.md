@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol and contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for deployment. The factory implementation can be changed so the information about deployed collections is stored in the separate Storage contract. Factory will be deployed via proxy.
+The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, the contractURI, the paying token address, the mint price, the max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol and contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend (BE), so BE’s signature will be needed for deployment. The factory implementation can be changed so the information about deployed collections is stored in the separate Storage contract. Factory will be deployed via proxy.
 
 ## 1. Functional Requirements
 
@@ -19,21 +19,21 @@ Belong NFT project has the following features:
 * Create a new collection. (Everyone with signer’s approval)
 * Get the information about the deployed collections. (Everyone)
 * Mint token from any collection. (Everyone with signer’s approval)
-* Send funds from primary and secondary sales to platform’s and creators wallets (Everyone)
+* Send funds from primary and secondary sales to platform’s and creators' wallets (Everyone)
 * Set paying token (Collection owner)
 * Set mint price (Collection owner)
 * Set platform commission (The owner)
-* Set platform address at the Factory contract (The owner)
-* Set signer address at the Factory contract (The owner)
-* Set factory address at the Storage contract (The owner)
+* Set platform address in the Factory contract (The owner)
+* Set signer address in the Factory contract (The owner)
+* Set factory address in the Storage contract (The owner)
 
 ### 1.3 Use Cases
-User specify the settings of his collection (name, symbol, contractURI with royalty information, mint price, paying token, royalties and “transferable” flag). The BE checks if name, symbol and contractURI and royalties size comply with the rules and signs the data. After that produce() function of the Factory will be called, a new nft collection will be deployed and the user becomes the creator (not owner) of the new smart contract. 
-If some other user wants to mint a new token in this collection, his/her account will have to be validated by the BE. BE also will generate tokenURI for the new token. If the account meets all the requirements and tokenURI is successfully generated, the BE signs the data for mint. After that, the user can call the mint() function of the NFT contract.
+User specifies the settings of his collection (name, symbol, contractURI with royalty information, mint price, paying token, royalties and the “transferable” flag). The BE checks if name, symbol, contractURI, and royalties comply with the rules and signs the data. After that produce() function of the Factory is called, a new nft collection is deployed and the user becomes the creator (not owner) of the new smart contract. 
+If some other user wants to mint a new token in this collection, his/her account will have to be validated by the BE. BE will also generate the tokenURI for the new token. If the account meets all the requirements and tokenURI is successfully generated, the BE signs the data for mint. After that, the user can call the mint() function of the NFT contract.
 If the mint price is larger than zero, the contract will collect ETH/ERC20 from every primary sale. Some fraction of this money will be assigned to the platform and the rest will belong to the creator. The platform wallet and creator can claim these tokens at any moment.
-The owner of the factory can set other platform commission. The creator of the collection can change paying token as well as the mint price.
-NFTs can be marked as nontransferable at the moment of the deployment. In this case it will be impossible to transfer any NFT to another address or sell it to somebody. The transferable option cannot be changed
-If NFT was sold on a marketplace, the contract will receive royalties and it will be distributed between creator and the platform.
+The owner of the factory can set other platform commission. The creator of the collection can change the token used as payment (payingToken) as well as the mint price.
+NFTs can be marked as nontransferable at the moment of the deployment. In that case it will not be possible to transfer any NFT to another address or sell it. The "transferrable" proprty cannot be changed.
+If an NFT is sold on a marketplace, the splitter contract will receive royalties claimable by the creator and the platform.
 
 ## 2. Technical Requirements
 
@@ -44,25 +44,24 @@ If NFT was sold on a marketplace, the contract will receive royalties and it wil
 
 
 ### 2.2. Contract Information
-This section contains detailed information (their purpose, assets, functions,
-and events) about the contracts used in the project.
+This section contains detailed information (their purpose, assets, functions, and events) about the contracts used in the project.
 #### 2.2.1. NFT.sol
 ERC721 token contract with different payment options and security advancements. Mints tokens from this collection if valid BE signature was provided. Also allows to collect funds for the collection owner and the platform. 
 ##### 2.2.1.1. Assets
 Belong NFT contains the following entities:
 1. address payingToken - Current token accepted as a mint payment
 2. address creator - Collection creator address
-3. uint96 totalRoyalty - total amount of royalties (for example, if platform commission is 1% and user’s royalties is 5%, then totalRoyalty == 6%)
+3. uint96 totalRoyalty - the total amount of royalties (for example, if platform commission is 1% and user’s royalties are 5%, then totalRoyalty == 6%)
 4. address storageContract - Storage contract address
 5. uint256 mintPrice - Current mint price
-6. bool transferable - Flag if the tokens transferable or not
-7. uint256 totalSupply - The current totalSupply
+6. bool transferable - Flag indicating whether the token is transferable or not
+7. uint256 totalSupply - The current total supply
 8. uint256 maxTotalSupply - The max amount of tokens to be minted
 9. string contractURI - Contract URI (for OpenSea)
 10. address constant ETH - mock ETH address  
 11. metadataUri - token ID -> metadata link mapping
-12. availableForOwner - token address -> withdraw amount available for the owner mapping
-13. availableForPlatform - token address -> withdraw amount available for the platform mapping
+12. availableForOwner - token address -> withdrawal amount available for the owner mapping
+13. availableForPlatform - token address -> withdrawal amount available for the platform mapping
 14. lastBalances - token address -> last balance of the contract mapping
 
 ##### 2.2.1.2. Functions
@@ -85,29 +84,29 @@ Belong NFT has the following functions:
     uint256 tokenId,
     string calldata tokenUri,
     bytes calldata signature
-) - Mints ERC721 token
-3. tokenURI(uint256 _tokenId) - Returns metadata link for specified ID
-4. withdrawAll(address _token) - Transfer tokens/ETH to creator and platform address. It can be called by anyone. It will withdraw all funds available for the creator and platform.
-5. setPayingToken(address _payingToken) - Sets paying token
-6. setMintPrice(uint256 _mintPrice) - Sets mint price
-7. getAmountTokenToPay(address _for, address _token) - Returns amount of specified token available for specified address
-8. owner() - Overridden function from Ownable contract. Owner of the contract is always the platform address. Otherwise the user will be able to change royalty information on the marketplaces
+) - Mints an ERC721 token
+3. tokenURI(uint256 _tokenId) - Returns metadata link for the specified ID
+4. withdrawAll(address _token) - Transfer tokens/ETH to creator and platform address. It can be called by anyone. It will withdraw all funds available for the creator and the platform.
+5. setPayingToken(address _payingToken) - Sets the token used for payment
+6. setMintPrice(uint256 _mintPrice) - Sets the mint price
+7. getAmountTokenToPay(address _for, address _token) - Returns the amount of the specified token available for the specified address
+8. owner() - Overridden function from Ownable contract. Owner of the contract is always the platform address. Otherwise the user will be able to change royalty settings on the marketplaces
 
 #### 2.2.2. Factory.sol
-Produces new instances of NFT contract and registrate them in StorageContract. NFT contract can be deployed by anyone. Factory also contains data about platform comission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from Factory contract.
+Produces new instances of NFT contract and registers them in the StorageContract. The NFT contract can be deployed by anyone. Factory also contains data about platform comission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from the Factory contract.
 
 ##### 2.2.2.1. Assets
 Belong NFT Factory contains the following struct:
 
 struct InstanceInfo {
-        string name;    - name of a new collection
-        string symbol;  - symbol of a new collection
-        string contractURI; - contract URI of a new collection
-        address payingToken; - paying token of a new collection
-        uint256 mintPrice;  - mint price ofany token of a new collection
-        bool transferable;  - shows if tokens will be transferrable or not
-        uint256 maxTotalSupply; - max total supply of a new collection
-        uint96 feeNumerator;    - total fee amount (in BPS) of a new collection
+        string name;    - name of the new collection
+        string symbol;  - symbol of the new collection
+        string contractURI; - contract URI of the new collection
+        address payingToken; - paying token of the new collection
+        uint256 mintPrice;  - mint price of any token of the new collection
+        bool transferable;  - configures whether the tokens will be transferrable or not
+        uint256 maxTotalSupply; - max total supply of the new collection
+        uint96 feeNumerator;    - total fee amount (in BPS) of the new collection
         bytes signature;    - BE's signature
 }
 
@@ -125,7 +124,7 @@ Belong NFT Factory has the following functions:
     uint8 _platformCommission,
     address _storageContract
 ): Handles configurations and sets related parameters
-2. produce(InstanceInfo memory _info) - Produces new instance with defined name and symbol
+2. produce(InstanceInfo memory _info) - Produces the new instance with defined name and symbol
 3. setPlatformCommission(uint8 _platformCommission) - Sets platform commission
 4. setPlatformAddress(address _platformAddress) - Sets platform address
 5. setSigner(address _signer) - Sets signer address
