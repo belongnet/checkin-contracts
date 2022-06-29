@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol and contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the deployment. The factory implementation can be changed so the information about deployed collections is stored in the separate Storage contract. Factory will be deployed via proxy.
+The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via theFactory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol and contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the deployment. The factory implementation can be changed so the information about deployed collections is stored in the separate Storage contract. Factory will be deployed via proxy.
 
 ## 1. Functional Requirements
 
@@ -19,13 +19,13 @@ Belong NFT project has the following features:
 * Create a new collection. (Everyone with signer’s approval)
 * Get the information about the deployed collections. (Everyone)
 * Mint token from any collection. (Everyone with signer’s approval)
-* Send funds from primary and secondary sales to platform’s and creators wallets (Everyone)
+* Send funds from primary and secondary sales to platform’s and creators' wallets (Everyone)
 * Set paying token (Collection owner)
 * Set mint price (Collection owner)
 * Set platform commission (The owner)
-* Set platform address at the Factory contract (The owner)
-* Set signer address at the Factory contract (The owner)
-* Set factory address at the Storage contract (The owner)
+* Set platform address in the Factory contract (The owner)
+* Set signer address in the Factory contract (The owner)
+* Set factory address in the Storage contract (The owner)
 
 ### 1.3 Use Cases
 #### Collection creation
@@ -57,19 +57,18 @@ If NFT was sold on a marketplace, a corresponding RoyaltiesReceiver contract wil
 
 
 ### 2.2. Contract Information
-This section contains detailed information (their purpose, assets, functions,
-and events) about the contracts used in the project.
+This section contains detailed information (their purpose, assets, functions, and events) about the contracts used in the project.
 #### 2.2.1. NFT.sol
 ERC721 token contract with different payment options and security advancements. Mints tokens from this collection if valid BE signature was provided. Also allows to collect funds for the collection owner and the platform. 
 ##### 2.2.1.1. Assets
 Belong NFT contains the following entities:
 1. address payingToken - Current token accepted as a mint payment
 2. address creator - Collection creator address
-3. uint96 totalRoyalty - total amount of royalties (for example, if platform commission is 1% and user’s royalties is 5%, then totalRoyalty == 6%)
+3. uint96 totalRoyalty - the total amount of royalties (for example, if platform commission is 1% and user’s royalties are 5%, then totalRoyalty == 6%)
 4. address storageContract - Storage contract address
 5. uint256 mintPrice - Current mint price
-6. bool transferable - Flag if the tokens transferable or not
-7. uint256 totalSupply - The current totalSupply
+6. bool transferable - Flag indicating whether the token is transferable or not
+7. uint256 totalSupply - The current total supply
 8. uint256 maxTotalSupply - The max amount of tokens to be minted
 9. string contractURI - Contract URI (for OpenSea)
 10. address constant ETH - mock ETH address  
@@ -102,7 +101,7 @@ Belong NFT has the following functions:
 8. owner() - Overridden function from Ownable contract. Owner of the contract is always the platform address. Otherwise the user will be able to change royalty information on the marketplaces
 
 #### 2.2.2. Factory.sol
-Produces new instances of NFT contract and registrate them in StorageContract. NFT contract can be deployed by anyone. Factory also contains data about platform comission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from Factory contract.
+Produces new instances of NFT contract and registers them in the StorageContract. The NFT contract can be deployed by anyone. Factory also contains data about platform comission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from the Factory contract.
 
 ##### 2.2.2.1. Assets
 Belong NFT Factory contains the following struct:
@@ -134,7 +133,7 @@ Belong NFT Factory has the following functions:
     uint8 _platformCommission,
     address _storageContract
 ): Handles configurations and sets related parameters
-2. produce(InstanceInfo memory _info) - Produces new instance with defined name and symbol
+2. produce(InstanceInfo memory _info) - Produces the new instance with defined name and symbol
 3. setPlatformCommission(uint8 _platformCommission) - Sets platform commission
 4. setPlatformAddress(address _platformAddress) - Sets platform address
 5. setSigner(address _signer) - Sets signer address
