@@ -22,6 +22,8 @@ async function deploy_nft() {
   );
   
   await storage.deployed();
+  await storage.setFactory(factory.address);
+
   await nft.deployed();
 
   await nft.initialize(
@@ -36,6 +38,8 @@ async function deploy_nft() {
   console.log('Factory deployed to:', factory.address);
   console.log('Storage deployed to:', storage.address);
   console.log('NFT deployed to:', nft.address);
+
+  
 }
 
 deploy_nft();

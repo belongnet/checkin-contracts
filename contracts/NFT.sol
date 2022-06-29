@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IStorageContract.sol";
 
+import "hardhat/console.sol";
+
 /// @title Contract that allow to mint ERC721 token with diffrent payment options and security advancements
 /// @notice this contract does not have constructor and requires to call initialize
 
@@ -29,9 +31,6 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;  
 
     mapping(uint256 => string) public metadataUri;  // token ID -> metadata link
-    mapping(address => uint256) public availableForCreator;   // token address -> withdraw amount available for the creator
-    mapping(address => uint256) public availableForPlatform;    // token address -> withdraw amount available for the platform
-    mapping(address => uint256) public lastBalances;    // token address -> last balance of the contract
 
     event Withdrawn(address who, address token, uint256 amountForCreator, uint256 amountForPlatform);
     event EthReceived(address who, uint256 amount);
@@ -102,24 +101,30 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         uint256 amount;
         address payingToken_ = payingToken;
 
+
+        uint256 fee;
+        uint8 feeBPs = IFactory(IStorageContract(storageContract).factory())
+            .platformCommission();
+
+        address platformAddress = IFactory(IStorageContract(storageContract).factory()).platformAddress();
         if (payingToken_ == ETH) {
             require(msg.value >= mintPrice, "Not enough ether sent");
             amount = msg.value;
-            lastBalances[payingToken_] = address(this).balance;
+            if (feeBPs != 0) {
+                fee = (amount * uint256(feeBPs)) / _feeDenominator();
+                payable(platformAddress).transfer(fee);
+                payable(creator).transfer(amount - fee);
+            }
         } else {
             amount = mintPrice;
-            IERC20(payingToken_).transferFrom(msg.sender, address(this), amount);
-            lastBalances[payingToken_] = IERC20(payingToken_).balanceOf(address(this));
+            if (feeBPs == 0) {
+                IERC20(payingToken_).transferFrom(msg.sender, address(this), amount);
+            } else {
+                fee = (amount * uint256(feeBPs)) / _feeDenominator();
+                IERC20(payingToken_).transferFrom(msg.sender, platformAddress, fee);
+                IERC20(payingToken_).transferFrom(msg.sender, creator, amount - fee);
+            }
         }
-
-        uint256 fee;
-        uint8 feePercent = IFactory(IStorageContract(storageContract).factory())
-            .platformCommission();
-        if (feePercent != 0) {
-            fee = (amount * uint256(feePercent)) / _feeDenominator();
-            availableForPlatform[payingToken_] += fee;
-        }
-        availableForCreator[payingToken_] += amount - fee;
     }
 
     /// @notice Returns metadata link for specified ID
@@ -135,57 +140,6 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
 
     function owner() public view override returns (address) {
         return IFactory(IStorageContract(storageContract).factory()).platformAddress();
-    }
-
-    /// @dev transfer tokens/ETH to owner or platform address
-    /// @param _token token address
-    function withdrawAll(address _token) external {
-        address creator_ = creator;
-        address platform_ = IFactory(IStorageContract(storageContract).factory())
-                .platformAddress();
-
-        uint256 amountForCreator = getAmountTokenToPay(creator_, _token);
-        uint256 amountForPlatform = getAmountTokenToPay(platform_, _token);
-
-        availableForCreator[_token] = 0;
-        availableForPlatform[_token] = 0;
-
-        if (_token == ETH) {
-            if(amountForCreator != 0) payable(creator_).transfer(amountForCreator);
-            if(amountForPlatform != 0) payable(platform_).transfer(amountForPlatform);
-            lastBalances[_token] = address(this).balance;
-        } else {
-            if(amountForCreator != 0) IERC20(_token).transfer(creator_, amountForCreator);
-            if(amountForPlatform != 0) IERC20(_token).transfer(platform_, amountForPlatform);
-             lastBalances[_token] = IERC20(_token).balanceOf(address(this));
-        }
-        
-        emit Withdrawn(_msgSender(), _token, amountForCreator, amountForPlatform);
-
-    }
-    
-    /// @dev returns amount of specified token available for specified address
-    /// @param _for account address (must be platform address or creator's address)
-    /// @param _token token address
-    function getAmountTokenToPay(address _for, address _token) public view returns (uint256) {
-        uint256 amount;
-        uint8 platformCommission = IFactory(IStorageContract(storageContract).factory()).platformCommission();
-        uint256 lastBalance = lastBalances[_token];
-        uint256 currentBalance = _token == ETH ? address(this).balance : IERC20(_token).balanceOf(address(this));
-        if (_for == creator) {
-            amount = availableForCreator[_token];
-            if (currentBalance > lastBalance)
-                amount += (currentBalance - lastBalance) * (totalRoyalty - uint96(platformCommission)) / totalRoyalty;            
-        } else if (
-            _for ==
-            IFactory(IStorageContract(storageContract).factory())
-                .platformAddress()
-        ) {
-            amount = availableForPlatform[_token];
-            if (currentBalance > lastBalance)
-                amount += (currentBalance - lastBalance) * uint256(platformCommission) / totalRoyalty;            
-        }
-        return amount;
     }
 
     /// @dev sets paying token

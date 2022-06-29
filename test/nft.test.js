@@ -45,18 +45,6 @@ describe("NFT tests", () => {
             storage.address
         );
 
-        // nft = await Nft.deploy();
-        
-        // await nft
-        //     .connect(owner)
-        //     .initialize(
-        //         storage.address,
-        //         "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-        //         ethers.utils.parseEther("0.03"),
-        //         "ContractURI",
-        //         "coolName",
-        //         "CNME"
-        //     );
         const nftName = "Name 1";
         const nftSymbol = "S1";
         const contractURI = "contractURI/123";
@@ -66,7 +54,8 @@ describe("NFT tests", () => {
             { type: "string", value: nftName },
             { type: "string", value: nftSymbol },
             { type: "string", value: contractURI },
-            { type: "uint96", value: BigNumber.from('600') }
+            { type: "uint96", value: BigNumber.from('600') },
+            { type: "address", value: owner.address }
 
         ]);
 
@@ -74,7 +63,7 @@ describe("NFT tests", () => {
 
         await factory
             .connect(alice)
-            .produce([nftName, nftSymbol, contractURI, ETH_ADDRESS, price, true, BigNumber.from('1000'), BigNumber.from('600'), signature]);
+            .produce([nftName, nftSymbol, contractURI, ETH_ADDRESS, price, true, BigNumber.from('1000'), BigNumber.from('600'), owner.address, signature]);
 
         const hash = EthCrypto.hash.keccak256([
             { type: "string", value: nftName },
@@ -220,7 +209,6 @@ describe("NFT tests", () => {
                     alice.address 
                 ); // 100 - very small amount in wei!
 
-            // allow spender(our nft contract) to get our tokens
             await erc20Example
                 .connect(alice)
                 .approve(nft.address, 99999999999999);
@@ -290,17 +278,15 @@ describe("NFT tests", () => {
 
             const signature = EthCrypto.sign(signer.privateKey, message);
 
+            let provider = waffle.provider;
+            let startBalance = await provider.getBalance(owner.address);
+
             await nft
                 .connect(alice)
                 .mint(alice.address, 1, NFT_721_BASE_URI, signature, {
                     value: ethers.utils.parseEther("0.03"),
                 });
-            let provider = waffle.provider;
-            let startBalance = await provider.getBalance(owner.address);
 
-            await nft
-                .connect(owner)
-                .withdrawAll("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
             let endBalance = await provider.getBalance(owner.address);
             expect(
                 endBalance - startBalance == ethers.utils.parseEther("0.03")
@@ -327,35 +313,46 @@ describe("NFT tests", () => {
             const NFT_721_BASE_URI = "test.com/";
 
             const message = EthCrypto.hash.keccak256([
-                { type: "address", value: alice.address },
+                { type: "address", value: bob.address },
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
+            let provider = waffle.provider;
+
+            let startBalanceOwner = await provider.getBalance(owner.address);
+            let startBalanceAlice = await provider.getBalance(alice.address);
 
             await nft
-                .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, signature, {
+                .connect(bob)
+                .mint(bob.address, 1, NFT_721_BASE_URI, signature, {
                     value: ethers.utils.parseEther("0.03"),
                 });
-            let provider = waffle.provider;
-            let startBalance = await provider.getBalance(owner.address);
+            expect(await factory.platformAddress()).to.be.equal(owner.address);
+            let endBalanceOwner = await provider.getBalance(owner.address);
+            let endBalanceAlice = await provider.getBalance(alice.address);
 
-            await nft
-                .connect(owner)
-                .withdrawAll("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
-            let endBalance = await provider.getBalance(owner.address);
-            expect(
-                endBalance - startBalance ==
-                    (ethers.utils.parseEther("0.03") * 99) / 100
-            );
+            expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(ethers.utils.parseEther("0.03").div(BigNumber.from('100')));
+            expect(endBalanceAlice.sub(startBalanceAlice)).to.be.equal(ethers.utils.parseEther("0.03").mul(BigNumber.from('99')).div(BigNumber.from('100')));
+            
         });
 
         it("Should correct distribute royalties", async () => {
             const Nft = await ethers.getContractFactory("NFT");
+            const RoyaltiesReceiver = await ethers.getContractFactory("RoyaltiesReceiver");
             
             nft = await Nft.deploy();
+            receiver = await RoyaltiesReceiver.deploy(
+                [
+                    await factory.platformAddress(),
+                    alice.address
+                ], 
+                [
+                    1,
+                    5
+                ]
+            );
             
             await nft
                 .connect(owner)
@@ -368,7 +365,7 @@ describe("NFT tests", () => {
                     "CNME",
                     true,
                     BigNumber.from('1000'),
-                    nft.address,
+                    receiver.address,
                     BigNumber.from('600'),
                     alice.address 
                 );
@@ -377,43 +374,41 @@ describe("NFT tests", () => {
                 "erc20Example"
             );
             const erc20Example = await Erc20Example.deploy();
-    
 
             expect (await nft.owner()).to.be.equal(await factory.platformAddress());
 
             const NFT_721_BASE_URI = "test.com/";
 
             let message = EthCrypto.hash.keccak256([
-                { type: "address", value: alice.address },
+                { type: "address", value: bob.address },
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
             ]);
 
             let signature = EthCrypto.sign(signer.privateKey, message);
+            let provider = waffle.provider;
+
+            let startBalanceOwner = await provider.getBalance(owner.address);
+            let startBalanceAlice = await provider.getBalance(alice.address);
 
             await nft
-                .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, signature, {
+                .connect(bob)
+                .mint(bob.address, 1, NFT_721_BASE_URI, signature, {
                     value: ethers.utils.parseEther("0.03"),
                 });
             
-            let provider = waffle.provider;
-            let startBalance = await provider.getBalance(owner.address);
-
-            await nft
-                .connect(owner)
-                .withdrawAll("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
-            let endBalance = await provider.getBalance(owner.address);
-            expect(
-                endBalance - startBalance ==
-                    (ethers.utils.parseEther("0.03") * 99) / 100
-            );
+            let endBalanceOwner = await provider.getBalance(owner.address);
+            let endBalanceAlice = await provider.getBalance(alice.address);
+    
+            expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(ethers.utils.parseEther("0.03").div(BigNumber.from('100')));
+            expect(endBalanceAlice.sub(startBalanceAlice)).to.be.equal(ethers.utils.parseEther("0.03").mul(BigNumber.from('99')).div(BigNumber.from('100')));
+            
 
             // NFT was sold for ETH
 
             let tx = {
                 from: owner.address,
-                to: nft.address,
+                to: receiver.address,
                 value: ethers.utils.parseEther("1"),
                 gasLimit: 1000000
             }
@@ -421,20 +416,12 @@ describe("NFT tests", () => {
             const platformAddress = await factory.platformAddress();
             const creator = await nft.creator();
 
-            expect(await nft.getAmountTokenToPay(creator, ETH_ADDRESS)).to.be.equal(ZERO);
-            expect(await nft.getAmountTokenToPay(platformAddress, ETH_ADDRESS)).to.be.equal(ZERO);
-
             await owner.sendTransaction(tx);
-
-            expect(await nft.getAmountTokenToPay(creator, ETH_ADDRESS)).to.be.equal(ethers.utils.parseEther("1").mul(BigNumber.from('5')).div(BigNumber.from('6')));
-            expect(await nft.getAmountTokenToPay(platformAddress, ETH_ADDRESS)).to.be.equal(ethers.utils.parseEther("1").div(BigNumber.from('6')));
 
             creatorBalanceBefore = await provider.getBalance(alice.address);
             platformBalanceBefore = await provider.getBalance(platformAddress);
 
-            await nft
-                .connect(bob)
-                .withdrawAll("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
+            await receiver.connect(bob)["releaseAll()"]();
 
             creatorBalanceAfter = await provider.getBalance(alice.address);
             platformBalanceAfter = await provider.getBalance(platformAddress);
@@ -444,59 +431,18 @@ describe("NFT tests", () => {
     
             // NFT was sold for ERC20
 
-            expect(await nft.getAmountTokenToPay(creator, erc20Example.address)).to.be.equal(ZERO);
-            expect(await nft.getAmountTokenToPay(platformAddress, erc20Example.address)).to.be.equal(ZERO);
-
-            await erc20Example.connect(owner).mint(owner.address, ethers.utils.parseEther('1000'));
-            await erc20Example.connect(owner).transfer(nft.address, ethers.utils.parseEther('1'));
-
-
-            expect(await nft.getAmountTokenToPay(creator, erc20Example.address)).to.be.equal(ethers.utils.parseEther("1").mul(BigNumber.from('5')).div(BigNumber.from('6')));
-            expect(await nft.getAmountTokenToPay(platformAddress, erc20Example.address)).to.be.equal(ethers.utils.parseEther("1").div(BigNumber.from('6')));
-
             creatorBalanceBefore = await erc20Example.balanceOf(alice.address);
             platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
 
-            await nft
-                .connect(bob)
-                .withdrawAll(erc20Example.address);
+            await erc20Example.connect(owner).mint(receiver.address, ethers.utils.parseEther('1'));
+
+            await receiver.connect(bob)["releaseAll(address)"](erc20Example.address);
 
             creatorBalanceAfter = await erc20Example.balanceOf(alice.address);
             platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
 
             expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(ethers.utils.parseEther("1").mul(BigNumber.from('5')).div(BigNumber.from('6')));
             expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(ethers.utils.parseEther("1").div(BigNumber.from('6')));
-
-            message = EthCrypto.hash.keccak256([
-                { type: "address", value: alice.address },
-                { type: "uint256", value: 2 },
-                { type: "string", value: NFT_721_BASE_URI },
-            ]);
-
-            signature = EthCrypto.sign(signer.privateKey, message);
-
-            await nft
-                .connect(alice)
-                .mint(alice.address, 2, NFT_721_BASE_URI, signature, {
-                    value: ethers.utils.parseEther("0.03"),
-                });
-
-            // NFT was sold for ETH
-        
-            tx = {
-                from: owner.address,
-                to: nft.address,
-                value: ethers.utils.parseEther("1"),
-                gasLimit: 1000000
-            }
-
-            expect(await nft.getAmountTokenToPay(creator, ETH_ADDRESS)).to.be.equal(ethers.utils.parseEther("0.03").mul(BigNumber.from('99')).div(BigNumber.from('100')));
-            expect(await nft.getAmountTokenToPay(platformAddress, ETH_ADDRESS)).to.be.equal(ethers.utils.parseEther("0.03").div(BigNumber.from('100')));
-
-            await owner.sendTransaction(tx);
-
-            expect(await nft.getAmountTokenToPay(creator, ETH_ADDRESS)).to.be.equal(ethers.utils.parseEther("0.03").mul(BigNumber.from('99')).div(BigNumber.from('100')).add(ethers.utils.parseEther("1").mul(BigNumber.from('5')).div(BigNumber.from('6'))));
-            expect(await nft.getAmountTokenToPay(platformAddress, ETH_ADDRESS)).to.be.equal(ethers.utils.parseEther("0.03").div(BigNumber.from('100')).add(ethers.utils.parseEther("1").div(BigNumber.from('6'))));
 
         });
     });

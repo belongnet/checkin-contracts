@@ -16,6 +16,7 @@ contract Factory is OwnableUpgradeable {
         bool transferable;  // shows if tokens will be transferrable or not
         uint256 maxTotalSupply; // max total supply of a new collection
         uint96 feeNumerator;    // total fee amount (in BPS) of a new collection
+        address feeReceiver; // royalties receiver address
         bytes signature;    // BE's signature
     }
 
@@ -65,7 +66,7 @@ contract Factory is OwnableUpgradeable {
         InstanceInfo memory _info
     ) public returns (address) {
         require(
-            _verifySignature(_info.name, _info.symbol, _info.contractURI, _info.feeNumerator, _info.signature),
+            _verifySignature(_info.name, _info.symbol, _info.contractURI, _info.feeNumerator, _info.feeReceiver, _info.signature),
             "Invalid signature"
         );
         _createInstanceValidate(_info.name, _info.symbol);
@@ -83,7 +84,7 @@ contract Factory is OwnableUpgradeable {
             _info.symbol,
             _info.transferable,
             _info.maxTotalSupply,
-            instanceCreated,
+            _info.feeReceiver,
             _info.feeNumerator,
             _msgSender()
         );
@@ -124,6 +125,7 @@ contract Factory is OwnableUpgradeable {
         string memory symbol,   
         string memory contractURI,
         uint96 feeNumerator,
+        address feeReceiver,
         bytes memory signature
     ) public view returns (bool) {
         return
@@ -133,7 +135,8 @@ contract Factory is OwnableUpgradeable {
                         name, 
                         symbol,
                         contractURI,
-                        feeNumerator
+                        feeNumerator,
+                        feeReceiver
                     )
                 ), signature
             ) == signerAddress;

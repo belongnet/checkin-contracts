@@ -65,6 +65,8 @@ describe('NFT tests', () => {
                 { type: "string", value: nftSymbol },
                 { type: "string", value: contractURI },
                 { type: "uint96", value: BigNumber.from('500') },
+                { type: "address", value: owner.address },
+
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
@@ -79,6 +81,7 @@ describe('NFT tests', () => {
                     true,
                     BigNumber.from('1000'),
                     BigNumber.from('500'),
+                    owner.address,
                     signature
                 ]
             );
@@ -125,6 +128,8 @@ describe('NFT tests', () => {
                 { type: "string", value: nftSymbol1 },
                 { type: "string", value: contractURI1 },
                 { type: "uint96", value: BigNumber.from('500') },
+                { type: "address", value: owner.address },
+
             ]);
 
             const signature1 = EthCrypto.sign(signer.privateKey, message1);
@@ -139,6 +144,7 @@ describe('NFT tests', () => {
                     true,
                     BigNumber.from('1000'),
                     BigNumber.from('500'),
+                    owner.address,
                     signature1
                 ]
             );
@@ -148,6 +154,8 @@ describe('NFT tests', () => {
                 { type: "string", value: nftSymbol2 },
                 { type: "string", value: contractURI2 },
                 { type: "uint96", value: BigNumber.from('500') },
+                { type: "address", value: owner.address },
+
 
             ]);
 
@@ -163,6 +171,7 @@ describe('NFT tests', () => {
                     true,
                     BigNumber.from('1000'),
                     BigNumber.from('500'),
+                    owner.address,
                     signature2
                 ]
             );
@@ -171,7 +180,9 @@ describe('NFT tests', () => {
                 { type: "string", value: nftName3 },
                 { type: "string", value: nftSymbol3 },
                 { type: "string", value: contractURI3 },
-                { type: "uint96", value: BigNumber.from('500') }
+                { type: "uint96", value: BigNumber.from('500') },
+                { type: "address", value: owner.address },
+
 
             ]);
 
@@ -187,6 +198,7 @@ describe('NFT tests', () => {
                     true,
                     BigNumber.from('1000'),
                     BigNumber.from('500'),
+                    owner.address,
                     signature3
                 ]
             );
@@ -272,6 +284,7 @@ describe('NFT tests', () => {
                 { type: "string", value: nftSymbol },
                 { type: "string", value: contractURI },
                 { type: "uint96", value: BigNumber.from('500') },
+                { type: "address", value: owner.address },
 
             ]);
 
@@ -287,6 +300,7 @@ describe('NFT tests', () => {
                     true,
                     BigNumber.from('1000'),
                     BigNumber.from('500'),
+                    owner.address,
                     signature
                 ]
             );
@@ -302,6 +316,7 @@ describe('NFT tests', () => {
                         true,
                         BigNumber.from('1000'),
                         BigNumber.from('500'),    
+                        owner.address,
                         signature
                     ]
                 )
