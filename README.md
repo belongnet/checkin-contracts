@@ -73,10 +73,29 @@ Belong NFT contains the following entities:
 9. string contractURI - Contract URI (for OpenSea)
 10. address constant ETH - mock ETH address  
 11. metadataUri - token ID -> metadata link mapping
+12. creationTs - token ID -> the timestamp of token creation mapping
+13. collectionExpire - The period of time in which collection is expired (for the BE)
 
 ##### 2.2.1.2. Functions
+
+Belong NFT contains the following struct:
+    /// @param _storageContract Contract that stores data
+    /// @param _payingToken Address of ERC20 paying token or ETH address declared above
+    /// @param _mintPrice Mint price
+    /// @param _contractURI Contract URI
+    /// @param _erc721name Name of ERC721 token
+    /// @param _erc721shortName Symbol of ERC721 token
+    /// @param _transferable Is tokens transferrable or not
+    /// @param _maxTotalSupply Max total supply
+    /// @param _feeReceiver Fee receiver
+    /// @param _feeNumerator Fee numerator
+    /// @param _collectionExpire The period of time in which collection is expired (for the BE)
+    /// @param _creator Creator address
+
+
 Belong NFT has the following functions:
 1. initialize(
+    [
         address _storageContract,
         address _payingToken,
         uint256 _mintPrice,
@@ -88,6 +107,7 @@ Belong NFT has the following functions:
         address _feeReceiver,
         uint96 _feeNumerator,
         address _creator
+    ]
 ): Handles configurations and sets related parameters
 2. mint(
     address reciever,

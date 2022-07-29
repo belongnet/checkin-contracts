@@ -16,6 +16,22 @@ import "hardhat/console.sol";
 /// @notice this contract does not have constructor and requires to call initialize
 
 contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981Upgradeable {
+
+    struct Parameters {
+        address storageContract;    // Address of the storage contract
+        address payingToken;    // Address of ERC20 paying token or ETH address declared above
+        uint256 mintPrice;  // Mint price
+        uint256 whitelistMintPrice; // Mint price for whitelisted users
+        string contractURI; // Contract URI (for OpenSea)
+        string erc721name;  // The name of the collection 
+        string erc721shortName; // The symbol of the collection
+        bool transferable;  //  Flag if the tokens transferable or not
+        uint256 maxTotalSupply; // The max amount of tokens to be minted
+        address feeReceiver;    // The receiver of the royalties
+        uint96 feeNumerator;    // Fee numerator
+        uint256 collectionExpire;   // The period of time in which collection is expired (for the BE)
+        address creator;    // Creator address
+    }
     
     address public payingToken; // Current token accepted as a mint payment
     address public storageContract; // Storage contract address
@@ -27,13 +43,14 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     uint96 public totalRoyalty; // Royalty fraction for platform + Royalty fraction for creator
     address public creator; // Creator address
 
-
-
     string public contractURI;  // Contract URI (for OpenSea)
+
+    uint256 public collectionExpire;    // The period of time in which collection is expired (for the BE)
 
     address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;  
 
     mapping(uint256 => string) public metadataUri;  // token ID -> metadata link
+    mapping(uint256 => uint256) public creationTs;  // token ID -> creation Ts
 
     event Withdrawn(address who, address token, uint256 amountForCreator, uint256 amountForPlatform);
     event EthReceived(address who, uint256 amount);
@@ -42,43 +59,23 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     event WhitelistedPriceChanged(uint256 oldPrice, uint256 newPrice);
 
     /// @dev initialize is called by factory when deployed
-    /// @param _storageContract Contract that stores data
-    /// @param _payingToken Address of ERC20 paying token or ETH address declared above
-    /// @param _mintPrice Mint price
-    /// @param _contractURI Contract URI
-    /// @param _erc721name Name of ERC721 token
-    /// @param _erc721shortName Symbol of ERC721 token
-    /// @param _transferable Is tokens transferrable or not
-    /// @param _maxTotalSupply Max total supply
-    /// @param _feeReceiver Fee receiver
-    /// @param _feeNumerator Fee numerator
-    /// @param _creator Creator address
+    /// @param _params Collection parameters
     function initialize(
-        address _storageContract,
-        address _payingToken,
-        uint256 _mintPrice,
-        uint256 _whitelistMintPrice,
-        string memory _contractURI,
-        string memory _erc721name,
-        string memory _erc721shortName,
-        bool _transferable,
-        uint256 _maxTotalSupply,
-        address _feeReceiver,
-        uint96 _feeNumerator,
-        address _creator
+        Parameters memory _params
     ) public initializer {
-        __ERC721_init(_erc721name, _erc721shortName);
+        __ERC721_init(_params.erc721name, _params.erc721shortName);
         __Ownable_init();
-        payingToken = _payingToken;
-        mintPrice = _mintPrice;
-        whitelistMintPrice = _whitelistMintPrice;
-        contractURI = _contractURI;
-        storageContract = _storageContract;
-        transferable = _transferable;
-        maxTotalSupply = _maxTotalSupply;
-        _setDefaultRoyalty(_feeReceiver, _feeNumerator);
-        totalRoyalty = _feeNumerator;
-        creator = _creator;
+        payingToken = _params.payingToken;
+        mintPrice = _params.mintPrice;
+        whitelistMintPrice = _params.whitelistMintPrice;
+        contractURI = _params.contractURI;
+        storageContract = _params.storageContract;
+        transferable = _params.transferable;
+        maxTotalSupply = _params.maxTotalSupply;
+        _setDefaultRoyalty(_params.feeReceiver, _params.feeNumerator);
+        totalRoyalty = _params.feeNumerator;
+        creator = _params.creator;
+        collectionExpire = _params.collectionExpire;
     }
 
     /// @dev mints ERC721 token
@@ -104,6 +101,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         _mint(reciever, tokenId);
         totalSupply++;
         metadataUri[tokenId] = tokenUri;
+        creationTs[tokenId] = block.timestamp;
 
         uint256 amount;
         address payingToken_ = payingToken;
@@ -112,14 +110,13 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         uint8 feeBPs = IFactory(IStorageContract(storageContract).factory())
             .platformCommission();
         uint256 price = whitelisted ? whitelistMintPrice : mintPrice;
-        console.log("price              = ", price);
-        console.log("whitelistMintPrice = ", whitelistMintPrice);
-        console.log("mintPrice          = ", mintPrice);
         address platformAddress = IFactory(IStorageContract(storageContract).factory()).platformAddress();
         if (payingToken_ == ETH) {
             require(msg.value >= price, "Not enough ether sent");
             amount = msg.value;
-            if (feeBPs != 0) {
+            if (feeBPs == 0) {
+                payable(creator).transfer(amount);
+            } else {
                 fee = (amount * uint256(feeBPs)) / _feeDenominator();
                 payable(platformAddress).transfer(fee);
                 payable(creator).transfer(amount - fee);
@@ -127,8 +124,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         } else {
             amount = price;
             if (feeBPs == 0) {
-                console.log("amount = ", amount);
-                IERC20(payingToken_).transferFrom(msg.sender, address(this), amount);
+                IERC20(payingToken_).transferFrom(msg.sender, creator, amount);
             } else {
                 fee = (amount * uint256(feeBPs)) / _feeDenominator();
                 IERC20(payingToken_).transferFrom(msg.sender, platformAddress, fee);

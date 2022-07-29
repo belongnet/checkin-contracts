@@ -18,6 +18,7 @@ contract Factory is OwnableUpgradeable {
         uint256 maxTotalSupply; // max total supply of a new collection
         uint96 feeNumerator;    // total fee amount (in BPS) of a new collection
         address feeReceiver; // royalties receiver address
+        uint256 collectionExpire;   // The period of time in which collection is expired (for the BE)
         bytes signature;    // BE's signature
     }
 
@@ -76,7 +77,7 @@ contract Factory is OwnableUpgradeable {
             instanceCreated != address(0),
             "Factory: INSTANCE_CREATION_FAILED"
         );
-        NFT(payable(instanceCreated)).initialize(
+        NFT.Parameters memory params = NFT.Parameters(
             storageContract,
             _info.payingToken,
             _info.mintPrice,
@@ -88,8 +89,10 @@ contract Factory is OwnableUpgradeable {
             _info.maxTotalSupply,
             _info.feeReceiver,
             _info.feeNumerator,
+            _info.collectionExpire,
             _msgSender()
         );
+        NFT(payable(instanceCreated)).initialize(params);
         return instanceCreated;
     }
 

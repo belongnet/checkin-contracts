@@ -151,7 +151,7 @@ describe("NFT tests", () => {
             expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
         });
 
-        it.only("Should mint correctly with erc20 token if user in the WL", async () => {
+        it("Should mint correctly with erc20 token if user in the WL", async () => {
             const Erc20Example = await ethers.getContractFactory(
                 "erc20Example"
             );
