@@ -20,11 +20,14 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     address public payingToken; // Current token accepted as a mint payment
     address public storageContract; // Storage contract address
     uint256 public mintPrice;   // Mint price
+    uint256 public whitelistMintPrice;   // Mint price for whitelisted users
     bool public transferable;   // Flag if the tokens transferable or not
     uint256 public totalSupply; // The current totalSupply
     uint256 public maxTotalSupply;  // The max amount of tokens to be minted
     uint96 public totalRoyalty; // Royalty fraction for platform + Royalty fraction for creator
     address public creator; // Creator address
+
+
 
     string public contractURI;  // Contract URI (for OpenSea)
 
@@ -36,6 +39,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     event EthReceived(address who, uint256 amount);
     event PayingTokenChanged(address oldToken, address newToken);
     event PriceChanged(uint256 oldPrice, uint256 newPrice);
+    event WhitelistedPriceChanged(uint256 oldPrice, uint256 newPrice);
 
     /// @dev initialize is called by factory when deployed
     /// @param _storageContract Contract that stores data
@@ -53,6 +57,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         address _storageContract,
         address _payingToken,
         uint256 _mintPrice,
+        uint256 _whitelistMintPrice,
         string memory _contractURI,
         string memory _erc721name,
         string memory _erc721shortName,
@@ -66,6 +71,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         __Ownable_init();
         payingToken = _payingToken;
         mintPrice = _mintPrice;
+        whitelistMintPrice = _whitelistMintPrice;
         contractURI = _contractURI;
         storageContract = _storageContract;
         transferable = _transferable;
@@ -85,10 +91,11 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         address reciever,
         uint256 tokenId,
         string calldata tokenUri,
+        bool whitelisted,
         bytes calldata signature
     ) external payable nonReentrant {
         require(
-            _verifySignature(reciever, tokenId, tokenUri, signature),
+            _verifySignature(reciever, tokenId, tokenUri, whitelisted, signature),
             "Invalid signature"
         );
 
@@ -101,14 +108,16 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         uint256 amount;
         address payingToken_ = payingToken;
 
-
         uint256 fee;
         uint8 feeBPs = IFactory(IStorageContract(storageContract).factory())
             .platformCommission();
-
+        uint256 price = whitelisted ? whitelistMintPrice : mintPrice;
+        console.log("price              = ", price);
+        console.log("whitelistMintPrice = ", whitelistMintPrice);
+        console.log("mintPrice          = ", mintPrice);
         address platformAddress = IFactory(IStorageContract(storageContract).factory()).platformAddress();
         if (payingToken_ == ETH) {
-            require(msg.value >= mintPrice, "Not enough ether sent");
+            require(msg.value >= price, "Not enough ether sent");
             amount = msg.value;
             if (feeBPs != 0) {
                 fee = (amount * uint256(feeBPs)) / _feeDenominator();
@@ -116,8 +125,9 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
                 payable(creator).transfer(amount - fee);
             }
         } else {
-            amount = mintPrice;
+            amount = price;
             if (feeBPs == 0) {
+                console.log("amount = ", amount);
                 IERC20(payingToken_).transferFrom(msg.sender, address(this), amount);
             } else {
                 fee = (amount * uint256(feeBPs)) / _feeDenominator();
@@ -158,7 +168,15 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         uint256 oldPrice = mintPrice;
         mintPrice = _mintPrice;
         emit PriceChanged(oldPrice, _mintPrice);
+    }
 
+    /// @dev sets whitelisted mint price
+    /// @param _whitelistMintPrice New whitelisted mint price
+    function setWhitelistMintPrice(uint256 _whitelistMintPrice) external {
+        require(_msgSender() == creator, "not creator");
+        uint256 oldPrice = whitelistMintPrice;
+        whitelistMintPrice = _whitelistMintPrice;
+        emit WhitelistedPriceChanged(oldPrice, _whitelistMintPrice);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC2981Upgradeable, ERC721Upgradeable) returns (bool) {
@@ -178,6 +196,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         address receiver,
         uint256 tokenId,
         string memory tokenUri,
+        bool whitelisted,
         bytes memory signature
     ) public view returns (bool) {
         return
@@ -186,7 +205,8 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
                     abi.encodePacked(
                         receiver, 
                         tokenId,
-                        tokenUri
+                        tokenUri,
+                        whitelisted
                     )
                 ), signature
             ) == IFactory(IStorageContract(storageContract).factory()).signerAddress();

@@ -2,10 +2,11 @@
 pragma solidity 0.8.13;
 
 import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract RoyaltiesReceiver is Context {
+contract RoyaltiesReceiver is Context, Initializable {
 
     event PayeeAdded(address account, uint256 shares);
     event PaymentReleased(address to, uint256 amount);
@@ -23,15 +24,16 @@ contract RoyaltiesReceiver is Context {
     mapping(IERC20 => mapping(address => uint256)) private _erc20Released;
 
     /**
-     * @dev Creates an instance of `PaymentSplitter` where each account in `payees` is assigned the number of shares at
+     * @dev Initiates an instance of `RoyaltiesReceiver` where each account in `payees` is assigned the number of shares at
      * the matching position in the `shares` array.
      *
      * All addresses in `payees` must be non-zero. Both arrays must have the same non-zero length, and there must be no
      * duplicates in `payees`.
      */
-    constructor(address[] memory payees, uint256[] memory shares_) payable {
-        require(payees.length == shares_.length, "PaymentSplitter: payees and shares length mismatch");
-        require(payees.length > 0, "PaymentSplitter: no payees");
+
+    function initialize(address[] memory payees, uint256[] memory shares_) external payable initializer {
+        require(payees.length == shares_.length, "RoyaltiesReceiver: payees and shares length mismatch");
+        require(payees.length > 0, "RoyaltiesReceiver: no payees");
 
         for (uint256 i = 0; i < payees.length; i++) {
             _addPayee(payees[i], shares_[i]);

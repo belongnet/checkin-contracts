@@ -12,7 +12,8 @@ contract Factory is OwnableUpgradeable {
         string symbol;  // symbol of a new collection
         string contractURI; // contract URI of a new collection
         address payingToken;    // paying token of a new collection
-        uint256 mintPrice;  // mint price ofany token of a new collection
+        uint256 mintPrice;  // mint price of a token from a new collection
+        uint256 whitelistMintPrice;  // mint price of a token from a new collection for whitelisted users
         bool transferable;  // shows if tokens will be transferrable or not
         uint256 maxTotalSupply; // max total supply of a new collection
         uint96 feeNumerator;    // total fee amount (in BPS) of a new collection
@@ -79,6 +80,7 @@ contract Factory is OwnableUpgradeable {
             storageContract,
             _info.payingToken,
             _info.mintPrice,
+            _info.whitelistMintPrice,
             _info.contractURI,
             _info.name,
             _info.symbol,
