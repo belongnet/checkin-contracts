@@ -49,7 +49,6 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     mapping(uint256 => string) public metadataUri;  // token ID -> metadata link
     mapping(uint256 => uint256) public creationTs;  // token ID -> creation Ts
 
-    event Withdrawn(address who, address token, uint256 amountForCreator, uint256 amountForPlatform);
     event EthReceived(address who, uint256 amount);
     event PayingTokenChanged(address oldToken, address newToken);
     event PriceChanged(uint256 oldPrice, uint256 newPrice);

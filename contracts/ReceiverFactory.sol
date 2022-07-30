@@ -5,8 +5,6 @@ import "./RoyaltiesReceiver.sol";
 
 contract ReceiverFactory {
 
-    address[] public receivers;
-
     event ReceiverCreated(
         address creator,
         address instance,
