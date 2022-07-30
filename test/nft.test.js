@@ -63,7 +63,22 @@ describe("NFT tests", () => {
 
         await factory
             .connect(alice)
-            .produce([nftName, nftSymbol, contractURI, ETH_ADDRESS, price, price, true, BigNumber.from('1000'), BigNumber.from('600'), owner.address, signature]);
+            .produce(
+                [
+                nftName, 
+                nftSymbol, 
+                contractURI, 
+                ETH_ADDRESS, 
+                price, 
+                price, 
+                true, 
+                BigNumber.from('1000'), 
+                BigNumber.from('600'), 
+                owner.address, 
+                BigNumber.from('86400'), 
+                signature
+            ]
+        );
 
         const hash = EthCrypto.hash.keccak256([
             { type: "string", value: nftName },
@@ -93,9 +108,6 @@ describe("NFT tests", () => {
 
             const signature = EthCrypto.sign(signer.privateKey, message);
 
-            console.log("message = ", message);
-            console.log("signer = ", signer.address);
-
             await nft
                 .connect(alice)
                 .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, {
@@ -115,18 +127,21 @@ describe("NFT tests", () => {
             await nft
                 .connect(owner)
                 .initialize(
-                    storage.address,
-                    erc20Example.address,
-                    100,
-                    100,
-                    "ContractURI",
-                    "coolName",
-                    "CNME",
-                    true,
-                    BigNumber.from('1000'),
-                    nft.address,
-                    BigNumber.from('600'),
-                    alice.address  
+                    [
+                        storage.address,
+                        erc20Example.address,
+                        100,
+                        100,
+                        "ContractURI",
+                        "coolName",
+                        "CNME",
+                        true,
+                        BigNumber.from('1000'),
+                        nft.address,
+                        BigNumber.from('600'),
+                        BigNumber.from('86400'),
+                        alice.address  
+                    ]
                 ); // 100 - very small amount in wei!
 
             // mint test tokens
@@ -163,18 +178,21 @@ describe("NFT tests", () => {
             await nft
                 .connect(owner)
                 .initialize(
-                    storage.address,
-                    erc20Example.address,
-                    ethers.utils.parseEther('100'),
-                    ethers.utils.parseEther('50'),
-                    "ContractURI",
-                    "coolName",
-                    "CNME",
-                    true,
-                    BigNumber.from('1000'),
-                    nft.address,
-                    BigNumber.from('600'),
-                    bob.address  
+                    [
+                        storage.address,
+                        erc20Example.address,
+                        ethers.utils.parseEther('100'),
+                        ethers.utils.parseEther('50'),
+                        "ContractURI",
+                        "coolName",
+                        "CNME",
+                        true,
+                        BigNumber.from('1000'),
+                        nft.address,
+                        BigNumber.from('600'),
+                        BigNumber.from('86400'),
+                        bob.address  
+                    ]
                 ); // 100 - very small amount in wei!
                 
             // mint test tokens
@@ -194,15 +212,11 @@ describe("NFT tests", () => {
             const signature = EthCrypto.sign(signer.privateKey, message);
             const aliceBalanceBefore = await erc20Example.balanceOf(alice.address);
             const bobBalanceBefore = await erc20Example.balanceOf(bob.address);
-            console.log("aliceBalanceBefore = ", aliceBalanceBefore.toString())
-            console.log("wl price = ", await nft.whitelistMintPrice());
             await nft
                 .connect(alice)
                 .mint(alice.address, 1, NFT_721_BASE_URI, true, signature);
             const aliceBalanceAfter = await erc20Example.balanceOf(alice.address);
             const bobBalanceAfter = await erc20Example.balanceOf(bob.address);
-            console.log("bobBalanceBefore = ", bobBalanceBefore);
-            console.log("bobBalanceAfter = ", bobBalanceAfter);
 
             expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
 
@@ -261,18 +275,21 @@ describe("NFT tests", () => {
             await nft
                 .connect(owner)
                 .initialize(
-                    storage.address,
-                    erc20Example.address,
-                    100,
-                    100,
-                    "ContractURI",
-                    "coolName",
-                    "CNME",
-                    true,
-                    BigNumber.from('1000'),
-                    nft.address,
-                    BigNumber.from('600'),
-                    alice.address 
+                    [
+                        storage.address,
+                        erc20Example.address,
+                        100,
+                        100,
+                        "ContractURI",
+                        "coolName",
+                        "CNME",
+                        true,
+                        BigNumber.from('1000'),
+                        nft.address,
+                        BigNumber.from('600'),
+                        BigNumber.from('86400'),
+                        alice.address 
+                    ]
                 ); // 100 - very small amount in wei!
 
             await erc20Example
@@ -324,18 +341,21 @@ describe("NFT tests", () => {
             await nft
                 .connect(owner)
                 .initialize(
-                    storage.address,
-                    "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-                    ethers.utils.parseEther("0.03"),
-                    ethers.utils.parseEther("0.03"),
-                    "contractURI",
-                    "coolName",
-                    "CNME",
-                    true,
-                    BigNumber.from('1000'),
-                    nft.address,
-                    BigNumber.from('600'),
-                    alice.address
+                    [
+                        storage.address,
+                        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                        ethers.utils.parseEther("0.03"),
+                        ethers.utils.parseEther("0.03"),
+                        "contractURI",
+                        "coolName",
+                        "CNME",
+                        true,
+                        BigNumber.from('1000'),
+                        nft.address,
+                        BigNumber.from('600'),
+                        BigNumber.from('86400'),
+                        alice.address
+                    ]
                 );
             const NFT_721_BASE_URI = "test.com/";
 
@@ -368,18 +388,21 @@ describe("NFT tests", () => {
             await nft
                 .connect(owner)
                 .initialize(
-                    storage.address,
-                    "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-                    ethers.utils.parseEther("0.03"),
-                    ethers.utils.parseEther("0.03"),
-                    "contractURI",
-                    "coolName",
-                    "CNME",
-                    true,
-                    BigNumber.from('1000'),
-                    nft.address,
-                    BigNumber.from('600'),
-                    alice.address  
+                    [
+                        storage.address,
+                        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                        ethers.utils.parseEther("0.03"),
+                        ethers.utils.parseEther("0.03"),
+                        "contractURI",
+                        "coolName",
+                        "CNME",
+                        true,
+                        BigNumber.from('1000'),
+                        nft.address,
+                        BigNumber.from('600'),
+                        BigNumber.from('86400'),
+                        alice.address  
+                    ]
                 );
             const NFT_721_BASE_URI = "test.com/";
 
@@ -430,18 +453,21 @@ describe("NFT tests", () => {
             await nft
                 .connect(owner)
                 .initialize(
-                    storage.address,
-                    "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-                    ethers.utils.parseEther("0.03"),
-                    ethers.utils.parseEther("0.03"),
-                    "contractURI",
-                    "coolName",
-                    "CNME",
-                    true,
-                    BigNumber.from('1000'),
-                    receiver.address,
-                    BigNumber.from('600'),
-                    alice.address 
+                    [
+                        storage.address,
+                        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                        ethers.utils.parseEther("0.03"),
+                        ethers.utils.parseEther("0.03"),
+                        "contractURI",
+                        "coolName",
+                        "CNME",
+                        true,
+                        BigNumber.from('1000'),
+                        receiver.address,
+                        BigNumber.from('600'),
+                        BigNumber.from('86400'),
+                        alice.address 
+                    ]   
                 );
 
             const Erc20Example = await ethers.getContractFactory(

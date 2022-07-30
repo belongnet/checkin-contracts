@@ -15,7 +15,7 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 
 
-describe('NFT tests', () => {
+describe('Factory tests', () => {
         let nft;
         let factory;
         let storage;
@@ -83,6 +83,7 @@ describe('NFT tests', () => {
                     BigNumber.from('1000'),
                     BigNumber.from('500'),
                     owner.address,
+                    BigNumber.from('86400'),
                     signature
                 ]
             );
@@ -147,6 +148,7 @@ describe('NFT tests', () => {
                     BigNumber.from('1000'),
                     BigNumber.from('500'),
                     owner.address,
+                    BigNumber.from('86400'),
                     signature1
                 ]
             );
@@ -175,6 +177,7 @@ describe('NFT tests', () => {
                     BigNumber.from('1000'),
                     BigNumber.from('500'),
                     owner.address,
+                    BigNumber.from('86400'),
                     signature2
                 ]
             );
@@ -203,6 +206,7 @@ describe('NFT tests', () => {
                     BigNumber.from('1000'),
                     BigNumber.from('500'),
                     owner.address,
+                    BigNumber.from('86400'),
                     signature3
                 ]
             );
@@ -306,6 +310,7 @@ describe('NFT tests', () => {
                     BigNumber.from('1000'),
                     BigNumber.from('500'),
                     owner.address,
+                    BigNumber.from('86400'),
                     signature
                 ]
             );
@@ -323,6 +328,7 @@ describe('NFT tests', () => {
                         BigNumber.from('1000'),
                         BigNumber.from('500'),    
                         owner.address,
+                        BigNumber.from('86400'),
                         signature
                     ]
                 )

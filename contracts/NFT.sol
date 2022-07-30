@@ -10,8 +10,6 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IStorageContract.sol";
 
-import "hardhat/console.sol";
-
 /// @title Contract that allow to mint ERC721 token with diffrent payment options and security advancements
 /// @notice this contract does not have constructor and requires to call initialize
 
@@ -19,7 +17,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
 
     struct Parameters {
         address storageContract;    // Address of the storage contract
-        address payingToken;    // Address of ERC20 paying token or ETH address declared above
+        address payingToken;    // Address of ERC20 paying token or ETH address (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)
         uint256 mintPrice;  // Mint price
         uint256 whitelistMintPrice; // Mint price for whitelisted users
         string contractURI; // Contract URI (for OpenSea)
@@ -42,10 +40,9 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     uint256 public maxTotalSupply;  // The max amount of tokens to be minted
     uint96 public totalRoyalty; // Royalty fraction for platform + Royalty fraction for creator
     address public creator; // Creator address
+    uint256 public collectionExpire;    // The period of time in which collection is expired (for the BE)
 
     string public contractURI;  // Contract URI (for OpenSea)
-
-    uint256 public collectionExpire;    // The period of time in which collection is expired (for the BE)
 
     address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;  
 
@@ -83,6 +80,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     /// @param reciever Address that gets ERC721 token
     /// @param tokenId Id of a ERC721 token that is going to be minted
     /// @param tokenUri Metadata URI of the ERC721 token
+    /// @param whitelisted A flag if the user whitelisted or not
     /// @param signature Signature of the trusted address
     function mint(
         address reciever,
@@ -144,6 +142,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         return metadataUri[_tokenId];
     }
 
+    /// @notice owner() function overriding for OpenSea
     function owner() public view override returns (address) {
         return IFactory(IStorageContract(storageContract).factory()).platformAddress();
     }

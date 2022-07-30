@@ -68,7 +68,14 @@ contract Factory is OwnableUpgradeable {
         InstanceInfo memory _info
     ) public returns (address) {
         require(
-            _verifySignature(_info.name, _info.symbol, _info.contractURI, _info.feeNumerator, _info.feeReceiver, _info.signature),
+            _verifySignature(
+                _info.name, 
+                _info.symbol, 
+                _info.contractURI,
+                _info.feeNumerator, 
+                _info.feeReceiver, 
+                _info.signature
+            ),
             "Invalid signature"
         );
         _createInstanceValidate(_info.name, _info.symbol);
