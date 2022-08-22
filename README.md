@@ -1,5 +1,21 @@
 # Belong.net
 
+## Usage
+
+Rename .env.example to .env and fill all the fields there
+### Deploy 
+    yarn
+    npx hardhat --network <network_name> run ./scripts/deploy.js 
+
+signer and platformAddress need to be specified first. ReceiverFactory, Factory and StorageContract will be deployed.
+
+### Verification 
+    yarn
+    npx hardhat --network <network_name> verify <ReceiverFactory address>
+    npx hardhat --network <network_name> verify <Factory address>
+    npx hardhat --network <network_name> verify <StorageContract address>
+
+
 ## Project Overview
 
 The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. The factory implementation can be changed so the information about deployed collections is stored in the separate Storage contract. Factory will be deployed via proxy.
@@ -28,6 +44,12 @@ Belong NFT project has the following features:
 * Set factory address in the Storage contract (The owner)
 
 ### 1.3 Use Cases
+
+At the beginning, three smart contracts are deployed at the network:
+- ReceiverFactory (creates instanses of royalties receivers)
+- Factory (creates instanses of NFT collections)
+- StorageContract (stores the information about all deployed NFT collections)
+
 #### Collection creation
 1. User specifies the settings of his collection (name, symbol, contractURI with royalty information, mint price, whitelisted mint price, paying token, royalties and “transferable” flag) on the front-end
 2. User deploys the RoyaltiesReceiver contract with deployReceiver() function of ReceiverFactory contract. BE (which is subscribed to the ReceiverFactory's events) checks it it was deployed.
@@ -117,7 +139,7 @@ Produces new instances of NFT contract and registers them in the StorageContract
 ##### 2.2.2.1. Assets
 Belong NFT Factory contains the following struct:
 
-struct InstanceInfo {
+    struct InstanceInfo {
         string name;    - name of a new collection
         string symbol;  - symbol of a new collection
         string contractURI; - contract URI of a new collection
@@ -126,9 +148,9 @@ struct InstanceInfo {
         bool transferable;  - shows if tokens will be transferrable or not
         uint256 maxTotalSupply; - max total supply of a new collection
         address feeReceiver;    - royalties receiver for the collection (must be RoyaltiesReceiver contract address)
-        uint96 feeNumerator;    - total fee amount (in BPS) of a new collection
+        uint96 feeNumerator;    - total fee amount (in BPs - base points, 0.01%) of a new collection (sum of creator royalties BPs and platform royalties BPs). Must be <= 1000 (10%)
         bytes signature;    - BE's signature
-}
+    }
 
 This structure should be passed to the produce function to deploy a new NFT collection
 
@@ -197,9 +219,14 @@ They were replaced with the following functions:
 
 #### 2.2.4. ReceiverFactory.sol
 Deploys RoyaltiesReceiver instances 
-##### 2.2.1.1. Assets
--
-##### 2.2.1.2. Functions
-deployReceiver(address[] memory payees, uint256[] memory shares_) - Deploys instance of RoyaltiesReceiver with specified fee receiver addresses and their shares
+##### 2.2.1.1. Functions
+deployReceiver(address[] memory payees, uint256[] memory shares_) - Deploys instance of RoyaltiesReceiver with specified fee receiver addresses and their shares. In our case, the receivers will be a creator and the platform address. The sum of both shares must be equal to 10000. Because of that the specified creator royalties and platform fees must be converted to shares with the next formulas:
+
+    platform_shares = 10000/(x/p + 1)
+    creator_shares = 10000 - platform_shares
+
+    where x - creators’s BPs (input on FE)
+    p - platform fee BPs (default is 100)
+
 
 
