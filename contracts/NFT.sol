@@ -111,7 +111,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
 
         address platformAddress = IFactory(IStorageContract(storageContract).factory()).platformAddress();
         if (payingToken_ == ETH) {
-            require(msg.value >= price, "Not enough ether sent");
+            require(msg.value == price, "Not enough ether sent");
             amount = msg.value;
             if (feeBPs == 0) {
                 payable(creator).transfer(amount);
