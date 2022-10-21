@@ -35,7 +35,7 @@ module.exports = {
     goerli: {
       url: goerliURL,
       chainId: 5,
-      gasPrice: 1000,
+      gasPrice: "auto",
       accounts: {mnemonic: process.env.MNEMONIC},
       saveDeployments: true
     },

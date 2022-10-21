@@ -86,7 +86,8 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         uint256 tokenId,
         string calldata tokenUri,
         bool whitelisted,
-        bytes calldata signature
+        bytes calldata signature,
+        uint256 _expectedMintPrice
     ) external payable nonReentrant {
         require(
             _verifySignature(reciever, tokenId, tokenUri, whitelisted, signature),
@@ -107,6 +108,8 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         uint8 feeBPs = IFactory(IStorageContract(storageContract).factory())
             .platformCommission();
         uint256 price = whitelisted ? whitelistMintPrice : mintPrice;
+        require(_expectedMintPrice == price, "price changed");
+
         address platformAddress = IFactory(IStorageContract(storageContract).factory()).platformAddress();
         if (payingToken_ == ETH) {
             require(msg.value >= price, "Not enough ether sent");

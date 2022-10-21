@@ -110,7 +110,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, {
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
                     value: ethers.utils.parseEther("0.03"),
                 });
         });
@@ -162,7 +162,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature);
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100);
             expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
         });
 
@@ -214,7 +214,7 @@ describe("NFT tests", () => {
             const bobBalanceBefore = await erc20Example.balanceOf(bob.address);
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, true, signature);
+                .mint(alice.address, 1, NFT_721_BASE_URI, true, signature, ethers.utils.parseEther('50'));
             const aliceBalanceAfter = await erc20Example.balanceOf(alice.address);
             const bobBalanceAfter = await erc20Example.balanceOf(bob.address);
 
@@ -238,7 +238,7 @@ describe("NFT tests", () => {
             await expect(
                 nft
                     .connect(alice)
-                    .mint(alice.address, 1, NFT_721_BASE_URI, false, bad_signature, {
+                    .mint(alice.address, 1, NFT_721_BASE_URI, false, bad_signature, ethers.utils.parseEther("0.03"), {
                         value: ethers.utils.parseEther("0.03"),
                     })
             ).to.be.reverted;
@@ -258,7 +258,7 @@ describe("NFT tests", () => {
             await expect(
                 nft
                     .connect(alice)
-                    .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, {
+                    .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.02"), {
                         value: ethers.utils.parseEther("0.02"),
                     })
             ).to.be.reverted;
@@ -308,7 +308,7 @@ describe("NFT tests", () => {
             await expect(
                 nft
                     .connect(alice)
-                    .mint(alice.address, 1, NFT_721_BASE_URI, false, signature)
+                    .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100)
             ).to.be.reverted;
         });
     });
@@ -327,7 +327,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, {
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
                     value: ethers.utils.parseEther("0.03"),
                 });
             expect(await nft.tokenURI(1)).to.be.deep.equal("test.com/1");
@@ -373,7 +373,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, {
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
                     value: ethers.utils.parseEther("0.03"),
                 });
 
@@ -421,7 +421,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(bob)
-                .mint(bob.address, 1, NFT_721_BASE_URI, false, signature, {
+                .mint(bob.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
                     value: ethers.utils.parseEther("0.03"),
                 });
             expect(await factory.platformAddress()).to.be.equal(owner.address);
@@ -494,7 +494,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(bob)
-                .mint(bob.address, 1, NFT_721_BASE_URI, false, signature, {
+                .mint(bob.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
                     value: ethers.utils.parseEther("0.03"),
                 });
             
