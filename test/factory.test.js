@@ -13,6 +13,7 @@ const PLATFORM_COMISSION = "10";
 const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
+const chainid = 31337;
 
 
 describe('Factory tests', () => {
@@ -66,6 +67,8 @@ describe('Factory tests', () => {
                 { type: "string", value: contractURI },
                 { type: "uint96", value: BigNumber.from('500') },
                 { type: "address", value: owner.address },
+                { type: "uint256", value: chainid },
+
 
             ]);
 
@@ -131,6 +134,7 @@ describe('Factory tests', () => {
                 { type: "string", value: contractURI1 },
                 { type: "uint96", value: BigNumber.from('500') },
                 { type: "address", value: owner.address },
+                { type: "uint256", value: chainid },
 
             ]);
 
@@ -159,6 +163,7 @@ describe('Factory tests', () => {
                 { type: "string", value: contractURI2 },
                 { type: "uint96", value: BigNumber.from('500') },
                 { type: "address", value: owner.address },
+                { type: "uint256", value: chainid },
 
 
             ]);
@@ -188,6 +193,7 @@ describe('Factory tests', () => {
                 { type: "string", value: contractURI3 },
                 { type: "uint96", value: BigNumber.from('500') },
                 { type: "address", value: owner.address },
+                { type: "uint256", value: chainid },
 
 
             ]);
@@ -293,6 +299,7 @@ describe('Factory tests', () => {
                 { type: "string", value: contractURI },
                 { type: "uint96", value: BigNumber.from('500') },
                 { type: "address", value: owner.address },
+                { type: "uint256", value: chainid },
 
             ]);
 

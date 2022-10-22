@@ -202,7 +202,8 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
                         receiver, 
                         tokenId,
                         tokenUri,
-                        whitelisted
+                        whitelisted,
+                        block.chainid
                     )
                 ), signature
             ) == IFactory(IStorageContract(storageContract).factory()).signerAddress();

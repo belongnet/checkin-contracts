@@ -9,6 +9,7 @@ const { expect } = chai;
 const BN = require("bn.js");
 const EthCrypto = require("eth-crypto");
 
+const chainid = 31337;
 
 describe("NFT tests", () => {
     let nft;
@@ -55,7 +56,8 @@ describe("NFT tests", () => {
             { type: "string", value: nftSymbol },
             { type: "string", value: contractURI },
             { type: "uint96", value: BigNumber.from('600') },
-            { type: "address", value: owner.address }
+            { type: "address", value: owner.address },
+            { type: "uint256", value: chainid },
 
         ]);
 
@@ -104,6 +106,7 @@ describe("NFT tests", () => {
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: false },
+                { type: "uint256", value: chainid },
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
@@ -156,6 +159,8 @@ describe("NFT tests", () => {
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: false },
+                { type: "uint256", value: chainid },
+
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
@@ -207,6 +212,7 @@ describe("NFT tests", () => {
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: true },
+                { type: "uint256", value: chainid },
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
@@ -232,6 +238,7 @@ describe("NFT tests", () => {
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: false },
+                { type: "uint256", value: chainid },
             ]);
             const bad_signature = EthCrypto.sign(alice.privateKey, bad_message);
 
@@ -251,6 +258,7 @@ describe("NFT tests", () => {
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: false },
+                { type: "uint256", value: chainid },
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
@@ -301,6 +309,7 @@ describe("NFT tests", () => {
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: false },
+                { type: "uint256", value: chainid },
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
@@ -321,6 +330,7 @@ describe("NFT tests", () => {
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: false },
+                { type: "uint256", value: chainid },
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
@@ -364,6 +374,7 @@ describe("NFT tests", () => {
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: false },
+                { type: "uint256", value: chainid },
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
@@ -411,6 +422,7 @@ describe("NFT tests", () => {
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: false },
+                { type: "uint256", value: chainid },
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
@@ -484,6 +496,7 @@ describe("NFT tests", () => {
                 { type: "uint256", value: 1 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: false },
+                { type: "uint256", value: chainid },
             ]);
 
             let signature = EthCrypto.sign(signer.privateKey, message);

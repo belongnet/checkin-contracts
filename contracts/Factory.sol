@@ -148,7 +148,8 @@ contract Factory is OwnableUpgradeable {
                         symbol,
                         contractURI,
                         feeNumerator,
-                        feeReceiver
+                        feeReceiver,
+                        block.chainid
                     )
                 ), signature
             ) == signerAddress;
