@@ -115,11 +115,14 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
             require(msg.value == price, "Not enough ether sent");
             amount = msg.value;
             if (feeBPs == 0) {
-                payable(creator).call{value: amount}("");
+                (bool success, ) = payable(creator).call{value: amount}("");
+                require(success, "Low-level call failed");
             } else {
                 fee = (amount * uint256(feeBPs)) / _feeDenominator();
-                payable(platformAddress).call{value: fee}("");
-                payable(creator).call{value: amount - fee}("");
+                (bool success1, ) = payable(platformAddress).call{value: fee}("");
+                (bool success2, ) = payable(creator).call{value: amount - fee}("");
+                require(success1 && success2, "Low-level call failed");
+
             }
         } else {
             amount = price;
