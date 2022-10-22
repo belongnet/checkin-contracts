@@ -56,7 +56,7 @@ contract RoyaltiesReceiver is Context, Initializable {
     /**
      * @dev Getter for the total shares held by payees.
      */
-    function totalShares() public view returns (uint256) {
+    function totalShares() external view returns (uint256) {
         return _totalShares;
     }
 
@@ -78,7 +78,7 @@ contract RoyaltiesReceiver is Context, Initializable {
     /**
      * @dev Getter for the amount of shares held by an account.
      */
-    function shares(address account) public view returns (uint256) {
+    function shares(address account) external view returns (uint256) {
         return _shares[account];
     }
 
@@ -100,7 +100,7 @@ contract RoyaltiesReceiver is Context, Initializable {
     /**
      * @dev Getter for the address of the payee number `index`.
      */
-    function payee(uint256 index) public view returns (address) {
+    function payee(uint256 index) external view returns (address) {
         require(index < _payees.length, "incorrect index");
         return _payees[index];
     }

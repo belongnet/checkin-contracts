@@ -57,7 +57,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     /// @param _params Collection parameters
     function initialize(
         Parameters memory _params
-    ) public initializer {
+    ) external initializer {
         __ERC721_init(_params.erc721name, _params.erc721shortName);
         __Ownable_init();
         __ERC2981_init();

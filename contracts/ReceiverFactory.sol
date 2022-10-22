@@ -21,7 +21,7 @@ contract ReceiverFactory {
      */
     function deployReceiver(
         address[] memory payees, uint256[] memory shares_
-    ) public returns (address) {
+    ) external returns (address) {
         RoyaltiesReceiver instance = new RoyaltiesReceiver();
         require(
             address(instance) != address(0),

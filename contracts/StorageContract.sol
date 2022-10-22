@@ -26,7 +26,7 @@ contract StorageContract is Ownable {
     */
     function getInstanceInfo(
         uint256 instanceId
-    ) public view returns(InstanceInfo memory) {
+    ) external view returns(InstanceInfo memory) {
         require(instanceId < instances.length, "incorrect ID");
         address instance = instances[instanceId];
         return _instanceInfos[instance];
