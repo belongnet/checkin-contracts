@@ -61,6 +61,10 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         __ERC721_init(_params.erc721name, _params.erc721shortName);
         __Ownable_init();
         __ERC2981_init();
+        require(_params.payingToken != address(0), "incorrect paying token address");
+        require(_params.storageContract != address(0), "incorrect storage contract address");
+        require(_params.feeReceiver != address(0), "incorrect fee receiver address");
+        require(_params.creator != address(0), "incorrect creator address");
         payingToken = _params.payingToken;
         mintPrice = _params.mintPrice;
         whitelistMintPrice = _params.whitelistMintPrice;
@@ -162,6 +166,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     /// @param _payingToken New token address
     function setPayingToken(address _payingToken) external {
         require(_msgSender() == creator, "not creator");
+        require(_payingToken != address(0), "incorrect paying token address");
         address oldToken = payingToken;
         payingToken = _payingToken;
         emit PayingTokenChanged(oldToken, _payingToken);

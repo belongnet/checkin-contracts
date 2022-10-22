@@ -45,6 +45,9 @@ contract Factory is OwnableUpgradeable {
         address _storageContract
     ) external initializer {
         __Ownable_init();
+        require(_signer != address(0), "incorrect signer address");
+        require(_platformAddress != address(0), "incorrect platform address");
+        require(_storageContract != address(0), "incorrect storage contract address");
         signerAddress = _signer;
         platformAddress = _platformAddress;
         platformCommission = _platformCommission;
@@ -57,11 +60,13 @@ contract Factory is OwnableUpgradeable {
     }
 
     function setPlatformAddress(address _platformAddress) external onlyOwner {
+        require(_platformAddress != address(0), "incorrect address");
         platformAddress = _platformAddress;
         emit PlatformAddressSet(_platformAddress);
     }
 
     function setSigner(address _signer) external onlyOwner {
+        require(_signer != address(0), "incorrect address");
         signerAddress = _signer;
         emit SignerSet(_signer);
     }

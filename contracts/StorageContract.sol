@@ -41,6 +41,7 @@ contract StorageContract is Ownable {
 
 
     function setFactory(address _factory) external onlyOwner {
+        require(_factory != address(0), "incorrect address");
         factory = _factory;
         emit FactorySet(_factory);
     }
