@@ -53,6 +53,11 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     event PriceChanged(uint256 oldPrice, uint256 newPrice);
     event WhitelistedPriceChanged(uint256 oldPrice, uint256 newPrice);
 
+    modifier onlyCreator() {
+        require(_msgSender() == creator, "not creator");
+        _;
+    }
+
     /// @dev initialize is called by factory when deployed
     /// @param _params Collection parameters
     function initialize(
@@ -148,8 +153,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
 
     /// @dev sets paying token
     /// @param _payingToken New token address
-    function setPayingToken(address _payingToken) external {
-        require(_msgSender() == creator, "not creator");
+    function setPayingToken(address _payingToken) external onlyCreator {
         require(_payingToken != address(0), "incorrect paying token address");
         address oldToken = payingToken;
         payingToken = _payingToken;
@@ -158,8 +162,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
 
     /// @dev sets mint price
     /// @param _mintPrice New mint price
-    function setMintPrice(uint256 _mintPrice) external {
-        require(_msgSender() == creator, "not creator");
+    function setMintPrice(uint256 _mintPrice) external onlyCreator {
         uint256 oldPrice = mintPrice;
         mintPrice = _mintPrice;
         emit PriceChanged(oldPrice, _mintPrice);
@@ -167,8 +170,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
 
     /// @dev sets whitelisted mint price
     /// @param _whitelistMintPrice New whitelisted mint price
-    function setWhitelistMintPrice(uint256 _whitelistMintPrice) external {
-        require(_msgSender() == creator, "not creator");
+    function setWhitelistMintPrice(uint256 _whitelistMintPrice) external onlyCreator {
         uint256 oldPrice = whitelistMintPrice;
         whitelistMintPrice = _whitelistMintPrice;
         emit WhitelistedPriceChanged(oldPrice, _whitelistMintPrice);
