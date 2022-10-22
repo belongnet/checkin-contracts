@@ -5,17 +5,17 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract StorageContract is Ownable {
 
-    address public factory;
-
-    mapping(bytes32 => address) public getInstance; // keccak256("name", "symbol") => instance address
-    mapping(address => InstanceInfo) private _instanceInfos;
-    address[] public instances;
-
     struct InstanceInfo {
         string name;
         string symbol;
         address creator;
     }
+    
+    address public factory;
+
+    mapping(bytes32 => address) public getInstance; // keccak256("name", "symbol") => instance address
+    mapping(address => InstanceInfo) private _instanceInfos;
+    address[] public instances;
 
     event FactorySet(address newFactory);
     event InstanceAdded(address newInstance);

@@ -146,22 +146,6 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         }
     }
 
-    /// @notice Returns metadata link for specified ID
-    /// @param _tokenId Token ID
-    function tokenURI(uint256 _tokenId)
-        public
-        view
-        override
-        returns (string memory)
-    {
-        return metadataUri[_tokenId];
-    }
-
-    /// @notice owner() function overriding for OpenSea
-    function owner() public view override returns (address) {
-        return IFactory(IStorageContract(storageContract).factory()).platformAddress();
-    }
-
     /// @dev sets paying token
     /// @param _payingToken New token address
     function setPayingToken(address _payingToken) external {
@@ -194,6 +178,22 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         return ERC2981Upgradeable.supportsInterface(interfaceId) || ERC721Upgradeable.supportsInterface(interfaceId);
     }
 
+    /// @notice Returns metadata link for specified ID
+    /// @param _tokenId Token ID
+    function tokenURI(uint256 _tokenId)
+        public
+        view
+        override
+        returns (string memory)
+    {
+        return metadataUri[_tokenId];
+    }
+
+    /// @notice owner() function overriding for OpenSea
+    function owner() public view override returns (address) {
+        return IFactory(IStorageContract(storageContract).factory()).platformAddress();
+    }
+
     function _transfer(
         address from,
         address to,
@@ -209,7 +209,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         string memory tokenUri,
         bool whitelisted,
         bytes memory signature
-    ) public view returns (bool) {
+    ) internal view returns (bool) {
         return
             ECDSA.recover(
                 keccak256(

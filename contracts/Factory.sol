@@ -78,7 +78,7 @@ contract Factory is OwnableUpgradeable {
      */
     function produce(
         InstanceInfo memory _info
-    ) public returns (address) {
+    ) external returns (address) {
         require(
             _verifySignature(
                 _info.name, 
@@ -151,7 +151,7 @@ contract Factory is OwnableUpgradeable {
         uint96 feeNumerator,
         address feeReceiver,
         bytes memory signature
-    ) public view returns (bool) {
+    ) internal view returns (bool) {
         return
             ECDSA.recover(
                 keccak256(

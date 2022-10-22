@@ -8,20 +8,19 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract RoyaltiesReceiver is Context, Initializable {
 
+    uint256 private _totalShares;
+    uint256 private _totalReleased;
+
+    address[] private _payees;
+    mapping(address => uint256) private _shares;
+    mapping(address => uint256) private _released;
+    mapping(IERC20 => uint256) private _erc20TotalReleased;
+    mapping(IERC20 => mapping(address => uint256)) private _erc20Released;
+
     event PayeeAdded(address account, uint256 shares);
     event PaymentReleased(address to, uint256 amount);
     event ERC20PaymentReleased(IERC20 indexed token, address to, uint256 amount);
     event PaymentReceived(address from, uint256 amount);
-
-    uint256 private _totalShares;
-    uint256 private _totalReleased;
-
-    mapping(address => uint256) private _shares;
-    mapping(address => uint256) private _released;
-    address[] private _payees;
-
-    mapping(IERC20 => uint256) private _erc20TotalReleased;
-    mapping(IERC20 => mapping(address => uint256)) private _erc20Released;
 
     /**
      * @dev Initiates an instance of `RoyaltiesReceiver` where each account in `payees` is assigned the number of shares at
@@ -53,6 +52,33 @@ contract RoyaltiesReceiver is Context, Initializable {
         emit PaymentReceived(_msgSender(), msg.value);
     }
 
+
+    /**
+     * @dev Getter for the address of the payee number `index`.
+     */
+    function payee(uint256 index) external view returns (address) {
+        require(index < _payees.length, "incorrect index");
+        return _payees[index];
+    }
+
+    function releaseAll() external virtual {
+        for (uint256 i = 0; i < _payees.length; i++) {
+            _release(payable(_payees[i]));
+        }
+    }
+
+    function releaseAll(IERC20 token) external virtual {
+        for (uint256 i = 0; i < _payees.length; i++) {
+            _release(token, _payees[i]);
+        }
+    }
+    
+    /**
+     * @dev Getter for the amount of shares held by an account.
+     */
+    function shares(address account) external view returns (uint256) {
+        return _shares[account];
+    }
     /**
      * @dev Getter for the total shares held by payees.
      */
@@ -76,13 +102,6 @@ contract RoyaltiesReceiver is Context, Initializable {
     }
 
     /**
-     * @dev Getter for the amount of shares held by an account.
-     */
-    function shares(address account) external view returns (uint256) {
-        return _shares[account];
-    }
-
-    /**
      * @dev Getter for the amount of Ether already released to a payee.
      */
     function released(address account) public view returns (uint256) {
@@ -95,26 +114,6 @@ contract RoyaltiesReceiver is Context, Initializable {
      */
     function released(IERC20 token, address account) public view returns (uint256) {
         return _erc20Released[token][account];
-    }
-
-    /**
-     * @dev Getter for the address of the payee number `index`.
-     */
-    function payee(uint256 index) external view returns (address) {
-        require(index < _payees.length, "incorrect index");
-        return _payees[index];
-    }
-
-    function releaseAll() external virtual {
-        for (uint256 i = 0; i < _payees.length; i++) {
-            _release(payable(_payees[i]));
-        }
-    }
-
-    function releaseAll(IERC20 token) external virtual {
-        for (uint256 i = 0; i < _payees.length; i++) {
-            _release(token, _payees[i]);
-        }
     }
 
     /**
