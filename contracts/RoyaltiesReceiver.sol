@@ -101,6 +101,7 @@ contract RoyaltiesReceiver is Context, Initializable {
      * @dev Getter for the address of the payee number `index`.
      */
     function payee(uint256 index) public view returns (address) {
+        require(index < _payees.length, "incorrect index");
         return _payees[index];
     }
 
