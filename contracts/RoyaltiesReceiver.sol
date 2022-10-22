@@ -17,10 +17,10 @@ contract RoyaltiesReceiver is Context, Initializable {
     mapping(IERC20 => uint256) private _erc20TotalReleased;
     mapping(IERC20 => mapping(address => uint256)) private _erc20Released;
 
-    event PayeeAdded(address account, uint256 shares);
-    event PaymentReleased(address to, uint256 amount);
-    event ERC20PaymentReleased(IERC20 indexed token, address to, uint256 amount);
-    event PaymentReceived(address from, uint256 amount);
+    event PayeeAdded(address indexed account, uint256 shares);
+    event PaymentReleased(address indexed to, uint256 amount);
+    event ERC20PaymentReleased(IERC20 indexed token, address indexed to, uint256 amount);
+    event PaymentReceived(address indexed from, uint256 amount);
 
     /**
      * @dev Initiates an instance of `RoyaltiesReceiver` where each account in `payees` is assigned the number of shares at
@@ -53,14 +53,6 @@ contract RoyaltiesReceiver is Context, Initializable {
     }
 
 
-    /**
-     * @dev Getter for the address of the payee number `index`.
-     */
-    function payee(uint256 index) external view returns (address) {
-        require(index < _payees.length, "incorrect index");
-        return _payees[index];
-    }
-
     function releaseAll() external virtual {
         for (uint256 i = 0; i < _payees.length; i++) {
             _release(payable(_payees[i]));
@@ -71,6 +63,14 @@ contract RoyaltiesReceiver is Context, Initializable {
         for (uint256 i = 0; i < _payees.length; i++) {
             _release(token, _payees[i]);
         }
+    }
+
+    /**
+     * @dev Getter for the address of the payee number `index`.
+     */
+    function payee(uint256 index) external view returns (address) {
+        require(index < _payees.length, "incorrect index");
+        return _payees[index];
     }
 
     /**
@@ -156,18 +156,6 @@ contract RoyaltiesReceiver is Context, Initializable {
     }
 
     /**
-     * @dev internal logic for computing the pending payment of an `account` given the token historical balances and
-     * already released amounts.
-     */
-    function _pendingPayment(
-        address account,
-        uint256 totalReceived,
-        uint256 alreadyReleased
-    ) private view returns (uint256) {
-        return (totalReceived * _shares[account]) / _totalShares - alreadyReleased;
-    }
-
-    /**
      * @dev Add a new payee to the contract.
      * @param account The address of the payee to add.
      * @param shares_ The number of shares owned by the payee.
@@ -181,5 +169,17 @@ contract RoyaltiesReceiver is Context, Initializable {
         _shares[account] = shares_;
         _totalShares = _totalShares + shares_;
         emit PayeeAdded(account, shares_);
+    }
+
+    /**
+     * @dev internal logic for computing the pending payment of an `account` given the token historical balances and
+     * already released amounts.
+     */
+    function _pendingPayment(
+        address account,
+        uint256 totalReceived,
+        uint256 alreadyReleased
+    ) private view returns (uint256) {
+        return (totalReceived * _shares[account]) / _totalShares - alreadyReleased;
     }
 }

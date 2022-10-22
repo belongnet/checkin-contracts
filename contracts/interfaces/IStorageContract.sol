@@ -10,15 +10,15 @@ interface IStorageContract {
         address creator;
     }
 
-    function factory() view external returns(address);
-    function getInstanceInfo() view external returns(InstanceInfo memory);
-    function getInstance(bytes32 hash) view external returns(address);
-    function instancesCount() external view returns (uint256);
     function addInstance(
         address instanceAddress,
         address creator,
         string memory name,
         string memory symbol
     ) external returns (uint256);
+    function factory() view external returns(address);
+    function getInstanceInfo() view external returns(InstanceInfo memory);
+    function getInstance(bytes32 hash) view external returns(address);
+    function instancesCount() external view returns (uint256);
 
 }

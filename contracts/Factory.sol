@@ -115,20 +115,6 @@ contract Factory is OwnableUpgradeable {
         return instanceCreated;
     }
 
-    function _createInstanceValidate(string memory name, string memory symbol)
-        internal
-        view
-    {
-        require((bytes(name)).length != 0, "Factory: EMPTY NAME");
-        require((bytes(symbol)).length != 0, "Factory: EMPTY SYMBOL");
-        require(
-            IStorageContract(storageContract).getInstance(
-                keccak256(abi.encodePacked(name, symbol))
-            ) == address(0),
-            "Factory: ALREADY_EXISTS"
-        );
-    }
-
     function _createInstance(string memory name, string memory symbol)
         internal
         returns (address instanceAddress)
@@ -142,6 +128,20 @@ contract Factory is OwnableUpgradeable {
             symbol
         );
         emit InstanceCreated(name, symbol, instanceAddress, id);
+    }
+
+    function _createInstanceValidate(string memory name, string memory symbol)
+        internal
+        view
+    {
+        require((bytes(name)).length != 0, "Factory: EMPTY NAME");
+        require((bytes(symbol)).length != 0, "Factory: EMPTY SYMBOL");
+        require(
+            IStorageContract(storageContract).getInstance(
+                keccak256(abi.encodePacked(name, symbol))
+            ) == address(0),
+            "Factory: ALREADY_EXISTS"
+        );
     }
 
     function _verifySignature(

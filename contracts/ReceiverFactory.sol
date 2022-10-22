@@ -6,7 +6,7 @@ import "./RoyaltiesReceiver.sol";
 contract ReceiverFactory {
 
     event ReceiverCreated(
-        address creator,
+        address indexed creator,
         address instance,
         address[] payees, 
         uint256[] shares
