@@ -60,6 +60,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     ) public initializer {
         __ERC721_init(_params.erc721name, _params.erc721shortName);
         __Ownable_init();
+        __ERC2981_init();
         payingToken = _params.payingToken;
         mintPrice = _params.mintPrice;
         whitelistMintPrice = _params.whitelistMintPrice;
