@@ -27,7 +27,7 @@ Belong NFT project has several roles:
 1. The owner: Controls the platform commission, can configure Factory and Storage contracts. 
 2. Creator: Collection creator can set the mint prices and the paying token of his/her collection. He/she will receive funds from primary sales and some fraction of royalties from secondary sales
 3. Platform address: Receives the royalties from the secondary sales and commissions from primary sales 
-4. Signer: The platform’s BE which moderates the data and gives its approvement if requirements are met
+4. Signer: The platform’s BE which moderates the data and gives its approval if requirements are met
 5. User: Can create his/her own collection (with signer’s approval), mint tokens in his own or other collections (with signer’s approval)
 
 ### 1.2. Features
@@ -46,8 +46,8 @@ Belong NFT project has the following features:
 ### 1.3 Use Cases
 
 At the beginning, three smart contracts are deployed at the network:
-- ReceiverFactory (creates instanses of royalties receivers)
-- Factory (creates instanses of NFT collections)
+- ReceiverFactory (creates instances of royalties receivers)
+- Factory (creates instances of NFT collections)
 - StorageContract (stores the information about all deployed NFT collections)
 
 #### Collection creation
@@ -64,7 +64,7 @@ At the beginning, three smart contracts are deployed at the network:
 3. If the account meets all the requirements and tokenURI is successfully generated, the BE signs the data for mint. Also, if the user is in the whitelist, BE can specify it with whitelisted flag
 4. The user calls the mint() function of the NFT contract
 
-If the mint price is larger than zero, the contract will distribute ETH/ERC20 from every primary sale. Some fraction of this money will be transferred to the platform immediatelly and the rest will be transferred to the creator. 
+If the mint price is larger than zero, the contract will distribute ETH/ERC20 from every primary sale. Some fraction of this money will be transferred to the platform immediately and the rest will be transferred to the creator. 
 The owner of the factory can set other platform commission. The creator of the collection can change paying token as well as the mint prices.
 NFTs can be marked as nontransferable at the moment of the deployment. In this case it will be impossible to transfer any NFT to another address or sell it to anyone. The transferable option cannot be changed
 If NFT was sold on a marketplace, a corresponding RoyaltiesReceiver contract will receive royalties and it will be distributed between the creator and the platform.
@@ -134,7 +134,7 @@ Belong NFT has the following functions:
 8. owner() - Overridden function from Ownable contract. Owner of the contract is always the platform address. Otherwise the user will be able to change royalty information on the marketplaces
 
 #### 2.2.2. Factory.sol
-Produces new instances of NFT contract and registers them in the StorageContract. The NFT contract can be deployed by anyone. Factory also contains data about platform comission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from the Factory contract.
+Produces new instances of NFT contract and registers them in the StorageContract. The NFT contract can be deployed by anyone. Factory also contains data about platform commission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from the Factory contract.
 
 ##### 2.2.2.1. Assets
 Belong NFT Factory contains the following struct:
@@ -178,7 +178,7 @@ Belong NFT Factory has the following functions:
 
 #### 2.2.3. StorageContract.sol
 Contains information about registered NFT instances (as Factory implementation can be changed)
-##### 2.2.1.1. Assets
+##### 2.2.3.1. Assets
 Belong Storage contract contains the following strucrure:
 struct InstanceInfo {
         string name;
@@ -192,7 +192,7 @@ Belong Storage contract contains the following entities:
 2. getInstance - keccak256("name", "symbol") => instance address mapping
 3. address[] instances - Instances’ array
 
-##### 2.2.1.2. Functions
+##### 2.2.3.2. Functions
 Belong Storage contract has the following functions:
 1. getInstanceInfo(uint256 instanceId) Returns instance info by its ID
 2. instancesCount() - Returns the count of instances
@@ -207,19 +207,19 @@ Belong Storage contract has the following functions:
 
 
 #### 2.2.4. RoyaltiesReceiver.sol
-Must be deployed before the deployment of a new NFT collection (via ReceiverFactory) and passed to Factory's produce() function as a fee receiver. It will split upcoming tokens/ETH between the creator and the platform. It's a fork of OZ's PaymentSplitter with some changes. The only changes is that common release() functions are replaced with releaseAll() functions which allow the caller to transfer funds for only both the creator and the platform.
-##### 2.2.1.1. Assets
+Must be deployed before the deployment of a new NFT collection (via ReceiverFactory) and passed to Factory's produce() function as a fee receiver. It will split upcoming tokens/ETH between the creator and the platform. It's a fork of OZ's PaymentSplitter with some changes. The only change is that common release() functions are replaced with releaseAll() functions which allow the caller to transfer funds for only both the creator and the platform.
+##### 2.2.4.1. Assets
 _(Forked from OZ's PaymentSplitter)_
-##### 2.2.1.2. Functions
+##### 2.2.4.2. Functions
 _(Forked from OZ's PaymentSplitter except for release() functions)_
 
 They were replaced with the following functions:
 1. releaseAll() - claims all available ETH to both creator and the platform. Can be called by anyone
 1. releaseAll() - claims all available ERC20 token to both creator and the platform. Can be called by anyone
 
-#### 2.2.4. ReceiverFactory.sol
+#### 2.2.5. ReceiverFactory.sol
 Deploys RoyaltiesReceiver instances 
-##### 2.2.1.1. Functions
+##### 2.2.5.1. Functions
 deployReceiver(address[] memory payees, uint256[] memory shares_) - Deploys instance of RoyaltiesReceiver with specified fee receiver addresses and their shares. In our case, the receivers will be a creator and the platform address. The sum of both shares must be equal to 10000. Because of that the specified creator royalties and platform fees must be converted to shares with the next formulas:
 
     platform_shares = 10000/(x/p + 1)
