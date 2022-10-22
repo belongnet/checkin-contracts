@@ -32,7 +32,7 @@ contract RoyaltiesReceiver is Context, Initializable {
 
     function initialize(address[] memory payees, uint256[] memory shares_) external payable initializer {
         require(payees.length == shares_.length, "RoyaltiesReceiver: payees and shares length mismatch");
-        require(payees.length > 0, "RoyaltiesReceiver: no payees");
+        require(payees.length == 2, "RoyaltiesReceiver: there should be only 2 payees");
 
         for (uint256 i = 0; i < payees.length; i++) {
             _addPayee(payees[i], shares_[i]);
@@ -72,7 +72,7 @@ contract RoyaltiesReceiver is Context, Initializable {
             _release(token, _payees[i]);
         }
     }
-    
+
     /**
      * @dev Getter for the amount of shares held by an account.
      */
