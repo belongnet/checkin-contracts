@@ -17,6 +17,9 @@ contract StorageContract is Ownable {
         address creator;
     }
 
+    event FactorySet(address newFactory);
+    event InstanceAdded(address newInstance);
+
     /**
     * @dev returns instance info
     * @param instanceId instance ID
@@ -39,6 +42,7 @@ contract StorageContract is Ownable {
 
     function setFactory(address _factory) external onlyOwner {
         factory = _factory;
+        emit FactorySet(_factory);
     }
 
     function addInstance(
@@ -55,6 +59,7 @@ contract StorageContract is Ownable {
             symbol,
             creator
         );
+        emit InstanceAdded(instanceAddress);
         return instances.length;
     }
 

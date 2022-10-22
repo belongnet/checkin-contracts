@@ -195,7 +195,6 @@ describe('Factory tests', () => {
                 { type: "address", value: owner.address },
                 { type: "uint256", value: chainid },
 
-
             ]);
 
             const signature3 = EthCrypto.sign(signer.privateKey, message3);

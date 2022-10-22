@@ -123,11 +123,17 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         } else {
             amount = price;
             if (feeBPs == 0) {
-                IERC20(payingToken_).transferFrom(msg.sender, creator, amount);
+                require(
+                    IERC20(payingToken_).transferFrom(msg.sender, creator, amount)
+                , "token transfer failed");
             } else {
                 fee = (amount * uint256(feeBPs)) / _feeDenominator();
-                IERC20(payingToken_).transferFrom(msg.sender, platformAddress, fee);
-                IERC20(payingToken_).transferFrom(msg.sender, creator, amount - fee);
+                require(
+                    IERC20(payingToken_).transferFrom(msg.sender, platformAddress, fee)
+                , "token transfer failed");
+                require(
+                    IERC20(payingToken_).transferFrom(msg.sender, creator, amount - fee)
+                , "token transfer failed");
             }
         }
     }

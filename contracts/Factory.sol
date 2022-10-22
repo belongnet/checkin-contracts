@@ -34,6 +34,10 @@ contract Factory is OwnableUpgradeable {
         uint256 length
     );
 
+    event SignerSet(address newSigner);
+    event PlatformComissionSet(uint8 newComission);
+    event PlatformAddressSet(address newPlatformAddress);
+
     function initialize(
         address _signer,
         address _platformAddress,
@@ -49,14 +53,17 @@ contract Factory is OwnableUpgradeable {
 
     function setPlatformCommission(uint8 _platformCommission) external onlyOwner {
         platformCommission = _platformCommission;
+        emit PlatformComissionSet(_platformCommission);
     }
 
     function setPlatformAddress(address _platformAddress) external onlyOwner {
         platformAddress = _platformAddress;
+        emit PlatformAddressSet(_platformAddress);
     }
 
     function setSigner(address _signer) external onlyOwner {
         signerAddress = _signer;
+        emit SignerSet(_signer);
     }
 
     /**
