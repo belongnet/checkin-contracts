@@ -37,6 +37,7 @@ contract RoyaltiesReceiver is Context, Initializable {
         for (uint256 i = 0; i < payees.length; i++) {
             _addPayee(payees[i], shares_[i]);
         }
+
     }
 
     /**
@@ -121,7 +122,6 @@ contract RoyaltiesReceiver is Context, Initializable {
      * total shares and their previous withdrawals.
      */
     function _release(address payable account) internal virtual {
-        require(_shares[account] > 0, "PaymentSplitter: account has no shares");
 
         uint256 totalReceived = address(this).balance + totalReleased();
         uint256 payment = _pendingPayment(account, totalReceived, released(account));
@@ -141,7 +141,6 @@ contract RoyaltiesReceiver is Context, Initializable {
      * contract.
      */
     function _release(IERC20 token, address account) internal virtual {
-        require(_shares[account] > 0, "PaymentSplitter: account has no shares");
 
         uint256 totalReceived = token.balanceOf(address(this)) + totalReleased(token);
         uint256 payment = _pendingPayment(account, totalReceived, released(token, account));

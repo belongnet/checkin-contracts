@@ -55,6 +55,40 @@ describe('Factory tests', () => {
             expect(await factory.signerAddress()).to.be.equal(signer.address);
         })
 
+        it("shouldn't initialize with incorrect params", async () => {
+            const Factory = await ethers.getContractFactory("Factory");
+
+            let factory = await Factory.deploy();
+
+            await expect(
+                factory.connect(owner).initialize(
+                    ZERO_ADDRESS,
+                    owner.address,
+                    PLATFORM_COMISSION,
+                    storage.address
+                )
+            ).to.be.revertedWith("incorrect signer address");
+
+            await expect(
+                factory.connect(owner).initialize(
+                    signer.address,
+                    ZERO_ADDRESS,
+                    PLATFORM_COMISSION,
+                    storage.address
+                )
+            ).to.be.revertedWith("incorrect platform address");
+
+
+            await expect(
+                factory.connect(owner).initialize(
+                    signer.address,
+                    owner.address,
+                    PLATFORM_COMISSION,
+                    ZERO_ADDRESS
+                )
+            ).to.be.revertedWith("incorrect storage contract address");
+        })
+
         it("should correct deploy NFT instance", async () => {
             const nftName = "Name 1";
             const nftSymbol = "S1";
@@ -69,11 +103,155 @@ describe('Factory tests', () => {
                 { type: "address", value: owner.address },
                 { type: "uint256", value: chainid },
 
-
             ]);
 
             const signature = EthCrypto.sign(signer.privateKey, message);
 
+
+            const badMessage = EthCrypto.hash.keccak256([
+                { type: "string", value: nftName },
+                { type: "string", value: nftSymbol },
+                { type: "string", value: contractURI },
+                { type: "uint96", value: BigNumber.from('500') },
+                { type: "address", value: ZERO_ADDRESS },
+                { type: "uint256", value: chainid },
+
+            ]);
+
+            const badSignature = EthCrypto.sign(signer.privateKey, badMessage);
+
+            await expect(
+                factory.connect(alice).produce(
+                    [
+                        nftName,
+                        nftSymbol,
+                        contractURI,
+                        ZERO_ADDRESS,
+                        price,
+                        price,
+                        true,
+                        BigNumber.from('1000'),
+                        BigNumber.from('500'),
+                        owner.address,
+                        BigNumber.from('86400'),
+                        signature
+                    ]
+                )
+            ).to.be.revertedWith('incorrect paying token address');
+
+            await expect(
+                factory.connect(alice).produce(
+                    [
+                        nftName,
+                        nftSymbol,
+                        contractURI,
+                        ETH_ADDRESS,
+                        price,
+                        price,
+                        true,
+                        BigNumber.from('1000'),
+                        BigNumber.from('500'),
+                        ZERO_ADDRESS,
+                        BigNumber.from('86400'),
+                        badSignature
+                    ]
+                )
+            ).to.be.revertedWith('incorrect fee receiver address');
+
+            await expect(
+                factory.connect(alice).produce(
+                    [
+                        nftName,
+                        nftSymbol,
+                        contractURI,
+                        ETH_ADDRESS,
+                        price,
+                        price,
+                        true,
+                        BigNumber.from('1000'),
+                        BigNumber.from('500'),
+                        ZERO_ADDRESS,
+                        BigNumber.from('86400'),
+                        signature
+                    ]
+                )
+            ).to.be.revertedWith('Invalid signature');
+
+
+
+            const emptyNameMessage = EthCrypto.hash.keccak256([
+                { type: "string", value: "" },
+                { type: "string", value: nftSymbol },
+                { type: "string", value: contractURI },
+                { type: "uint96", value: BigNumber.from('500') },
+                { type: "address", value: owner.address },
+                { type: "uint256", value: chainid },
+
+            ]);
+
+            const emptyNameSignature = EthCrypto.sign(signer.privateKey, emptyNameMessage);
+
+
+            await expect(
+                factory.connect(alice).produce(
+                    [
+                        "",
+                        nftSymbol,
+                        contractURI,
+                        ETH_ADDRESS,
+                        price,
+                        price,
+                        true,
+                        BigNumber.from('1000'),
+                        BigNumber.from('500'),
+                        owner.address,
+                        BigNumber.from('86400'),
+                        emptyNameSignature
+                    ]
+                )
+            ).to.be.revertedWith('Factory: EMPTY NAME');
+
+
+            
+
+
+
+
+            const emptySymbolMessage = EthCrypto.hash.keccak256([
+                { type: "string", value: nftName },
+                { type: "string", value: "" },
+                { type: "string", value: contractURI },
+                { type: "uint96", value: BigNumber.from('500') },
+                { type: "address", value: owner.address },
+                { type: "uint256", value: chainid },
+
+            ]);
+
+            const emptySymbolSignature = EthCrypto.sign(signer.privateKey, emptySymbolMessage);
+
+
+            await expect(
+                factory.connect(alice).produce(
+                    [
+                        nftName,
+                        "",
+                        contractURI,
+                        ETH_ADDRESS,
+                        price,
+                        price,
+                        true,
+                        BigNumber.from('1000'),
+                        BigNumber.from('500'),
+                        owner.address,
+                        BigNumber.from('86400'),
+                        emptySymbolSignature
+                    ]
+                )
+            ).to.be.revertedWith('Factory: EMPTY SYMBOL');
+
+
+            
+            
             await factory.connect(alice).produce(
                 [
                     nftName,
@@ -90,6 +268,8 @@ describe('Factory tests', () => {
                     signature
                 ]
             );
+
+            
 
             const hash = EthCrypto.hash.keccak256([
                 { type: "string", value: nftName },
@@ -339,6 +519,25 @@ describe('Factory tests', () => {
                     ]
                 )
             ).to.be.revertedWith("Factory: ALREADY_EXISTS")
+
+        })
+
+        it("should correct set parameters", async () => {
+            const newPlatformAddress = bob.address;
+            const newSigner = charlie.address;
+
+            await expect(
+                factory.connect(owner).setPlatformAddress(ZERO_ADDRESS)
+            ).to.be.revertedWith("incorrect address");
+
+            await factory.connect(owner).setPlatformAddress(newPlatformAddress);
+            expect(await factory.platformAddress()).to.be.equal(newPlatformAddress);
+
+            await expect(
+                factory.connect(owner).setSigner(ZERO_ADDRESS)
+            ).to.be.revertedWith("incorrect address");
+            await factory.connect(owner).setSigner(newSigner);
+            expect(await factory.signerAddress()).to.be.equal(newSigner);
 
         })
 

@@ -74,7 +74,7 @@ describe("NFT tests", () => {
                 price, 
                 price, 
                 true, 
-                BigNumber.from('1000'), 
+                BigNumber.from('10'), 
                 BigNumber.from('600'), 
                 owner.address, 
                 BigNumber.from('86400'), 
@@ -96,27 +96,144 @@ describe("NFT tests", () => {
             const nft = await ethers.getContractAt("NFT", instanceAddress);
             expect(await nft.payingToken()).to.be.equal(ETH_ADDRESS);
         });
+
+
+        it("Shouldn't deploy with incorrect params", async () => {
+            const nftName = "Name 1";
+            const nftSymbol = "S1";
+            const contractURI = "contractURI/123";
+    
+            const NFT = await ethers.getContractFactory("NFT");
+            const nft = await NFT.deploy();
+            await expect(
+                nft.initialize(
+                    [
+                        storage.address,
+                        ETH_ADDRESS,
+                        ethers.utils.parseEther('1'),
+                        ethers.utils.parseEther('0.5'),
+                        contractURI,
+                        nftName,
+                        nftSymbol,
+                        true,
+                        10,
+                        owner.address,
+                        1000,
+                        1000000,
+                        ZERO_ADDRESS
+                    ]
+                )
+            ).to.be.revertedWith('incorrect creator address');
+
+            await expect(
+                nft.initialize(
+                    [
+                        ZERO_ADDRESS,
+                        ETH_ADDRESS,
+                        ethers.utils.parseEther('1'),
+                        ethers.utils.parseEther('0.5'),
+                        contractURI,
+                        nftName,
+                        nftSymbol,
+                        true,
+                        10,
+                        owner.address,
+                        1000,
+                        1000000,
+                        alice.address
+                    ]
+                )
+            ).to.be.revertedWith('incorrect storage contract address');
+
+        });
+
     });
     describe("Mint tests", async () => {
         it("Should mint correctly", async () => {
             const NFT_721_BASE_URI = "test.com/";
 
-            const message = EthCrypto.hash.keccak256([
+            let message = EthCrypto.hash.keccak256([
                 { type: "address", value: alice.address },
-                { type: "uint256", value: 1 },
+                { type: "uint256", value: 0 },
                 { type: "string", value: NFT_721_BASE_URI },
                 { type: "bool", value: false },
                 { type: "uint256", value: chainid },
             ]);
 
-            const signature = EthCrypto.sign(signer.privateKey, message);
+            let signature = EthCrypto.sign(signer.privateKey, message);
+
+            await expect(
+                nft
+                .connect(alice)
+                .mint(alice.address, 0, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                    value: ethers.utils.parseEther("0.02"),
+                })
+            ).to.be.revertedWith("Not enough ether sent");
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                .mint(alice.address, 0, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
                     value: ethers.utils.parseEther("0.03"),
                 });
+
+            for(let i = 0; i < 9; i++) {
+
+                const message = EthCrypto.hash.keccak256([
+                    { type: "address", value: alice.address },
+                    { type: "uint256", value: i + 1 },
+                    { type: "string", value: NFT_721_BASE_URI },
+                    { type: "bool", value: false },
+                    { type: "uint256", value: chainid },
+                ]);
+    
+                const signature = EthCrypto.sign(signer.privateKey, message);
+                await nft
+                    .connect(alice)
+                    .mint(alice.address, i + 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                        value: ethers.utils.parseEther("0.03"),
+                });
+            }
+
+            message = EthCrypto.hash.keccak256([
+                { type: "address", value: alice.address },
+                { type: "uint256", value: 10 },
+                { type: "string", value: NFT_721_BASE_URI },
+                { type: "bool", value: false },
+                { type: "uint256", value: chainid },
+            ]);
+
+            signature = EthCrypto.sign(signer.privateKey, message);
+
+            await expect(
+                nft
+                .connect(alice)
+                .mint(alice.address, 10, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                    value: ethers.utils.parseEther("0.03"),
+                })
+            ).to.be.revertedWith("limit exceeded");
         });
+
+        it("Should correct set new values", async () => {
+            await expect(
+                nft.connect(owner).setMintPrice(ethers.utils.parseEther('1'))
+            ).to.be.revertedWith("not creator");
+
+            const newPrice = ethers.utils.parseEther('1');
+            const newWLPrice = ethers.utils.parseEther('0.1');
+            const newPayingToken = bob.address;
+
+            await expect(nft.connect(alice).setPayingToken(ZERO_ADDRESS)).to.be.revertedWith("incorrect paying token address");
+            await nft.connect(alice).setPayingToken(newPayingToken);
+            expect(await nft.payingToken()).to.be.equal(newPayingToken);
+
+            await nft.connect(alice).setMintPrice(newPrice);
+            expect(await nft.mintPrice()).to.be.equal(newPrice);
+
+            await nft.connect(alice).setWhitelistMintPrice(newWLPrice);
+            expect(await nft.whitelistMintPrice()).to.be.equal(newWLPrice);
+        });
+
+        
 
         it("Should mint correctly with erc20 token", async () => {
             const Erc20Example = await ethers.getContractFactory(
@@ -170,6 +287,194 @@ describe("NFT tests", () => {
                 .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100);
             expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
         });
+
+
+        it("Should mint correctly with erc20 token without fee", async () => {
+            const Erc20Example = await ethers.getContractFactory(
+                "erc20Example"
+            );
+            const erc20Example = await Erc20Example.deploy();
+
+            await factory.connect(owner).setPlatformCommission(0);
+
+            const NFT_721_BASE_URI = "test.com/";
+            const Nft = await ethers.getContractFactory("NFT");
+            nft = await Nft.deploy();
+            await nft
+                .connect(owner)
+                .initialize(
+                    [
+                        storage.address,
+                        erc20Example.address,
+                        100,
+                        100,
+                        "ContractURI",
+                        "coolName",
+                        "CNME",
+                        true,
+                        BigNumber.from('1000'),
+                        nft.address,
+                        BigNumber.from('600'),
+                        BigNumber.from('86400'),
+                        alice.address  
+                    ]
+                ); // 100 - very small amount in wei!
+
+            // mint test tokens
+            await erc20Example.connect(alice).mint(alice.address, 10000);
+            // allow spender(our nft contract) to get our tokens
+            await erc20Example
+                .connect(alice)
+                .approve(nft.address, 99999999999999);
+
+            const message = EthCrypto.hash.keccak256([
+                { type: "address", value: alice.address },
+                { type: "uint256", value: 1 },
+                { type: "string", value: NFT_721_BASE_URI },
+                { type: "bool", value: false },
+                { type: "uint256", value: chainid },
+
+            ]);
+
+            const signature = EthCrypto.sign(signer.privateKey, message);
+
+            await nft
+                .connect(alice)
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100);
+            expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
+            expect(await erc20Example.balanceOf(alice.address)).to.be.deep.equal(10000);
+
+
+        });
+
+
+        it("Should transfer if transferrable", async () => {
+            const Erc20Example = await ethers.getContractFactory(
+                "erc20Example"
+            );
+            const erc20Example = await Erc20Example.deploy();
+
+            await factory.connect(owner).setPlatformCommission(0);
+
+            const NFT_721_BASE_URI = "test.com/";
+            const Nft = await ethers.getContractFactory("NFT");
+            nft = await Nft.deploy();
+            await nft
+                .connect(owner)
+                .initialize(
+                    [
+                        storage.address,
+                        erc20Example.address,
+                        100,
+                        100,
+                        "ContractURI",
+                        "coolName",
+                        "CNME",
+                        true,
+                        BigNumber.from('1000'),
+                        nft.address,
+                        BigNumber.from('600'),
+                        BigNumber.from('86400'),
+                        alice.address  
+                    ]
+                ); // 100 - very small amount in wei!
+
+            // mint test tokens
+            await erc20Example.connect(alice).mint(alice.address, 10000);
+            // allow spender(our nft contract) to get our tokens
+            await erc20Example
+                .connect(alice)
+                .approve(nft.address, 99999999999999);
+
+            const message = EthCrypto.hash.keccak256([
+                { type: "address", value: alice.address },
+                { type: "uint256", value: 1 },
+                { type: "string", value: NFT_721_BASE_URI },
+                { type: "bool", value: false },
+                { type: "uint256", value: chainid },
+
+            ]);
+
+            const signature = EthCrypto.sign(signer.privateKey, message);
+
+            await nft
+                .connect(alice)
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100);
+            expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
+
+            await nft.connect(alice).transferFrom(alice.address, bob.address, 1);
+
+            expect(await nft.balanceOf(bob.address)).to.be.deep.equal(1);
+
+            
+        });
+
+
+        it("Shouldn't transfer if not transferrable", async () => {
+            const Erc20Example = await ethers.getContractFactory(
+                "erc20Example"
+            );
+            const erc20Example = await Erc20Example.deploy();
+
+            await factory.connect(owner).setPlatformCommission(0);
+
+            const NFT_721_BASE_URI = "test.com/";
+            const Nft = await ethers.getContractFactory("NFT");
+            nft = await Nft.deploy();
+            await nft
+                .connect(owner)
+                .initialize(
+                    [
+                        storage.address,
+                        erc20Example.address,
+                        100,
+                        100,
+                        "ContractURI",
+                        "coolName",
+                        "CNME",
+                        false,
+                        BigNumber.from('1000'),
+                        nft.address,
+                        BigNumber.from('600'),
+                        BigNumber.from('86400'),
+                        alice.address  
+                    ]
+                ); // 100 - very small amount in wei!
+
+            // mint test tokens
+            await erc20Example.connect(alice).mint(alice.address, 10000);
+            // allow spender(our nft contract) to get our tokens
+            await erc20Example
+                .connect(alice)
+                .approve(nft.address, 99999999999999);
+
+            const message = EthCrypto.hash.keccak256([
+                { type: "address", value: alice.address },
+                { type: "uint256", value: 1 },
+                { type: "string", value: NFT_721_BASE_URI },
+                { type: "bool", value: false },
+                { type: "uint256", value: chainid },
+
+            ]);
+
+            const signature = EthCrypto.sign(signer.privateKey, message);
+
+            await nft
+                .connect(alice)
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100);
+            expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
+
+            await expect(
+                nft.connect(alice).transferFrom(alice.address, bob.address, 1)
+            ).to.be.revertedWith('token is not transferable')
+
+
+            
+        });
+
+       
+
+
 
         it("Should mint correctly with erc20 token if user in the WL", async () => {
             const Erc20Example = await ethers.getContractFactory(
