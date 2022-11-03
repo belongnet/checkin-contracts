@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/token/common/ERC2981Upgradeable.sol"
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IStorageContract.sol";
@@ -15,6 +16,8 @@ import "./interfaces/IStorageContract.sol";
 
 contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981Upgradeable {
 
+    using SafeERC20 for IERC20;
+     
     struct Parameters {
         address storageContract;    // Address of the storage contract
         address payingToken;    // Address of ERC20 paying token or ETH address (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)
@@ -136,17 +139,11 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         } else {
             amount = price;
             if (feeBPs == 0) {
-                require(
-                    IERC20(payingToken_).transferFrom(msg.sender, creator, amount)
-                , "token transfer failed");
+                IERC20(payingToken_).safeTransferFrom(msg.sender, creator, amount);
             } else {
                 fee = (amount * uint256(feeBPs)) / _feeDenominator();
-                require(
-                    IERC20(payingToken_).transferFrom(msg.sender, platformAddress, fee)
-                , "token transfer failed");
-                require(
-                    IERC20(payingToken_).transferFrom(msg.sender, creator, amount - fee)
-                , "token transfer failed");
+                IERC20(payingToken_).safeTransferFrom(msg.sender, platformAddress, fee);
+                IERC20(payingToken_).safeTransferFrom(msg.sender, creator, amount - fee);
             }
         }
     }
