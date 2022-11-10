@@ -16,9 +16,9 @@ interface IStorageContract {
         string memory name,
         string memory symbol
     ) external returns (uint256);
-    function factory() view external returns(address);
-    function getInstanceInfo() view external returns(InstanceInfo memory);
-    function getInstance(bytes32 hash) view external returns(address);
+    function factory() external view returns(address);
+    function getInstanceInfo() external view returns(InstanceInfo memory);
+    function getInstance(bytes32 hash) external view returns(address);
     function instancesCount() external view returns (uint256);
 
 }
