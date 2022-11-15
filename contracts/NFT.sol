@@ -52,9 +52,14 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     mapping(uint256 => string) public metadataUri;  // token ID -> metadata link
     mapping(uint256 => uint256) public creationTs;  // token ID -> creation Ts
 
-    event PayingTokenChanged(address oldToken, address newToken);
-    event PriceChanged(uint256 oldPrice, uint256 newPrice);
-    event WhitelistedPriceChanged(uint256 oldPrice, uint256 newPrice);
+    event PayingTokenChanged(
+        address oldToken, 
+        address newToken,
+        uint256 oldPrice,
+        uint256 newPrice,
+        uint256 oldWLPrice, 
+        uint256 newWLPrice
+    );
 
     modifier onlyCreator() {
         require(_msgSender() == creator, "not creator");
@@ -99,7 +104,8 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         string calldata tokenUri,
         bool whitelisted,
         bytes calldata signature,
-        uint256 _expectedMintPrice
+        uint256 _expectedMintPrice,
+        address _expectedPayingToken
     ) external payable nonReentrant {
         require(
             _verifySignature(reciever, tokenId, tokenUri, whitelisted, signature),
@@ -121,6 +127,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
             .platformCommission();
         uint256 price = whitelisted ? whitelistMintPrice : mintPrice;
         require(_expectedMintPrice == price, "price changed");
+        require(_expectedPayingToken == payingToken_, "token changed");
 
         address platformAddress = IFactory(IStorageContract(storageContract).factory()).platformAddress();
         if (payingToken_ == ETH) {
@@ -150,27 +157,26 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
 
     /// @dev sets paying token
     /// @param _payingToken New token address
-    function setPayingToken(address _payingToken) external onlyCreator {
+    function setPayingToken(
+        address _payingToken, 
+        uint256 _mintPrice, 
+        uint256 _whitelistMintPrice
+    ) external onlyCreator {
         require(_payingToken != address(0), "incorrect paying token address");
         address oldToken = payingToken;
-        payingToken = _payingToken;
-        emit PayingTokenChanged(oldToken, _payingToken);
-    }
-
-    /// @dev sets mint price
-    /// @param _mintPrice New mint price
-    function setMintPrice(uint256 _mintPrice) external onlyCreator {
         uint256 oldPrice = mintPrice;
+        uint256 oldWLPrice = whitelistMintPrice;
+        payingToken = _payingToken;
         mintPrice = _mintPrice;
-        emit PriceChanged(oldPrice, _mintPrice);
-    }
-
-    /// @dev sets whitelisted mint price
-    /// @param _whitelistMintPrice New whitelisted mint price
-    function setWhitelistMintPrice(uint256 _whitelistMintPrice) external onlyCreator {
-        uint256 oldPrice = whitelistMintPrice;
         whitelistMintPrice = _whitelistMintPrice;
-        emit WhitelistedPriceChanged(oldPrice, _whitelistMintPrice);
+        emit PayingTokenChanged(
+            oldToken, 
+            _payingToken, 
+            oldPrice, 
+            _mintPrice,
+            oldWLPrice,
+            _whitelistMintPrice
+        );
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC2981Upgradeable, ERC721Upgradeable) returns (bool) {

@@ -165,14 +165,14 @@ describe("NFT tests", () => {
             await expect(
                 nft
                 .connect(alice)
-                .mint(alice.address, 0, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                .mint(alice.address, 0, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), ETH_ADDRESS, {
                     value: ethers.utils.parseEther("0.02"),
                 })
             ).to.be.revertedWith("Not enough ether sent");
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 0, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                .mint(alice.address, 0, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), ETH_ADDRESS, {
                     value: ethers.utils.parseEther("0.03"),
                 });
 
@@ -189,7 +189,7 @@ describe("NFT tests", () => {
                 const signature = EthCrypto.sign(signer.privateKey, message);
                 await nft
                     .connect(alice)
-                    .mint(alice.address, i + 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                    .mint(alice.address, i + 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), ETH_ADDRESS, {
                         value: ethers.utils.parseEther("0.03"),
                 });
             }
@@ -207,29 +207,27 @@ describe("NFT tests", () => {
             await expect(
                 nft
                 .connect(alice)
-                .mint(alice.address, 10, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                .mint(alice.address, 10, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), ETH_ADDRESS, {
                     value: ethers.utils.parseEther("0.03"),
                 })
             ).to.be.revertedWith("limit exceeded");
         });
 
         it("Should correct set new values", async () => {
-            await expect(
-                nft.connect(owner).setMintPrice(ethers.utils.parseEther('1'))
-            ).to.be.revertedWith("not creator");
 
             const newPrice = ethers.utils.parseEther('1');
             const newWLPrice = ethers.utils.parseEther('0.1');
             const newPayingToken = bob.address;
 
-            await expect(nft.connect(alice).setPayingToken(ZERO_ADDRESS)).to.be.revertedWith("incorrect paying token address");
-            await nft.connect(alice).setPayingToken(newPayingToken);
+            await expect(
+                nft.connect(owner).setPayingToken(newPayingToken, newPrice, newWLPrice)
+            ).to.be.revertedWith("not creator");
+
+            await expect(nft.connect(alice).setPayingToken(ZERO_ADDRESS, newPrice, newWLPrice)).to.be.revertedWith("incorrect paying token address");
+            await nft.connect(alice).setPayingToken(newPayingToken, newPrice, newWLPrice);
+
             expect(await nft.payingToken()).to.be.equal(newPayingToken);
-
-            await nft.connect(alice).setMintPrice(newPrice);
             expect(await nft.mintPrice()).to.be.equal(newPrice);
-
-            await nft.connect(alice).setWhitelistMintPrice(newWLPrice);
             expect(await nft.whitelistMintPrice()).to.be.equal(newWLPrice);
         });
 
@@ -284,7 +282,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100);
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100, erc20Example.address, );
             expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
         });
 
@@ -340,7 +338,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100);
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100, erc20Example.address);
             expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
             expect(await erc20Example.balanceOf(alice.address)).to.be.deep.equal(10000);
 
@@ -399,7 +397,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100);
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100, erc20Example.address);
             expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
 
             await nft.connect(alice).transferFrom(alice.address, bob.address, 1);
@@ -461,7 +459,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100);
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100, erc20Example.address);
             expect(await nft.balanceOf(alice.address)).to.be.deep.equal(1);
 
             await expect(
@@ -525,7 +523,7 @@ describe("NFT tests", () => {
             const bobBalanceBefore = await erc20Example.balanceOf(bob.address);
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, true, signature, ethers.utils.parseEther('50'));
+                .mint(alice.address, 1, NFT_721_BASE_URI, true, signature, ethers.utils.parseEther('50'), erc20Example.address);
             const aliceBalanceAfter = await erc20Example.balanceOf(alice.address);
             const bobBalanceAfter = await erc20Example.balanceOf(bob.address);
 
@@ -550,7 +548,7 @@ describe("NFT tests", () => {
             await expect(
                 nft
                     .connect(alice)
-                    .mint(alice.address, 1, NFT_721_BASE_URI, false, bad_signature, ethers.utils.parseEther("0.03"), {
+                    .mint(alice.address, 1, NFT_721_BASE_URI, false, bad_signature, ethers.utils.parseEther("0.03"), ETH_ADDRESS, {
                         value: ethers.utils.parseEther("0.03"),
                     })
             ).to.be.reverted;
@@ -571,7 +569,7 @@ describe("NFT tests", () => {
             await expect(
                 nft
                     .connect(alice)
-                    .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.02"), {
+                    .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.02"), ETH_ADDRESS, {
                         value: ethers.utils.parseEther("0.02"),
                     })
             ).to.be.reverted;
@@ -622,7 +620,7 @@ describe("NFT tests", () => {
             await expect(
                 nft
                     .connect(alice)
-                    .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100)
+                    .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, 100, erc20Example.address)
             ).to.be.reverted;
         });
     });
@@ -642,7 +640,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), ETH_ADDRESS, {
                     value: ethers.utils.parseEther("0.03"),
                 });
             expect(await nft.tokenURI(1)).to.be.deep.equal("test.com/1");
@@ -689,7 +687,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(alice)
-                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), ETH_ADDRESS, {
                     value: ethers.utils.parseEther("0.03"),
                 });
 
@@ -738,7 +736,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(bob)
-                .mint(bob.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                .mint(bob.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), ETH_ADDRESS, {
                     value: ethers.utils.parseEther("0.03"),
                 });
             expect(await factory.platformAddress()).to.be.equal(owner.address);
@@ -812,7 +810,7 @@ describe("NFT tests", () => {
 
             await nft
                 .connect(bob)
-                .mint(bob.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), {
+                .mint(bob.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), ETH_ADDRESS, {
                     value: ethers.utils.parseEther("0.03"),
                 });
             

@@ -128,10 +128,12 @@ Belong NFT has the following functions:
     bytes calldata signature
 ) - Mints ERC721 token
 3. tokenURI(uint256 _tokenId) - Returns metadata link for specified ID
-5. setPayingToken(address _payingToken) - Sets paying token
-6. setMintPrice(uint256 _mintPrice) - Sets mint price
-6. setWhitelistMintPrice(uint256 _mintPrice) - Sets whitelist mint price
-8. owner() - Overridden function from Ownable contract. Owner of the contract is always the platform address. Otherwise the user will be able to change royalty information on the marketplaces
+4. setPayingToken(
+        address _payingToken, 
+        uint256 _mintPrice, 
+        uint256 _whitelistMintPrice
+    ) - Sets paying token, mint price and whitelist mint price
+5. owner() - Overridden function from Ownable contract. Owner of the contract is always the platform address. Otherwise the user will be able to change royalty information on the marketplaces
 
 #### 2.2.2. Factory.sol
 Produces new instances of NFT contract and registers them in the StorageContract. The NFT contract can be deployed by anyone. Factory also contains data about platform commission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from the Factory contract.
