@@ -573,8 +573,14 @@ describe("NFT tests", () => {
                         value: ethers.utils.parseEther("0.02"),
                     })
             ).to.be.reverted;
+            await expect(
+                nft
+                    .connect(alice)
+                    .mint(alice.address, 1, NFT_721_BASE_URI, false, signature, ethers.utils.parseEther("0.03"), bob.address)
+            ).to.be.reverted;
         });
-        it("Should fail with 0 acc balacne erc20", async () => {
+        
+        it("Should fail with 0 acc balance erc20", async () => {
             const Erc20Example = await ethers.getContractFactory(
                 "erc20Example"
             );
