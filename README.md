@@ -217,12 +217,14 @@ _(Forked from OZ's PaymentSplitter except for release() functions)_
 
 They were replaced with the following functions:
 1. releaseAll() - claims all available ETH to both creator and the platform. Can be called by anyone
-1. releaseAll() - claims all available ERC20 token to both creator and the platform. Can be called by anyone
+2. releaseAll() - claims all available ERC20 token to both creator and the platform. Can be called by anyone
 
 #### 2.2.5. ReceiverFactory.sol
 Deploys RoyaltiesReceiver instances 
 ##### 2.2.5.1. Functions
-deployReceiver(address[] memory payees, uint256[] memory shares_) - Deploys instance of RoyaltiesReceiver with specified fee receiver addresses and their shares. In our case, the receivers will be a creator and the platform address. The sum of both shares must be equal to 10000. Because of that the specified creator royalties and platform fees must be converted to shares with the next formulas:
+
+1. deployReceiver(address[] memory payees, uint256[] memory shares_) - Deploys instance of RoyaltiesReceiver with specified fee receiver addresses and their shares. In our case, the receivers will be a creator and the platform address. The sum of both shares must be equal to 10000. Because of that the specified creator royalties and platform fees must be converted to shares with the next formulas:
+
 
     platform_shares = 10000/(x/p + 1)
     creator_shares = 10000 - platform_shares
