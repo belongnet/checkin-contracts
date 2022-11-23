@@ -11,9 +11,6 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IStorageContract.sol";
 
-/// @title Contract that allow to mint ERC721 token with diffrent payment options and security advancements
-/// @notice this contract does not have constructor and requires to call initialize
-
 contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981Upgradeable {
 
     using SafeERC20 for IERC20;
@@ -66,8 +63,10 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         _;
     }
 
-    /// @dev initialize is called by factory when deployed
-    /// @param _params Collection parameters
+    /** 
+     * @dev initialize is called by factory when deployed
+     * @param _params Collection parameters
+     */
     function initialize(
         Parameters memory _params
     ) external initializer {
@@ -91,13 +90,14 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         collectionExpire = _params.collectionExpire;
     }
 
-    /// @dev mints ERC721 token
-    /// @notice needs a signature from trusted address in order to mint
-    /// @param reciever Address that gets ERC721 token
-    /// @param tokenId Id of a ERC721 token that is going to be minted
-    /// @param tokenUri Metadata URI of the ERC721 token
-    /// @param whitelisted A flag if the user whitelisted or not
-    /// @param signature Signature of the trusted address
+    /** 
+     * @notice needs a signature from trusted address in order to mint
+     * @param reciever Address that gets ERC721 token
+     * @param tokenId ID of a ERC721 token to mint
+     * @param tokenUri Metadata URI of the ERC721 token
+     * @param whitelisted A flag if the user whitelisted or not
+     * @param signature Signature of the trusted address
+     */
     function mint(
         address reciever,
         uint256 tokenId,
@@ -155,8 +155,10 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         }
     }
 
-    /// @dev sets paying token
-    /// @param _payingToken New token address
+    /** 
+     * @notice sets paying token
+     * @param _payingToken New token address
+     */
     function setPayingToken(
         address _payingToken, 
         uint256 _mintPrice, 
@@ -179,12 +181,18 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         );
     }
 
+    /** 
+     * @notice Returns if specified interface is supported or no
+     * @param interfaceId Interface ID
+     */
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC2981Upgradeable, ERC721Upgradeable) returns (bool) {
         return ERC2981Upgradeable.supportsInterface(interfaceId) || ERC721Upgradeable.supportsInterface(interfaceId);
     }
 
-    /// @notice Returns metadata link for specified ID
-    /// @param _tokenId Token ID
+    /**
+     * @notice Returns metadata link for specified ID
+     * @param _tokenId Token ID
+     */
     function tokenURI(uint256 _tokenId)
         public
         view
@@ -194,7 +202,9 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         return metadataUri[_tokenId];
     }
 
-    /// @notice owner() function overriding for OpenSea
+    /**
+     * @notice owner() function overriding for OpenSea
+     */
     function owner() public view override returns (address) {
         return IFactory(IStorageContract(storageContract).factory()).platformAddress();
     }

@@ -11,11 +11,11 @@ contract StorageContract is Ownable {
         address creator;
     }
     
-    address public factory;
+    address public factory; // The current factory address
 
     mapping(bytes32 => address) public getInstance; // keccak256("name", "symbol") => instance address
-    mapping(address => InstanceInfo) private _instanceInfos;
-    address[] public instances;
+    mapping(address => InstanceInfo) private _instanceInfos;    // Instance address => InstanceInfo
+    address[] public instances; // The array of all instances
 
     event FactorySet(address newFactory);
     event InstanceAdded(address newInstance);
@@ -39,13 +39,24 @@ contract StorageContract is Ownable {
         return instances.length;
     }
 
-
+    /** 
+     * @notice Sets new factory address
+     * @param _factory New factory address
+     */
     function setFactory(address _factory) external onlyOwner {
         require(_factory != address(0), "incorrect address");
         factory = _factory;
         emit FactorySet(_factory);
     }
 
+    /** 
+     * @notice Adds new instance
+     * @dev Can be called only by factory contract
+     * @param instanceAddress New instance address
+     * @param creator New instance creator
+     * @param name New instance name
+     * @param symbol New instance symbol
+     */
     function addInstance(
         address instanceAddress,
         address creator,

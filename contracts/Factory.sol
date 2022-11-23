@@ -25,7 +25,7 @@ contract Factory is OwnableUpgradeable {
     address public platformAddress; // Address which is allowed to collect platform fee
     address public storageContract; // Storage contract address 
     address public signerAddress;   // Signer address
-    uint8 public platformCommission;    // Platform comission percent
+    uint8 public platformCommission;    // Platform comission BPs
 
     event InstanceCreated(
         string name,
@@ -38,6 +38,13 @@ contract Factory is OwnableUpgradeable {
     event PlatformComissionSet(uint8 newComission);
     event PlatformAddressSet(address newPlatformAddress);
 
+    /**
+     * @notice Initializes the contract
+     * @param _signer The signer address
+     * @param _platformAddress The platform address
+     * @param _platformCommission The platform comission (BPs)
+     * @param _storageContract The storage contract address
+     */
     function initialize(
         address _signer,
         address _platformAddress,
@@ -54,17 +61,32 @@ contract Factory is OwnableUpgradeable {
         storageContract = _storageContract;
     }
 
+    /**
+     * @notice Sets new platform comission
+     * @dev Only owner can call it
+     * @param _platformCommission - The platform comission
+     */
     function setPlatformCommission(uint8 _platformCommission) external onlyOwner {
         platformCommission = _platformCommission;
         emit PlatformComissionSet(_platformCommission);
     }
 
+    /**
+     * @notice Sets new platform address
+     * @dev Only owner can call it
+     * @param _platformAddress - The platform address
+     */
     function setPlatformAddress(address _platformAddress) external onlyOwner {
         require(_platformAddress != address(0), "incorrect address");
         platformAddress = _platformAddress;
         emit PlatformAddressSet(_platformAddress);
     }
 
+    /**
+     * @notice Sets new signer address
+     * @dev Only owner can call it
+     * @param _signer - The signer address
+     */
     function setSigner(address _signer) external onlyOwner {
         require(_signer != address(0), "incorrect address");
         signerAddress = _signer;

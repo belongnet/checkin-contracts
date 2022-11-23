@@ -54,12 +54,19 @@ contract RoyaltiesReceiver is Context, Initializable {
     }
 
 
+    /** 
+     * @notice releases ETH to all payees
+     */
     function releaseAll() external virtual {
         for (uint256 i = 0; i < _payees.length; i++) {
             _release(payable(_payees[i]));
         }
     }
 
+    /** 
+     * @notice releases specified ERC20 to all payees
+     * @param token ERC20 token to be distributed
+     */
     function releaseAll(IERC20 token) external virtual {
         for (uint256 i = 0; i < _payees.length; i++) {
             _release(token, _payees[i]);
