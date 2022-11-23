@@ -10,9 +10,9 @@ async function deploy_nft() {
   const storage = await Storage.deploy();
   console.log('Done');
   
-  const signer = "0xc204d8492670fC59b946048df140838fdF14D323";
-  const platformAddress = "0xc204d8492670fC59b946048df140838fdF14D323";
-  const platformCommission = "1"; // in %
+  const signer = "0x16A518954cFC3Cb1D4eEf128bAb53C3706A0c454";
+  const platformAddress = "0x16A518954cFC3Cb1D4eEf128bAb53C3706A0c454";
+  const platformCommission = "100"; 
 
   console.log('Deploying Factory...');
   const factory = await Factory.deploy();

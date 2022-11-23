@@ -209,6 +209,13 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         return IFactory(IStorageContract(storageContract).factory()).platformAddress();
     }
 
+    /**
+     * @dev Transfers the token via ERC721's _transfer() function
+     * if the collection is transferrable
+     * @param from Inherited from ERC721's _transfer() function
+     * @param to Inherited from ERC721's _transfer() function
+     * @param tokenId Inherited from ERC721's _transfer() function
+     */
     function _transfer(
         address from,
         address to,
@@ -218,6 +225,14 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         super._transfer(from, to, tokenId);
     }
 
+    /**
+     * @dev Verifies if the signature belongs to the current signer address
+     * @param receiver The token receiver
+     * @param tokenId The token ID
+     * @param tokenUri The token URI
+     * @param whitelisted If the receiver is whitelisted or no
+     * @param signature The signature to check
+     */
     function _verifySignature(
         address receiver,
         uint256 tokenId,

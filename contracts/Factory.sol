@@ -94,8 +94,8 @@ contract Factory is OwnableUpgradeable {
     }
 
     /**
-     * @dev produces new instance with defined name and symbol
-     * @param _info New instance info
+     * @notice produces new instance with defined name and symbol
+     * @param _info New instance's info
      * @return instance address of new contract
      */
     function produce(
@@ -137,6 +137,13 @@ contract Factory is OwnableUpgradeable {
         return instanceCreated;
     }
 
+    /**
+     * @dev Creates a new instance of NFT and adds the info 
+     * into the Storage contract
+     * @param name New instance's name
+     * @param symbol New instance's symbol
+     * @return instance address of new contract
+     */
     function _createInstance(string memory name, string memory symbol)
         internal
         returns (address instanceAddress)
@@ -152,6 +159,11 @@ contract Factory is OwnableUpgradeable {
         emit InstanceCreated(name, symbol, instanceAddress, id);
     }
 
+    /**
+     * @dev Checks if instance with specified name and symbol already exists
+     * @param name New instance's name
+     * @param symbol New instance's symbol
+     */
     function _createInstanceValidate(string memory name, string memory symbol)
         internal
         view
@@ -166,6 +178,15 @@ contract Factory is OwnableUpgradeable {
         );
     }
 
+    /**
+     * @dev Verifies if the signature belongs to the current signer address
+     * @param name New instance's name
+     * @param symbol New instance's symbol
+     * @param contractURI New instance's contract URI 
+     * @param feeNumerator Fee numerator for ERC2981
+     * @param feeReceiver Fee receiver for ERC2981
+     * @param signature The signature to check
+     */
     function _verifySignature(
         string memory name,
         string memory symbol,   
