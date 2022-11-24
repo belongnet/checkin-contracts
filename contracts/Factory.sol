@@ -142,7 +142,7 @@ contract Factory is OwnableUpgradeable {
      * into the Storage contract
      * @param name New instance's name
      * @param symbol New instance's symbol
-     * @return instance address of new contract
+     * @return instanceAddress Instance address of new contract
      */
     function _createInstance(string memory name, string memory symbol)
         internal
