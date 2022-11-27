@@ -64,7 +64,7 @@ contract Factory is OwnableUpgradeable {
     /**
      * @notice Sets new platform comission
      * @dev Only owner can call it
-     * @param _platformCommission - The platform comission
+     * @param _platformCommission The platform comission
      */
     function setPlatformCommission(uint8 _platformCommission) external onlyOwner {
         platformCommission = _platformCommission;
@@ -74,7 +74,7 @@ contract Factory is OwnableUpgradeable {
     /**
      * @notice Sets new platform address
      * @dev Only owner can call it
-     * @param _platformAddress - The platform address
+     * @param _platformAddress The platform address
      */
     function setPlatformAddress(address _platformAddress) external onlyOwner {
         require(_platformAddress != address(0), "incorrect address");
@@ -85,7 +85,7 @@ contract Factory is OwnableUpgradeable {
     /**
      * @notice Sets new signer address
      * @dev Only owner can call it
-     * @param _signer - The signer address
+     * @param _signer The signer address
      */
     function setSigner(address _signer) external onlyOwner {
         require(_signer != address(0), "incorrect address");
@@ -95,8 +95,8 @@ contract Factory is OwnableUpgradeable {
 
     /**
      * @notice produces new instance with defined name and symbol
-     * @param _info New instance's info
-     * @return instance address of new contract
+     * @param _info The new instance's info
+     * @return The new instance's address
      */
     function produce(
         InstanceInfo memory _info
@@ -142,7 +142,7 @@ contract Factory is OwnableUpgradeable {
      * into the Storage contract
      * @param name New instance's name
      * @param symbol New instance's symbol
-     * @return instanceAddress Instance address of new contract
+     * @return instanceAddress The new instance's address
      */
     function _createInstance(string memory name, string memory symbol)
         internal

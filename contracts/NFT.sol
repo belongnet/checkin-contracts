@@ -64,7 +64,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     }
 
     /** 
-     * @dev initialize is called by factory when deployed
+     * @dev called by factory when instance deployed
      * @param _params Collection parameters
      */
     function initialize(
@@ -91,7 +91,8 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     }
 
     /** 
-     * @notice needs a signature from trusted address in order to mint
+     * @notice Mints new NFT
+     * @dev Requires a signature from the trusted address
      * @param reciever Address that gets ERC721 token
      * @param tokenId ID of a ERC721 token to mint
      * @param tokenUri Metadata URI of the ERC721 token
@@ -156,7 +157,7 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     }
 
     /** 
-     * @notice sets paying token
+     * @notice Sets paying token
      * @param _payingToken New token address
      */
     function setPayingToken(

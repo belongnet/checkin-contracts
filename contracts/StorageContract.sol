@@ -21,9 +21,9 @@ contract StorageContract is Ownable {
     event InstanceAdded(address newInstance);
 
     /**
-    * @dev returns instance info
-    * @param instanceId instance ID
-    */
+     * @dev Returns instance info
+     * @param instanceId Instance ID
+     */
     function getInstanceInfo(
         uint256 instanceId
     ) external view returns(InstanceInfo memory) {
@@ -33,14 +33,15 @@ contract StorageContract is Ownable {
     }
 
     /**
-    * @dev returns the count of instances
-    */
+     * @dev Returns the count of instances
+     */
     function instancesCount() external view returns (uint256) {
         return instances.length;
     }
 
     /** 
      * @notice Sets new factory address
+     * @dev Only owner can call it
      * @param _factory New factory address
      */
     function setFactory(address _factory) external onlyOwner {
