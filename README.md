@@ -135,6 +135,17 @@ Belong NFT has the following functions:
     ) - Sets paying token, mint price and whitelist mint price
 5. owner() - Overridden function from Ownable contract. Owner of the contract is always the platform address. Otherwise the user will be able to change royalty information on the marketplaces
 
+##### Update corresponding to new OpenSea royalties requirements
+In order to satisfy new OpenSea requirements considering royalties functions listed below were overridden:
+1. setApprovalForAll(address operator, bool approved)
+2. approve(address operator, uint256 tokenId)
+3. transferFrom(address from, address to, uint256 tokenId)
+4. safeTransferFrom(address from, address to, uint256 tokenId)
+5. safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
+and now can revert if called from one of addresses (or with certain parameters) in list governed by OpenSea
+This list can be changed by OpenSea at any time and this will take an immediate effect
+Risks were acknowledged and evaluted
+
 #### 2.2.2. Factory.sol
 Produces new instances of NFT contract and registers them in the StorageContract. The NFT contract can be deployed by anyone. Factory also contains data about platform commission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from the Factory contract.
 
