@@ -245,3 +245,11 @@ Deploys RoyaltiesReceiver instances
 
 
 
+## Smart Contract
+
+### Conditions under which Treasury is created
+
+1. mintPrice=0&Royalties=0 => Create Contract (feeReciever='address user wallet')
+2. mintPrice=0.01&Royalties=0(+2% platform fee) => Create fee reciever
+3. mintPrice=0.01&Royalties=1(+2% platform fee) => Create fee reciever
+4. mintPrice=0&Royalties=1(+2% platform fee) => Create fee reciever
