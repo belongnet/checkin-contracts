@@ -243,6 +243,18 @@ Deploys RoyaltiesReceiver instances
     where x - creators’s BPs (input on FE)
     p - platform fee BPs (default is 100)
 
+## 3. Additional Explanations
+
+### 3.1. Platform Comission and Royalties
+For every NFT contract deployed feeReceiver and feeNumerator parameters are used during its construction.
+These parameters do not affect the internal logic in any significant way and only used to apply with ERC2981 standart
+
+Whether ERC2981 is enforced and used or not is entirely up to third parties (NFT marketplaces)
+
+Considering mint fees - a different logic is used:
+Each time a mint() function is called on any NFT contract - given NFT contract receives two parameters from Factory contract
+These parameters are: platformCommission and platformAddress
+Based on these parameters mint fees are enforced
 
 
 ## Smart Contract
