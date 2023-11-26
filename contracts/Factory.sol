@@ -215,7 +215,7 @@ contract Factory is OwnableUpgradeable {
 }
 
 // Added Referral Logic
-ReferralManager referralManager;
+ReferralManager public referralManager;
 
 event ReferralManagerSet(address newReferralManager);
 
