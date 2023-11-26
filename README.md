@@ -288,7 +288,7 @@ The project now includes a decentralized referral system. This system allows ref
 ### NFT Contract Modifications
 - **Referral Commission Logic**: The NFT contracts now include functionality to handle the referral commissions during the minting process.
 - **Key Changes**:
-  - Logic to calculate and transfer a commission (3% of minting fee) to the referrer's wallet.
+  - Logic to calculate and transfer a commission, which is 50% of the platform commission, to the referrer's wallet.
 
 ### Using the Referral System
 1. **Setting a Referrer**: Use the `setReferrer` function in the ReferralManager contract to establish a referral relationship.
