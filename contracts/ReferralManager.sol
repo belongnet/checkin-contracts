@@ -40,5 +40,18 @@ contract ReferralManager {
      */
     function getReferrer(address organizer) external view returns (address) {
         return referrers[organizer];
-    }
+```diff
+@@ -37,10 +37,6 @@
+     }
+ 
+     /**
+-     * @dev Retrieves the referrer for an organizer.
+-     * @param organizer The address of the organizer.
+-     * @return The address of the referrer.
+-     */
+-    function getReferrer(address organizer) external view returns (address) {
+-        return referrers[organizer];
+-    }
++    // Removed getReferrer function as the referrers mapping already provides a getter.
+ }
 }
