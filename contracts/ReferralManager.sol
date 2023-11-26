@@ -41,7 +41,10 @@ contract ReferralManager {
     }
 
     function getReferrer(address organizer) external view returns (address) {
-        return referrers[organizer];
+-    function getReferrer(address organizer) external view returns (address) {
+-        return referrers[organizer];
+-    }
+-}
 @@ -20,5 +20,0 @@
 -    function getReferrer(address organizer) external view returns (address) {
 -        return referrers[organizer];
