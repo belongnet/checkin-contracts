@@ -213,3 +213,19 @@ contract Factory is OwnableUpgradeable {
     uint256[49] private __gap;
 
 }
+
+// Added Referral Logic
+ReferralManager referralManager;
+
+function setReferralManager(address _referralManager) public onlyOwner {
+    referralManager = ReferralManager(_referralManager);
+}
+
+function createNFTContract(address organizer, ...) public returns (address) {
+    NFT newNFT = new NFT(...);
+    address referrer = referralManager.getReferrer(organizer);
+    if(referrer != address(0)) {
+        newNFT.setReferrer(referrer);
+    }
+    return address(newNFT);
+}

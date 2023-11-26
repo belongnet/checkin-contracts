@@ -351,3 +351,24 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
     }
 
 }
+
+
+    // Referral logic implementation
+    function mintNFT(address referrer) public payable nonReentrant {
+        require(totalSupply < maxTotalSupply, "Max supply reached");
+        uint256 mintCost = msg.sender == creator ? whitelistMintPrice : mintPrice;
+        require(msg.value >= mintCost, "Insufficient funds");
+
+        // Commission calculation and distribution
+        uint256 commission = mintCost * totalRoyalty / 10000; // Assuming totalRoyalty is in basis points
+        uint256 referralCommission = 0;
+        if (referrer != address(0)) {
+            referralCommission = commission / 2; // 50% of commission to referrer
+            payable(referrer).transfer(referralCommission);
+        }
+        payable(feeReceiver).transfer(commission - referralCommission); // Remaining commission to platform
+
+        // Minting the NFT
+        _mint(msg.sender, totalSupply + 1);
+        totalSupply += 1;
+    }
