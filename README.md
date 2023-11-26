@@ -265,3 +265,33 @@ Based on these parameters mint fees are enforced
 2. mintPrice=0.01&Royalties=0(+2% platform fee) => Create fee reciever
 3. mintPrice=0.01&Royalties=1(+2% platform fee) => Create fee reciever
 4. mintPrice=0&Royalties=1(+2% platform fee) => Create fee reciever
+## Referral System Overview
+The project now includes a decentralized referral system. This system allows referrers to earn a commission from the sales (NFT mints) made by the users they referred. The referral relationships and commission calculations are managed by smart contracts on the blockchain, ensuring transparency and security.
+
+### ReferralManager Contract
+- **Purpose**: Manages the referral relationships between users.
+- **Key Functions**:
+  - `setReferrer(address organizer, address referrer)`: Registers a referrer for a new user (organizer).
+  - `getReferrer(address organizer)`: Retrieves the referrer for a given user.
+
+### Factory Contract Modifications
+- **Referral Integration**: The Factory contract now interacts with the ReferralManager to handle referral information when creating new NFT contracts.
+- **Key Changes**:
+  - Integration with ReferralManager to set and retrieve referrer information for each organizer.
+
+### NFT Contract Modifications
+- **Referral Commission Logic**: The NFT contracts now include functionality to handle the referral commissions during the minting process.
+- **Key Changes**:
+  - Logic to calculate and transfer a commission (3% of minting fee) to the referrer's wallet.
+
+### Using the Referral System
+1. **Setting a Referrer**: Use the `setReferrer` function in the ReferralManager contract to establish a referral relationship.
+2. **Creating NFT Contracts**: When a new NFT contract is created through the Factory, it checks for a referrer and sets it in the NFT contract.
+3. **Minting NFTs**: Upon minting an NFT, if a referrer is set, a commission is automatically calculated and transferred to the referrer.
+
+### Running Tests
+The project includes comprehensive tests for the new referral system. To run these tests:
+```bash
+npx hardhat test
+```
+This will execute tests for the ReferralManager, Factory, and NFT contracts, ensuring the referral system functions correctly.
