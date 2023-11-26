@@ -217,8 +217,11 @@ contract Factory is OwnableUpgradeable {
 // Added Referral Logic
 ReferralManager referralManager;
 
+event ReferralManagerSet(address newReferralManager);
+
 function setReferralManager(address _referralManager) external onlyOwner {
     referralManager = ReferralManager(_referralManager);
+    emit ReferralManagerSet(_referralManager);
 }
 
 function createNFTContract(address organizer, ...) public returns (address) {
