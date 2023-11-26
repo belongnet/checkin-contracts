@@ -28,6 +28,8 @@ contract ReferralManager {
      * @param referrer The address of the referrer.
      */
     function setReferrer(address organizer, address referrer) external onlyPlatformAdmin {
+        require(organizer != address(0), "Organizer address cannot be the zero address");
+        require(referrer != address(0), "Referrer address cannot be the zero address");
         require(organizer != referrer, "Organizer cannot refer themselves");
         require(referrers[organizer] == address(0), "Organizer already has a referrer");
         referrers[organizer] = referrer;
