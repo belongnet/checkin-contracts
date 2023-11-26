@@ -255,7 +255,13 @@ Considering mint fees - a different logic is used:
 Each time a `mint()` function is called on any NFT contract, two parameters are received from the Factory contract: `platformCommission` and `platformAddress`. The `mint()` function in the NFT contract then enforces mint fees based on these parameters. If a referrer is present, the platform commission is split equally between the platform and the referrer.
 These parameters are: platformCommission and platformAddress
 Based on these parameters mint fees are enforced
-
+ Whether ERC2981 is enforced and used or not is entirely up to third parties (NFT marketplaces).
+ 
+ Considering mint fees - a different logic is used:
+-Each time a mint() function is called on any NFT contract - given NFT contract receives two parameters from Factory contract
++When the `mint()` function is called on an NFT contract, it enforces mint fees based on `platformCommission` and `platformAddress` received from the Factory contract. If a referrer exists, the commission is shared equally between the platform and the referrer.
+ These parameters are: platformCommission and platformAddress
+ Based on these parameters mint fees are enforced
 
 ## Smart Contract
 
