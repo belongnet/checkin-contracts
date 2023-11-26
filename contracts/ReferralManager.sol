@@ -13,6 +13,7 @@ contract ReferralManager {
 
     constructor(address _platformAdmin) {
         require(_platformAdmin != address(0), "Platform admin address cannot be the zero address");
+        require(_platformAdmin != address(this), "Platform admin cannot be the contract itself");
         platformAdmin = _platformAdmin;
     }
 
