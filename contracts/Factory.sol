@@ -217,7 +217,7 @@ contract Factory is OwnableUpgradeable {
 // Added Referral Logic
 ReferralManager referralManager;
 
-function setReferralManager(address _referralManager) public onlyOwner {
+function setReferralManager(address _referralManager) external onlyOwner {
     referralManager = ReferralManager(_referralManager);
 }
 
