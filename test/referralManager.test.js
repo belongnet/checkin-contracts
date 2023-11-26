@@ -23,7 +23,6 @@ describe("ReferralManager", function() {
 
     await expect(referralManager.setReferrer(organizer.address, referrer2.address))
       .to.be.revertedWith("Organizer already has a referrer");
- describe("ReferralManager", function() {
 +  let ReferralManager;
 +  let referralManager;
 +  let organizer;
