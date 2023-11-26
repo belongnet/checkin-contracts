@@ -7,7 +7,7 @@ pragma solidity ^0.8.0;
  */
 contract ReferralManager {
     mapping(address => address) public referrers;
-    address private platformAdmin; // This address represents the platform admin authorized to set referrers.
+    address private immutable platformAdmin; // This address represents the platform admin authorized to set referrers.
 
     event ReferrerAssigned(address indexed organizer, address indexed referrer);
 
