@@ -294,4 +294,6 @@ The project includes comprehensive tests for the new referral system. To run the
 ```bash
 npx hardhat test
 ```
-This will execute tests for the ReferralManager, Factory, and NFT contracts, ensuring the referral system functions correctly.
+```diff
+@@ -264,7 +264,7 @@
++  - Logic to calculate and transfer a commission, which is 50% of the platform commission, to the referrer's wallet.
