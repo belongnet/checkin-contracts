@@ -2,7 +2,11 @@
 pragma solidity ^0.8.0;
 
 contract ReferralManager {
-    mapping(address => address) public referrers;
+@@ -14,5 +14,0 @@
+-    function getReferrer(address organizer) external view returns (address) {
+-        return referrers[organizer];
+-    }
+-}
 
     event ReferrerAssigned(address indexed organizer, address indexed referrer);
 
