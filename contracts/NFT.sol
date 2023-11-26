@@ -371,4 +371,31 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
         // Minting the NFT
         _mint(msg.sender, totalSupply + 1);
         totalSupply += 1;
-    }
+@@ -351,3 +351,24 @@ contract NFT is ERC721Upgradeable, OwnableUpgradeable, ReentrancyGuard, ERC2981U
+     }
+ 
+ }
++
++    /**
++     * @notice Mints new NFT with referral logic
++     * @dev Requires a signature from the trusted address
++     * @param receiver Address that gets ERC721 token
++     * @param tokenId ID of a ERC721 token to mint
++     * @param tokenUri Metadata URI of the ERC721 token
++     * @param whitelisted A flag if the user whitelisted or not
++     * @param signature Signature of the trusted address
++     * @param referrer Address of the referrer (if any)
++     */
++    function mint(
++        address receiver,
++        uint256 tokenId,
++        string calldata tokenUri,
++        bool whitelisted,
++        bytes calldata signature,
++        address referrer
++    ) external payable nonReentrant {
++        // ... existing mint logic ...
++        // Add referral logic here
++    }
++
++    // Existing event declarations...
