@@ -11,6 +11,7 @@ contract ReferralManager {
     event ReferrerAssigned(address indexed organizer, address indexed referrer);
 
     function setReferrer(address organizer, address referrer) external {
+       require(organizer != referrer, "Organizer cannot refer themselves");
         require(referrers[organizer] == address(0), "Organizer already has a referrer");
         referrers[organizer] = referrer;
         emit ReferrerAssigned(organizer, referrer);
