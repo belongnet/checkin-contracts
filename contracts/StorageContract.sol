@@ -1,24 +1,33 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.13;
+pragma solidity 0.8.25;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+import {Factory} from "./Factory.sol";
+import {NFT} from "./NFT.sol";
+
+error OnlyFactory();
+error ZeroAddressPasted();
+error IncorrectInstanceId();
 
 contract StorageContract is Ownable {
+    event FactorySet(Factory newFactory);
+    event InstanceAdded(NFT newInstance);
 
     struct InstanceInfo {
         string name;
         string symbol;
         address creator;
     }
-    
-    address public factory; // The current factory address
 
-    mapping(bytes32 => address) public getInstance; // keccak256("name", "symbol") => instance address
-    mapping(address => InstanceInfo) private _instanceInfos;    // Instance address => InstanceInfo
-    address[] public instances; // The array of all instances
+    Factory public factory; // The current factory address
 
-    event FactorySet(address newFactory);
-    event InstanceAdded(address newInstance);
+    NFT[] public instances; // The array of all instances
+
+    mapping(bytes32 => NFT) public instancesByName; // keccak256("name", "symbol") => instance address
+    mapping(NFT => InstanceInfo) public instanceInfos; // Instance address => InstanceInfo
+
+    constructor(address initialOwner) Ownable(initialOwner) {}
 
     /**
      * @dev Returns instance info
@@ -26,31 +35,29 @@ contract StorageContract is Ownable {
      */
     function getInstanceInfo(
         uint256 instanceId
-    ) external view returns(InstanceInfo memory) {
-        require(instanceId < instances.length, "incorrect ID");
-        address instance = instances[instanceId];
-        return _instanceInfos[instance];
+    ) external view returns (InstanceInfo memory) {
+        if (instanceId >= instances.length) {
+            revert IncorrectInstanceId();
+        }
+
+        return instanceInfos[instances[instanceId]];
     }
 
     /**
-     * @dev Returns the count of instances
-     */
-    function instancesCount() external view returns (uint256) {
-        return instances.length;
-    }
-
-    /** 
      * @notice Sets new factory address
      * @dev Only owner can call it
      * @param _factory New factory address
      */
-    function setFactory(address _factory) external onlyOwner {
-        require(_factory != address(0), "incorrect address");
+    function setFactory(Factory _factory) external onlyOwner {
+        if (address(_factory) == address(0)) {
+            revert ZeroAddressPasted();
+        }
+
         factory = _factory;
         emit FactorySet(_factory);
     }
 
-    /** 
+    /**
      * @notice Adds new instance
      * @dev Can be called only by factory contract
      * @param instanceAddress New instance address
@@ -59,23 +66,22 @@ contract StorageContract is Ownable {
      * @param symbol New instance symbol
      */
     function addInstance(
-        address instanceAddress,
+        NFT instanceAddress,
         address creator,
         string memory name,
         string memory symbol
     ) external returns (uint256) {
-        require(_msgSender() == factory, "only factory");
-        getInstance[keccak256(abi.encodePacked(name, symbol))] = instanceAddress;
+        if (msg.sender != address(factory)) {
+            revert OnlyFactory();
+        }
+
+        instancesByName[
+            keccak256(abi.encodePacked(name, symbol))
+        ] = instanceAddress;
         instances.push(instanceAddress);
-        _instanceInfos[instanceAddress] = InstanceInfo(
-            name,
-            symbol,
-            creator
-        );
+        instanceInfos[instanceAddress] = InstanceInfo(name, symbol, creator);
+
         emit InstanceAdded(instanceAddress);
         return instances.length;
     }
-
-
-
 }
