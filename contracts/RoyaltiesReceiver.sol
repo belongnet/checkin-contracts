@@ -1,26 +1,38 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.13;
+pragma solidity 0.8.25;
 
-import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
-contract RoyaltiesReceiver is Context, Initializable {
+error ZeroAddressPasted();
+error ZeroSharesPasted();
+error ArraysLengthMismatch();
+error Only2Payees();
+error AccountNotDuePayment();
+error AccountHasSharesAlready();
 
-    uint256 private _totalShares;
-    uint256 private _totalReleased;
-
-    address[] private _payees;
-    mapping(address => uint256) private _shares;
-    mapping(address => uint256) private _released;
-    mapping(IERC20 => uint256) private _erc20TotalReleased;
-    mapping(IERC20 => mapping(address => uint256)) private _erc20Released;
+contract RoyaltiesReceiver is Initializable {
+    using SafeTransferLib for address;
 
     event PayeeAdded(address indexed account, uint256 shares);
     event PaymentReleased(address indexed to, uint256 amount);
-    event ERC20PaymentReleased(IERC20 indexed token, address indexed to, uint256 amount);
+    event ERC20PaymentReleased(
+        address indexed token,
+        address indexed to,
+        uint256 amount
+    );
     event PaymentReceived(address indexed from, uint256 amount);
+
+    uint256 public constant MAX_PAYEES_LENGTH = 2;
+    uint256 public totalShares;
+    uint256 public totalReleased;
+
+    address[] public payees;
+    mapping(address => uint256) public shares;
+    mapping(address => uint256) public released;
+    mapping(address => uint256) public erc20TotalReleased;
+    mapping(address => mapping(address => uint256)) public erc20Released;
 
     /**
      * @dev Initiates an instance of `RoyaltiesReceiver` where each account in `payees` is assigned the number of shares at
@@ -30,14 +42,27 @@ contract RoyaltiesReceiver is Context, Initializable {
      * duplicates in `payees`.
      */
 
-    function initialize(address[] memory payees, uint256[] memory shares_) external payable initializer {
-        require(payees.length == shares_.length, "RoyaltiesReceiver: payees and shares length mismatch");
-        require(payees.length == 2, "RoyaltiesReceiver: there should be only 2 payees");
-
-        for (uint256 i = 0; i < payees.length; i++) {
-            _addPayee(payees[i], shares_[i]);
+    function initialize(
+        address[] calldata _payees,
+        uint256[] calldata _shares
+    ) external payable initializer {
+        if (_payees.length != _shares.length) {
+            revert ArraysLengthMismatch();
         }
 
+        if (_payees.length == MAX_PAYEES_LENGTH) {
+            revert Only2Payees();
+        }
+
+        for (uint256 i = 0; i < MAX_PAYEES_LENGTH; ) {
+            _addPayee(_payees[i], _shares[i]);
+
+            {
+                unchecked {
+                    ++i;
+                }
+            }
+        }
     }
 
     /**
@@ -49,96 +74,66 @@ contract RoyaltiesReceiver is Context, Initializable {
      * https://solidity.readthedocs.io/en/latest/contracts.html#fallback-function[fallback
      * functions].
      */
-    receive() external payable virtual {
-        emit PaymentReceived(_msgSender(), msg.value);
+    receive() external payable {
+        emit PaymentReceived(msg.sender, msg.value);
     }
 
-
-    /** 
+    /**
      * @notice releases ETH to all payees
      */
-    function releaseAll() external virtual {
-        for (uint256 i = 0; i < _payees.length; i++) {
-            _release(payable(_payees[i]));
+    function releaseAll() external {
+        address[] memory _payees = payees;
+
+        for (uint256 i = 0; i < _payees.length; ) {
+            _release(_payees[i]);
+
+            {
+                unchecked {
+                    ++i;
+                }
+            }
         }
     }
 
-    /** 
+    /**
      * @notice releases specified ERC20 to all payees
      * @param token ERC20 token to be distributed
      */
-    function releaseAll(IERC20 token) external virtual {
-        for (uint256 i = 0; i < _payees.length; i++) {
+    function releaseAll(address token) external {
+        address[] memory _payees = payees;
+
+        for (uint256 i = 0; i < _payees.length; ) {
             _release(token, _payees[i]);
+
+            {
+                unchecked {
+                    ++i;
+                }
+            }
         }
-    }
-
-    /**
-     * @dev Getter for the address of the payee number `index`.
-     */
-    function payee(uint256 index) external view returns (address) {
-        require(index < _payees.length, "incorrect index");
-        return _payees[index];
-    }
-
-    /**
-     * @dev Getter for the amount of shares held by an account.
-     */
-    function shares(address account) external view returns (uint256) {
-        return _shares[account];
-    }
-    /**
-     * @dev Getter for the total shares held by payees.
-     */
-    function totalShares() external view returns (uint256) {
-        return _totalShares;
-    }
-
-    /**
-     * @dev Getter for the total amount of Ether already released.
-     */
-    function totalReleased() public view returns (uint256) {
-        return _totalReleased;
-    }
-
-    /**
-     * @dev Getter for the total amount of `token` already released. `token` should be the address of an IERC20
-     * contract.
-     */
-    function totalReleased(IERC20 token) public view returns (uint256) {
-        return _erc20TotalReleased[token];
-    }
-
-    /**
-     * @dev Getter for the amount of Ether already released to a payee.
-     */
-    function released(address account) public view returns (uint256) {
-        return _released[account];
-    }
-
-    /**
-     * @dev Getter for the amount of `token` tokens already released to a payee. `token` should be the address of an
-     * IERC20 contract.
-     */
-    function released(IERC20 token, address account) public view returns (uint256) {
-        return _erc20Released[token][account];
     }
 
     /**
      * @dev Triggers a transfer to `account` of the amount of Ether they are owed, according to their percentage of the
      * total shares and their previous withdrawals.
      */
-    function _release(address payable account) internal virtual {
+    function _release(address account) internal {
+        uint256 totalReceived = address(this).balance + totalReleased;
+        uint256 payment = _pendingPayment(
+            account,
+            totalReceived,
+            released[account]
+        );
 
-        uint256 totalReceived = address(this).balance + totalReleased();
-        uint256 payment = _pendingPayment(account, totalReceived, released(account));
+        if (payment == 0) {
+            revert AccountNotDuePayment();
+        }
 
-        require(payment != 0, "PaymentSplitter: account is not due payment");
+        released[account] += payment;
+        totalReleased += payment;
 
-        _released[account] += payment;
-        _totalReleased += payment;
+        account.safeTransferETH(payment);
 
-        Address.sendValue(account, payment);
         emit PaymentReleased(account, payment);
     }
 
@@ -147,34 +142,48 @@ contract RoyaltiesReceiver is Context, Initializable {
      * percentage of the total shares and their previous withdrawals. `token` must be the address of an IERC20
      * contract.
      */
-    function _release(IERC20 token, address account) internal virtual {
+    function _release(address token, address account) internal {
+        uint256 totalReceived = IERC20(token).balanceOf(address(this)) +
+            erc20TotalReleased[token];
+        uint256 payment = _pendingPayment(
+            account,
+            totalReceived,
+            erc20Released[token][account]
+        );
 
-        uint256 totalReceived = token.balanceOf(address(this)) + totalReleased(token);
-        uint256 payment = _pendingPayment(account, totalReceived, released(token, account));
+        if (payment == 0) {
+            revert AccountNotDuePayment();
+        }
 
-        require(payment != 0, "PaymentSplitter: account is not due payment");
+        erc20Released[token][account] += payment;
+        erc20TotalReleased[token] += payment;
 
-        _erc20Released[token][account] += payment;
-        _erc20TotalReleased[token] += payment;
-
-        SafeERC20.safeTransfer(token, account, payment);
+        token.safeTransfer(account, payment);
         emit ERC20PaymentReleased(token, account, payment);
     }
 
     /**
      * @dev Add a new payee to the contract.
      * @param account The address of the payee to add.
-     * @param shares_ The number of shares owned by the payee.
+     * @param _shares The number of shares owned by the payee.
      */
-    function _addPayee(address account, uint256 shares_) private {
-        require(account != address(0), "PaymentSplitter: account is the zero address");
-        require(shares_ > 0, "PaymentSplitter: shares are 0");
-        require(_shares[account] == 0, "PaymentSplitter: account already has shares");
+    function _addPayee(address account, uint256 _shares) private {
+        if (account == address(0)) {
+            revert ZeroAddressPasted();
+        }
 
-        _payees.push(account);
-        _shares[account] = shares_;
-        _totalShares = _totalShares + shares_;
-        emit PayeeAdded(account, shares_);
+        if (_shares == 0) {
+            revert ZeroSharesPasted();
+        }
+
+        if (shares[account] != 0) {
+            revert AccountHasSharesAlready();
+        }
+
+        payees.push(account);
+        shares[account] = _shares;
+        totalShares += _shares;
+        emit PayeeAdded(account, _shares);
     }
 
     /**
@@ -186,6 +195,7 @@ contract RoyaltiesReceiver is Context, Initializable {
         uint256 totalReceived,
         uint256 alreadyReleased
     ) private view returns (uint256) {
-        return (totalReceived * _shares[account]) / _totalShares - alreadyReleased;
+        return
+            (totalReceived * shares[account]) / totalShares - alreadyReleased;
     }
 }
