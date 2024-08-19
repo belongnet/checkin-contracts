@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.13;
+pragma solidity 0.8.25;
 
-import "./RoyaltiesReceiver.sol";
+import {RoyaltiesReceiver} from "./RoyaltiesReceiver.sol";
+
+error InstanceEqZero();
 
 contract ReceiverFactory {
-
     event ReceiverCreated(
         address indexed creator,
         address instance,
-        address[] payees, 
+        address[] payees,
         uint256[] shares
     );
 
@@ -20,16 +21,18 @@ contract ReceiverFactory {
      * duplicates in `payees`.
      */
     function deployReceiver(
-        address[] memory payees, uint256[] memory shares_
+        address[] calldata payees,
+        uint256[] calldata shares
     ) external returns (address) {
         RoyaltiesReceiver instance = new RoyaltiesReceiver();
-        require(
-            address(instance) != address(0),
-            "Factory: INSTANCE_CREATION_FAILED"
-        );
-        instance.initialize(payees, shares_);
-        emit ReceiverCreated(msg.sender, address(instance), payees, shares_);
+        if (address(instance) == address(0)) {
+            revert InstanceEqZero();
+        }
+
+        instance.initialize(payees, shares);
+
+        emit ReceiverCreated(msg.sender, address(instance), payees, shares);
+
         return address(instance);
     }
-
 }
