@@ -64,6 +64,10 @@ contract Factory is OwnableUpgradeable {
         platformAddress = _platformAddress;
         platformCommission = _platformCommission;
         storageContract = _storageContract;
+
+        emit SignerSet(_signer);
+        emit PlatformComissionSet(_platformCommission);
+        emit PlatformAddressSet(_platformAddress);
     }
 
     /**
@@ -153,8 +157,10 @@ contract Factory is OwnableUpgradeable {
             revert EmptySymbolPasted();
         }
 
+        StorageContract _storageContract = storageContract;
+
         if (
-            storageContract.instancesByName(
+            _storageContract.instancesByName(
                 keccak256(abi.encodePacked(name, symbol))
             ) != NFT(address(0))
         ) {
@@ -167,7 +173,7 @@ contract Factory is OwnableUpgradeable {
             revert InstanceCreationFailed();
         }
 
-        uint256 id = storageContract.addInstance(
+        uint256 id = _storageContract.addInstance(
             instance,
             msg.sender,
             name,
