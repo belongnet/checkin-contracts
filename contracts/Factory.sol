@@ -123,7 +123,7 @@ contract Factory is OwnableUpgradeable {
                 _info.name,
                 _info.symbol,
                 _info.contractURI,
-                _info.totalRoyalty,
+                _info.feeNumerator,
                 _info.feeReceiver,
                 _info.signature
             )
