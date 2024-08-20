@@ -52,6 +52,10 @@ contract NFT is
         _;
     }
 
+    // constructor() {
+    //     _disableInitializers();
+    // }
+
     /**
      * @dev called by factory when instance deployed
      * @param _params Collection parameters
@@ -188,6 +192,17 @@ contract NFT is
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
         emit PayingTokenChanged(_payingToken, _mintPrice, _whitelistMintPrice);
+    }
+
+    /**
+     * @notice Returns metadata link for specified ID
+     * @param _tokenId Token ID
+     */
+
+    function tokenURI(
+        uint256 _tokenId
+    ) public view override returns (string memory) {
+        return metadataUri[_tokenId];
     }
 
     /**

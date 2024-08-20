@@ -35,6 +35,10 @@ contract RoyaltiesReceiver is Initializable {
     mapping(address => uint256) public erc20TotalReleased;
     mapping(address => mapping(address => uint256)) public erc20Released;
 
+    // constructor() {
+    //     _disableInitializers();
+    // }
+
     /**
      * @dev Initiates an instance of `RoyaltiesReceiver` where each account in `payees` is assigned the number of shares at
      * the matching position in the `shares` array.
@@ -51,17 +55,15 @@ contract RoyaltiesReceiver is Initializable {
             revert ArraysLengthMismatch();
         }
 
-        if (_payees.length == MAX_PAYEES_LENGTH) {
+        if (_payees.length != MAX_PAYEES_LENGTH) {
             revert Only2Payees();
         }
 
         for (uint256 i = 0; i < MAX_PAYEES_LENGTH; ) {
             _addPayee(_payees[i], _shares[i]);
 
-            {
-                unchecked {
-                    ++i;
-                }
+            unchecked {
+                ++i;
             }
         }
     }

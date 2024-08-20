@@ -39,6 +39,10 @@ contract Factory is OwnableUpgradeable {
         _;
     }
 
+    // constructor() {
+    //     _disableInitializers();
+    // }
+
     /**
      * @notice Initializes the contract
      * @param _signer The signer address
