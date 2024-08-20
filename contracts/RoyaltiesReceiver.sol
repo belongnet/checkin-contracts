@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Initializable} from "solady/src/utils/Initializable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 error ZeroAddressPasted();
@@ -11,6 +11,7 @@ error ArraysLengthMismatch();
 error Only2Payees();
 error AccountNotDuePayment();
 error AccountHasSharesAlready();
+error DvisonByZero();
 
 contract RoyaltiesReceiver is Initializable {
     using SafeTransferLib for address;
@@ -87,10 +88,8 @@ contract RoyaltiesReceiver is Initializable {
         for (uint256 i = 0; i < _payees.length; ) {
             _release(_payees[i]);
 
-            {
-                unchecked {
-                    ++i;
-                }
+            unchecked {
+                ++i;
             }
         }
     }
@@ -105,10 +104,8 @@ contract RoyaltiesReceiver is Initializable {
         for (uint256 i = 0; i < _payees.length; ) {
             _release(token, _payees[i]);
 
-            {
-                unchecked {
-                    ++i;
-                }
+            unchecked {
+                ++i;
             }
         }
     }
@@ -118,10 +115,9 @@ contract RoyaltiesReceiver is Initializable {
      * total shares and their previous withdrawals.
      */
     function _release(address account) internal {
-        uint256 totalReceived = address(this).balance + totalReleased;
         uint256 payment = _pendingPayment(
             account,
-            totalReceived,
+            address(this).balance + totalReleased,
             released[account]
         );
 
@@ -143,11 +139,9 @@ contract RoyaltiesReceiver is Initializable {
      * contract.
      */
     function _release(address token, address account) internal {
-        uint256 totalReceived = IERC20(token).balanceOf(address(this)) +
-            erc20TotalReleased[token];
         uint256 payment = _pendingPayment(
             account,
-            totalReceived,
+            IERC20(token).balanceOf(address(this)) + erc20TotalReleased[token],
             erc20Released[token][account]
         );
 
@@ -195,7 +189,11 @@ contract RoyaltiesReceiver is Initializable {
         uint256 totalReceived,
         uint256 alreadyReleased
     ) private view returns (uint256) {
-        return
-            (totalReceived * shares[account]) / totalShares - alreadyReleased;
+        uint256 divider = totalShares - alreadyReleased;
+        if (divider == 0) {
+            revert DvisonByZero();
+        }
+
+        return (totalReceived * shares[account]) / divider;
     }
 }
