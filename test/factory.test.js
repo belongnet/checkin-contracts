@@ -1,4 +1,3 @@
-const { ethers } = require("hardhat");
 const { solidity } = require("ethereum-waffle");
 const { BigNumber } = require("ethers");
 const chai = require("chai");
@@ -6,7 +5,6 @@ chai.use(solidity);
 chai.use(require("chai-bignumber")());
 const { expect } = chai;
 
-const BN = require("bn.js");
 const EthCrypto = require("eth-crypto");
 
 const PLATFORM_COMISSION = "10";
