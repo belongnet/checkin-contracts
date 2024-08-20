@@ -209,16 +209,6 @@ contract NFT is
     }
 
     /**
-     * @notice Returns metadata link for specified ID
-     * @param _tokenId Token ID
-     */
-    function tokenURI(
-        uint256 _tokenId
-    ) public view override returns (string memory) {
-        return metadataUri[_tokenId];
-    }
-
-    /**
      * @notice owner() function overriding for OpenSea
      */
     function owner() public view override returns (address) {
