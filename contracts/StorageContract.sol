@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 
 import {Factory} from "./Factory.sol";
 import {NFT} from "./NFT.sol";
@@ -23,11 +23,12 @@ contract StorageContract is Ownable {
     Factory public factory; // The current factory address
 
     NFT[] public instances; // The array of all instances
-
     mapping(bytes32 => NFT) public instancesByName; // keccak256("name", "symbol") => instance address
     mapping(NFT => InstanceInfo) public instanceInfos; // Instance address => InstanceInfo
 
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    constructor() {
+        _initializeOwner(msg.sender);
+    }
 
     /**
      * @dev Returns instance info
