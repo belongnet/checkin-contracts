@@ -32,10 +32,6 @@ abstract contract BaseERC721 is
         _;
     }
 
-    // constructor() {
-    //     _disableInitializers();
-    // }
-
     function __ERC721Base_init(
         NftParameters memory _params,
         ITransferValidator721 newValidator
