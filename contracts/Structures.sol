@@ -18,7 +18,7 @@ struct InstanceInfo {
     uint256 whitelistMintPrice; // Mint price of a token from a new collection for whitelisted users
     bool transferable; // Shows if tokens will be transferrable or not
     uint256 maxTotalSupply; // The max total supply of a new collection
-    uint96 totalRoyalty; // Royalty fraction for platform + Royalty fraction for creator
+    uint96 feeNumerator; // Royalty fraction for platform + Royalty fraction for creator
     address feeReceiver; // The royalties receiver address
     uint256 collectionExpires; // The period of time in which collection is expired (for the BE)
     bytes signature; // BE's signature
