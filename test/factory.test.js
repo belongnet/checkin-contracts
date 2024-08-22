@@ -17,6 +17,7 @@ describe("Factory tests", () => {
   let factory;
   let storage;
   let signer;
+  let validator;
 
   let owner, alice, bob, charlie;
   beforeEach(async () => {
@@ -29,6 +30,11 @@ describe("Factory tests", () => {
     const Factory = await ethers.getContractFactory("Factory", owner);
     factory = await Factory.deploy();
     await factory.deployed();
+
+    const Validator = await ethers.getContractFactory("MockTransferValidator");
+    validator = await Validator.deploy();
+    await validator.deployed();
+    await validator.setSwitcher(true);
 
     await storage.connect(owner).setFactory(factory.address);
 
@@ -121,58 +127,67 @@ describe("Factory tests", () => {
     await expect(
       factory
         .connect(alice)
-        .produce([
-          nftName,
-          nftSymbol,
-          contractURI,
-          ZERO_ADDRESS,
-          price,
-          price,
-          true,
-          BigNumber.from("1000"),
-          BigNumber.from("500"),
-          owner.address,
-          BigNumber.from("86400"),
-          signature,
-        ])
+        .produce(
+          [
+            nftName,
+            nftSymbol,
+            contractURI,
+            ZERO_ADDRESS,
+            price,
+            price,
+            true,
+            BigNumber.from("1000"),
+            BigNumber.from("500"),
+            owner.address,
+            BigNumber.from("86400"),
+            signature,
+          ],
+          validator.address
+        )
     ).to.be.reverted;
 
     await expect(
       factory
         .connect(alice)
-        .produce([
-          nftName,
-          nftSymbol,
-          contractURI,
-          ETH_ADDRESS,
-          price,
-          price,
-          true,
-          BigNumber.from("1000"),
-          BigNumber.from("500"),
-          ZERO_ADDRESS,
-          BigNumber.from("86400"),
-          badSignature,
-        ])
+        .produce(
+          [
+            nftName,
+            nftSymbol,
+            contractURI,
+            ETH_ADDRESS,
+            price,
+            price,
+            true,
+            BigNumber.from("1000"),
+            BigNumber.from("500"),
+            ZERO_ADDRESS,
+            BigNumber.from("86400"),
+            badSignature,
+          ],
+          validator.address
+        )
     ).to.be.reverted;
 
     await expect(
       factory
         .connect(alice)
-        .produce([
-          nftName,
-          nftSymbol,
-          contractURI,
-          ETH_ADDRESS,
-          price,
-          price,
-          true,
-          BigNumber.from("1000"),
-          BigNumber.from("500"),
-          ZERO_ADDRESS,
-          BigNumber.from("86400"),
-          signature,
-        ])
+        .produce(
+          [
+            nftName,
+            nftSymbol,
+            contractURI,
+            ETH_ADDRESS,
+            price,
+            price,
+            true,
+            BigNumber.from("1000"),
+            BigNumber.from("500"),
+            ZERO_ADDRESS,
+            BigNumber.from("86400"),
+            signature,
+          ],
+          validator.address
+        )
     ).to.be.reverted;
 
     const emptyNameMessage = EthCrypto.hash.keccak256([
@@ -192,20 +207,23 @@ describe("Factory tests", () => {
     await expect(
       factory
         .connect(alice)
-        .produce([
-          "",
-          nftSymbol,
-          contractURI,
-          ETH_ADDRESS,
-          price,
-          price,
-          true,
-          BigNumber.from("1000"),
-          BigNumber.from("500"),
-          owner.address,
-          BigNumber.from("86400"),
-          emptyNameSignature,
-        ])
+        .produce(
+          [
+            "",
+            nftSymbol,
+            contractURI,
+            ETH_ADDRESS,
+            price,
+            price,
+            true,
+            BigNumber.from("1000"),
+            BigNumber.from("500"),
+            owner.address,
+            BigNumber.from("86400"),
+            emptyNameSignature,
+          ],
+          validator.address
+        )
     ).to.be.reverted;
 
     const emptySymbolMessage = EthCrypto.hash.keccak256([
@@ -225,20 +243,23 @@ describe("Factory tests", () => {
     await expect(
       factory
         .connect(alice)
-        .produce([
-          nftName,
-          "",
-          contractURI,
-          ETH_ADDRESS,
-          price,
-          price,
-          true,
-          BigNumber.from("1000"),
-          BigNumber.from("500"),
-          owner.address,
-          BigNumber.from("86400"),
-          emptySymbolSignature,
-        ])
+        .produce(
+          [
+            nftName,
+            "",
+            contractURI,
+            ETH_ADDRESS,
+            price,
+            price,
+            true,
+            BigNumber.from("1000"),
+            BigNumber.from("500"),
+            owner.address,
+            BigNumber.from("86400"),
+            emptySymbolSignature,
+          ],
+          validator.address
+        )
     ).to.be.reverted;
 
     const infoParam = [
@@ -256,7 +277,7 @@ describe("Factory tests", () => {
       signature,
     ];
 
-    await factory.connect(alice).produce(infoParam);
+    await factory.connect(alice).produce(infoParam, validator.address);
 
     const hash = EthCrypto.hash.keccak256([
       { type: "string", value: nftName },
@@ -310,20 +331,23 @@ describe("Factory tests", () => {
 
     await factory
       .connect(alice)
-      .produce([
-        nftName1,
-        nftSymbol1,
-        contractURI1,
-        ETH_ADDRESS,
-        price1,
-        price1,
-        true,
-        BigNumber.from("1000"),
-        BigNumber.from("500"),
-        owner.address,
-        BigNumber.from("86400"),
-        signature1,
-      ]);
+      .produce(
+        [
+          nftName1,
+          nftSymbol1,
+          contractURI1,
+          ETH_ADDRESS,
+          price1,
+          price1,
+          true,
+          BigNumber.from("1000"),
+          BigNumber.from("500"),
+          owner.address,
+          BigNumber.from("86400"),
+          signature1,
+        ],
+        validator.address
+      );
 
     const message2 = EthCrypto.hash.keccak256([
       { type: "string", value: nftName2 },
@@ -338,20 +362,23 @@ describe("Factory tests", () => {
 
     await factory
       .connect(bob)
-      .produce([
-        nftName2,
-        nftSymbol2,
-        contractURI2,
-        ETH_ADDRESS,
-        price2,
-        price2,
-        true,
-        BigNumber.from("1000"),
-        BigNumber.from("500"),
-        owner.address,
-        BigNumber.from("86400"),
-        signature2,
-      ]);
+      .produce(
+        [
+          nftName2,
+          nftSymbol2,
+          contractURI2,
+          ETH_ADDRESS,
+          price2,
+          price2,
+          true,
+          BigNumber.from("1000"),
+          BigNumber.from("500"),
+          owner.address,
+          BigNumber.from("86400"),
+          signature2,
+        ],
+        validator.address
+      );
 
     const message3 = EthCrypto.hash.keccak256([
       { type: "string", value: nftName3 },
@@ -366,20 +393,23 @@ describe("Factory tests", () => {
 
     await factory
       .connect(charlie)
-      .produce([
-        nftName3,
-        nftSymbol3,
-        contractURI3,
-        ETH_ADDRESS,
-        price3,
-        price3,
-        true,
-        BigNumber.from("1000"),
-        BigNumber.from("500"),
-        owner.address,
-        BigNumber.from("86400"),
-        signature3,
-      ]);
+      .produce(
+        [
+          nftName3,
+          nftSymbol3,
+          contractURI3,
+          ETH_ADDRESS,
+          price3,
+          price3,
+          true,
+          BigNumber.from("1000"),
+          BigNumber.from("500"),
+          owner.address,
+          BigNumber.from("86400"),
+          signature3,
+        ],
+        validator.address
+      );
 
     const hash1 = EthCrypto.hash.keccak256([
       { type: "string", value: nftName1 },
@@ -473,25 +503,8 @@ describe("Factory tests", () => {
 
     await factory
       .connect(alice)
-      .produce([
-        nftName,
-        nftSymbol,
-        contractURI,
-        ETH_ADDRESS,
-        price,
-        price,
-        true,
-        BigNumber.from("1000"),
-        BigNumber.from("500"),
-        owner.address,
-        BigNumber.from("86400"),
-        signature,
-      ]);
-
-    await expect(
-      factory
-        .connect(alice)
-        .produce([
+      .produce(
+        [
           nftName,
           nftSymbol,
           contractURI,
@@ -504,7 +517,30 @@ describe("Factory tests", () => {
           owner.address,
           BigNumber.from("86400"),
           signature,
-        ])
+        ],
+        validator.address
+      );
+
+    await expect(
+      factory
+        .connect(alice)
+        .produce(
+          [
+            nftName,
+            nftSymbol,
+            contractURI,
+            ETH_ADDRESS,
+            price,
+            price,
+            true,
+            BigNumber.from("1000"),
+            BigNumber.from("500"),
+            owner.address,
+            BigNumber.from("86400"),
+            signature,
+          ],
+          validator.address
+        )
     ).to.be.reverted;
   });
 
