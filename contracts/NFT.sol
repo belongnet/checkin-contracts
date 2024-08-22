@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {BaseERC721} from "./BaseERC721.sol";
 import {ReentrancyGuard} from "solady/src/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 
-import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
+import {StorageContract} from "./StorageContract.sol";
+import {BaseERC721} from "./BaseERC721.sol";
 import {NftParameters} from "./Structures.sol";
+import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
 
 error TotalSupplyLimitReached();
 error NotEnoughETHSent(uint256 ETHsent);
@@ -46,22 +47,12 @@ contract NFT is BaseERC721, ReentrancyGuard {
         external
         initializer
         zeroAddressCheck(_params.info.payingToken)
-        zeroAddressCheck(address(_params.storageContract))
+        zeroAddressCheck(_params.storageContract)
         zeroAddressCheck(_params.info.feeReceiver)
         zeroAddressCheck(_params.creator)
         zeroAddressCheck(address(newValidator))
     {
-        string[2] memory erc721Metadata = [
-            _params.info.name,
-            _params.info.symbol
-        ];
-
-        __ERC721Base_init(
-            erc721Metadata,
-            _params.info.feeReceiver,
-            _params.info.feeNumerator,
-            newValidator
-        );
+        __ERC721Base_init(_params, newValidator);
 
         parameters = _params;
     }
@@ -94,7 +85,9 @@ contract NFT is BaseERC721, ReentrancyGuard {
                     block.chainid
                 )
             ).recover(signature) !=
-            parameters.storageContract.factory().signerAddress()
+            StorageContract(parameters.storageContract)
+                .factory()
+                .signerAddress()
         ) {
             revert InvalidSignature();
         }
@@ -123,8 +116,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
             fee =
                 (amount *
                     uint256(
-                        _parameters
-                            .storageContract
+                        StorageContract(_parameters.storageContract)
                             .factory()
                             .platformCommission()
                     )) /
@@ -134,8 +126,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
             amountToCreator = amount - fee;
         }
 
-        address platformAddress = _parameters
-            .storageContract
+        address platformAddress = StorageContract(_parameters.storageContract)
             .factory()
             .platformAddress();
 
@@ -186,7 +177,10 @@ contract NFT is BaseERC721, ReentrancyGuard {
      * @notice owner() function overriding for OpenSea
      */
     function owner() public view override returns (address) {
-        return parameters.storageContract.factory().platformAddress();
+        return
+            StorageContract(parameters.storageContract)
+                .factory()
+                .platformAddress();
     }
 
     function _update(

@@ -5,9 +5,11 @@ import {ERC721RoyaltyUpgradeable} from "@openzeppelin/contracts-upgradeable/toke
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import {CreatorToken, ITransferValidator721} from "./CreatorToken.sol";
-import {AutoValidatorTransferApprove} from "./AutoValidatorTransferApprove.sol";
+import {CreatorToken} from "./utils/CreatorToken.sol";
+import {AutoValidatorTransferApprove} from "./utils/AutoValidatorTransferApprove.sol";
 
+import {NftParameters} from "./Structures.sol";
+import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
 import {ICreatorToken, ILegacyCreatorToken} from "./interfaces/ICreatorToken.sol";
 
 error ZeroAddressPasted();
@@ -35,17 +37,15 @@ abstract contract BaseERC721 is
     // }
 
     function __ERC721Base_init(
-        string[2] memory erc721Metadata,
-        address feeReceiver,
-        uint96 feeNumerator,
+        NftParameters memory _params,
         ITransferValidator721 newValidator
-    ) internal onlyInitializing zeroAddressCheck(address(newValidator)) {
-        __ERC721_init(erc721Metadata[0], erc721Metadata[1]);
-        __Ownable_init(msg.sender);
+    ) internal onlyInitializing {
+        __ERC721_init(_params.info.name, _params.info.symbol);
+        __Ownable_init(_params.creator);
         __ERC2981_init();
         __ERC721Royalty_init();
 
-        _setDefaultRoyalty(feeReceiver, feeNumerator);
+        _setDefaultRoyalty(_params.info.feeReceiver, _params.info.feeNumerator);
         _setTransferValidator(newValidator);
     }
 
