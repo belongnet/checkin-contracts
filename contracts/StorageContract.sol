@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {Ownable} from "solady/src/auth/Ownable.sol";
 
-import {Factory} from "./Factory.sol";
+import {NFTFactory} from "./factories/NFTFactory.sol";
 import {NFT} from "./NFT.sol";
 
 error OnlyFactory();
@@ -11,7 +11,7 @@ error ZeroAddressPasted();
 error IncorrectInstanceId();
 
 contract StorageContract is Ownable {
-    event FactorySet(Factory newFactory);
+    event FactorySet(NFTFactory newFactory);
     event InstanceAdded(NFT newInstance);
 
     struct InstanceInfo {
@@ -20,7 +20,7 @@ contract StorageContract is Ownable {
         address creator;
     }
 
-    Factory public factory; // The current factory address
+    NFTFactory public factory; // The current factory address
 
     NFT[] public instances; // The array of all instances
     mapping(bytes32 => NFT) public instancesByName; // keccak256("name", "symbol") => instance address
@@ -49,7 +49,7 @@ contract StorageContract is Ownable {
      * @dev Only owner can call it
      * @param _factory New factory address
      */
-    function setFactory(Factory _factory) external onlyOwner {
+    function setFactory(NFTFactory _factory) external onlyOwner {
         if (address(_factory) == address(0)) {
             revert ZeroAddressPasted();
         }
