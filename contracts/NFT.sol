@@ -27,11 +27,6 @@ contract NFT is BaseERC721, ReentrancyGuard {
 
     NftParameters public parameters;
 
-    modifier onlyCreator() {
-        require(msg.sender == parameters.creator, "not creator");
-        _;
-    }
-
     // constructor() {
     //     _disableInitializers();
     // }
@@ -166,7 +161,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
         address _payingToken,
         uint256 _mintPrice,
         uint256 _whitelistMintPrice
-    ) external onlyCreator zeroAddressCheck(_payingToken) {
+    ) external onlyOwner zeroAddressCheck(_payingToken) {
         parameters.info.payingToken = _payingToken;
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
