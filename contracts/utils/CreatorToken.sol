@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
+import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
 
 /// @notice Revert with an error if the transfer validator is being set to the same address.
 error SetTransferValidatorError();
