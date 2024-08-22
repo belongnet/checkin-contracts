@@ -2,10 +2,12 @@
 pragma solidity 0.8.25;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {NFT, ECDSA} from "./NFT.sol";
-import {StorageContract} from "./StorageContract.sol";
-import {NftParameters, InstanceInfo} from "./Structures.sol";
-import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
+import {ECDSA} from "solady/src/utils/ECDSA.sol";
+
+import {NFT} from "../NFT.sol";
+import {StorageContract} from "../StorageContract.sol";
+import {NftParameters, InstanceInfo} from "../Structures.sol";
+import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
 
 error InvalidSignature();
 error EmptyNamePasted();
@@ -14,7 +16,7 @@ error InstanceAlreadyExists();
 error InstanceCreationFailed();
 error ZeroAddressPasted();
 
-contract Factory is OwnableUpgradeable {
+contract NFTFactory is OwnableUpgradeable {
     using ECDSA for bytes32;
 
     event InstanceCreated(
@@ -32,7 +34,7 @@ contract Factory is OwnableUpgradeable {
         ITransferValidator721(0x721C0078c2328597Ca70F5451ffF5A7B38D4E947);
 
     address public platformAddress; // Address which is allowed to collect platform fee
-    StorageContract public storageContract; // Storage contract address
+    address public storageContract; // Storage contract address
     address public signerAddress; // Signer address
     uint8 public platformCommission; // Platform comission BPs
 
@@ -58,13 +60,13 @@ contract Factory is OwnableUpgradeable {
         address _signer,
         address _platformAddress,
         uint8 _platformCommission,
-        StorageContract _storageContract
+        address _storageContract
     )
         external
         initializer
         zeroAddressCheck(_signer)
         zeroAddressCheck(_platformAddress)
-        zeroAddressCheck(address(_storageContract))
+        zeroAddressCheck(_storageContract)
     {
         __Ownable_init(msg.sender);
 
@@ -172,7 +174,7 @@ contract Factory is OwnableUpgradeable {
             revert EmptySymbolPasted();
         }
 
-        StorageContract _storageContract = storageContract;
+        StorageContract _storageContract = StorageContract(storageContract);
 
         if (
             _storageContract.instancesByName(

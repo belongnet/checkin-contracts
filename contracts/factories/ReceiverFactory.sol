@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
 
-import {RoyaltiesReceiver} from "./RoyaltiesReceiver.sol";
+import {RoyaltiesReceiver} from "../RoyaltiesReceiver.sol";
 
 error InstanceEqZero();
 
