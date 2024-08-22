@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {StorageContract} from "./StorageContract.sol";
-
 struct NftParameters {
-    StorageContract storageContract; // Address of the storage contract
+    address storageContract; // Address of the storage contract
     InstanceInfo info;
     address creator; // Creator address
 }
