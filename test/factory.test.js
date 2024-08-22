@@ -13,7 +13,7 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const chainid = 31337;
 
-describe("Factory tests", () => {
+describe("NFTFactory tests", () => {
   let factory;
   let storage;
   let signer;
@@ -27,8 +27,8 @@ describe("Factory tests", () => {
     storage = await Storage.deploy();
     await storage.deployed();
 
-    const Factory = await ethers.getContractFactory("Factory", owner);
-    factory = await Factory.deploy();
+    const NFTFactory = await ethers.getContractFactory("NFTFactory", owner);
+    factory = await NFTFactory.deploy();
     await factory.deployed();
 
     const Validator = await ethers.getContractFactory("MockTransferValidator");
@@ -58,9 +58,9 @@ describe("Factory tests", () => {
   });
 
   it("shouldn't initialize with incorrect params", async () => {
-    const Factory = await ethers.getContractFactory("Factory");
+    const NFTFactory = await ethers.getContractFactory("NFTFactory");
 
-    let factory = await Factory.deploy();
+    let factory = await NFTFactory.deploy();
 
     await expect(
       factory

@@ -33,8 +33,8 @@ describe("NFT tests", () => {
     storage = await Storage.deploy();
     await storage.deployed();
 
-    const Factory = await ethers.getContractFactory("Factory");
-    factory = await Factory.deploy();
+    const NFTFactory = await ethers.getContractFactory("NFTFactory");
+    factory = await NFTFactory.deploy();
     await factory.deployed();
 
     const Erc20Example = await ethers.getContractFactory("erc20Example");
