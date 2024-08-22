@@ -11,7 +11,8 @@ require("@openzeppelin/hardhat-upgrades");
 
 const bscURL = "https://bsc-dataseed.binance.org";
 const mainnetURL = `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
-const maticURL = `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_MATIC}`;
+const maticURL = `https://polygon-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
+const sepoliaURL = `https://sepolia.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
 
 module.exports = {
   solidity: {
@@ -44,20 +45,25 @@ module.exports = {
     //   accounts: { mnemonic: process.env.MNEMONIC },
     //   saveDeployments: true,
     // },
-    // matic: {
-    //   url: maticURL,
-    //   chainId: 137,
-    //   gasPrice: "auto",
-    //   accounts: { mnemonic: process.env.MNEMONIC },
-    //   saveDeployments: true,
-    // },
-    // mainnet: {
-    //   url: mainnetURL,
-    //   chainId: 1,
-    //   gasPrice: 60000000000,
-    //   accounts: { mnemonic: process.env.MNEMONIC },
-    //   saveDeployments: true,
-    // },
+    matic: {
+      url: maticURL,
+      chainId: 137,
+      gasPrice: "auto",
+      accounts: [process.env.PK],
+      saveDeployments: true,
+    },
+    mainnet: {
+      url: mainnetURL,
+      chainId: 1,
+      accounts: [process.env.PK],
+      saveDeployments: true,
+    },
+    sepolia: {
+      url: sepoliaURL,
+      chainId: 11155111,
+      accounts: [process.env.PK],
+      saveDeployments: true,
+    },
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
