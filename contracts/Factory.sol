@@ -5,6 +5,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {NFT, ECDSA} from "./NFT.sol";
 import {StorageContract} from "./StorageContract.sol";
 import {NftParameters, InstanceInfo} from "./Structures.sol";
+import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
 
 error InvalidSignature();
 error EmptyNamePasted();
@@ -26,6 +27,9 @@ contract Factory is OwnableUpgradeable {
     event SignerSet(address newSigner);
     event PlatformComissionSet(uint8 newComission);
     event PlatformAddressSet(address newPlatformAddress);
+
+    ITransferValidator721 public constant DEFAULT_TRANSFER_VALIDATOR =
+        ITransferValidator721(0x721C0078c2328597Ca70F5451ffF5A7B38D4E947);
 
     address public platformAddress; // Address which is allowed to collect platform fee
     StorageContract public storageContract; // Storage contract address
@@ -116,7 +120,8 @@ contract Factory is OwnableUpgradeable {
      * @return instance The new instance's address
      */
     function produce(
-        InstanceInfo calldata _info
+        InstanceInfo calldata _info,
+        ITransferValidator721 validator
     ) external returns (NFT instance) {
         if (
             !_verifySignature(
@@ -137,9 +142,15 @@ contract Factory is OwnableUpgradeable {
             msg.sender
         );
 
+        if (address(validator) == address(0)) {
+            validator = DEFAULT_TRANSFER_VALIDATOR;
+        }
+
         instance = _createInstance(_info.name, _info.symbol);
 
-        instance.initialize(params);
+        instance.initialize(params, validator);
+
+        // instance.transferOwnership(msg.sender);
         return instance;
     }
 
@@ -196,12 +207,12 @@ contract Factory is OwnableUpgradeable {
      * @param signature The signature to check
      */
     function _verifySignature(
-        string memory name,
-        string memory symbol,
-        string memory contractURI,
+        string calldata name,
+        string calldata symbol,
+        string calldata contractURI,
         uint96 feeNumerator,
         address feeReceiver,
-        bytes memory signature
+        bytes calldata signature
     ) internal view returns (bool) {
         return
             keccak256(
