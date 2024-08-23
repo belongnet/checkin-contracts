@@ -8,6 +8,7 @@ require("@nomiclabs/hardhat-etherscan");
 require("solidity-coverage");
 require("hardhat-gas-reporter");
 require("@openzeppelin/hardhat-upgrades");
+require("@shardlabs/starknet-hardhat-plugin");
 
 const bscURL = "https://bsc-dataseed.binance.org";
 const mainnetURL = `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
