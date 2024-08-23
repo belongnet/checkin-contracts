@@ -6,10 +6,6 @@ import {InstanceInfo, NftParameters} from "../Structures.sol";
 
 import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
 
-error TotalSupplyLimitReached();
-error NotEnoughETHSent(uint256 ETHsent);
-error NotTransferable();
-
 contract ERC721Mock is BaseERC721 {
     // constructor() {
     //     _disableInitializers();

@@ -152,7 +152,6 @@ contract NFTFactory is OwnableUpgradeable {
 
         instance.initialize(params, validator);
 
-        // instance.transferOwnership(msg.sender);
         return instance;
     }
 
@@ -228,6 +227,4 @@ contract NFTFactory is OwnableUpgradeable {
                 )
             ).recover(signature) == signerAddress;
     }
-
-    uint256[49] private __gap;
 }

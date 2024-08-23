@@ -25,6 +25,9 @@ contract NFT is BaseERC721, ReentrancyGuard {
         uint256 newWLPrice
     );
 
+    address public constant ETH_ADDRESS =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     NftParameters public parameters;
 
     // constructor() {
@@ -95,8 +98,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
             ? _parameters.info.whitelistMintPrice
             : _parameters.info.mintPrice;
 
-        uint256 amount = _parameters.info.payingToken ==
-            0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
+        uint256 amount = _parameters.info.payingToken == ETH_ADDRESS
             ? msg.value
             : price;
 
@@ -125,10 +127,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
             .factory()
             .platformAddress();
 
-        if (
-            _parameters.info.payingToken ==
-            0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
-        ) {
+        if (_parameters.info.payingToken == ETH_ADDRESS) {
             if (fee > 0) {
                 platformAddress.safeTransferETH(fee);
             }
@@ -166,16 +165,6 @@ contract NFT is BaseERC721, ReentrancyGuard {
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
         emit PayingTokenChanged(_payingToken, _mintPrice, _whitelistMintPrice);
-    }
-
-    /**
-     * @notice owner() function overriding for OpenSea
-     */
-    function owner() public view override returns (address) {
-        return
-            StorageContract(parameters.storageContract)
-                .factory()
-                .platformAddress();
     }
 
     function _update(
