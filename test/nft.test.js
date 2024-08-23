@@ -59,9 +59,9 @@ describe("NFT tests", () => {
         storage.address
       );
 
-    const nftName = "Name 1";
-    const nftSymbol = "S1";
-    const contractURI = "contractURI/123";
+    const nftName = "InstanceName";
+    const nftSymbol = "INNME";
+    const contractURI = "ipfs://tbd";
     const price = ethers.utils.parseEther("0.03");
 
     const message = EthCrypto.hash.keccak256([
@@ -75,25 +75,37 @@ describe("NFT tests", () => {
 
     const signature = EthCrypto.sign(signer.privateKey, message);
 
-    await factory
-      .connect(alice)
-      .produce(
-        [
-          nftName,
-          nftSymbol,
-          contractURI,
-          ETH_ADDRESS,
-          price,
-          price,
-          true,
-          BigNumber.from("10"),
-          BigNumber.from("600"),
-          owner.address,
-          BigNumber.from("86400"),
-          signature,
-        ],
-        validator.address
-      );
+    instanceInfoETH = [
+      nftName,
+      nftSymbol,
+      contractURI,
+      ETH_ADDRESS,
+      price,
+      price,
+      true,
+      10,
+      BigNumber.from("600"),
+      owner.address,
+      BigNumber.from("86400"),
+      signature,
+    ];
+
+    instanceInfoToken = [
+      nftName,
+      nftSymbol,
+      contractURI,
+      erc20Example.address,
+      100,
+      100,
+      true,
+      10,
+      BigNumber.from("600"),
+      owner.address,
+      BigNumber.from("86400"),
+      signature,
+    ];
+
+    await factory.connect(alice).produce(instanceInfoETH, validator.address);
 
     const hash = EthCrypto.hash.keccak256([
       { type: "string", value: nftName },
@@ -102,36 +114,6 @@ describe("NFT tests", () => {
     instanceAddress = await storage.instancesByName(hash);
     const NFT = await ethers.getContractFactory("NFT");
     nft = await NFT.attach(instanceAddress);
-
-    instanceInfoToken = [
-      "InstanceName",
-      "INNME",
-      "ipfs://tbd",
-      erc20Example.address,
-      100,
-      100,
-      true,
-      BigNumber.from("1000"),
-      BigNumber.from("600"),
-      nft.address,
-      BigNumber.from("86400"),
-      "0x00",
-    ];
-
-    instanceInfoETH = [
-      "InstanceName",
-      "INNME",
-      "ipfs://tbd",
-      ETH_ADDRESS,
-      ethers.utils.parseEther("0.03"),
-      ethers.utils.parseEther("0.03"),
-      true,
-      BigNumber.from("1000"),
-      BigNumber.from("600"),
-      nft.address,
-      BigNumber.from("86400"),
-      "0x00",
-    ];
   });
 
   describe("Deploy", async () => {
@@ -219,10 +201,19 @@ describe("NFT tests", () => {
           value: ethers.utils.parseEther("0.03"),
         });
 
-      for (let i = 0; i < 9; i++) {
+      const salePrice = 1000;
+      const feeNumerator = 600;
+      const feeDenominator = 10000;
+      const expectedResult = (salePrice * feeNumerator) / feeDenominator;
+
+      const [receiver, realResult] = await nft.royaltyInfo(0, salePrice);
+      expect(expectedResult).to.be.equal(realResult);
+      expect(receiver).to.be.equal(owner.address);
+
+      for (let i = 1; i < 10; i++) {
         const message = EthCrypto.hash.keccak256([
           { type: "address", value: alice.address },
-          { type: "uint256", value: i + 1 },
+          { type: "uint256", value: i },
           { type: "string", value: NFT_721_BASE_URI },
           { type: "bool", value: false },
           { type: "uint256", value: chainid },
@@ -245,7 +236,6 @@ describe("NFT tests", () => {
       ]);
 
       signature = EthCrypto.sign(signer.privateKey, message);
-
       await expect(
         nft
           .connect(alice)
