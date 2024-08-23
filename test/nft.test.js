@@ -267,6 +267,7 @@ describe("NFT tests", () => {
       await expect(
         nft.connect(alice).setPayingToken(ZERO_ADDRESS, newPrice, newWLPrice)
       ).to.be.reverted;
+
       await nft
         .connect(alice)
         .setPayingToken(newPayingToken, newPrice, newWLPrice);
@@ -714,7 +715,7 @@ describe("NFT tests", () => {
           validator.address
         );
 
-      expect(await nft.owner()).to.be.equal(await factory.platformAddress());
+      expect(await nft.owner()).to.be.equal(alice.address);
 
       const NFT_721_BASE_URI = "test.com/";
 
