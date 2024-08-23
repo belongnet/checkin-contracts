@@ -5,7 +5,7 @@ async function deploy_nft() {
   const nft = await NFT.deploy();
   await nft.deployed();
 
-  await nft.initialize();
+  await nft.initialize("MyToken721", "MT721", "ipfs://tbd/");
 
   console.log(nft.address);
 }
