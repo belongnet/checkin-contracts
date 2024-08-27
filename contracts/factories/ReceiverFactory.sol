@@ -3,12 +3,12 @@ pragma solidity 0.8.25;
 
 import {RoyaltiesReceiver} from "../RoyaltiesReceiver.sol";
 
-error InstanceEqZero();
+error RoyaltiesReceiverCreationError();
 
 contract ReceiverFactory {
     event ReceiverCreated(
         address indexed creator,
-        address instance,
+        RoyaltiesReceiver royaltiesReceiver,
         address[] payees,
         uint256[] shares
     );
@@ -23,16 +23,14 @@ contract ReceiverFactory {
     function deployReceiver(
         address[] calldata payees,
         uint256[] calldata shares
-    ) external returns (address) {
-        RoyaltiesReceiver instance = new RoyaltiesReceiver();
-        if (address(instance) == address(0)) {
-            revert InstanceEqZero();
+    ) external returns (RoyaltiesReceiver royaltiesReceiver) {
+        royaltiesReceiver = new RoyaltiesReceiver();
+        if (address(royaltiesReceiver) == address(0)) {
+            revert RoyaltiesReceiverCreationError();
         }
 
-        instance.initialize(payees, shares);
+        royaltiesReceiver.initialize(payees, shares);
 
-        emit ReceiverCreated(msg.sender, address(instance), payees, shares);
-
-        return address(instance);
+        emit ReceiverCreated(msg.sender, royaltiesReceiver, payees, shares);
     }
 }
