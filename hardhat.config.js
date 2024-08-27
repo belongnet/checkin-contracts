@@ -10,10 +10,12 @@ require("hardhat-gas-reporter");
 require("@openzeppelin/hardhat-upgrades");
 require("@shardlabs/starknet-hardhat-plugin");
 
-const bscURL = "https://bsc-dataseed.binance.org";
 const mainnetURL = `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
+const bscURL = "https://bsc-dataseed.binance.org";
 const maticURL = `https://polygon-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
 const sepoliaURL = `https://sepolia.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
+const blastURL = `https://rpc.envelop.is/blast`;
+const skaleEuropaURL = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
 
 module.exports = {
   solidity: {
@@ -39,13 +41,19 @@ module.exports = {
     hardhat: {
       allowUnlimitedContractSize: false,
     },
-    // bsc: {
-    //   url: bscURL,
-    //   chainId: 56,
-    //   gasPrice: "auto",
-    //   accounts: { mnemonic: process.env.MNEMONIC },
-    //   saveDeployments: true,
-    // },
+    mainnet: {
+      url: mainnetURL,
+      chainId: 1,
+      accounts: [process.env.PK],
+      saveDeployments: true,
+    },
+    bsc: {
+      url: bscURL,
+      chainId: 56,
+      gasPrice: "auto",
+      accounts: [process.env.PK],
+      saveDeployments: true,
+    },
     matic: {
       url: maticURL,
       chainId: 137,
@@ -53,9 +61,15 @@ module.exports = {
       accounts: [process.env.PK],
       saveDeployments: true,
     },
-    mainnet: {
-      url: mainnetURL,
-      chainId: 1,
+    blast: {
+      url: blastURL,
+      chainId: 81457,
+      accounts: [process.env.PK],
+      saveDeployments: true,
+    },
+    skale: {
+      url: skaleEuropaURL,
+      chainId: 2046399126,
       accounts: [process.env.PK],
       saveDeployments: true,
     },
