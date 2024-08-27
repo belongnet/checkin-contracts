@@ -10,10 +10,6 @@ async function deploy() {
   console.log("Deployed to: ", storage.address);
 
   console.log("NFTFactory:");
-  const signer = "0x284EB52525B5A43b4f590Fc321A6117332EAB414";
-  const platformAddress = "0x8eE651E9791e4Fe615796303F48856C1Cf73C885";
-  const platformCommission = "100";
-
   const NFTFactory = await ethers.getContractFactory("NFTFactory");
   const nftFactory = await NFTFactory.deploy();
   await nftFactory.deployed();
@@ -28,6 +24,10 @@ async function deploy() {
   console.log("2. Initializing:");
 
   console.log("NFTFactory:");
+  const signer = "0x284EB52525B5A43b4f590Fc321A6117332EAB414";
+  const platformAddress = "0x8eE651E9791e4Fe615796303F48856C1Cf73C885";
+  const platformCommission = "100";
+
   await nftFactory.initialize(
     signer,
     platformAddress,
