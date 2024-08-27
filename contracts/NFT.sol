@@ -30,6 +30,13 @@ contract NFT is BaseERC721, ReentrancyGuard {
 
     NftParameters public parameters;
 
+    modifier zeroAddressCheck(address _address) {
+        if (_address == address(0)) {
+            revert ZeroAddressPasted();
+        }
+        _;
+    }
+
     // constructor() {
     //     _disableInitializers();
     // }
@@ -50,7 +57,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
         zeroAddressCheck(_params.creator)
         zeroAddressCheck(address(newValidator))
     {
-        __ERC721Base_init(_params, newValidator);
+        __BaseERC721_init(_params, newValidator);
 
         parameters = _params;
     }
