@@ -25,14 +25,7 @@ abstract contract BaseERC721 is
 
     mapping(uint256 => string) public metadataUri; // token ID -> metadata link
 
-    modifier zeroAddressCheck(address _address) {
-        if (_address == address(0)) {
-            revert ZeroAddressPasted();
-        }
-        _;
-    }
-
-    function __ERC721Base_init(
+    function __BaseERC721_init(
         NftParameters memory _params,
         ITransferValidator721 newValidator
     ) internal onlyInitializing {
@@ -43,23 +36,6 @@ abstract contract BaseERC721 is
 
         _setDefaultRoyalty(_params.info.feeReceiver, _params.info.feeNumerator);
         _setTransferValidator(newValidator);
-    }
-
-    /**
-     * @notice Mints new NFT
-     * @dev Requires a signature from the trusted address
-     * @param to Address that gets ERC721 token
-     * @param tokenUri Metadata URI of the ERC721 token
-     */
-    function mint_(
-        uint256 tokenId,
-        address to,
-        string calldata tokenUri
-    ) internal {
-        totalSupply++;
-        metadataUri[tokenId] = tokenUri;
-
-        _safeMint(to, tokenId);
     }
 
     /**
@@ -114,6 +90,23 @@ abstract contract BaseERC721 is
         return metadataUri[_tokenId];
     }
 
+    /**
+     * @notice Mints new NFT
+     * @dev Requires a signature from the trusted address
+     * @param to Address that gets ERC721 token
+     * @param tokenUri Metadata URI of the ERC721 token
+     */
+    function mint_(
+        uint256 tokenId,
+        address to,
+        string calldata tokenUri
+    ) internal {
+        totalSupply++;
+        metadataUri[tokenId] = tokenUri;
+
+        _safeMint(to, tokenId);
+    }
+
     function _update(
         address to,
         uint256 tokenId,
@@ -129,7 +122,6 @@ abstract contract BaseERC721 is
 
     /**
      * @notice Returns whether the interface is supported.
-     *
      * @param interfaceId The interface id to check against.
      */
     function supportsInterface(
