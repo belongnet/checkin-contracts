@@ -15,6 +15,7 @@ const bscURL = "https://bsc-dataseed.binance.org";
 const maticURL = `https://polygon-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
 const sepoliaURL = `https://sepolia.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
 const blastURL = `https://rpc.envelop.is/blast`;
+const blastSepoliaURL = `https://blast-sepolia.blockpi.network/v1/rpc/public`;
 const skaleEuropaURL = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
 
 module.exports = {
@@ -76,6 +77,12 @@ module.exports = {
     sepolia: {
       url: sepoliaURL,
       chainId: 11155111,
+      accounts: [process.env.PK],
+      saveDeployments: true,
+    },
+    blast_sepolia: {
+      url: blastSepoliaURL,
+      chainId: 168587773,
       accounts: [process.env.PK],
       saveDeployments: true,
     },
