@@ -12,19 +12,14 @@ import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
 error InvalidSignature();
 error EmptyNamePasted();
 error EmptySymbolPasted();
-error InstanceAlreadyExists();
-error InstanceCreationFailed();
+error NFTAlreadyExists();
+error NFTCreationFailed();
 error ZeroAddressPasted();
 
 contract NFTFactory is OwnableUpgradeable {
     using ECDSA for bytes32;
 
-    event InstanceCreated(
-        string name,
-        string symbol,
-        NFT instance,
-        uint256 length
-    );
+    event NFTCreated(string name, string symbol, NFT instance, uint256 id);
 
     event SignerSet(address newSigner);
     event PlatformComissionSet(uint8 newComission);
@@ -117,14 +112,14 @@ contract NFTFactory is OwnableUpgradeable {
     }
 
     /**
-     * @notice produces new instance with defined name and symbol
-     * @param _info The new instance's info
-     * @return instance The new instance's address
+     * @notice Produces new NFT instance with defined name and symbol
+     * @param _info The new NFT's info
+     * @return nft The new NFT's address
      */
     function produce(
         InstanceInfo calldata _info,
         ITransferValidator721 validator
-    ) external returns (NFT instance) {
+    ) external returns (NFT nft) {
         if (
             !_verifySignature(
                 _info.name,
@@ -148,24 +143,22 @@ contract NFTFactory is OwnableUpgradeable {
             validator = DEFAULT_TRANSFER_VALIDATOR;
         }
 
-        instance = _createInstance(_info.name, _info.symbol);
+        nft = _createNFT(_info.name, _info.symbol);
 
-        instance.initialize(params, validator);
-
-        return instance;
+        nft.initialize(params, validator);
     }
 
     /**
      * @dev Creates a new instance of NFT and adds the info
      * into the Storage contract
-     * @param name New instance's name
-     * @param symbol New instance's symbol
-     * @return instance The new instance's address
+     * @param name New NFT's name
+     * @param symbol New NFT's symbol
+     * @return nft The new instance's address
      */
-    function _createInstance(
+    function _createNFT(
         string memory name,
         string memory symbol
-    ) internal returns (NFT instance) {
+    ) private returns (NFT nft) {
         if ((bytes(name)).length == 0) {
             revert EmptyNamePasted();
         }
@@ -176,26 +169,21 @@ contract NFTFactory is OwnableUpgradeable {
         StorageContract _storageContract = StorageContract(storageContract);
 
         if (
-            _storageContract.instancesByName(
+            _storageContract.nftByName(
                 keccak256(abi.encodePacked(name, symbol))
             ) != NFT(address(0))
         ) {
-            revert InstanceAlreadyExists();
+            revert NFTAlreadyExists();
         }
 
-        instance = new NFT();
+        nft = new NFT();
 
-        if (instance == NFT(address(0))) {
-            revert InstanceCreationFailed();
+        if (nft == NFT(address(0))) {
+            revert NFTCreationFailed();
         }
 
-        uint256 id = _storageContract.addInstance(
-            instance,
-            msg.sender,
-            name,
-            symbol
-        );
-        emit InstanceCreated(name, symbol, instance, id);
+        uint256 id = _storageContract.addNFT(nft, msg.sender, name, symbol);
+        emit NFTCreated(name, symbol, nft, id);
     }
 
     /**
