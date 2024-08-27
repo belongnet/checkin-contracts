@@ -40,7 +40,7 @@ contract ERC721Mock is BaseERC721 {
             creator: msg.sender
         });
 
-        __ERC721Base_init(
+        __BaseERC721_init(
             params,
             ITransferValidator721(0x721C0078c2328597Ca70F5451ffF5A7B38D4E947)
         );
