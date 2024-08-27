@@ -8,13 +8,13 @@ import {NFT} from "./NFT.sol";
 
 error OnlyFactory();
 error ZeroAddressPasted();
-error IncorrectInstanceId();
+error IncorrectNFTId();
 
 contract StorageContract is Ownable {
     event FactorySet(NFTFactory newFactory);
-    event InstanceAdded(NFT newInstance);
+    event NFTAdded(NFT newNFT);
 
-    struct InstanceInfo {
+    struct NFTInfo {
         string name;
         string symbol;
         address creator;
@@ -22,26 +22,26 @@ contract StorageContract is Ownable {
 
     NFTFactory public factory; // The current factory address
 
-    NFT[] public instances; // The array of all instances
-    mapping(bytes32 => NFT) public instancesByName; // keccak256("name", "symbol") => instance address
-    mapping(NFT => InstanceInfo) public instanceInfos; // Instance address => InstanceInfo
+    NFT[] public nfts; // The array of all NFTs
+    mapping(bytes32 => NFT) public nftByName; // keccak256("name", "symbol") => NFT address
+    mapping(NFT => NFTInfo) public nftInfos; // NFT address => InstanceInfo
 
     constructor() {
         _initializeOwner(msg.sender);
     }
 
     /**
-     * @dev Returns instance info
-     * @param instanceId Instance ID
+     * @dev Returns NFT's info
+     * @param nftId NFT ID
      */
-    function getInstanceInfo(
-        uint256 instanceId
-    ) external view returns (InstanceInfo memory) {
-        if (instanceId >= instances.length) {
-            revert IncorrectInstanceId();
+    function getNFTInfo(
+        uint256 nftId
+    ) external view returns (NFTInfo memory nftInfo) {
+        if (nftId >= nfts.length) {
+            revert IncorrectNFTId();
         }
 
-        return instanceInfos[instances[instanceId]];
+        nftInfo = nftInfos[nfts[nftId]];
     }
 
     /**
@@ -59,15 +59,15 @@ contract StorageContract is Ownable {
     }
 
     /**
-     * @notice Adds new instance
+     * @notice Adds new NFT instance
      * @dev Can be called only by factory contract
-     * @param instanceAddress New instance address
+     * @param nft New NFT instance address
      * @param creator New instance creator
      * @param name New instance name
      * @param symbol New instance symbol
      */
-    function addInstance(
-        NFT instanceAddress,
+    function addNFT(
+        NFT nft,
         address creator,
         string memory name,
         string memory symbol
@@ -76,13 +76,11 @@ contract StorageContract is Ownable {
             revert OnlyFactory();
         }
 
-        instancesByName[
-            keccak256(abi.encodePacked(name, symbol))
-        ] = instanceAddress;
-        instances.push(instanceAddress);
-        instanceInfos[instanceAddress] = InstanceInfo(name, symbol, creator);
+        nftByName[keccak256(abi.encodePacked(name, symbol))] = nft;
+        nfts.push(nft);
+        nftInfos[nft] = NFTInfo(name, symbol, creator);
 
-        emit InstanceAdded(instanceAddress);
-        return instances.length;
+        emit NFTAdded(nft);
+        return nfts.length;
     }
 }
