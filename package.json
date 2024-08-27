@@ -1,7 +1,8 @@
 {
   "scripts": {
     "test": "hardhat test",
-    "compile": "hardhat compile"
+    "compile": "hardhat compile",
+    "deploy": "hardhat run ./scripts/deploy.js --network"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2",
