@@ -65,8 +65,8 @@ Belong NFT project has the following features:
 
 At the beginning, three smart contracts are deployed at the network:
 
-- ReceiverFactory (creates instances of royalties receivers)
-- Factory (creates instances of NFT collections)
+- ReceiverFactory (creates nfts of royalties receivers)
+- Factory (creates nfts of NFT collections)
 - StorageContract (stores the information about all deployed NFT collections)
 
 #### Collection creation
@@ -177,7 +177,7 @@ In order to satisfy new OpenSea requirements considering royalties functions lis
 
 #### 2.2.2. Factory.sol
 
-Produces new instances of NFT contract and registers them in the StorageContract. The NFT contract can be deployed by anyone. Factory also contains data about platform commission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from the Factory contract.
+Produces new nfts of NFT contract and registers them in the StorageContract. The NFT contract can be deployed by anyone. Factory also contains data about platform commission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from the Factory contract.
 
 ##### 2.2.2.1. Assets
 
@@ -222,7 +222,7 @@ Belong NFT Factory has the following functions:
 
 #### 2.2.3. StorageContract.sol
 
-Contains information about registered NFT instances (as Factory implementation can be changed)
+Contains information about registered NFT nfts (as Factory implementation can be changed)
 
 ##### 2.2.3.1. Assets
 
@@ -237,16 +237,16 @@ Belong Storage contract contains the following entities:
 
 1. address factory - Factory address
 2. getInstance - keccak256("name", "symbol") => instance address mapping
-3. address[] instances - Instances’ array
+3. address[] nfts - NFTs’ array
 
 ##### 2.2.3.2. Functions
 
 Belong Storage contract has the following functions:
 
-1. getInstanceInfo(uint256 instanceId) Returns instance info by its ID
-2. instancesCount() - Returns the count of instances
+1. getNFTInfo(uint256 instanceId) Returns instance info by its ID
+2. nftsCount() - Returns the count of nfts
 3. setFactory(address \_factory) - Sets the factory address
-4. addInstance(
+4. addNFT(
    address instanceAddress,
    address creator,
    string memory name,
@@ -272,7 +272,7 @@ They were replaced with the following functions:
 
 #### 2.2.5. ReceiverFactory.sol
 
-Deploys RoyaltiesReceiver instances
+Deploys RoyaltiesReceiver nfts
 
 ##### 2.2.5.1. Functions
 
