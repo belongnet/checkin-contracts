@@ -111,7 +111,7 @@ describe("NFT tests", () => {
       { type: "string", value: nftName },
       { type: "string", value: nftSymbol },
     ]);
-    instanceAddress = await storage.instancesByName(hash);
+    instanceAddress = await storage.nftByName(hash);
     const NFT = await ethers.getContractFactory("NFT");
     nft = await NFT.attach(instanceAddress);
   });
