@@ -24,12 +24,11 @@ contract ReceiverFactory {
         address[] calldata payees,
         uint256[] calldata shares
     ) external returns (RoyaltiesReceiver royaltiesReceiver) {
-        royaltiesReceiver = new RoyaltiesReceiver();
+        royaltiesReceiver = new RoyaltiesReceiver(payees, shares);
+
         if (address(royaltiesReceiver) == address(0)) {
             revert RoyaltiesReceiverCreationError();
         }
-
-        royaltiesReceiver.initialize(payees, shares);
 
         emit ReceiverCreated(msg.sender, royaltiesReceiver, payees, shares);
     }

@@ -680,11 +680,11 @@ describe("NFT tests", () => {
 
       const RoyaltiesReceiver =
         await ethers.getContractFactory("RoyaltiesReceiver");
-      receiver = await RoyaltiesReceiver.deploy();
-      await receiver.initialize(
+      receiver = await RoyaltiesReceiver.deploy(
         [await factory.platformAddress(), alice.address],
         [1, 5]
       );
+      await receiver.deployed();
 
       expect(await nft.owner()).to.be.equal(alice.address);
 

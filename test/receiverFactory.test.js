@@ -29,7 +29,7 @@ describe("Receiver factory tests", () => {
     );
     let receipt = await tx.wait();
 
-    const receiverAddress = receipt.events[3].args.royaltiesReceiver;
+    const receiverAddress = receipt.events[2].args.royaltiesReceiver;
     const receiver = await ethers.getContractAt(
       "RoyaltiesReceiver",
       receiverAddress

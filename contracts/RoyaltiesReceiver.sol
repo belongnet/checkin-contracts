@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Initializable} from "solady/src/utils/Initializable.sol";
+
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 error ZeroAddressPasted();
@@ -14,7 +14,7 @@ error AccountHasSharesAlready();
 error DvisonByZero();
 error IncorrectPayeeIndex(uint256 incorrectIndex);
 
-contract RoyaltiesReceiver is Initializable {
+contract RoyaltiesReceiver {
     using SafeTransferLib for address;
 
     event PayeeAdded(address indexed account, uint256 shares);
@@ -38,10 +38,6 @@ contract RoyaltiesReceiver is Initializable {
     mapping(address => mapping(address => uint256)) private _erc20Released;
     mapping(address => uint256) private _erc20TotalReleased;
 
-    // constructor() {
-    //     _disableInitializers();
-    // }
-
     /**
      * @dev Initiates an instance of `RoyaltiesReceiver` where each account in `payees_` is assigned the number of shares at
      * the matching position in the `shares_` array.
@@ -49,11 +45,7 @@ contract RoyaltiesReceiver is Initializable {
      * All addresses in `payees_` must be non-zero. Both arrays must have the same non-zero length, and there must be no
      * duplicates in `payees_`.
      */
-
-    function initialize(
-        address[] calldata payees_,
-        uint256[] calldata shares_
-    ) external payable initializer {
+    constructor(address[] memory payees_, uint256[] memory shares_) payable {
         if (payees_.length != shares_.length) {
             revert ArraysLengthMismatch();
         }
