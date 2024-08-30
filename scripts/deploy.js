@@ -1,4 +1,4 @@
-const { ethers } = require("hardhat");
+const { ethers, upgrades } = require("hardhat");
 
 async function deploy() {
   console.log("1. Deploying:");
@@ -9,10 +9,29 @@ async function deploy() {
   await storage.deployed();
   console.log("Deployed to: ", storage.address);
 
+  console.log("TransferValidator:");
+  const Validator = await ethers.getContractFactory("MockTransferValidator");
+  const validator = await Validator.deploy(true);
+  await validator.deployed();
+  console.log("Deployed to: ", validator.address);
+
   console.log("NFTFactory:");
   const NFTFactory = await ethers.getContractFactory("NFTFactory");
-  const nftFactory = await NFTFactory.deploy();
+
+  const signer = "0x29DD1A766E3CD887DCDBD77506e970cC981Ee91b";
+  const platformAddress = "0x29DD1A766E3CD887DCDBD77506e970cC981Ee91b";
+  const platformCommission = "200";
+
+  const nftFactory = await upgrades.deployProxy(NFTFactory, [
+    signer,
+    platformAddress,
+    platformCommission,
+    storage.address,
+    validator.address,
+  ]);
   await nftFactory.deployed();
+
+  await storage.setFactory(nftFactory.address);
   console.log("Deployed to:", nftFactory.address);
 
   console.log("ReceiverFactory:");
@@ -21,23 +40,6 @@ async function deploy() {
   await receiverFactory.deployed();
   console.log("Deployed to: ", receiverFactory.address);
 
-  console.log("2. Initializing:");
-
-  console.log("NFTFactory:");
-  const signer = "0x29DD1A766E3CD887DCDBD77506e970cC981Ee91b";
-  const platformAddress = "0x29DD1A766E3CD887DCDBD77506e970cC981Ee91b";
-  const platformCommission = "200";
-
-  await nftFactory.initialize(
-    signer,
-    platformAddress,
-    platformCommission,
-    storage.address
-  );
-  console.log("Done.");
-
-  console.log("StorageContract:");
-  await storage.setFactory(nftFactory.address);
   console.log("Done.");
 }
 
