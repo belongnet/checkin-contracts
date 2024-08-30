@@ -1,0 +1,109 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0x2EDF0D97D70fe186C9A283681cbA8C8F6707AFBB",
+    "txHash": "0x4d005981580b082977c3b7fa6b6ae80bc10ded18bf5aeffbf76e2e9b94203445"
+  },
+  "proxies": [
+    {
+      "address": "0xE7dd5A4D81Be2b511EA958934e02c216c6C7Ec38",
+      "txHash": "0xe20a7b6a6a68da59b7c5a4f22f18102571350b368b2e2a0b596439fcaae8efde",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "b37265840a5d8ff75be0324b3085f73686c83cc06f8e4f8dfb468c4c6af06112": {
+      "address": "0x36B60AA01B880253EA97f44e5b75070F9caD1DBe",
+      "txHash": "0xc46a7e51efd8f247585081da1490ba708a478853e3c99ad423de60dd67d29fa1",
+      "layout": {
+        "solcVersion": "0.8.25",
+        "storage": [
+          {
+            "label": "transferValidator",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_contract(ITransferValidator721)4960",
+            "contract": "NFTFactory",
+            "src": "contracts\\factories\\NFTFactory.sol:36"
+          },
+          {
+            "label": "platformAddress",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_address",
+            "contract": "NFTFactory",
+            "src": "contracts\\factories\\NFTFactory.sol:38"
+          },
+          {
+            "label": "storageContract",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_address",
+            "contract": "NFTFactory",
+            "src": "contracts\\factories\\NFTFactory.sol:39"
+          },
+          {
+            "label": "signerAddress",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_address",
+            "contract": "NFTFactory",
+            "src": "contracts\\factories\\NFTFactory.sol:40"
+          },
+          {
+            "label": "platformCommission",
+            "offset": 20,
+            "slot": "3",
+            "type": "t_uint8",
+            "contract": "NFTFactory",
+            "src": "contracts\\factories\\NFTFactory.sol:41"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_contract(ITransferValidator721)4960": {
+            "label": "contract ITransferValidator721",
+            "numberOfBytes": "20"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          },
+          "t_uint64": {
+            "label": "uint64"
+          },
+          "t_bool": {
+            "label": "bool"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:24"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
