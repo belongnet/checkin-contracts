@@ -8,14 +8,14 @@ require("@nomiclabs/hardhat-etherscan");
 require("solidity-coverage");
 require("hardhat-gas-reporter");
 require("@openzeppelin/hardhat-upgrades");
-require("@shardlabs/starknet-hardhat-plugin");
+// require("@shardlabs/starknet-hardhat-plugin");
 
 const mainnetURL = `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
 const bscURL = "https://bsc-dataseed.binance.org";
 const maticURL = `https://polygon-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
 const sepoliaURL = `https://sepolia.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
 const blastURL = `https://rpc.envelop.is/blast`;
-const blastSepoliaURL = `https://blast-sepolia.blockpi.network/v1/rpc/public`;
+const blastSepoliaURL = `https://sepolia.blast.io`;
 const skaleEuropaURL = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
 
 module.exports = {
@@ -85,6 +85,7 @@ module.exports = {
       chainId: 168587773,
       accounts: [process.env.PK],
       saveDeployments: true,
+      gasPrice: "auto",
     },
   },
   gasReporter: {
