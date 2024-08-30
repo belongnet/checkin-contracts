@@ -56,7 +56,8 @@ describe("NFT tests", () => {
         signer.address,
         owner.address,
         PLATFORM_COMISSION,
-        storage.address
+        storage.address,
+        validator.address
       );
 
     const nftName = "InstanceName";
@@ -105,7 +106,7 @@ describe("NFT tests", () => {
       signature,
     ];
 
-    await factory.connect(alice).produce(instanceInfoETH, validator.address);
+    await factory.connect(alice).produce(instanceInfoETH);
 
     const hash = EthCrypto.hash.keccak256([
       { type: "string", value: nftName },

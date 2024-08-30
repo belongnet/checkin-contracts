@@ -24,9 +24,16 @@ contract NFTFactory is OwnableUpgradeable {
     event SignerSet(address newSigner);
     event PlatformComissionSet(uint8 newComission);
     event PlatformAddressSet(address newPlatformAddress);
+    event TransferValidatorSet(ITransferValidator721 newValidator);
 
-    ITransferValidator721 public constant DEFAULT_TRANSFER_VALIDATOR =
-        ITransferValidator721(0x721C0078c2328597Ca70F5451ffF5A7B38D4E947);
+    /**
+     * Ethereum: 0x721C0078c2328597Ca70F5451ffF5A7B38D4E947
+     * BASE/OP: 0x721C0078c2328597Ca70F5451ffF5A7B38D4E947
+     * Polygon/Poygon zkEVM: 0x721C0078c2328597Ca70F5451ffF5A7B38D4E947
+     * BSC: 0x721C0078c2328597Ca70F5451ffF5A7B38D4E947
+     * Ethereum Sepolia: 0x721C0078c2328597Ca70F5451ffF5A7B38D4E947
+     */
+    ITransferValidator721 public transferValidator;
 
     address public platformAddress; // Address which is allowed to collect platform fee
     address public storageContract; // Storage contract address
@@ -55,7 +62,8 @@ contract NFTFactory is OwnableUpgradeable {
         address _signer,
         address _platformAddress,
         uint8 _platformCommission,
-        address _storageContract
+        address _storageContract,
+        ITransferValidator721 validator
     )
         external
         initializer
@@ -69,10 +77,12 @@ contract NFTFactory is OwnableUpgradeable {
         platformAddress = _platformAddress;
         platformCommission = _platformCommission;
         storageContract = _storageContract;
+        transferValidator = validator;
 
         emit SignerSet(_signer);
         emit PlatformComissionSet(_platformCommission);
         emit PlatformAddressSet(_platformAddress);
+        emit TransferValidatorSet(validator);
     }
 
     /**
@@ -111,15 +121,19 @@ contract NFTFactory is OwnableUpgradeable {
         emit SignerSet(_signer);
     }
 
+    function setTransferValidator(
+        ITransferValidator721 validator
+    ) external onlyOwner zeroAddressCheck(address(validator)) {
+        transferValidator = validator;
+        emit TransferValidatorSet(validator);
+    }
+
     /**
      * @notice Produces new NFT instance with defined name and symbol
      * @param _info The new NFT's info
      * @return nft The new NFT's address
      */
-    function produce(
-        InstanceInfo calldata _info,
-        ITransferValidator721 validator
-    ) external returns (NFT nft) {
+    function produce(InstanceInfo calldata _info) external returns (NFT nft) {
         if (
             !_verifySignature(
                 _info.name,
@@ -139,13 +153,9 @@ contract NFTFactory is OwnableUpgradeable {
             msg.sender
         );
 
-        if (address(validator) == address(0)) {
-            validator = DEFAULT_TRANSFER_VALIDATOR;
-        }
-
         nft = _createNFT(_info.name, _info.symbol);
 
-        nft.initialize(params, validator);
+        nft.initialize(params, transferValidator);
     }
 
     /**
