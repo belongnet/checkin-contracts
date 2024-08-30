@@ -129,9 +129,8 @@ describe("NFT tests", () => {
       const contractURI = "contractURI/123";
 
       const NFT = await ethers.getContractFactory("NFT");
-      const nft = await NFT.deploy();
       await expect(
-        nft.initialize(
+        NFT.deploy(
           [
             storage.address,
             ETH_ADDRESS,
@@ -152,7 +151,7 @@ describe("NFT tests", () => {
       ).to.be.reverted;
 
       await expect(
-        nft.initialize(
+        NFT.deploy(
           [
             ZERO_ADDRESS,
             ETH_ADDRESS,
@@ -272,14 +271,11 @@ describe("NFT tests", () => {
     it("Should mint correctly with erc20 token", async () => {
       const NFT_721_BASE_URI = "test.com/";
       const Nft = await ethers.getContractFactory("NFT");
-      nft = await Nft.deploy();
-
-      await nft
-        .connect(owner)
-        .initialize(
-          [storage.address, instanceInfoToken, alice.address],
-          validator.address
-        ); // 100 - very small amount in wei!
+      nft = await Nft.deploy(
+        [storage.address, instanceInfoToken, alice.address],
+        validator.address
+      );
+      await nft.deployed();
 
       // mint test tokens
       await erc20Example.connect(alice).mint(alice.address, 10000);
@@ -309,13 +305,11 @@ describe("NFT tests", () => {
 
       const NFT_721_BASE_URI = "test.com/";
       const Nft = await ethers.getContractFactory("NFT");
-      nft = await Nft.deploy();
-      await nft
-        .connect(owner)
-        .initialize(
-          [storage.address, instanceInfoToken, alice.address],
-          validator.address
-        ); // 100 - very small amount in wei!
+      nft = await Nft.deploy(
+        [storage.address, instanceInfoToken, alice.address],
+        validator.address
+      );
+      await nft.deployed();
 
       // mint test tokens
       await erc20Example.connect(alice).mint(alice.address, 10000);
@@ -346,13 +340,11 @@ describe("NFT tests", () => {
 
       const NFT_721_BASE_URI = "test.com/";
       const Nft = await ethers.getContractFactory("NFT");
-      nft = await Nft.deploy();
-      await nft
-        .connect(owner)
-        .initialize(
-          [storage.address, instanceInfoToken, alice.address],
-          validator.address
-        ); // 100 - very small amount in wei!
+      nft = await Nft.deploy(
+        [storage.address, instanceInfoToken, alice.address],
+        validator.address
+      );
+      await nft.deployed();
 
       // mint test tokens
       await erc20Example.connect(alice).mint(alice.address, 10000);
@@ -384,30 +376,28 @@ describe("NFT tests", () => {
 
       const NFT_721_BASE_URI = "test.com/";
       const Nft = await ethers.getContractFactory("NFT");
-      nft = await Nft.deploy();
-      await nft
-        .connect(owner)
-        .initialize(
+      nft = await Nft.deploy(
+        [
+          storage.address,
           [
-            storage.address,
-            [
-              "InstanceName",
-              "INNME",
-              "ipfs://tbd",
-              erc20Example.address,
-              100,
-              100,
-              false,
-              BigNumber.from("1000"),
-              BigNumber.from("600"),
-              nft.address,
-              BigNumber.from("86400"),
-              "0x00",
-            ],
-            alice.address,
+            "InstanceName",
+            "INNME",
+            "ipfs://tbd",
+            erc20Example.address,
+            100,
+            100,
+            false,
+            BigNumber.from("1000"),
+            BigNumber.from("600"),
+            nft.address,
+            BigNumber.from("86400"),
+            "0x00",
           ],
-          validator.address
-        ); // 100 - very small amount in wei!
+          alice.address,
+        ],
+        validator.address
+      );
+      await nft.deployed();
 
       // mint test tokens
       await erc20Example.connect(alice).mint(alice.address, 10000);
@@ -437,30 +427,28 @@ describe("NFT tests", () => {
     it("Should mint correctly with erc20 token if user in the WL", async () => {
       const NFT_721_BASE_URI = "test.com/";
       const Nft = await ethers.getContractFactory("NFT");
-      nft = await Nft.deploy();
-      await nft
-        .connect(owner)
-        .initialize(
+      nft = await Nft.deploy(
+        [
+          storage.address,
           [
-            storage.address,
-            [
-              "InstanceName",
-              "INNME",
-              "ipfs://tbd",
-              erc20Example.address,
-              ethers.utils.parseEther("100"),
-              ethers.utils.parseEther("50"),
-              true,
-              BigNumber.from("1000"),
-              BigNumber.from("600"),
-              nft.address,
-              BigNumber.from("86400"),
-              "0x00",
-            ],
-            bob.address,
+            "InstanceName",
+            "INNME",
+            "ipfs://tbd",
+            erc20Example.address,
+            ethers.utils.parseEther("100"),
+            ethers.utils.parseEther("50"),
+            true,
+            BigNumber.from("1000"),
+            BigNumber.from("600"),
+            nft.address,
+            BigNumber.from("86400"),
+            "0x00",
           ],
-          validator.address
-        ); // 100 - very small amount in wei!
+          bob.address,
+        ],
+        validator.address
+      );
+      await nft.deployed;
 
       // mint test tokens
       await erc20Example
@@ -557,13 +545,11 @@ describe("NFT tests", () => {
     it("Should fail with 0 acc balance erc20", async () => {
       const NFT_721_BASE_URI = "test.com/";
       const Nft = await ethers.getContractFactory("NFT");
-      nft = await Nft.deploy();
-      await nft
-        .connect(owner)
-        .initialize(
-          [storage.address, instanceInfoToken, alice.address],
-          validator.address
-        ); // 100 - very small amount in wei!
+      nft = await Nft.deploy(
+        [storage.address, instanceInfoToken, alice.address],
+        validator.address
+      );
+      await nft.deployed();
 
       await erc20Example.connect(alice).approve(nft.address, 99999999999999);
 
@@ -609,14 +595,13 @@ describe("NFT tests", () => {
   describe("Withdraw test", async () => {
     it("Should withdraw all funds when contract has 0 comission", async () => {
       const Nft = await ethers.getContractFactory("NFT");
-      nft = await Nft.deploy();
+      nft = await Nft.deploy(
+        [storage.address, instanceInfoETH, alice.address],
+        validator.address
+      );
+      await nft.deployed();
       await factory.connect(owner).setPlatformCommission("0");
-      await nft
-        .connect(owner)
-        .initialize(
-          [storage.address, instanceInfoETH, alice.address],
-          validator.address
-        );
+
       const NFT_721_BASE_URI = "test.com/";
 
       const message = EthCrypto.hash.keccak256([
@@ -643,13 +628,12 @@ describe("NFT tests", () => {
     });
     it("Should withdraw all funds without 10% (comission)", async () => {
       const Nft = await ethers.getContractFactory("NFT");
-      nft = await Nft.deploy();
-      await nft
-        .connect(owner)
-        .initialize(
-          [storage.address, instanceInfoETH, alice.address],
-          validator.address
-        );
+      nft = await Nft.deploy(
+        [storage.address, instanceInfoETH, alice.address],
+        validator.address
+      );
+      await nft.deployed();
+
       const NFT_721_BASE_URI = "test.com/";
 
       const message = EthCrypto.hash.keccak256([
@@ -688,22 +672,19 @@ describe("NFT tests", () => {
 
     it("Should correct distribute royalties", async () => {
       const Nft = await ethers.getContractFactory("NFT");
+      nft = await Nft.deploy(
+        [storage.address, instanceInfoETH, alice.address],
+        validator.address
+      );
+      await nft.deployed();
+
       const RoyaltiesReceiver =
         await ethers.getContractFactory("RoyaltiesReceiver");
-
-      nft = await Nft.deploy();
       receiver = await RoyaltiesReceiver.deploy();
       await receiver.initialize(
         [await factory.platformAddress(), alice.address],
         [1, 5]
       );
-
-      await nft
-        .connect(owner)
-        .initialize(
-          [storage.address, instanceInfoETH, alice.address],
-          validator.address
-        );
 
       expect(await nft.owner()).to.be.equal(alice.address);
 

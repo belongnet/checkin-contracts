@@ -38,28 +38,21 @@ contract NFT is BaseERC721, ReentrancyGuard {
         _;
     }
 
-    // constructor() {
-    //     _disableInitializers();
-    // }
-
     /**
      * @dev called by factory when instance deployed
      * @param _params Collection parameters
      */
-    function initialize(
-        NftParameters calldata _params,
+    constructor(
+        NftParameters memory _params,
         ITransferValidator721 newValidator
     )
-        external
-        initializer
         zeroAddressCheck(_params.info.payingToken)
         zeroAddressCheck(_params.storageContract)
         zeroAddressCheck(_params.info.feeReceiver)
         zeroAddressCheck(_params.creator)
         zeroAddressCheck(address(newValidator))
+        BaseERC721(_params, newValidator)
     {
-        __BaseERC721_init(_params, newValidator);
-
         parameters = _params;
     }
 

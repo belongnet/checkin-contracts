@@ -130,10 +130,18 @@ contract NFTFactory is OwnableUpgradeable {
 
     /**
      * @notice Produces new NFT instance with defined name and symbol
+     * @dev Creates a new instance of NFT and adds the info into the Storage contract
      * @param _info The new NFT's info
-     * @return nft The new NFT's address
+     * @return nft The new instance's address
      */
     function produce(InstanceInfo calldata _info) external returns (NFT nft) {
+        if ((bytes(_info.name)).length == 0) {
+            revert EmptyNamePasted();
+        }
+        if ((bytes(_info.symbol)).length == 0) {
+            revert EmptySymbolPasted();
+        }
+
         if (
             !_verifySignature(
                 _info.name,
@@ -147,53 +155,36 @@ contract NFTFactory is OwnableUpgradeable {
             revert InvalidSignature();
         }
 
+        address _storageContract = storageContract;
+
         NftParameters memory params = NftParameters(
-            storageContract,
+            _storageContract,
             _info,
             msg.sender
         );
 
-        nft = _createNFT(_info.name, _info.symbol);
-
-        nft.initialize(params, transferValidator);
-    }
-
-    /**
-     * @dev Creates a new instance of NFT and adds the info
-     * into the Storage contract
-     * @param name New NFT's name
-     * @param symbol New NFT's symbol
-     * @return nft The new instance's address
-     */
-    function _createNFT(
-        string memory name,
-        string memory symbol
-    ) private returns (NFT nft) {
-        if ((bytes(name)).length == 0) {
-            revert EmptyNamePasted();
-        }
-        if ((bytes(symbol)).length == 0) {
-            revert EmptySymbolPasted();
-        }
-
-        StorageContract _storageContract = StorageContract(storageContract);
-
         if (
-            _storageContract.instancesByName(
-                keccak256(abi.encodePacked(name, symbol))
+            StorageContract(_storageContract).instancesByName(
+                keccak256(abi.encodePacked(_info.name, _info.symbol))
             ) != NFT(address(0))
         ) {
             revert NFTAlreadyExists();
         }
 
-        nft = new NFT();
+        nft = new NFT(params, transferValidator);
 
         if (nft == NFT(address(0))) {
             revert NFTCreationFailed();
         }
 
-        uint256 id = _storageContract.addNFT(nft, msg.sender, name, symbol);
-        emit NFTCreated(name, symbol, nft, id);
+        uint256 id = StorageContract(_storageContract).addNFT(
+            nft,
+            msg.sender,
+            _info.name,
+            _info.symbol
+        );
+
+        emit NFTCreated(_info.name, _info.symbol, nft, id);
     }
 
     /**

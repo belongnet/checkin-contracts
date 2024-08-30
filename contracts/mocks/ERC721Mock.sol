@@ -7,23 +7,11 @@ import {InstanceInfo, NftParameters} from "../Structures.sol";
 import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
 
 contract ERC721Mock is BaseERC721 {
-    // constructor() {
-    //     _disableInitializers();
-    // }
-
-    /**
-     * @dev called by factory when instance deployed
-
-     */
-    function initialize(
-        string calldata _name,
-        string calldata _symbol,
-        string calldata uri
-    ) external initializer {
-        InstanceInfo memory _info = InstanceInfo({
-            name: _name,
-            symbol: _symbol,
-            contractURI: uri,
+    InstanceInfo _info =
+        InstanceInfo({
+            name: "TestMock",
+            symbol: "TSTMCK",
+            contractURI: "ipfs://tbd/",
             payingToken: address(0),
             mintPrice: 0,
             whitelistMintPrice: 0,
@@ -34,17 +22,23 @@ contract ERC721Mock is BaseERC721 {
             collectionExpires: block.timestamp * 100,
             signature: bytes("")
         });
-        NftParameters memory params = NftParameters({
+    NftParameters params =
+        NftParameters({
             storageContract: address(0),
             info: _info,
             creator: msg.sender
         });
 
-        __BaseERC721_init(
+    /**
+     * @dev called by factory when instance deployed
+
+     */
+    constructor()
+        BaseERC721(
             params,
             ITransferValidator721(0x721C0078c2328597Ca70F5451ffF5A7B38D4E947)
-        );
-    }
+        )
+    {}
 
     /**
      * @notice Mints new NFT

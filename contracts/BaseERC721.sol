@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {ERC721RoyaltyUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721RoyaltyUpgradeable.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ERC721Royalty, ERC721} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 
 import {CreatorToken} from "./utils/CreatorToken.sol";
 import {AutoValidatorTransferApprove} from "./utils/AutoValidatorTransferApprove.sol";
@@ -16,8 +16,8 @@ error ZeroAddressPasted();
 error NotTransferable();
 
 abstract contract BaseERC721 is
-    ERC721RoyaltyUpgradeable,
-    OwnableUpgradeable,
+    ERC721Royalty,
+    Ownable,
     CreatorToken,
     AutoValidatorTransferApprove
 {
@@ -25,14 +25,11 @@ abstract contract BaseERC721 is
 
     mapping(uint256 => string) public metadataUri; // token ID -> metadata link
 
-    function __BaseERC721_init(
+    constructor(
         NftParameters memory _params,
         ITransferValidator721 newValidator
-    ) internal onlyInitializing {
-        __ERC721_init(_params.info.name, _params.info.symbol);
-        __Ownable_init(_params.creator);
-        __ERC2981_init();
-        __ERC721Royalty_init();
+    ) ERC721(_params.info.name, _params.info.symbol) {
+        _initializeOwner(_params.creator);
 
         _setDefaultRoyalty(_params.info.feeReceiver, _params.info.feeNumerator);
         _setTransferValidator(newValidator);
