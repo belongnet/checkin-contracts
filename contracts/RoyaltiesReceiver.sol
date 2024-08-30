@@ -12,6 +12,7 @@ error Only2Payees();
 error AccountNotDuePayment();
 error AccountHasSharesAlready();
 error DvisonByZero();
+error IncorrectPayeeIndex(uint256 incorrectIndex);
 
 contract RoyaltiesReceiver is Initializable {
     using SafeTransferLib for address;
@@ -26,41 +27,43 @@ contract RoyaltiesReceiver is Initializable {
     event PaymentReceived(address indexed from, uint256 amount);
 
     uint256 public constant MAX_PAYEES_LENGTH = 2;
-    uint256 public totalShares;
-    uint256 public totalReleased;
 
-    address[] public payees;
-    mapping(address => uint256) public shares;
-    mapping(address => uint256) public released;
-    mapping(address => uint256) public erc20TotalReleased;
-    mapping(address => mapping(address => uint256)) public erc20Released;
+    uint256 private _totalShares;
+    uint256 private _totalReleased;
+
+    address[] private _payees;
+
+    mapping(address => uint256) private _shares;
+    mapping(address => uint256) private _released;
+    mapping(address => mapping(address => uint256)) private _erc20Released;
+    mapping(address => uint256) private _erc20TotalReleased;
 
     // constructor() {
     //     _disableInitializers();
     // }
 
     /**
-     * @dev Initiates an instance of `RoyaltiesReceiver` where each account in `payees` is assigned the number of shares at
-     * the matching position in the `shares` array.
+     * @dev Initiates an instance of `RoyaltiesReceiver` where each account in `payees_` is assigned the number of shares at
+     * the matching position in the `shares_` array.
      *
-     * All addresses in `payees` must be non-zero. Both arrays must have the same non-zero length, and there must be no
-     * duplicates in `payees`.
+     * All addresses in `payees_` must be non-zero. Both arrays must have the same non-zero length, and there must be no
+     * duplicates in `payees_`.
      */
 
     function initialize(
-        address[] calldata _payees,
-        uint256[] calldata _shares
+        address[] calldata payees_,
+        uint256[] calldata shares_
     ) external payable initializer {
-        if (_payees.length != _shares.length) {
+        if (payees_.length != shares_.length) {
             revert ArraysLengthMismatch();
         }
 
-        if (_payees.length != MAX_PAYEES_LENGTH) {
+        if (payees_.length != MAX_PAYEES_LENGTH) {
             revert Only2Payees();
         }
 
         for (uint256 i = 0; i < MAX_PAYEES_LENGTH; ) {
-            _addPayee(_payees[i], _shares[i]);
+            _addPayee(payees_[i], shares_[i]);
 
             unchecked {
                 ++i;
@@ -85,10 +88,10 @@ contract RoyaltiesReceiver is Initializable {
      * @notice releases ETH to all payees
      */
     function releaseAll() external {
-        address[] memory _payees = payees;
+        address[] memory payees_ = _payees;
 
-        for (uint256 i = 0; i < _payees.length; ) {
-            _release(_payees[i]);
+        for (uint256 i = 0; i < payees_.length; ) {
+            _release(payees_[i]);
 
             unchecked {
                 ++i;
@@ -101,15 +104,73 @@ contract RoyaltiesReceiver is Initializable {
      * @param token ERC20 token to be distributed
      */
     function releaseAll(address token) external {
-        address[] memory _payees = payees;
+        address[] memory payees = _payees;
 
-        for (uint256 i = 0; i < _payees.length; ) {
-            _release(token, _payees[i]);
+        for (uint256 i = 0; i < payees.length; ) {
+            _release(token, payees[i]);
 
             unchecked {
                 ++i;
             }
         }
+    }
+
+    /**
+     * @dev Getter for the total shares held by payees.
+     */
+    function totalShares() external view returns (uint256) {
+        return _totalShares;
+    }
+
+    /**
+     * @dev Getter for the amount of shares held by an account.
+     */
+    function shares(address account) external view returns (uint256) {
+        return _shares[account];
+    }
+
+    /**
+     * @dev Getter for the total amount of Ether already released.
+     */
+    function totalReleased() public view returns (uint256) {
+        return _totalReleased;
+    }
+
+    /**
+     * @dev Getter for the total amount of `token` already released. `token` should be the address of an IERC20
+     * contract.
+     */
+    function totalReleased(address token) public view returns (uint256) {
+        return _erc20TotalReleased[token];
+    }
+
+    /**
+     * @dev Getter for the amount of Ether already released to a payee.
+     */
+    function released(address account) public view returns (uint256) {
+        return _released[account];
+    }
+
+    /**
+     * @dev Getter for the amount of `token` tokens already released to a payee. `token` should be the address of an
+     * IERC20 contract.
+     */
+    function released(
+        address token,
+        address account
+    ) public view returns (uint256) {
+        return _erc20Released[token][account];
+    }
+
+    /**
+     * @dev Getter for the address of the payee number `index`.
+     */
+    function payee(uint256 index) external view returns (address) {
+        if (_payees.length <= index) {
+            revert IncorrectPayeeIndex(index);
+        }
+
+        return _payees[index];
     }
 
     /**
@@ -119,16 +180,16 @@ contract RoyaltiesReceiver is Initializable {
     function _release(address account) internal {
         uint256 payment = _pendingPayment(
             account,
-            address(this).balance + totalReleased,
-            released[account]
+            address(this).balance + _totalReleased,
+            _released[account]
         );
 
         if (payment == 0) {
             revert AccountNotDuePayment();
         }
 
-        released[account] += payment;
-        totalReleased += payment;
+        _released[account] += payment;
+        _totalReleased += payment;
 
         account.safeTransferETH(payment);
 
@@ -143,16 +204,16 @@ contract RoyaltiesReceiver is Initializable {
     function _release(address token, address account) internal {
         uint256 payment = _pendingPayment(
             account,
-            IERC20(token).balanceOf(address(this)) + erc20TotalReleased[token],
-            erc20Released[token][account]
+            IERC20(token).balanceOf(address(this)) + _erc20TotalReleased[token],
+            _erc20Released[token][account]
         );
 
         if (payment == 0) {
             revert AccountNotDuePayment();
         }
 
-        erc20Released[token][account] += payment;
-        erc20TotalReleased[token] += payment;
+        _erc20Released[token][account] += payment;
+        _erc20TotalReleased[token] += payment;
 
         token.safeTransfer(account, payment);
         emit ERC20PaymentReleased(token, account, payment);
@@ -161,25 +222,25 @@ contract RoyaltiesReceiver is Initializable {
     /**
      * @dev Add a new payee to the contract.
      * @param account The address of the payee to add.
-     * @param _shares The number of shares owned by the payee.
+     * @param shares_ The number of shares owned by the payee.
      */
-    function _addPayee(address account, uint256 _shares) private {
+    function _addPayee(address account, uint256 shares_) private {
         if (account == address(0)) {
             revert ZeroAddressPasted();
         }
 
-        if (_shares == 0) {
+        if (shares_ == 0) {
             revert ZeroSharesPasted();
         }
 
-        if (shares[account] != 0) {
+        if (_shares[account] != 0) {
             revert AccountHasSharesAlready();
         }
 
-        payees.push(account);
-        shares[account] = _shares;
-        totalShares += _shares;
-        emit PayeeAdded(account, _shares);
+        _payees.push(account);
+        _shares[account] = shares_;
+        _totalShares += shares_;
+        emit PayeeAdded(account, shares_);
     }
 
     /**
@@ -191,11 +252,11 @@ contract RoyaltiesReceiver is Initializable {
         uint256 totalReceived,
         uint256 alreadyReleased
     ) private view returns (uint256) {
-        uint256 divider = totalShares - alreadyReleased;
+        uint256 divider = _totalShares - alreadyReleased;
         if (divider == 0) {
             revert DvisonByZero();
         }
 
-        return (totalReceived * shares[account]) / divider;
+        return (totalReceived * _shares[account]) / divider;
     }
 }
