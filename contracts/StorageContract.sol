@@ -12,9 +12,9 @@ error IncorrectNFTId();
 
 contract StorageContract is Ownable {
     event FactorySet(NFTFactory newFactory);
-    event NFTAdded(NFT newNFT);
+    event InstanceAdded(NFT newInstance);
 
-    struct NFTInfo {
+    struct InstanceInfo {
         string name;
         string symbol;
         address creator;
@@ -22,9 +22,9 @@ contract StorageContract is Ownable {
 
     NFTFactory public factory; // The current factory address
 
-    NFT[] public nfts; // The array of all NFTs
-    mapping(bytes32 => NFT) public nftByName; // keccak256("name", "symbol") => NFT address
-    mapping(NFT => NFTInfo) public nftInfos; // NFT address => InstanceInfo
+    NFT[] public instances; // The array of all NFTs
+    mapping(bytes32 => NFT) public instancesByName; // keccak256("name", "symbol") => NFT address
+    mapping(NFT => InstanceInfo) public instanceInfos; // NFT address => InstanceInfo
 
     constructor() {
         _initializeOwner(msg.sender);
@@ -34,14 +34,14 @@ contract StorageContract is Ownable {
      * @dev Returns NFT's info
      * @param nftId NFT ID
      */
-    function getNFTInfo(
+    function getInstanceInfo(
         uint256 nftId
-    ) external view returns (NFTInfo memory nftInfo) {
-        if (nftId >= nfts.length) {
+    ) external view returns (InstanceInfo memory instanceInfo) {
+        if (nftId >= instances.length) {
             revert IncorrectNFTId();
         }
 
-        nftInfo = nftInfos[nfts[nftId]];
+        instanceInfo = instanceInfos[instances[nftId]];
     }
 
     /**
@@ -76,11 +76,11 @@ contract StorageContract is Ownable {
             revert OnlyFactory();
         }
 
-        nftByName[keccak256(abi.encodePacked(name, symbol))] = nft;
-        nfts.push(nft);
-        nftInfos[nft] = NFTInfo(name, symbol, creator);
+        instancesByName[keccak256(abi.encodePacked(name, symbol))] = nft;
+        instances.push(nft);
+        instanceInfos[nft] = InstanceInfo(name, symbol, creator);
 
-        emit NFTAdded(nft);
-        return nfts.length;
+        emit InstanceAdded(nft);
+        return instances.length;
     }
 }

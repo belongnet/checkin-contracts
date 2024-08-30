@@ -270,10 +270,10 @@ describe("NFTFactory tests", () => {
       { type: "string", value: nftSymbol },
     ]);
 
-    const instanceAddress = await storage.nftByName(hash);
+    const instanceAddress = await storage.instancesByName(hash);
     expect(instanceAddress).to.not.be.equal(ZERO_ADDRESS);
-    expect(instanceAddress).to.be.equal(await storage.nfts(0));
-    const instanceInfo = await storage.getNFTInfo(0);
+    expect(instanceAddress).to.be.equal(await storage.instances(0));
+    const instanceInfo = await storage.getInstanceInfo(0);
     expect(instanceInfo.name).to.be.equal(nftName);
     expect(instanceInfo.symbol).to.be.equal(nftSymbol);
     expect(instanceInfo.creator).to.be.equal(alice.address);
@@ -403,21 +403,21 @@ describe("NFTFactory tests", () => {
       { type: "string", value: nftSymbol3 },
     ]);
 
-    const instanceAddress1 = await storage.nftByName(hash1);
-    const instanceAddress2 = await storage.nftByName(hash2);
-    const instanceAddress3 = await storage.nftByName(hash3);
+    const instanceAddress1 = await storage.instancesByName(hash1);
+    const instanceAddress2 = await storage.instancesByName(hash2);
+    const instanceAddress3 = await storage.instancesByName(hash3);
 
     expect(instanceAddress1).to.not.be.equal(ZERO_ADDRESS);
     expect(instanceAddress2).to.not.be.equal(ZERO_ADDRESS);
     expect(instanceAddress3).to.not.be.equal(ZERO_ADDRESS);
 
-    expect(instanceAddress1).to.be.equal(await storage.nfts(0));
-    expect(instanceAddress2).to.be.equal(await storage.nfts(1));
-    expect(instanceAddress3).to.be.equal(await storage.nfts(2));
+    expect(instanceAddress1).to.be.equal(await storage.instances(0));
+    expect(instanceAddress2).to.be.equal(await storage.instances(1));
+    expect(instanceAddress3).to.be.equal(await storage.instances(2));
 
-    const instanceInfo1 = await storage.getNFTInfo(0);
-    const instanceInfo2 = await storage.getNFTInfo(1);
-    const instanceInfo3 = await storage.getNFTInfo(2);
+    const instanceInfo1 = await storage.getInstanceInfo(0);
+    const instanceInfo2 = await storage.getInstanceInfo(1);
+    const instanceInfo3 = await storage.getInstanceInfo(2);
 
     expect(instanceInfo1.name).to.be.equal(nftName1);
     expect(instanceInfo1.symbol).to.be.equal(nftSymbol1);

@@ -20,9 +20,9 @@ describe("Storage tests", () => {
   });
 
   it("check if the contract is empty", async () => {
-    await expect(storage.connect(owner).getNFTInfo(0)).to.be.reverted;
+    await expect(storage.connect(owner).getInstanceInfo(0)).to.be.reverted;
 
-    await expect(storage.nfts()).to.be.reverted;
+    await expect(storage.instances()).to.be.reverted;
   });
 
   it("shouldn't add instance if not factory", async () => {

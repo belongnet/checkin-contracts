@@ -179,7 +179,7 @@ contract NFTFactory is OwnableUpgradeable {
         StorageContract _storageContract = StorageContract(storageContract);
 
         if (
-            _storageContract.nftByName(
+            _storageContract.instancesByName(
                 keccak256(abi.encodePacked(name, symbol))
             ) != NFT(address(0))
         ) {
