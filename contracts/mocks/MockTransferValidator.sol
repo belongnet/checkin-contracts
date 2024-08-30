@@ -4,6 +4,10 @@ pragma solidity 0.8.25;
 contract MockTransferValidator {
     bool internal switcher;
 
+    constructor(bool _switcher) {
+        switcher = _switcher;
+    }
+
     function setSwitcher(bool _switcher) external {
         switcher = _switcher;
     }

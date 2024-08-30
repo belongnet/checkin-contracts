@@ -32,9 +32,8 @@ describe("NFTFactory tests", () => {
     await factory.deployed();
 
     const Validator = await ethers.getContractFactory("MockTransferValidator");
-    validator = await Validator.deploy();
+    validator = await Validator.deploy(true);
     await validator.deployed();
-    await validator.setSwitcher(true);
 
     await storage.connect(owner).setFactory(factory.address);
 
