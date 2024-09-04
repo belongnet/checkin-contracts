@@ -19,7 +19,7 @@ struct Releases {
     mapping(address account => uint256 amount) released;
 }
 
-struct Shares {
+struct SharesAdded {
     uint256 totalShares;
     mapping(address => uint256) shares;
 }
@@ -40,7 +40,7 @@ contract RoyaltiesReceiver {
 
     address[] public payees;
 
-    Shares public shares;
+    SharesAdded public sharesAdded;
 
     Releases public nativeReleases;
     mapping(address token => Releases) public erc20Releases;
@@ -112,6 +112,20 @@ contract RoyaltiesReceiver {
                 ++i;
             }
         }
+    }
+
+    /**
+     * @dev Getter for the total amount of Ether already released.
+     */
+    function totalShares() public view returns (uint256) {
+        return sharesAdded.totalShares;
+    }
+
+    /**
+     * @dev Getter for the amount of shares held by an account.
+     */
+    function shares(address account) external view returns (uint256) {
+        return sharesAdded.shares[account];
     }
 
     /**
@@ -224,13 +238,13 @@ contract RoyaltiesReceiver {
             revert ZeroSharesPasted();
         }
 
-        if (shares.shares[account] != 0) {
+        if (sharesAdded.shares[account] != 0) {
             revert AccountHasSharesAlready();
         }
 
         payees.push(account);
-        shares.shares[account] = shares_;
-        shares.totalShares += shares_;
+        sharesAdded.shares[account] = shares_;
+        sharesAdded.totalShares += shares_;
         emit PayeeAdded(account, shares_);
     }
 
@@ -243,11 +257,11 @@ contract RoyaltiesReceiver {
         uint256 totalReceived,
         uint256 alreadyReleased
     ) private view returns (uint256) {
-        uint256 divider = shares.totalShares - alreadyReleased;
+        uint256 divider = sharesAdded.totalShares - alreadyReleased;
         if (divider == 0) {
             revert DvisonByZero();
         }
 
-        return (totalReceived * shares.shares[account]) / divider;
+        return (totalReceived * sharesAdded.shares[account]) / divider;
     }
 }
