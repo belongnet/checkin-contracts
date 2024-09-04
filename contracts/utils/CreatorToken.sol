@@ -5,6 +5,7 @@ import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
 
 /// @notice Revert with an error if the transfer validator is being set to the same address.
 error SetTransferValidatorError();
+error ZeroAddressPasted();
 
 /**
  * @title  CreatorToken
@@ -46,6 +47,10 @@ abstract contract CreatorToken {
     function _setTransferValidator(
         ITransferValidator721 newValidator
     ) internal {
+        if (address(newValidator) == address(0)) {
+            revert ZeroAddressPasted();
+        }
+
         ITransferValidator721 oldValidator = _transferValidator;
 
         if (
