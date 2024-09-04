@@ -25,10 +25,24 @@ abstract contract BaseERC721 is
 
     mapping(uint256 => string) public metadataUri; // token ID -> metadata link
 
+    modifier zeroAddressCheck(address _address) {
+        if (_address == address(0)) {
+            revert ZeroAddressPasted();
+        }
+        _;
+    }
+
     constructor(
         NftParameters memory _params,
         ITransferValidator721 newValidator
-    ) ERC721(_params.info.name, _params.info.symbol) {
+    )
+        zeroAddressCheck(_params.info.payingToken)
+        zeroAddressCheck(_params.storageContract)
+        zeroAddressCheck(_params.info.feeReceiver)
+        zeroAddressCheck(_params.creator)
+        zeroAddressCheck(address(newValidator))
+        ERC721(_params.info.name, _params.info.symbol)
+    {
         _initializeOwner(_params.creator);
 
         _setDefaultRoyalty(_params.info.feeReceiver, _params.info.feeNumerator);
@@ -93,7 +107,7 @@ abstract contract BaseERC721 is
      * @param to Address that gets ERC721 token
      * @param tokenUri Metadata URI of the ERC721 token
      */
-    function mint_(
+    function _baseMint(
         uint256 tokenId,
         address to,
         string calldata tokenUri

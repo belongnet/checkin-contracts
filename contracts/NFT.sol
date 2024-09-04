@@ -31,13 +31,6 @@ contract NFT is BaseERC721, ReentrancyGuard {
 
     NftParameters public parameters;
 
-    modifier zeroAddressCheck(address _address) {
-        if (_address == address(0)) {
-            revert ZeroAddressPasted();
-        }
-        _;
-    }
-
     /**
      * @dev called by factory when instance deployed
      * @param _params Collection parameters
@@ -45,14 +38,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
     constructor(
         NftParameters memory _params,
         ITransferValidator721 newValidator
-    )
-        zeroAddressCheck(_params.info.payingToken)
-        zeroAddressCheck(_params.storageContract)
-        zeroAddressCheck(_params.info.feeReceiver)
-        zeroAddressCheck(_params.creator)
-        zeroAddressCheck(address(newValidator))
-        BaseERC721(_params, newValidator)
-    {
+    ) BaseERC721(_params, newValidator) {
         parameters = _params;
     }
 
@@ -150,7 +136,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
             );
         }
 
-        mint_(tokenId, receiver, tokenUri);
+        _baseMint(tokenId, receiver, tokenUri);
     }
 
     /**
