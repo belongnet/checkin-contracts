@@ -64,25 +64,15 @@ contract NFTFactory is OwnableUpgradeable {
         uint8 _platformCommission,
         address _storageContract,
         ITransferValidator721 validator
-    )
-        external
-        initializer
-        zeroAddressCheck(_signer)
-        zeroAddressCheck(_platformAddress)
-        zeroAddressCheck(_storageContract)
-    {
+    ) external initializer {
         __Ownable_init(msg.sender);
 
-        signerAddress = _signer;
-        platformAddress = _platformAddress;
-        platformCommission = _platformCommission;
         storageContract = _storageContract;
-        transferValidator = validator;
 
-        emit SignerSet(_signer);
-        emit PlatformComissionSet(_platformCommission);
-        emit PlatformAddressSet(_platformAddress);
-        emit TransferValidatorSet(validator);
+        _setSigner(_signer);
+        _setPlatformAddress(_platformAddress);
+        _setPlatformCommission(_platformCommission);
+        _setTransferValidator(validator);
     }
 
     /**
@@ -93,8 +83,7 @@ contract NFTFactory is OwnableUpgradeable {
     function setPlatformCommission(
         uint8 _platformCommission
     ) external onlyOwner {
-        platformCommission = _platformCommission;
-        emit PlatformComissionSet(_platformCommission);
+        _setPlatformCommission(_platformCommission);
     }
 
     /**
@@ -102,11 +91,8 @@ contract NFTFactory is OwnableUpgradeable {
      * @dev Only owner can call it
      * @param _platformAddress The platform address
      */
-    function setPlatformAddress(
-        address _platformAddress
-    ) external onlyOwner zeroAddressCheck(_platformAddress) {
-        platformAddress = _platformAddress;
-        emit PlatformAddressSet(_platformAddress);
+    function setPlatformAddress(address _platformAddress) external onlyOwner {
+        _setPlatformAddress(_platformAddress);
     }
 
     /**
@@ -114,18 +100,14 @@ contract NFTFactory is OwnableUpgradeable {
      * @dev Only owner can call it
      * @param _signer The signer address
      */
-    function setSigner(
-        address _signer
-    ) external onlyOwner zeroAddressCheck(_signer) {
-        signerAddress = _signer;
-        emit SignerSet(_signer);
+    function setSigner(address _signer) external onlyOwner {
+        _setSigner(_signer);
     }
 
     function setTransferValidator(
         ITransferValidator721 validator
-    ) external onlyOwner zeroAddressCheck(address(validator)) {
-        transferValidator = validator;
-        emit TransferValidatorSet(validator);
+    ) external onlyOwner {
+        _setTransferValidator(validator);
     }
 
     /**
@@ -143,7 +125,7 @@ contract NFTFactory is OwnableUpgradeable {
         }
 
         if (
-            !_verifySignature(
+            !_isSignatureValid(
                 _info.name,
                 _info.symbol,
                 _info.contractURI,
@@ -157,11 +139,11 @@ contract NFTFactory is OwnableUpgradeable {
 
         address _storageContract = storageContract;
 
-        NftParameters memory params = NftParameters(
-            _storageContract,
-            _info,
-            msg.sender
-        );
+        NftParameters memory params = NftParameters({
+            storageContract: _storageContract,
+            info: _info,
+            creator: msg.sender
+        });
 
         if (
             StorageContract(_storageContract).instancesByName(
@@ -196,7 +178,7 @@ contract NFTFactory is OwnableUpgradeable {
      * @param feeReceiver Fee receiver for ERC2981
      * @param signature The signature to check
      */
-    function _verifySignature(
+    function _isSignatureValid(
         string calldata name,
         string calldata symbol,
         string calldata contractURI,
@@ -215,5 +197,29 @@ contract NFTFactory is OwnableUpgradeable {
                     block.chainid
                 )
             ).recover(signature) == signerAddress;
+    }
+
+    function _setPlatformCommission(uint8 _platformCommission) private {
+        platformCommission = _platformCommission;
+        emit PlatformComissionSet(_platformCommission);
+    }
+
+    function _setPlatformAddress(
+        address _platformAddress
+    ) private zeroAddressCheck(_platformAddress) {
+        platformAddress = _platformAddress;
+        emit PlatformAddressSet(_platformAddress);
+    }
+
+    function _setSigner(address _signer) private zeroAddressCheck(_signer) {
+        signerAddress = _signer;
+        emit SignerSet(_signer);
+    }
+
+    function _setTransferValidator(
+        ITransferValidator721 validator
+    ) private zeroAddressCheck(address(validator)) {
+        transferValidator = validator;
+        emit TransferValidatorSet(validator);
     }
 }
