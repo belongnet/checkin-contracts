@@ -47,10 +47,6 @@ abstract contract CreatorToken {
     function _setTransferValidator(
         ITransferValidator721 newValidator
     ) internal {
-        if (address(newValidator) == address(0)) {
-            revert ZeroAddressPasted();
-        }
-
         ITransferValidator721 oldValidator = _transferValidator;
 
         if (

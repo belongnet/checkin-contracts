@@ -10,7 +10,6 @@ import {BaseERC721} from "./BaseERC721.sol";
 import {NftParameters} from "./Structures.sol";
 import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
 
-error ZeroAddressPasted();
 error TotalSupplyLimitReached();
 error NotEnoughETHSent(uint256 ETHsent);
 error NotTransferable();
