@@ -14,6 +14,16 @@ error AccountHasSharesAlready();
 error DvisonByZero();
 error IncorrectPayeeIndex(uint256 incorrectIndex);
 
+struct Releases {
+    uint256 totalReleased;
+    mapping(address account => uint256 amount) released;
+}
+
+struct Shares {
+    uint256 totalShares;
+    mapping(address => uint256) shares;
+}
+
 contract RoyaltiesReceiver {
     using SafeTransferLib for address;
 
