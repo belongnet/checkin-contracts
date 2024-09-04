@@ -188,22 +188,26 @@ contract RoyaltiesReceiver {
      * percentage of the total shares and their previous withdrawals. `token` must be the address of an IERC20
      * contract.
      */
-    function _release(address token, address account) internal {
-        uint256 payment = _pendingPayment(
+    function _releaseERC20(address token, address account) internal {
+        Releases storage _erc20Releases = erc20Releases[token];
+
+        uint256 toRelease = _pendingPayment(
             account,
-            IERC20(token).balanceOf(address(this)) + _erc20TotalReleased[token],
-            _erc20Released[token][account]
+            IERC20(token).balanceOf(address(this)) +
+                _erc20Releases.totalReleased,
+            _erc20Releases.released[account]
         );
 
-        if (payment == 0) {
+        if (toRelease == 0) {
             revert AccountNotDuePayment();
         }
 
-        _erc20Released[token][account] += payment;
-        _erc20TotalReleased[token] += payment;
+        _erc20Releases.released[account] += toRelease;
+        _erc20Releases.totalReleased += toRelease;
 
-        token.safeTransfer(account, payment);
-        emit ERC20PaymentReleased(token, account, payment);
+        token.safeTransfer(account, toRelease);
+
+        emit ERC20PaymentReleased(token, account, toRelease);
     }
 
     /**
