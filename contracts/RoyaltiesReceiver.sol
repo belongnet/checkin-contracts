@@ -87,7 +87,7 @@ contract RoyaltiesReceiver {
      * @notice releases ETH to all payees
      */
     function releaseAll() external {
-        address[] memory payees_ = _payees;
+        address[] memory _payees = payees;
 
         for (uint256 i = 0; i < payees_.length; ) {
             _release(payees_[i]);
@@ -103,7 +103,7 @@ contract RoyaltiesReceiver {
      * @param token ERC20 token to be distributed
      */
     function releaseAll(address token) external {
-        address[] memory payees = _payees;
+        address[] memory _payees = payees;
 
         for (uint256 i = 0; i < payees.length; ) {
             _release(token, payees[i]);
