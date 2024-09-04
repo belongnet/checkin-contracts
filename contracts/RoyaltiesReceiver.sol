@@ -38,15 +38,12 @@ contract RoyaltiesReceiver {
 
     uint256 public constant MAX_PAYEES_LENGTH = 2;
 
-    uint256 private _totalShares;
-    uint256 private _totalReleased;
+    address[] public payees;
 
-    address[] private _payees;
+    Shares public shares;
 
-    mapping(address => uint256) private _shares;
-    mapping(address => uint256) private _released;
-    mapping(address => mapping(address => uint256)) private _erc20Released;
-    mapping(address => uint256) private _erc20TotalReleased;
+    Releases public nativeReleases;
+    mapping(address token => Releases) public erc20Releases;
 
     /**
      * @dev Initiates an instance of `RoyaltiesReceiver` where each account in `payees_` is assigned the number of shares at
