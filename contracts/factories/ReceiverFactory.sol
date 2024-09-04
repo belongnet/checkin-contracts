@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import {RoyaltiesReceiver} from "../RoyaltiesReceiver.sol";
 
-error RoyaltiesReceiverCreationError();
+error RoyaltiesReceiverCreationFailed();
 
 contract ReceiverFactory {
     event ReceiverCreated(
@@ -27,7 +27,7 @@ contract ReceiverFactory {
         royaltiesReceiver = new RoyaltiesReceiver(payees, shares);
 
         if (address(royaltiesReceiver) == address(0)) {
-            revert RoyaltiesReceiverCreationError();
+            revert RoyaltiesReceiverCreationFailed();
         }
 
         emit ReceiverCreated(msg.sender, royaltiesReceiver, payees, shares);
