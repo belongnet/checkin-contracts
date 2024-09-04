@@ -10,15 +10,15 @@ error OnlyFactory();
 error ZeroAddressPasted();
 error IncorrectNFTId();
 
+struct InstanceInfo {
+    string name;
+    string symbol;
+    address creator;
+}
+
 contract StorageContract is Ownable {
     event FactorySet(NFTFactory newFactory);
     event InstanceAdded(NFT newInstance);
-
-    struct InstanceInfo {
-        string name;
-        string symbol;
-        address creator;
-    }
 
     NFTFactory public factory; // The current factory address
 
