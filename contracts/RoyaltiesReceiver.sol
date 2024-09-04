@@ -115,24 +115,10 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @dev Getter for the total shares held by payees.
-     */
-    function totalShares() external view returns (uint256) {
-        return _totalShares;
-    }
-
-    /**
-     * @dev Getter for the amount of shares held by an account.
-     */
-    function shares(address account) external view returns (uint256) {
-        return _shares[account];
-    }
-
-    /**
      * @dev Getter for the total amount of Ether already released.
      */
     function totalReleased() public view returns (uint256) {
-        return _totalReleased;
+        return nativeReleases.totalReleased;
     }
 
     /**
@@ -140,14 +126,14 @@ contract RoyaltiesReceiver {
      * contract.
      */
     function totalReleased(address token) public view returns (uint256) {
-        return _erc20TotalReleased[token];
+        return erc20Releases[token].totalReleased;
     }
 
     /**
      * @dev Getter for the amount of Ether already released to a payee.
      */
     function released(address account) public view returns (uint256) {
-        return _released[account];
+        return nativeReleases.released[account];
     }
 
     /**
@@ -158,13 +144,15 @@ contract RoyaltiesReceiver {
         address token,
         address account
     ) public view returns (uint256) {
-        return _erc20Released[token][account];
+        return erc20Releases[token].released[account];
     }
 
     /**
      * @dev Getter for the address of the payee number `index`.
      */
     function payee(uint256 index) external view returns (address) {
+        address[] memory _payees = payees;
+
         if (_payees.length <= index) {
             revert IncorrectPayeeIndex(index);
         }
@@ -251,11 +239,11 @@ contract RoyaltiesReceiver {
         uint256 totalReceived,
         uint256 alreadyReleased
     ) private view returns (uint256) {
-        uint256 divider = _totalShares - alreadyReleased;
+        uint256 divider = shares.totalShares - alreadyReleased;
         if (divider == 0) {
             revert DvisonByZero();
         }
 
-        return (totalReceived * _shares[account]) / divider;
+        return (totalReceived * shares.shares[account]) / divider;
     }
 }
