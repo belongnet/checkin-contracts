@@ -224,13 +224,13 @@ contract RoyaltiesReceiver {
             revert ZeroSharesPasted();
         }
 
-        if (_shares[account] != 0) {
+        if (shares.shares[account] != 0) {
             revert AccountHasSharesAlready();
         }
 
-        _payees.push(account);
-        _shares[account] = shares_;
-        _totalShares += shares_;
+        payees.push(account);
+        shares.shares[account] = shares_;
+        shares.totalShares += shares_;
         emit PayeeAdded(account, shares_);
     }
 
