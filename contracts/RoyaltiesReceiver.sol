@@ -89,8 +89,8 @@ contract RoyaltiesReceiver {
     function releaseAll() external {
         address[] memory _payees = payees;
 
-        for (uint256 i = 0; i < payees_.length; ) {
-            _release(payees_[i]);
+        for (uint256 i = 0; i < _payees.length; ) {
+            _releaseNative(_payees[i]);
 
             unchecked {
                 ++i;
@@ -105,8 +105,8 @@ contract RoyaltiesReceiver {
     function releaseAll(address token) external {
         address[] memory _payees = payees;
 
-        for (uint256 i = 0; i < payees.length; ) {
-            _release(token, payees[i]);
+        for (uint256 i = 0; i < _payees.length; ) {
+            _releaseERC20(token, _payees[i]);
 
             unchecked {
                 ++i;
