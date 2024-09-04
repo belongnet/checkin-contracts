@@ -51,6 +51,6 @@ contract ERC721Mock is BaseERC721 {
         address reciever,
         string calldata tokenUri
     ) external {
-        mint_(tokenId, reciever, tokenUri);
+        _baseMint(tokenId, reciever, tokenUri);
     }
 }
