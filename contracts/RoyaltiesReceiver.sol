@@ -164,23 +164,23 @@ contract RoyaltiesReceiver {
      * @dev Triggers a transfer to `account` of the amount of Ether they are owed, according to their percentage of the
      * total shares and their previous withdrawals.
      */
-    function _release(address account) internal {
-        uint256 payment = _pendingPayment(
+    function _releaseNative(address account) internal {
+        uint256 toRelease = _pendingPayment(
             account,
-            address(this).balance + _totalReleased,
-            _released[account]
+            address(this).balance + nativeReleases.totalReleased,
+            nativeReleases.released[account]
         );
 
-        if (payment == 0) {
+        if (toRelease == 0) {
             revert AccountNotDuePayment();
         }
 
-        _released[account] += payment;
-        _totalReleased += payment;
+        nativeReleases.released[account] += toRelease;
+        nativeReleases.totalReleased += toRelease;
 
-        account.safeTransferETH(payment);
+        account.safeTransferETH(toRelease);
 
-        emit PaymentReleased(account, payment);
+        emit PaymentReleased(account, toRelease);
     }
 
     /**
