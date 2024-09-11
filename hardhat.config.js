@@ -17,6 +17,8 @@ const sepoliaURL = `https://sepolia.infura.io/v3/${process.env.INFURA_ID_PROJECT
 const blastURL = `https://rpc.envelop.is/blast`;
 const blastSepoliaURL = `https://sepolia.blast.io`;
 const skaleEuropaURL = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
+const skaleCalypsoTestURL =
+  "https://testnet.skalenodes.com/v1/giant-half-dual-testnet";
 
 module.exports = {
   solidity: {
@@ -87,6 +89,13 @@ module.exports = {
       saveDeployments: true,
       gasPrice: "auto",
     },
+    skale_calypso_testnet: {
+      url: skaleCalypsoTestURL,
+      chainId: 974399131,
+      accounts: [process.env.PK],
+      saveDeployments: true,
+      gasPrice: "auto",
+    },
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
@@ -97,6 +106,7 @@ module.exports = {
       mainnet: process.env.ETHERSCAN_API_KEY,
       blast: process.env.BLASTSCAN_API_KEY,
       blast_sepolia: process.env.BLASTSCAN_API_KEY,
+      skale_calypso_testnet: "abc", // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
       {
@@ -113,6 +123,16 @@ module.exports = {
         urls: {
           apiURL: "https://api-sepolia.blastscan.io/api",
           browserURL: "https://sepolia.blastscan.io/",
+        },
+      },
+      {
+        network: "skale_calypso_testnet",
+        chainId: 974399131,
+        urls: {
+          apiURL:
+            "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/api",
+          browserURL:
+            "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/",
         },
       },
     ],
