@@ -4,7 +4,7 @@ require("@nomiclabs/hardhat-ethers");
 require("hardhat-deploy");
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-web3");
-require("@nomiclabs/hardhat-etherscan");
+require("@nomicfoundation/hardhat-verify");
 require("solidity-coverage");
 require("hardhat-gas-reporter");
 require("@openzeppelin/hardhat-upgrades");
@@ -136,6 +136,9 @@ module.exports = {
         },
       },
     ],
+  },
+  sourcify: {
+    enabled: true,
   },
   namedAccounts: {
     deployer: 0,
