@@ -18,8 +18,8 @@ async function deploy() {
   console.log("NFTFactory:");
   const NFTFactory = await ethers.getContractFactory("NFTFactory");
 
-  const signer = "0x29DD1A766E3CD887DCDBD77506e970cC981Ee91b";
-  const platformAddress = "0x29DD1A766E3CD887DCDBD77506e970cC981Ee91b";
+  const signer = "0x5f2BFF1c2D15BA78A9B8F4817Ea3Eb48b2033aDc"; //"0x29DD1A766E3CD887DCDBD77506e970cC981Ee91b";
+  const platformAddress = "0x8eE651E9791e4Fe615796303F48856C1Cf73C885"; //0x29DD1A766E3CD887DCDBD77506e970cC981Ee91b
   const platformCommission = "200";
 
   const nftFactory = await upgrades.deployProxy(NFTFactory, [
