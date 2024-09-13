@@ -146,7 +146,7 @@ contract NFTFactory is OwnableUpgradeable {
         });
 
         if (
-            StorageContract(_storageContract).instancesByName(
+            StorageContract(_storageContract).getInstance(
                 keccak256(abi.encodePacked(_info.name, _info.symbol))
             ) != NFT(address(0))
         ) {
@@ -159,7 +159,7 @@ contract NFTFactory is OwnableUpgradeable {
             revert NFTCreationFailed();
         }
 
-        uint256 id = StorageContract(_storageContract).addNFT(
+        uint256 id = StorageContract(_storageContract).addInstance(
             nft,
             msg.sender,
             _info.name,

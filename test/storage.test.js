@@ -29,7 +29,7 @@ describe("Storage tests", () => {
     await expect(
       storage
         .connect(owner)
-        .addNFT(ZERO_ADDRESS, owner.address, "name", "symbol")
+        .addInstance(ZERO_ADDRESS, owner.address, "name", "symbol")
     ).to.be.reverted;
   });
 

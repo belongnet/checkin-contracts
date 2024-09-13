@@ -63,7 +63,7 @@ async function deploy() {
     [nftName, nftSymbol]
   );
 
-  const nftAddress = await Storage.instancesByName(hash);
+  const nftAddress = await Storage.getInstance(hash);
 
   console.log("Deployed to:", nftAddress.address);
 

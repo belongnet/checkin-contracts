@@ -269,7 +269,7 @@ describe("NFTFactory tests", () => {
       { type: "string", value: nftSymbol },
     ]);
 
-    const instanceAddress = await storage.instancesByName(hash);
+    const instanceAddress = await storage.getInstance(hash);
     expect(instanceAddress).to.not.be.equal(ZERO_ADDRESS);
     expect(instanceAddress).to.be.equal(await storage.instances(0));
     const instanceInfo = await storage.getInstanceInfo(0);
@@ -402,9 +402,9 @@ describe("NFTFactory tests", () => {
       { type: "string", value: nftSymbol3 },
     ]);
 
-    const instanceAddress1 = await storage.instancesByName(hash1);
-    const instanceAddress2 = await storage.instancesByName(hash2);
-    const instanceAddress3 = await storage.instancesByName(hash3);
+    const instanceAddress1 = await storage.getInstance(hash1);
+    const instanceAddress2 = await storage.getInstance(hash2);
+    const instanceAddress3 = await storage.getInstance(hash3);
 
     expect(instanceAddress1).to.not.be.equal(ZERO_ADDRESS);
     expect(instanceAddress2).to.not.be.equal(ZERO_ADDRESS);

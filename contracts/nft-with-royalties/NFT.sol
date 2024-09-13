@@ -5,7 +5,7 @@ import {ReentrancyGuard} from "solady/src/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 
-import {StorageContract} from "./StorageContract.sol";
+import {StorageContract, NFTFactory} from "./StorageContract.sol";
 import {BaseERC721} from "./BaseERC721.sol";
 import {NftParameters} from "./Structures.sol";
 import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
@@ -14,6 +14,8 @@ error TotalSupplyLimitReached();
 error NotEnoughETHSent(uint256 ETHsent);
 error NotTransferable();
 error InvalidSignature();
+error PriceChanged(uint256 expectedMintPrice, uint256 currentPrice);
+error TokenChanged(address expectedPayingToken, address currentPayingToken);
 
 contract NFT is BaseERC721, ReentrancyGuard {
     using ECDSA for bytes32;
@@ -51,12 +53,13 @@ contract NFT is BaseERC721, ReentrancyGuard {
      */
     function mint(
         address receiver,
+        uint256 tokenId,
         string calldata tokenUri,
         bool whitelisted,
-        bytes calldata signature
+        bytes calldata signature,
+        uint256 _expectedMintPrice,
+        address _expectedPayingToken
     ) external payable nonReentrant {
-        uint256 tokenId = totalSupply;
-
         NftParameters memory _parameters = parameters;
 
         if (
@@ -69,7 +72,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
                     block.chainid
                 )
             ).recover(signature) !=
-            StorageContract(parameters.storageContract)
+            StorageContract(_parameters.storageContract)
                 .factory()
                 .signerAddress()
         ) {
@@ -83,6 +86,17 @@ contract NFT is BaseERC721, ReentrancyGuard {
         uint256 price = whitelisted
             ? _parameters.info.whitelistMintPrice
             : _parameters.info.mintPrice;
+
+        if (_expectedMintPrice != price) {
+            revert PriceChanged(_expectedMintPrice, price);
+        }
+
+        if (_expectedPayingToken != _parameters.info.payingToken) {
+            revert TokenChanged(
+                _expectedPayingToken,
+                _parameters.info.payingToken
+            );
+        }
 
         uint256 amount = _parameters.info.payingToken == ETH_ADDRESS
             ? msg.value
@@ -109,13 +123,12 @@ contract NFT is BaseERC721, ReentrancyGuard {
             amountToCreator = amount - fee;
         }
 
-        address platformAddress = StorageContract(_parameters.storageContract)
-            .factory()
-            .platformAddress();
-
         if (_parameters.info.payingToken == ETH_ADDRESS) {
             if (fee > 0) {
-                platformAddress.safeTransferETH(fee);
+                StorageContract(_parameters.storageContract)
+                    .factory()
+                    .platformAddress()
+                    .safeTransferETH(fee);
             }
 
             _parameters.creator.safeTransferETH(amountToCreator);
@@ -123,7 +136,9 @@ contract NFT is BaseERC721, ReentrancyGuard {
             if (fee > 0) {
                 _parameters.info.payingToken.safeTransferFrom(
                     msg.sender,
-                    platformAddress,
+                    StorageContract(_parameters.storageContract)
+                        .factory()
+                        .platformAddress(),
                     fee
                 );
             }
@@ -151,6 +166,46 @@ contract NFT is BaseERC721, ReentrancyGuard {
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
         emit PayingTokenChanged(_payingToken, _mintPrice, _whitelistMintPrice);
+    }
+
+    function payingToken() external view returns (address) {
+        return parameters.info.payingToken;
+    }
+
+    function storageContract() external view returns (address) {
+        return parameters.storageContract;
+    }
+
+    function mintPrice() external view returns (uint256) {
+        return parameters.info.mintPrice;
+    }
+
+    function whitelistMintPrice() external view returns (uint256) {
+        return parameters.info.whitelistMintPrice;
+    }
+
+    function transferable() external view returns (bool) {
+        return parameters.info.transferable;
+    }
+
+    function maxTotalSupply() external view returns (uint256) {
+        return parameters.info.maxTotalSupply;
+    }
+
+    function totalRoyalty() external view returns (uint256) {
+        return parameters.info.feeNumerator;
+    }
+
+    function creator() external view returns (address) {
+        return parameters.creator;
+    }
+
+    function collectionExpire() external view returns (uint256) {
+        return parameters.info.collectionExpires;
+    }
+
+    function contractURI() external view returns (string memory) {
+        return parameters.info.contractURI;
     }
 
     function _update(

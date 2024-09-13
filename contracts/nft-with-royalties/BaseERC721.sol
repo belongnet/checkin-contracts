@@ -24,6 +24,7 @@ abstract contract BaseERC721 is
     uint256 public totalSupply; // The current totalSupply
 
     mapping(uint256 => string) public metadataUri; // token ID -> metadata link
+    mapping(uint256 => uint256) public creationTs; // token ID -> creation Tx
 
     modifier zeroAddressCheck(address _address) {
         if (_address == address(0)) {
@@ -114,6 +115,7 @@ abstract contract BaseERC721 is
     ) internal {
         totalSupply++;
         metadataUri[tokenId] = tokenUri;
+        creationTs[tokenId] = block.timestamp;
 
         _safeMint(to, tokenId);
     }

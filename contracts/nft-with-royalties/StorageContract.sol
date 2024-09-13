@@ -8,7 +8,7 @@ import {NFT} from "./NFT.sol";
 
 error OnlyFactory();
 error ZeroAddressPasted();
-error IncorrectNFTId();
+error IncorrectInstanceId();
 
 struct InstanceInfo {
     string name;
@@ -23,7 +23,7 @@ contract StorageContract is Ownable {
     NFTFactory public factory; // The current factory address
 
     NFT[] public instances; // The array of all NFTs
-    mapping(bytes32 => NFT) public instancesByName; // keccak256("name", "symbol") => NFT address
+    mapping(bytes32 => NFT) public getInstance; // keccak256("name", "symbol") => NFT address
     mapping(NFT => InstanceInfo) public instanceInfos; // NFT address => InstanceInfo
 
     constructor() {
@@ -31,17 +31,24 @@ contract StorageContract is Ownable {
     }
 
     /**
-     * @dev Returns NFT's info
-     * @param nftId NFT ID
+     * @dev Returns NFT's instance info
+     * @param instanceId NFT's instance ID
      */
     function getInstanceInfo(
-        uint256 nftId
+        uint256 instanceId
     ) external view returns (InstanceInfo memory instanceInfo) {
-        if (nftId >= instances.length) {
-            revert IncorrectNFTId();
+        if (instanceId >= instances.length) {
+            revert IncorrectInstanceId();
         }
 
-        instanceInfo = instanceInfos[instances[nftId]];
+        instanceInfo = instanceInfos[instances[instanceId]];
+    }
+
+    /**
+     * @dev Returns the count of instances
+     */
+    function instancesCount() external view returns (uint256) {
+        return instances.length;
     }
 
     /**
@@ -66,7 +73,7 @@ contract StorageContract is Ownable {
      * @param name New instance name
      * @param symbol New instance symbol
      */
-    function addNFT(
+    function addInstance(
         NFT nft,
         address creator,
         string memory name,
@@ -76,7 +83,7 @@ contract StorageContract is Ownable {
             revert OnlyFactory();
         }
 
-        instancesByName[keccak256(abi.encodePacked(name, symbol))] = nft;
+        getInstance[keccak256(abi.encodePacked(name, symbol))] = nft;
         instances.push(nft);
         instanceInfos[nft] = InstanceInfo(name, symbol, creator);
 
