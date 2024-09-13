@@ -6,6 +6,8 @@ const ReceiverFactory_Address = "0x1ee86eA9De1954a04e0DeF1E101CD99D050bDa99"; //
 const TransferValidator_Address = "0x60157fe5101bcD5168653841Df6Ee0a7BB49B5F8"; // BLAST_SEPOLIA: "0xaCCF2EB146ec1B84cB505Bf04D99A4C3E8326563";
 
 async function verify() {
+  console.log("Verification: ");
+
   try {
     verifyContract(Storage_Address);
     console.log("Storage verification successful.");
@@ -33,6 +35,8 @@ async function verify() {
   } catch (error) {
     console.error("ReceiverFactory verification failed:", error);
   }
+
+  console.log("Done.");
 }
 
 verify();
