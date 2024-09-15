@@ -201,7 +201,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
     }
 
     function collectionExpire() external view returns (uint256) {
-        return parameters.info.collectionExpires;
+        return parameters.info.collectionExpire;
     }
 
     function contractURI() external view returns (string memory) {

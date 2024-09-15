@@ -19,7 +19,7 @@ contract ERC721Mock is BaseERC721 {
             maxTotalSupply: 10000,
             feeNumerator: 1000,
             feeReceiver: msg.sender,
-            collectionExpires: block.timestamp * 100,
+            collectionExpire: block.timestamp * 100,
             signature: bytes("")
         });
     NftParameters params =
