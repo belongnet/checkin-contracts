@@ -38,7 +38,8 @@ async function deploy() {
     [nftName, nftSymbol, contractURI, feeNumerator, deployer.address, chainId]
   );
 
-  const signature = deployer.signMessage(message);
+  const signature = await deployer.signMessage(message);
+  console.log(signature);
   const deadline = blockTimestampNow + oneWeek;
   console.log(deadline);
 
