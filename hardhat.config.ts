@@ -1,14 +1,8 @@
-require("dotenv").config();
-
-require("@nomiclabs/hardhat-ethers");
-require("hardhat-deploy");
-require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-web3");
-require("@nomicfoundation/hardhat-verify");
-require("solidity-coverage");
-require("hardhat-gas-reporter");
-require("@openzeppelin/hardhat-upgrades");
-require("@shardlabs/starknet-hardhat-plugin");
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-toolbox";
+import "@openzeppelin/hardhat-upgrades";
+import dotenv from "dotenv";
+dotenv.config();
 
 const mainnetURL = `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
 const bscURL = "https://bsc-dataseed.binance.org";
@@ -20,7 +14,7 @@ const skaleEuropaURL = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
 const skaleCalypsoTestURL =
   "https://testnet.skalenodes.com/v1/giant-half-dual-testnet";
 
-module.exports = {
+const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
@@ -137,20 +131,15 @@ module.exports = {
       },
     ],
   },
-  sourcify: {
-    enabled: true,
-  },
   namedAccounts: {
     deployer: 0,
   },
   paths: {
     sources: "contracts",
   },
-  gasReporter: {
-    currency: "USD",
-    enabled: process.env.REPORT_GAS === "true" ? true : false,
-  },
   mocha: {
     timeout: 20000000,
   },
 };
+
+export default config;
