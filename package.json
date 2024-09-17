@@ -3,7 +3,7 @@
     "test": "hardhat test",
     "compile": "hardhat compile",
     "deploy": "hardhat run ./scripts/deploy.js --network",
-    "verify": "hardhat run ./scripts/verify.js --network"
+    "verify": "hardhat run ./scripts/verify.ts --network"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2",

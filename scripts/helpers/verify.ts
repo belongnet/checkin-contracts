@@ -1,6 +1,6 @@
-const hre = require("hardhat");
+import hre from "hardhat";
 
-async function verifyContract(address, constructorArguments = []) {
+export async function verifyContract(address: string, constructorArguments: any[] = []) {
   console.log(`Trying to verifying ${address}\n`);
 
   try {
@@ -15,7 +15,7 @@ async function verifyContract(address, constructorArguments = []) {
   }
 }
 
-const ignoreAlreadyVerifiedError = (err) => {
+const ignoreAlreadyVerifiedError = (err: any) => {
   if (err.message.includes("Already Verified")) {
     console.log("Contract already verified, skipping");
 
@@ -24,5 +24,3 @@ const ignoreAlreadyVerifiedError = (err) => {
     throw err;
   }
 };
-
-module.exports = verifyContract;
