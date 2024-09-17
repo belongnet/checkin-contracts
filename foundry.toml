@@ -21,4 +21,4 @@ remappings = [
 # 0x3d1f856a1258FEcd940aCD46b3DF3dCD935b4792 \
 # /contracts/nft-with-royalties/factories/NFTFactory.sol:NFTFactory \
 # --verifier blockscout \
-# --verifier-url https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/api/
+# --verifier-url https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/api/  
