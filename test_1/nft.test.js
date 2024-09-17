@@ -591,6 +591,7 @@ describe("NFT tests", () => {
         )
       ).to.be.reverted;
     });
+    
     it("Should fail with wrong mint price", async () => {
       const NFT_721_BASE_URI = "test.com/";
 
