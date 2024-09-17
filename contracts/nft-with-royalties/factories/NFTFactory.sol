@@ -2,8 +2,7 @@
 pragma solidity 0.8.25;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ECDSA} from "solady/src/utils/ECDSA.sol";
-
+import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {NFT} from "../NFT.sol";
 import {StorageContract} from "../StorageContract.sol";
 import {NftParameters, InstanceInfo} from "../Structures.sol";
@@ -17,7 +16,7 @@ error NFTCreationFailed();
 error ZeroAddressPasted();
 
 contract NFTFactory is OwnableUpgradeable {
-    using ECDSA for bytes32;
+    using SignatureCheckerLib for address;
 
     event NFTCreated(string name, string symbol, NFT instance, uint256 id);
 
@@ -187,16 +186,19 @@ contract NFTFactory is OwnableUpgradeable {
         bytes calldata signature
     ) internal view returns (bool) {
         return
-            keccak256(
-                abi.encodePacked(
-                    name,
-                    symbol,
-                    contractURI,
-                    feeNumerator,
-                    feeReceiver,
-                    block.chainid
-                )
-            ).recover(signature) == signerAddress;
+            signerAddress.isValidSignatureNow(
+                keccak256(
+                    abi.encodePacked(
+                        name,
+                        symbol,
+                        contractURI,
+                        feeNumerator,
+                        feeReceiver,
+                        block.chainid
+                    )
+                ),
+                signature
+            );
     }
 
     function _setPlatformCommission(uint8 _platformCommission) private {
