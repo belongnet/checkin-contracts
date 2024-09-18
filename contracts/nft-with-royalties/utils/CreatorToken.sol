@@ -16,6 +16,7 @@ abstract contract CreatorToken {
         ITransferValidator721 oldValidator,
         ITransferValidator721 newValidator
     );
+    event CanNotSetTokenTypeOfCollection();
 
     /// @dev Store the transfer validator. The null address means no transfer validator is set.
     ITransferValidator721 internal _transferValidator;
@@ -49,16 +50,24 @@ abstract contract CreatorToken {
     ) internal {
         ITransferValidator721 oldValidator = _transferValidator;
 
-        if (
-            oldValidator == newValidator &&
-            address(newValidator).code.length == 0
-        ) {
+        if (oldValidator == newValidator) {
             revert SetTransferValidatorError();
         }
 
         _transferValidator = newValidator;
 
-        _registerTokenType(newValidator);
+        if (address(newValidator) != address(0)) {
+            if (address(newValidator).code.length > 0) {
+                try
+                    newValidator.setTokenTypeOfCollection(
+                        address(this),
+                        uint16(721)
+                    )
+                {} catch {
+                    emit CanNotSetTokenTypeOfCollection();
+                }
+            }
+        }
 
         emit TransferValidatorUpdated(oldValidator, newValidator);
     }
@@ -77,23 +86,6 @@ abstract contract CreatorToken {
             }
 
             _transferValidator.validateTransfer(caller, from, to, tokenId);
-        }
-    }
-
-    function _registerTokenType(ITransferValidator721 validator) internal {
-        if (address(validator) != address(0)) {
-            uint256 validatorCodeSize;
-            assembly {
-                validatorCodeSize := extcodesize(validator)
-            }
-            if (validatorCodeSize > 0) {
-                try
-                    validator.setTokenTypeOfCollection(
-                        address(this),
-                        uint16(721)
-                    )
-                {} catch {}
-            }
         }
     }
 }
