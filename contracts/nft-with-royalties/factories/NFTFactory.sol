@@ -154,10 +154,6 @@ contract NFTFactory is OwnableUpgradeable {
 
         nft = new NFT(params, transferValidator);
 
-        if (nft == NFT(address(0))) {
-            revert NFTCreationFailed();
-        }
-
         uint256 id = StorageContract(_storageContract).addInstance(
             nft,
             msg.sender,

@@ -26,10 +26,6 @@ contract ReceiverFactory {
     ) external returns (RoyaltiesReceiver royaltiesReceiver) {
         royaltiesReceiver = new RoyaltiesReceiver(payees, shares);
 
-        if (address(royaltiesReceiver) == address(0)) {
-            revert RoyaltiesReceiverCreationFailed();
-        }
-
         emit ReceiverCreated(msg.sender, royaltiesReceiver, payees, shares);
     }
 }
