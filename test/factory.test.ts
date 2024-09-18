@@ -1,6 +1,6 @@
 
 import { ethers, upgrades } from "hardhat";
-import { loadFixture, time } from '@nomicfoundation/hardhat-network-helpers';
+import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, ContractFactory } from "ethers";
 import { MockTransferValidator, NFTFactory, StorageContract } from "../typechain-types";
 import { expect } from "chai";
