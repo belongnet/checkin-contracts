@@ -1,5 +1,5 @@
 
-import { ethers, upgrades } from "hardhat";
+import { ethers, upgrades } from 'hardhat';
 import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, ContractFactory } from "ethers";
 import { MockTransferValidator, NFTFactory, StorageContract } from "../typechain-types";
@@ -48,6 +48,17 @@ describe('NFTFactory', () => {
 			expect(await factory.storageContract()).to.be.equal(storage.address);
 			expect(await factory.platformCommission()).to.be.equal(+PLATFORM_COMISSION);
 			expect(await factory.signerAddress()).to.be.equal(signer.address);
+		});
+
+		it("can not be initialized again", async () => {
+			const { factory, storage, owner, signer, validator } = await loadFixture(fixture);
+
+			await expect(factory.initialize(signer.address,
+				owner.address,
+				PLATFORM_COMISSION,
+				storage.address,
+				validator.address,)).to.be.revertedWithCustomError(factory, 'InvalidInitialization')
+
 		});
 	});
 
@@ -366,7 +377,42 @@ describe('NFTFactory', () => {
 			expect(creator).to.be.equal(charlie.address);
 		});
 
-		it("shouldn't deploy NFT instance with the same parameters", async () => {
+		it("should correct set parameters", async () => {
+			const { factory, owner, bob, charlie, } = await loadFixture(fixture);
+			const newPlatformAddress = bob.address;
+			const newSigner = charlie.address;
+
+			await expect(factory.connect(owner).setPlatformAddress(ZERO_ADDRESS)).to.be
+				.revertedWithCustomError(factory, 'ZeroAddressPasted');
+
+			await factory.connect(owner).setPlatformAddress(newPlatformAddress);
+			expect(await factory.platformAddress()).to.be.equal(newPlatformAddress);
+			await expect(factory.connect(owner).setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+			await factory.connect(owner).setSigner(newSigner);
+			expect(await factory.signerAddress()).to.be.equal(newSigner);
+		});
+	});
+
+	describe('Errors', () => {
+		it("only owner", async () => {
+			const { factory, alice } = await loadFixture(fixture);
+
+			await expect(factory.connect(alice).setPlatformCommission(1)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setTransferValidator(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+		});
+
+		it("zero params check", async () => {
+			const { factory, } = await loadFixture(fixture);
+
+			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+			await expect(factory.setTransferValidator(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+		});
+
+
+		it("produce() params check", async () => {
 			const { factory, owner, alice, signer } = await loadFixture(fixture);
 
 			const uri = "test.com";
@@ -421,20 +467,44 @@ describe('NFTFactory', () => {
 						signature: signature,
 					} as InstanceInfoStruct)
 			).to.be.revertedWithCustomError(factory, "NFTAlreadyExists");
-		});
-		it("should correct set parameters", async () => {
-			const { factory, owner, bob, charlie, } = await loadFixture(fixture);
-			const newPlatformAddress = bob.address;
-			const newSigner = charlie.address;
 
-			await expect(factory.connect(owner).setPlatformAddress(ZERO_ADDRESS)).to.be
-				.revertedWithCustomError(factory, 'ZeroAddressPasted');
+			await expect(
+				factory
+					.connect(alice)
+					.produce({
+						name: '',
+						symbol: nftSymbol,
+						contractURI: contractURI,
+						payingToken: ETH_ADDRESS,
+						mintPrice: price,
+						whitelistMintPrice: price,
+						transferable: true,
+						maxTotalSupply: BigNumber.from("1000"),
+						feeNumerator: BigNumber.from("500"),
+						feeReceiver: owner.address,
+						collectionExpire: BigNumber.from("86400"),
+						signature: signature,
+					} as InstanceInfoStruct)
+			).to.be.revertedWithCustomError(factory, "EmptyNamePasted");
 
-			await factory.connect(owner).setPlatformAddress(newPlatformAddress);
-			expect(await factory.platformAddress()).to.be.equal(newPlatformAddress);
-			await expect(factory.connect(owner).setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
-			await factory.connect(owner).setSigner(newSigner);
-			expect(await factory.signerAddress()).to.be.equal(newSigner);
+			await expect(
+				factory
+					.connect(alice)
+					.produce({
+						name: nftName,
+						symbol: '',
+						contractURI: contractURI,
+						payingToken: ETH_ADDRESS,
+						mintPrice: price,
+						whitelistMintPrice: price,
+						transferable: true,
+						maxTotalSupply: BigNumber.from("1000"),
+						feeNumerator: BigNumber.from("500"),
+						feeReceiver: owner.address,
+						collectionExpire: BigNumber.from("86400"),
+						signature: signature,
+					} as InstanceInfoStruct)
+			).to.be.revertedWithCustomError(factory, "EmptySymbolPasted");
 		});
 	});
 });
