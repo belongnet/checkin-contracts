@@ -1,14 +1,10 @@
-import { ethers } from "hardhat";
+import { ethers } from 'hardhat';
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { ContractFactory } from "ethers";
 import { expect } from "chai";
 import { ReceiverFactory, } from "../typechain-types";
 
 describe("ReceiverFactory", () => {
-  const PLATFORM_COMISSION = "100";
-  const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
-  const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-  const chainId = 31337;
 
   async function fixture() {
     const [owner, alice, bob, charlie] = await ethers.getSigners();
