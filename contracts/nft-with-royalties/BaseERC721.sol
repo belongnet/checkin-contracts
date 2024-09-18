@@ -41,7 +41,6 @@ abstract contract BaseERC721 is
         zeroAddressCheck(_params.storageContract)
         zeroAddressCheck(_params.info.feeReceiver)
         zeroAddressCheck(_params.creator)
-        zeroAddressCheck(address(newValidator))
         ERC721(_params.info.name, _params.info.symbol)
     {
         _initializeOwner(_params.creator);
@@ -84,10 +83,8 @@ abstract contract BaseERC721 is
     ) public view virtual override returns (bool isApproved) {
         isApproved = super.isApprovedForAll(_owner, operator);
 
-        if (!isApproved) {
-            if (autoApproveTransfersFromValidator) {
-                isApproved = operator == address(_transferValidator);
-            }
+        if (!isApproved && autoApproveTransfersFromValidator) {
+            isApproved = operator == address(_transferValidator);
         }
     }
 
@@ -144,7 +141,7 @@ abstract contract BaseERC721 is
             interfaceId == type(IERC2981).interfaceId ||
             interfaceId == type(ICreatorToken).interfaceId ||
             interfaceId == type(ILegacyCreatorToken).interfaceId ||
-            interfaceId == 0x49064906 || // ERC-4906
+            interfaceId == 0x49064906 || // ERC4906
             super.supportsInterface(interfaceId);
     }
 }
