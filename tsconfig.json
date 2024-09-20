@@ -11,9 +11,10 @@
   "exclude": ["node_modules", "artifacts", "cache", ".git"],
   "include": [
     "scripts/**/*",
-    "test_1/**/*",
+    "test/**/*",
     "typechain-types/**/*",
     "hardhat.config.ts",
-    "test/factory.test.ts"
+    "test/factory.test.ts",
+    "test/receiverFactory.test.js"
   ]
 }

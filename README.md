@@ -1,6 +1,6 @@
 # Belong.net
 
-## Usage
+## Hardhat Usage
 
 ### Install Dependencies
 
@@ -29,6 +29,10 @@ signer and platformAddress need to be specified first. ReceiverFactory, Factory 
     yarn/npx hardhat --network <network_name> verify <Factory address>
     yarn/npx hardhat --network <network_name> verify <StorageContract address>
 ```
+
+## Foundry Usage
+
+Check [Foundry guide](./Foundry.md).
 
 ## Project Overview
 
@@ -74,7 +78,7 @@ At the beginning, three smart contracts are deployed at the network:
 1. User specifies the settings of his collection (name, symbol, contractURI with royalty information, mint price, whitelisted mint price, paying token, royalties and “transferable” flag) on the front-end
 2. User deploys the RoyaltiesReceiver contract with deployReceiver() function of ReceiverFactory contract. BE (which is subscribed to the ReceiverFactory's events) checks it it was deployed.
 3. The BE checks if name, symbol and royalties size comply with the rules
-4. BE creates [contractURI](https://docs.opensea.io/docs/contract-level-metadata) JSON file and uploads it to some hosting (the fee_recipient field must be equal to the RoyaltiesReceiver address)
+4. BE creates [`contractURI`](https://docs.opensea.io/docs/contract-level-metadata) JSON file and uploads it to some hosting (the fee_recipient field must be equal to the RoyaltiesReceiver address)
 5. BE signs the collection data
 6. Now user can call produce() function on Factory contract. A new nft collection will be deployed and the user becomes the creator (not owner) of the new smart contract
 
@@ -83,7 +87,7 @@ At the beginning, three smart contracts are deployed at the network:
 1. If some other user wants to mint a new token in this collection, his/her account will have to be validated by the BE
 2. BE generates tokenURI for the new token
 3. If the account meets all the requirements and tokenURI is successfully generated, the BE signs the data for mint. Also, if the user is in the whitelist, BE can specify it with whitelisted flag
-4. The user calls the mint() function of the NFT contract
+4. The user calls the `mint()` function of the NFT contract
 
 If the mint price is larger than zero, the contract will distribute ETH/ERC20 from every primary sale. Some fraction of this money will be transferred to the platform immediately and the rest will be transferred to the creator.
 The owner of the factory can set other platform commission. The creator of the collection can change paying token as well as the mint prices.
@@ -113,67 +117,127 @@ ERC721 token contract with different payment options and security advancements. 
 
 Belong NFT contains the following entities:
 
-1. address payingToken - Current token accepted as a mint payment
-2. address creator - Collection creator address
-3. uint96 totalRoyalty - the total amount of royalties (for example, if platform commission is 1% and user’s royalties are 5%, then totalRoyalty == 6%)
-4. address storageContract - Storage contract address
-5. uint256 mintPrice - Current mint price
-6. uint256 whitelistMintPrice - Mint price for whitelisted users
-7. bool transferable - Flag indicating whether the token is transferable or not
-8. uint256 totalSupply - The current total supply
-9. uint256 maxTotalSupply - The max amount of tokens to be minted
-10. string contractURI - Contract URI (for OpenSea)
-11. address constant ETH - mock ETH address
-12. metadataUri - token ID -> metadata link mapping
-13. creationTs - token ID -> the timestamp of token creation mapping
-14. collectionExpire - The period of time in which collection is expired (for the BE)
+1.
+
+```
+address payingToken - Current token accepted as a mint payment
+```
+
+2.
+
+```
+address creator - Collection creator address
+```
+
+3.
+
+```
+uint96 totalRoyalty - the total amount of royalties (for example, if platform commission is 1% and user’s royalties are 5%, then totalRoyalty == 6%)
+```
+
+4.
+
+```
+address storageContract - Storage contract address
+```
+
+5.
+
+```
+uint256 mintPrice - Current mint price
+```
+
+6.
+
+```
+uint256 whitelistMintPrice - Mint price for whitelisted users
+```
+
+7.
+
+```
+bool transferable - Flag indicating whether the token is transferable or not
+```
+
+8.
+
+```
+uint256 totalSupply - The current total supply
+```
+
+9.
+
+```
+uint256 maxTotalSupply - The max amount of tokens to be minted
+```
+
+10.
+
+```
+string contractURI - Contract URI (for OpenSea)
+```
+
+11.
+
+```
+address constant ETH - mock ETH address
+```
+
+12.
+
+```
+metadataUri - token ID -> metadata link mapping
+```
+
+13.
+
+```
+creationTs - token ID -> the timestamp of token creation mapping
+```
+
+14.
+
+```
+collectionExpire - The period of time in which collection is expired (for the BE)
+```
 
 ##### 2.2.1.2. Functions
 
 Belong NFT has the following functions:
 
-1. initialize(
-   [
-   address _storageContract,
-   address _payingToken,
-   uint256 _mintPrice,
-   string memory _contractURI,
-   string memory _erc721name,
-   string memory _erc721shortName,
-   bool _transferable,
-   uint256 _maxTotalSupply,
-   address _feeReceiver,
-   uint96 _feeNumerator,
-   address _creator
-   ]
-   ): Handles configurations and sets related parameters
-2. mint(
+1. 
+```
+mint(
    address reciever,
    uint256 tokenId,
    string calldata tokenUri,
    bool whitelisted,
    bytes calldata signature
-   ) - Mints ERC721 token
-3. tokenURI(uint256 \_tokenId) - Returns metadata link for specified ID
-4. setPayingToken(
-   address \_payingToken,
-   uint256 \_mintPrice,
-   uint256 \_whitelistMintPrice
-   ) - Sets paying token, mint price and whitelist mint price
-5. owner() - Overridden function from Ownable contract. Owner of the contract is always the platform address. Otherwise the user will be able to change royalty information on the marketplaces
+) - Mints ERC721 token
+```
 
-##### Update corresponding to new OpenSea royalties requirements
+2. 
 
-In order to satisfy new OpenSea requirements considering royalties functions listed below were overridden:
+```
+tokenURI(uint256 _tokenId) - Returns metadata link for specified ID
+``` 
 
-1. setApprovalForAll(address operator, bool approved)
-2. approve(address operator, uint256 tokenId)
-3. transferFrom(address from, address to, uint256 tokenId)
-4. safeTransferFrom(address from, address to, uint256 tokenId)
-5. safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
-   and now can revert if called from one of addresses (or with certain parameters) in list governed by OpenSea
-   This list can be changed by OpenSea at any time and this will take an immediate effect
-   Risks were acknowledged and evaluted
+3. 
+
+```
+setPayingToken(
+   address _payingToken,
+   uint256 _mintPrice,
+   uint256 _whitelistMintPrice
+) - Sets paying token, mint price and whitelist mint price
+```
+
+4. 
+
+```
+
+owner() - Overridden function from Ownable contract. Owner of the contract is always the platform address. Otherwise the user will be able to change royalty information on the marketplaces
+```
 
 #### 2.2.2. Factory.sol
 
@@ -183,42 +247,79 @@ Produces new nfts of NFT contract and registers them in the StorageContract. The
 
 Belong NFT Factory contains the following struct:
 
-    struct InstanceInfo {
-        string name;    - name of a new collection
-        string symbol;  - symbol of a new collection
-        string contractURI; - contract URI of a new collection
-        address payingToken; - paying token of a new collection
-        uint256 mintPrice;  - mint price ofany token of a new collection
-        bool transferable;  - shows if tokens will be transferrable or not
-        uint256 maxTotalSupply; - max total supply of a new collection
-        address feeReceiver;    - royalties receiver for the collection (must be RoyaltiesReceiver contract address)
-        uint96 feeNumerator;    - total fee amount (in BPs - base points, 0.01%) of a new collection (sum of creator royalties BPs and platform royalties BPs). Must be <= 1000 (10%)
-        bytes signature;    - BE's signature
-    }
+```
+struct InstanceInfo {
+   string name; //The name of the collection
+   string symbol; // The symbol of the collection
+   string contractURI; // Contract URI of a new collection
+   address payingToken; // Address of ERC20 paying token or ETH address (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)
+   uint256 mintPrice; // Mint price of a token from a new collection
+   uint256 whitelistMintPrice; // Mint price of a token from a new collection for whitelisted users
+   bool transferable; // Shows if tokens will be transferrable or not
+   uint256 maxTotalSupply; // The max total supply of a new collection
+   uint96 feeNumerator; // Royalty fraction for platform + Royalty fraction for creator
+   address feeReceiver; // The royalties receiver address
+   uint256 collectionExpire; // The period of time in which collection is expired (for the BE)
+   bytes signature; // BE's signature
+}
+```
 
 This structure should be passed to the produce function to deploy a new NFT collection
 
 Belong NFT Factory contains the following entities:
 
-1. address platformAddress - Platform address
-2. address storageContract - Storage contract address
-3. address signerAddress - Signer address
-4. uint8 platformCommission - Platform commission percentage
+1. 
+
+```
+address platformAddress - Platform address
+```
+
+2. 
+
+```
+
+address storageContract - Storage contract address
+```
+
+3. 
+
+```
+address signerAddress - Signer address
+```
+
+4. 
+
+```
+uint8 platformCommission - Platform commission percentage
+```
 
 ##### 2.2.2.2. Functions
 
 Belong NFT Factory has the following functions:
 
-1. initialize(
-   address \_signer,
-   address \_platformAddress,
-   uint8 \_platformCommission,
-   address \_storageContract
-   ): Handles configurations and sets related parameters
-2. produce(InstanceInfo memory \_info) - Produces the new instance with defined name and symbol
-3. setPlatformCommission(uint8 \_platformCommission) - Sets platform commission
-4. setPlatformAddress(address \_platformAddress) - Sets platform address
-5. setSigner(address \_signer) - Sets signer address
+1. 
+
+```
+produce(InstanceInfo memory _info) - Produces the new instance with defined name and symbol
+```
+
+2. 
+
+```
+setPlatformCommission(uint8 _platformCommission) - Sets platform commission
+```
+
+3. 
+
+```
+setPlatformAddress(address _platformAddress) - Sets platform address
+```
+
+4. 
+
+```
+setSigner(address _signer) - Sets signer address
+```
 
 #### 2.2.3. StorageContract.sol
 
@@ -227,35 +328,72 @@ Contains information about registered NFT nfts (as Factory implementation can be
 ##### 2.2.3.1. Assets
 
 Belong Storage contract contains the following strucrure:
+
+```
 struct InstanceInfo {
-string name;
-string symbol;
-address creator;
+   string name;
+   string symbol;
+   address creator;
 } - The information about an instance (its name, symbol, creator address)
+
+```
 
 Belong Storage contract contains the following entities:
 
-1. address factory - Factory address
-2. getInstance - keccak256("name", "symbol") => instance address mapping
-3. address[] nfts - NFTs’ array
+1. 
+
+```
+address factory - Factory address
+```
+
+2. 
+
+```
+getInstance - keccak256("name", "symbol") => instance address mapping
+```
+
+3. 
+
+```
+address[] nfts - NFTs’ array
+```
 
 ##### 2.2.3.2. Functions
 
 Belong Storage contract has the following functions:
 
-1. getNFTInfo(uint256 instanceId) Returns instance info by its ID
-2. nftsCount() - Returns the count of nfts
-3. setFactory(address \_factory) - Sets the factory address
-4. addNFT(
-   address instanceAddress,
+1. 
+
+```
+getInstanceInfo(uint256 instanceId) Returns instance info by its ID
+```
+
+2. 
+
+```
+instancesCount() - Returns the count of nfts
+```
+
+3. 
+
+```
+setFactory(address _factory) - Sets the factory address
+```
+
+4. 
+
+```
+addInstance(
+   NFT nft,
    address creator,
    string memory name,
    string memory symbol
-   ) - Adds new instance with passed parameters. Can be called only by factory
+) - Adds new instance with passed parameters. Can be called only by factory
+```
 
 #### 2.2.4. RoyaltiesReceiver.sol
 
-Must be deployed before the deployment of a new NFT collection (via ReceiverFactory) and passed to Factory's produce() function as a fee receiver. It will split upcoming tokens/ETH between the creator and the platform. It's a fork of OZ's PaymentSplitter with some changes. The only change is that common release() functions are replaced with releaseAll() functions which allow the caller to transfer funds for only both the creator and the platform.
+Must be deployed before the deployment of a new NFT collection (via ReceiverFactory) and passed to Factory's `produce()` function as a fee receiver. It will split upcoming tokens/ETH between the creator and the platform. It's a fork of OZ's PaymentSplitter with some changes. The only change is that common `release()` functions are replaced with `releaseAll()` functions which allow the caller to transfer funds for only both the creator and the platform.
 
 ##### 2.2.4.1. Assets
 
@@ -267,8 +405,17 @@ _(Forked from OZ's PaymentSplitter except for release() functions)_
 
 They were replaced with the following functions:
 
-1. releaseAll() - claims all available ETH to both creator and the platform. Can be called by anyone
-2. releaseAll() - claims all available ERC20 token to both creator and the platform. Can be called by anyone
+1. 
+
+```
+releaseAll() - claims all available ETH to both creator and the platform. Can be called by anyone
+```
+
+2. 
+
+```
+releaseAll(address token) - claims all available ERC20 token to both creator and the platform. Can be called by anyone
+```
 
 #### 2.2.5. ReceiverFactory.sol
 
@@ -276,13 +423,19 @@ Deploys RoyaltiesReceiver nfts
 
 ##### 2.2.5.1. Functions
 
-1. deployReceiver(address[] memory payees, uint256[] memory shares\_) - Deploys instance of RoyaltiesReceiver with specified fee receiver addresses and their shares. In our case, the receivers will be a creator and the platform address. The sum of both shares must be equal to 10000. Because of that the specified creator royalties and platform fees must be converted to shares with the next formulas:
+1. 
 
-   platform_shares = 10000/(x/p + 1)
-   creator_shares = 10000 - platform_shares
+```
+deployReceiver(address[] memory payees, uint256[] memory shares) - Deploys instance of RoyaltiesReceiver with specified fee receiver addresses and their shares.
+```
 
-   where x - creators’s BPs (input on FE)
-   p - platform fee BPs (default is 100)
+In our case, the receivers will be a creator and the platform address. The sum of both shares must be equal to 10000. Because of that the specified creator royalties and platform fees must be converted to shares with the next formulas:
+
+platform_shares = 10000/(x/p + 1)
+creator_shares = 10000 - platform_shares
+
+where x - creators’s BPs (input on FE)
+p - platform fee BPs (default is 100)
 
 ## 3. Additional Explanations
 
@@ -294,8 +447,8 @@ These parameters do not affect the internal logic in any significant way and onl
 Whether ERC2981 is enforced and used or not is entirely up to third parties (NFT marketplaces)
 
 Considering mint fees - a different logic is used:
-Each time a mint() function is called on any NFT contract - given NFT contract receives two parameters from Factory contract
-These parameters are: platformCommission and platformAddress
+Each time a `mint()` function is called on any NFT contract - given NFT contract receives two parameters from Factory contract
+These parameters are: `platformCommission` and `platformAddress`
 Based on these parameters mint fees are enforced
 
 ## Smart Contract

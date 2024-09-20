@@ -1,6 +1,7 @@
 {
   "scripts": {
     "test": "hardhat test",
+    "coverage": "hardhat coverage",
     "compile": "hardhat compile",
     "deploy": "hardhat run ./scripts/deploy.js --network",
     "verify": "hardhat run ./scripts/verify.ts --network"
