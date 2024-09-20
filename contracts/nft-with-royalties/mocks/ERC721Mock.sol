@@ -26,7 +26,8 @@ contract ERC721Mock is BaseERC721 {
         NftParameters({
             storageContract: address(0),
             info: _info,
-            creator: msg.sender
+            creator: msg.sender,
+            platform: msg.sender
         });
 
     /**

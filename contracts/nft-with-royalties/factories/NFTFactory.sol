@@ -141,7 +141,8 @@ contract NFTFactory is OwnableUpgradeable {
         NftParameters memory params = NftParameters({
             storageContract: _storageContract,
             info: _info,
-            creator: msg.sender
+            creator: msg.sender,
+            platform: platformAddress
         });
 
         if (

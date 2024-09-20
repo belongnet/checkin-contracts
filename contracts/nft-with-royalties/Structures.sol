@@ -5,6 +5,7 @@ struct NftParameters {
     address storageContract; // Address of the storage contract
     InstanceInfo info;
     address creator; // Creator address
+    address platform;
 }
 
 struct InstanceInfo {

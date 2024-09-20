@@ -43,7 +43,7 @@ abstract contract BaseERC721 is
         zeroAddressCheck(_params.creator)
         ERC721(_params.info.name, _params.info.symbol)
     {
-        _initializeOwner(_params.creator);
+        _initializeOwner(_params.platform);
 
         _setDefaultRoyalty(_params.info.feeReceiver, _params.info.feeNumerator);
         _setTransferValidator(newValidator);
