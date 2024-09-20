@@ -34,6 +34,10 @@ signer and platformAddress need to be specified first. ReceiverFactory, Factory 
 
 Check [Foundry guide](./Foundry.md).
 
+## Remix Usage
+
+Check [Remix guide](./Remix.md).
+
 ## Project Overview
 
 The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. The factory implementation can be changed so the information about deployed collections is stored in the separate Storage contract. Factory will be deployed via proxy.
@@ -205,7 +209,8 @@ collectionExpire - The period of time in which collection is expired (for the BE
 
 Belong NFT has the following functions:
 
-1. 
+1.
+
 ```
 mint(
    address reciever,
@@ -216,13 +221,13 @@ mint(
 ) - Mints ERC721 token
 ```
 
-2. 
+2.
 
 ```
 tokenURI(uint256 _tokenId) - Returns metadata link for specified ID
-``` 
+```
 
-3. 
+3.
 
 ```
 setPayingToken(
@@ -232,7 +237,7 @@ setPayingToken(
 ) - Sets paying token, mint price and whitelist mint price
 ```
 
-4. 
+4.
 
 ```
 
@@ -268,26 +273,26 @@ This structure should be passed to the produce function to deploy a new NFT coll
 
 Belong NFT Factory contains the following entities:
 
-1. 
+1.
 
 ```
 address platformAddress - Platform address
 ```
 
-2. 
+2.
 
 ```
 
 address storageContract - Storage contract address
 ```
 
-3. 
+3.
 
 ```
 address signerAddress - Signer address
 ```
 
-4. 
+4.
 
 ```
 uint8 platformCommission - Platform commission percentage
@@ -297,25 +302,25 @@ uint8 platformCommission - Platform commission percentage
 
 Belong NFT Factory has the following functions:
 
-1. 
+1.
 
 ```
 produce(InstanceInfo memory _info) - Produces the new instance with defined name and symbol
 ```
 
-2. 
+2.
 
 ```
 setPlatformCommission(uint8 _platformCommission) - Sets platform commission
 ```
 
-3. 
+3.
 
 ```
 setPlatformAddress(address _platformAddress) - Sets platform address
 ```
 
-4. 
+4.
 
 ```
 setSigner(address _signer) - Sets signer address
@@ -335,24 +340,23 @@ struct InstanceInfo {
    string symbol;
    address creator;
 } - The information about an instance (its name, symbol, creator address)
-
 ```
 
 Belong Storage contract contains the following entities:
 
-1. 
+1.
 
 ```
 address factory - Factory address
 ```
 
-2. 
+2.
 
 ```
 getInstance - keccak256("name", "symbol") => instance address mapping
 ```
 
-3. 
+3.
 
 ```
 address[] nfts - NFTs’ array
@@ -362,25 +366,25 @@ address[] nfts - NFTs’ array
 
 Belong Storage contract has the following functions:
 
-1. 
+1.
 
 ```
 getInstanceInfo(uint256 instanceId) Returns instance info by its ID
 ```
 
-2. 
+2.
 
 ```
 instancesCount() - Returns the count of nfts
 ```
 
-3. 
+3.
 
 ```
 setFactory(address _factory) - Sets the factory address
 ```
 
-4. 
+4.
 
 ```
 addInstance(
@@ -405,13 +409,13 @@ _(Forked from OZ's PaymentSplitter except for release() functions)_
 
 They were replaced with the following functions:
 
-1. 
+1.
 
 ```
 releaseAll() - claims all available ETH to both creator and the platform. Can be called by anyone
 ```
 
-2. 
+2.
 
 ```
 releaseAll(address token) - claims all available ERC20 token to both creator and the platform. Can be called by anyone
@@ -423,7 +427,7 @@ Deploys RoyaltiesReceiver nfts
 
 ##### 2.2.5.1. Functions
 
-1. 
+1.
 
 ```
 deployReceiver(address[] memory payees, uint256[] memory shares) - Deploys instance of RoyaltiesReceiver with specified fee receiver addresses and their shares.

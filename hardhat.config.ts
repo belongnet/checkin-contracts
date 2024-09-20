@@ -1,6 +1,7 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
+import "hardhat-docgen"
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -13,6 +14,8 @@ const blastSepoliaURL = `https://sepolia.blast.io`;
 const skaleEuropaURL = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
 const skaleCalypsoTestURL =
   "https://testnet.skalenodes.com/v1/giant-half-dual-testnet";
+
+const accounts = [process.env.PK!];
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -41,53 +44,46 @@ const config: HardhatUserConfig = {
     mainnet: {
       url: mainnetURL,
       chainId: 1,
-      accounts: [process.env.PK],
-      saveDeployments: true,
+      accounts,
     },
     bsc: {
       url: bscURL,
       chainId: 56,
       gasPrice: "auto",
-      accounts: [process.env.PK],
-      saveDeployments: true,
+      accounts,
     },
     matic: {
       url: maticURL,
       chainId: 137,
       gasPrice: "auto",
-      accounts: [process.env.PK],
-      saveDeployments: true,
+      accounts,
     },
     blast: {
       url: blastURL,
       chainId: 81457,
-      accounts: [process.env.PK],
-      saveDeployments: true,
+      accounts,
     },
     skale: {
       url: skaleEuropaURL,
       chainId: 2046399126,
-      accounts: [process.env.PK],
-      saveDeployments: true,
+      accounts,
     },
     sepolia: {
       url: sepoliaURL,
       chainId: 11155111,
-      accounts: [process.env.PK],
-      saveDeployments: true,
+      accounts,
     },
     blast_sepolia: {
       url: blastSepoliaURL,
       chainId: 168587773,
-      accounts: [process.env.PK],
-      saveDeployments: true,
+      accounts,
+
       gasPrice: "auto",
     },
     skale_calypso_testnet: {
       url: skaleCalypsoTestURL,
       chainId: 974399131,
-      accounts: [process.env.PK],
-      saveDeployments: true,
+      accounts,
       gasPrice: "auto",
     },
   },
@@ -97,9 +93,9 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      mainnet: process.env.ETHERSCAN_API_KEY,
-      blast: process.env.BLASTSCAN_API_KEY,
-      blast_sepolia: process.env.BLASTSCAN_API_KEY,
+      mainnet: process.env.ETHERSCAN_API_KEY!,
+      blast: process.env.BLASTSCAN_API_KEY!,
+      blast_sepolia: process.env.BLASTSCAN_API_KEY!,
       skale_calypso_testnet: "abc", // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
@@ -131,15 +127,13 @@ const config: HardhatUserConfig = {
       },
     ],
   },
-  namedAccounts: {
-    deployer: 0,
-  },
   paths: {
     sources: "contracts",
   },
-  mocha: {
-    timeout: 20000000,
-  },
+  docgen: {
+    path: "./docs/",
+    runOnCompile: true,
+  }
 };
 
 export default config;
