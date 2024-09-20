@@ -203,6 +203,7 @@ describe('NFTFactory', () => {
 			expect(infoReturned.mintPrice).to.be.equal(info.mintPrice);
 			expect(infoReturned.contractURI).to.be.equal(info.contractURI);
 			expect(creator).to.be.equal(alice.address);
+			expect(await storage.instancesCount()).to.be.equal(1);
 		});
 
 		it("should correctly deploy several NFT nfts", async () => {
