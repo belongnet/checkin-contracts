@@ -1,8 +1,8 @@
-import { ethers } from "hardhat";
-import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
-import { BigNumber, ContractFactory } from "ethers";
+import { ethers } from 'hardhat';
+import { loadFixture, } from "@nomicfoundation/hardhat-network-helpers";
+import { ContractFactory } from "ethers";
 import { expect } from "chai";
-import { Erc20Example, ReceiverFactory, RoyaltiesReceiver, RoyaltiesReceiver__factory, StorageContract } from "../typechain-types";
+import { StorageContract } from "../typechain-types";
 
 describe("Storage", () => {
   const PLATFORM_COMISSION = "100";
@@ -35,6 +35,15 @@ describe("Storage", () => {
         .connect(owner)
         .addInstance(ZERO_ADDRESS, owner.address, "name", "symbol")
     ).to.be.revertedWithCustomError(storage, 'OnlyFactory');
+  });
+
+  it("shouldn't change factory by non owner", async () => {
+    const { storage, alice } = await loadFixture(fixture);
+
+    await expect(
+      storage.connect(alice)
+        .setFactory(alice.address)
+    ).to.be.revertedWithCustomError(storage, 'Unauthorized');
   });
 
   it("shouldn't set factory if zero", async () => {
