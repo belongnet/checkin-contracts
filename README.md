@@ -34,6 +34,10 @@ signer and platformAddress need to be specified first. ReceiverFactory, Factory 
 
 Check [Foundry guide](./Foundry.md).
 
+```
+forge flatten ./contracts/nft-with-royalties/factories/NFTFactory.sol > ./contracts/nft-with-royalties/flattened/NFTFactory_flattened.sol
+```
+
 ## Remix Usage
 
 Check [Remix guide](./Remix.md).

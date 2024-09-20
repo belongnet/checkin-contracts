@@ -1,19 +1,10 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
-import "hardhat-docgen"
+import "solidity-docgen"
 import dotenv from "dotenv";
+import { ChainIds, createRPClink } from './utils/chainConfig'
 dotenv.config();
-
-const mainnetURL = `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
-const bscURL = "https://bsc-dataseed.binance.org";
-const maticURL = `https://polygon-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
-const sepoliaURL = `https://sepolia.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
-const blastURL = `https://rpc.envelop.is/blast`;
-const blastSepoliaURL = `https://sepolia.blast.io`;
-const skaleEuropaURL = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
-const skaleCalypsoTestURL =
-  "https://testnet.skalenodes.com/v1/giant-half-dual-testnet";
 
 const accounts = [process.env.PK!];
 
@@ -27,12 +18,6 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 200,
           },
-          // metadata: {
-          //   // do not include the metadata hash, since this is machine dependent
-          //   // and we want all generated code to be deterministic
-          //   // https://docs.soliditylang.org/en/v0.7.6/metadata.html
-          //   bytecodeHash: "none",
-          // },
         },
       },
     ],
@@ -41,51 +26,14 @@ const config: HardhatUserConfig = {
     hardhat: {
       allowUnlimitedContractSize: false,
     },
-    mainnet: {
-      url: mainnetURL,
-      chainId: 1,
-      accounts,
-    },
-    bsc: {
-      url: bscURL,
-      chainId: 56,
-      gasPrice: "auto",
-      accounts,
-    },
-    matic: {
-      url: maticURL,
-      chainId: 137,
-      gasPrice: "auto",
-      accounts,
-    },
-    blast: {
-      url: blastURL,
-      chainId: 81457,
-      accounts,
-    },
-    skale: {
-      url: skaleEuropaURL,
-      chainId: 2046399126,
-      accounts,
-    },
-    sepolia: {
-      url: sepoliaURL,
-      chainId: 11155111,
-      accounts,
-    },
-    blast_sepolia: {
-      url: blastSepoliaURL,
-      chainId: 168587773,
-      accounts,
-
-      gasPrice: "auto",
-    },
-    skale_calypso_testnet: {
-      url: skaleCalypsoTestURL,
-      chainId: 974399131,
-      accounts,
-      gasPrice: "auto",
-    },
+    mainnet: createRPClink(ChainIds.mainnet, accounts, process.env.INFURA_ID_PROJECT),
+    bsc: createRPClink(ChainIds.bsc, accounts),
+    matic: createRPClink(ChainIds.matic, accounts, process.env.INFURA_ID_PROJECT),
+    blast: createRPClink(ChainIds.blast, accounts),
+    skale: createRPClink(ChainIds.skale, accounts),
+    sepolia: createRPClink(ChainIds.sepolia, accounts, process.env.INFURA_ID_PROJECT),
+    blast_sepolia: createRPClink(ChainIds.blast_sepolia, accounts),
+    skale_calypso_testnet: createRPClink(ChainIds.skale_calypso_testnet, accounts),
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
@@ -131,8 +79,9 @@ const config: HardhatUserConfig = {
     sources: "contracts",
   },
   docgen: {
-    path: "./docs/",
-    runOnCompile: true,
+    outputDir: "./docs/",
+    exclude: ['nft-with-royalties/mocks'],
+    pages: 'files'
   }
 };
 
