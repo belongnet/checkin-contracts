@@ -15,16 +15,36 @@ error NFTAlreadyExists();
 error NFTCreationFailed();
 error ZeroAddressPasted();
 
+/// @title NFT Factory Contract
+/// @notice A factory contract to create new NFT instances with specific parameters
+/// @dev This contract allows producing NFTs, managing platform settings, and verifying signatures
 contract NFTFactory is OwnableUpgradeable {
     using SignatureCheckerLib for address;
 
+    /// @notice Event emitted when a new NFT is created
+    /// @param name Name of the created NFT
+    /// @param symbol Symbol of the created NFT
+    /// @param instance The address of the created NFT instance
+    /// @param id The ID of the newly created NFT
     event NFTCreated(string name, string symbol, NFT instance, uint256 id);
 
+    /// @notice Event emitted when the signer address is set
+    /// @param newSigner The new signer address
     event SignerSet(address newSigner);
+
+    /// @notice Event emitted when the platform commission is set
+    /// @param newComission The new platform commission in BPs (basis points)
     event PlatformComissionSet(uint8 newComission);
+
+    /// @notice Event emitted when the platform address is set
+    /// @param newPlatformAddress The new platform address
     event PlatformAddressSet(address newPlatformAddress);
+
+    /// @notice Event emitted when the transfer validator is set
+    /// @param newValidator The new transfer validator contract
     event TransferValidatorSet(ITransferValidator721 newValidator);
 
+    /// @notice Address of the current transfer validator
     /**
      * Ethereum: 0x721C0078c2328597Ca70F5451ffF5A7B38D4E947
      * BASE/OP: 0x721C0078c2328597Ca70F5451ffF5A7B38D4E947
@@ -34,11 +54,20 @@ contract NFTFactory is OwnableUpgradeable {
      */
     ITransferValidator721 public transferValidator;
 
-    address public platformAddress; // Address which is allowed to collect platform fee
-    address public storageContract; // Storage contract address
-    address public signerAddress; // Signer address
-    uint8 public platformCommission; // Platform comission BPs
+    /// @notice Platform address that is allowed to collect fees
+    address public platformAddress;
 
+    /// @notice Address of the storage contract used to store NFT instances
+    address public storageContract;
+
+    /// @notice Address of the signer used for signature verification
+    address public signerAddress;
+
+    /// @notice The platform commission in BPs
+    uint8 public platformCommission;
+
+    /// @notice Modifier to check if the passed address is not zero
+    /// @param _address The address to check
     modifier zeroAddressCheck(address _address) {
         if (_address == address(0)) {
             revert ZeroAddressPasted();
@@ -50,13 +79,12 @@ contract NFTFactory is OwnableUpgradeable {
     //     _disableInitializers();
     // }
 
-    /**
-     * @notice Initializes the contract
-     * @param _signer The signer address
-     * @param _platformAddress The platform address
-     * @param _platformCommission The platform comission (BPs)
-     * @param _storageContract The storage contract address
-     */
+    /// @notice Initializes the contract
+    /// @param _signer The address of the signer
+    /// @param _platformAddress The address of the platform that collects fees
+    /// @param _platformCommission The platform commission in BPs
+    /// @param _storageContract The address of the storage contract
+    /// @param validator The transfer validator contract
     function initialize(
         address _signer,
         address _platformAddress,
@@ -74,47 +102,42 @@ contract NFTFactory is OwnableUpgradeable {
         _setTransferValidator(validator);
     }
 
-    /**
-     * @notice Sets new platform comission
-     * @dev Only owner can call it
-     * @param _platformCommission The platform comission
-     */
+    /// @notice Sets new platform commission
+    /// @dev Can only be called by the owner
+    /// @param _platformCommission The new platform commission in BPs
     function setPlatformCommission(
         uint8 _platformCommission
     ) external onlyOwner {
         _setPlatformCommission(_platformCommission);
     }
 
-    /**
-     * @notice Sets new platform address
-     * @dev Only owner can call it
-     * @param _platformAddress The platform address
-     */
+    /// @notice Sets new platform address
+    /// @dev Can only be called by the owner
+    /// @param _platformAddress The new platform address
     function setPlatformAddress(address _platformAddress) external onlyOwner {
         _setPlatformAddress(_platformAddress);
     }
 
-    /**
-     * @notice Sets new signer address
-     * @dev Only owner can call it
-     * @param _signer The signer address
-     */
+    /// @notice Sets new signer address
+    /// @dev Can only be called by the owner
+    /// @param _signer The new signer address
     function setSigner(address _signer) external onlyOwner {
         _setSigner(_signer);
     }
 
+    /// @notice Sets new transfer validator contract
+    /// @dev Can only be called by the owner
+    /// @param validator The new transfer validator contract
     function setTransferValidator(
         ITransferValidator721 validator
     ) external onlyOwner {
         _setTransferValidator(validator);
     }
 
-    /**
-     * @notice Produces new NFT instance with defined name and symbol
-     * @dev Creates a new instance of NFT and adds the info into the Storage contract
-     * @param _info The new NFT's info
-     * @return nft The new instance's address
-     */
+    /// @notice Produces a new NFT instance
+    /// @dev Creates a new instance of the NFT and adds the information to the storage contract
+    /// @param _info Struct containing the details of the new NFT instance
+    /// @return nft The address of the created NFT instance
     function produce(InstanceInfo calldata _info) external returns (NFT nft) {
         if ((bytes(_info.name)).length == 0) {
             revert EmptyNamePasted();
@@ -165,15 +188,15 @@ contract NFTFactory is OwnableUpgradeable {
         emit NFTCreated(_info.name, _info.symbol, nft, id);
     }
 
-    /**
-     * @dev Verifies if the signature belongs to the current signer address
-     * @param name New instance's name
-     * @param symbol New instance's symbol
-     * @param contractURI New instance's contract URI
-     * @param feeNumerator Fee numerator for ERC2981
-     * @param feeReceiver Fee receiver for ERC2981
-     * @param signature The signature to check
-     */
+    /// @notice Verifies if the signature is valid for the current signer address
+    /// @dev This function checks the signature for the provided NFT data
+    /// @param name Name of the new NFT instance
+    /// @param symbol Symbol of the new NFT instance
+    /// @param contractURI URI for the new contract
+    /// @param feeNumerator Fee numerator for ERC2981 (royalties)
+    /// @param feeReceiver Address to receive the fees
+    /// @param signature The signature to validate
+    /// @return bool Whether the signature is valid
     function _isSignatureValid(
         string calldata name,
         string calldata symbol,
@@ -198,11 +221,15 @@ contract NFTFactory is OwnableUpgradeable {
             );
     }
 
+    /// @notice Private function to set the platform commission
+    /// @param _platformCommission The new platform commission in BPs
     function _setPlatformCommission(uint8 _platformCommission) private {
         platformCommission = _platformCommission;
         emit PlatformComissionSet(_platformCommission);
     }
 
+    /// @notice Private function to set the platform address
+    /// @param _platformAddress The new platform address
     function _setPlatformAddress(
         address _platformAddress
     ) private zeroAddressCheck(_platformAddress) {
@@ -210,11 +237,15 @@ contract NFTFactory is OwnableUpgradeable {
         emit PlatformAddressSet(_platformAddress);
     }
 
+    /// @notice Private function to set the signer address
+    /// @param _signer The new signer address
     function _setSigner(address _signer) private zeroAddressCheck(_signer) {
         signerAddress = _signer;
         emit SignerSet(_signer);
     }
 
+    /// @notice Private function to set the transfer validator contract
+    /// @param validator The new transfer validator contract
     function _setTransferValidator(
         ITransferValidator721 validator
     ) private zeroAddressCheck(address(validator)) {

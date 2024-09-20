@@ -10,31 +10,59 @@ import {BaseERC721} from "./BaseERC721.sol";
 import {NftParameters} from "./Structures.sol";
 import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
 
+/// @notice Error thrown when the total supply limit is reached.
 error TotalSupplyLimitReached();
+
+/// @notice Error thrown when insufficient ETH is sent for a minting transaction.
+/// @param ETHsent The amount of ETH sent.
 error NotEnoughETHSent(uint256 ETHsent);
+
+/// @notice Error thrown when a non-transferable token is attempted to be transferred.
 error NotTransferable();
+
+/// @notice Error thrown when an invalid signature is provided for minting.
 error InvalidSignature();
+
+/// @notice Error thrown when the mint price changes unexpectedly.
+/// @param expectedMintPrice The expected mint price.
+/// @param currentPrice The actual current mint price.
 error PriceChanged(uint256 expectedMintPrice, uint256 currentPrice);
+
+/// @notice Error thrown when the paying token changes unexpectedly.
+/// @param expectedPayingToken The expected paying token.
+/// @param currentPayingToken The actual paying token.
 error TokenChanged(address expectedPayingToken, address currentPayingToken);
 
+/**
+ * @title NFT Contract
+ * @notice Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
+ * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
+ */
 contract NFT is BaseERC721, ReentrancyGuard {
     using ECDSA for bytes32;
     using SafeTransferLib for address;
 
+    /// @notice Emitted when the paying token and prices are updated.
+    /// @param newToken The address of the new paying token.
+    /// @param newPrice The new mint price.
+    /// @param newWLPrice The new whitelist mint price.
     event PayingTokenChanged(
         address newToken,
         uint256 newPrice,
         uint256 newWLPrice
     );
 
+    /// @notice The constant address representing ETH.
     address public constant ETH_ADDRESS =
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    /// @notice The struct containing all NFT parameters for the collection.
     NftParameters public parameters;
 
     /**
-     * @dev called by factory when instance deployed
-     * @param _params Collection parameters
+     * @dev Called by the factory when a new instance is deployed.
+     * @param _params Collection parameters containing information like name, symbol, fees, and more.
+     * @param newValidator The transfer validator contract address.
      */
     constructor(
         NftParameters memory _params,
@@ -44,12 +72,15 @@ contract NFT is BaseERC721, ReentrancyGuard {
     }
 
     /**
-     * @notice Mints new NFT
-     * @dev Requires a signature from the trusted address
-     * @param receiver Address that gets ERC721 token
-     * @param tokenUri Metadata URI of the ERC721 token
-     * @param whitelisted A flag if the user whitelisted or not
-     * @param signature Signature of the trusted address
+     * @notice Mints a new NFT to a specified address.
+     * @dev Requires a signature from a trusted address and validates against whitelist status.
+     * @param receiver The address receiving the NFT.
+     * @param tokenId The ID of the token to mint.
+     * @param tokenUri The metadata URI of the token being minted.
+     * @param whitelisted Whether the receiver is whitelisted for a discount.
+     * @param signature The signature of the trusted address for validation.
+     * @param _expectedMintPrice The expected mint price at the time of minting.
+     * @param _expectedPayingToken The expected paying token (ETH or another token).
      */
     function mint(
         address receiver,
@@ -62,6 +93,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
     ) external payable nonReentrant {
         NftParameters memory _parameters = parameters;
 
+        // Validate signature
         if (
             keccak256(
                 abi.encodePacked(
@@ -79,18 +111,22 @@ contract NFT is BaseERC721, ReentrancyGuard {
             revert InvalidSignature();
         }
 
+        // Ensure the total supply has not been exceeded
         if (tokenId + 1 > _parameters.info.maxTotalSupply) {
             revert TotalSupplyLimitReached();
         }
 
+        // Determine the mint price based on whitelist status
         uint256 price = whitelisted
             ? _parameters.info.whitelistMintPrice
             : _parameters.info.mintPrice;
 
+        // Check if the expected mint price matches the actual price
         if (_expectedMintPrice != price) {
             revert PriceChanged(_expectedMintPrice, price);
         }
 
+        // Check if the expected paying token matches the actual paying token
         if (_expectedPayingToken != _parameters.info.payingToken) {
             revert TokenChanged(
                 _expectedPayingToken,
@@ -102,6 +138,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
             ? msg.value
             : price;
 
+        // Check if the correct amount of ETH is sent
         if (amount != price) {
             revert NotEnoughETHSent(amount);
         }
@@ -109,6 +146,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
         uint256 fee;
         uint256 amountToCreator;
 
+        // Calculate platform commission and the amount to send to the creator
         unchecked {
             fee =
                 (amount *
@@ -119,10 +157,10 @@ contract NFT is BaseERC721, ReentrancyGuard {
                     )) /
                 _feeDenominator();
 
-            // `fee` will be always lower than `amount`
             amountToCreator = amount - fee;
         }
 
+        // Handle payments in ETH or other tokens
         if (_parameters.info.payingToken == ETH_ADDRESS) {
             if (fee > 0) {
                 StorageContract(_parameters.storageContract)
@@ -154,8 +192,10 @@ contract NFT is BaseERC721, ReentrancyGuard {
     }
 
     /**
-     * @notice Sets paying token
-     * @param _payingToken New token address
+     * @notice Sets a new paying token and mint prices for the collection.
+     * @param _payingToken The new paying token address.
+     * @param _mintPrice The new mint price.
+     * @param _whitelistMintPrice The new whitelist mint price.
      */
     function setPayingToken(
         address _payingToken,
@@ -168,46 +208,84 @@ contract NFT is BaseERC721, ReentrancyGuard {
         emit PayingTokenChanged(_payingToken, _mintPrice, _whitelistMintPrice);
     }
 
+    /**
+     * @notice Returns the paying token for the collection.
+     */
     function payingToken() external view returns (address) {
         return parameters.info.payingToken;
     }
 
+    /**
+     * @notice Returns the address of the storage contract.
+     */
     function storageContract() external view returns (address) {
         return parameters.storageContract;
     }
 
+    /**
+     * @notice Returns the current mint price for the collection.
+     */
     function mintPrice() external view returns (uint256) {
         return parameters.info.mintPrice;
     }
 
+    /**
+     * @notice Returns the current whitelist mint price for the collection.
+     */
     function whitelistMintPrice() external view returns (uint256) {
         return parameters.info.whitelistMintPrice;
     }
 
+    /**
+     * @notice Returns whether the collection is transferable.
+     */
     function transferable() external view returns (bool) {
         return parameters.info.transferable;
     }
 
+    /**
+     * @notice Returns the maximum total supply for the collection.
+     */
     function maxTotalSupply() external view returns (uint256) {
         return parameters.info.maxTotalSupply;
     }
 
+    /**
+     * @notice Returns the total royalty percentage for the collection.
+     */
     function totalRoyalty() external view returns (uint256) {
         return parameters.info.feeNumerator;
     }
 
+    /**
+     * @notice Returns the creator of the collection.
+     */
     function creator() external view returns (address) {
         return parameters.creator;
     }
 
+    /**
+     * @notice Returns the expiration timestamp for the collection.
+     */
     function collectionExpire() external view returns (uint256) {
         return parameters.info.collectionExpire;
     }
 
+    /**
+     * @notice Returns the contract URI for the collection.
+     */
     function contractURI() external view returns (string memory) {
         return parameters.info.contractURI;
     }
 
+    /**
+     * @notice Updates the token transfer status.
+     * @dev Overrides the _update function to include transfer validation based on the collection's transferability.
+     * @param to The address to transfer the token to.
+     * @param tokenId The token ID to transfer.
+     * @param auth The authorized caller.
+     * @return from The address the token is being transferred from.
+     */
     function _update(
         address to,
         uint256 tokenId,
@@ -215,7 +293,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
     ) internal override returns (address from) {
         from = super._update(to, tokenId, auth);
 
-        // Check if the tx is not a mint/burn, only transfer
+        // Check if the transaction is not a mint/burn, only a transfer
         if (
             from != address(0) &&
             to != address(0) &&

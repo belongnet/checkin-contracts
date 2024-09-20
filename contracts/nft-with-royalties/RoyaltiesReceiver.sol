@@ -2,55 +2,97 @@
 pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
+/// @notice Thrown when a zero address is provided where it's not allowed.
 error ZeroAddressPasted();
+
+/// @notice Thrown when zero shares are provided for a payee.
 error ZeroSharesPasted();
+
+/// @notice Thrown when the lengths of payees and shares arrays do not match.
 error ArraysLengthMismatch();
+
+/// @notice Thrown when more than two payees are provided.
 error Only2Payees();
+
+/// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment();
+
+/// @notice Thrown when an account already has shares.
 error AccountHasSharesAlready();
+
+/// @notice Thrown when a division by zero is attempted.
 error DvisonByZero();
+
+/// @notice Thrown when an incorrect payee index is provided.
+/// @param incorrectIndex The incorrect index value provided.
 error IncorrectPayeeIndex(uint256 incorrectIndex);
 
+/// @notice Struct for tracking total released amounts and account-specific released amounts.
 struct Releases {
     uint256 totalReleased;
-    mapping(address account => uint256 amount) released;
+    mapping(address => uint256) released;
 }
 
+/// @notice Struct for managing total shares and individual account shares.
 struct SharesAdded {
     uint256 totalShares;
     mapping(address => uint256) shares;
 }
 
+/**
+ * @title RoyaltiesReceiver
+ * @notice A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
+ * @dev Handles payment distribution based on shares assigned to payees.
+ */
 contract RoyaltiesReceiver {
     using SafeTransferLib for address;
 
+    /// @notice Emitted when a new payee is added to the contract.
+    /// @param account The address of the new payee.
+    /// @param shares The number of shares assigned to the payee.
     event PayeeAdded(address indexed account, uint256 shares);
+
+    /// @notice Emitted when a payment in native Ether is released.
+    /// @param to The address receiving the payment.
+    /// @param amount The amount of Ether released.
     event PaymentReleased(address indexed to, uint256 amount);
+
+    /// @notice Emitted when a payment in ERC20 tokens is released.
+    /// @param token The address of the ERC20 token.
+    /// @param to The address receiving the payment.
+    /// @param amount The amount of tokens released.
     event ERC20PaymentReleased(
         address indexed token,
         address indexed to,
         uint256 amount
     );
+
+    /// @notice Emitted when the contract receives native Ether.
+    /// @param from The address sending the Ether.
+    /// @param amount The amount of Ether received.
     event PaymentReceived(address indexed from, uint256 amount);
 
+    /// @notice Maximum number of payees allowed.
     uint256 public constant MAX_PAYEES_LENGTH = 2;
 
+    /// @notice List of payee addresses.
     address[] public payees;
 
+    /// @notice Struct storing payee shares and total shares.
     SharesAdded public sharesAdded;
 
+    /// @notice Struct for tracking native Ether releases.
     Releases public nativeReleases;
-    mapping(address token => Releases) public erc20Releases;
+
+    /// @notice Mapping of ERC20 token addresses to their respective release tracking structs.
+    mapping(address => Releases) public erc20Releases;
 
     /**
-     * @dev Initiates an instance of `RoyaltiesReceiver` where each account in `payees_` is assigned the number of shares at
-     * the matching position in the `shares_` array.
-     *
-     * All addresses in `payees_` must be non-zero. Both arrays must have the same non-zero length, and there must be no
-     * duplicates in `payees_`.
+     * @dev Initializes the contract with a list of payees and their respective shares.
+     * @param payees_ The list of payee addresses.
+     * @param shares_ The list of shares corresponding to each payee.
      */
     constructor(address[] memory payees_, uint256[] memory shares_) payable {
         if (payees_.length != shares_.length) {
@@ -71,20 +113,14 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @dev The Ether received will be logged with {PaymentReceived} events. Note that these events are not fully
-     * reliable: it's possible for a contract to receive Ether without triggering this function. This only affects the
-     * reliability of the events, and not the actual splitting of Ether.
-     *
-     * To learn more about this see the Solidity documentation for
-     * https://solidity.readthedocs.io/en/latest/contracts.html#fallback-function[fallback
-     * functions].
+     * @dev Logs the receipt of Ether. Called when the contract receives Ether.
      */
     receive() external payable {
         emit PaymentReceived(msg.sender, msg.value);
     }
 
     /**
-     * @notice releases ETH to all payees
+     * @notice Releases all pending native Ether payments to the payees.
      */
     function releaseAll() external {
         address[] memory _payees = payees;
@@ -99,8 +135,8 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @notice releases specified ERC20 to all payees
-     * @param token ERC20 token to be distributed
+     * @notice Releases all pending ERC20 payments for a given token to the payees.
+     * @param token The address of the ERC20 token to be released.
      */
     function releaseAll(address token) external {
         address[] memory _payees = payees;
@@ -115,44 +151,53 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @dev Getter for the total amount of Ether already released.
+     * @notice Returns the total number of shares assigned to all payees.
+     * @return The total shares.
      */
     function totalShares() public view returns (uint256) {
         return sharesAdded.totalShares;
     }
 
     /**
-     * @dev Getter for the amount of shares held by an account.
+     * @notice Returns the number of shares held by a specific payee.
+     * @param account The address of the payee.
+     * @return The number of shares held by the payee.
      */
     function shares(address account) external view returns (uint256) {
         return sharesAdded.shares[account];
     }
 
     /**
-     * @dev Getter for the total amount of Ether already released.
+     * @notice Returns the total amount of native Ether already released to payees.
+     * @return The total amount of Ether released.
      */
     function totalReleased() public view returns (uint256) {
         return nativeReleases.totalReleased;
     }
 
     /**
-     * @dev Getter for the total amount of `token` already released. `token` should be the address of an IERC20
-     * contract.
+     * @notice Returns the total amount of a specific ERC20 token already released to payees.
+     * @param token The address of the ERC20 token.
+     * @return The total amount of tokens released.
      */
     function totalReleased(address token) public view returns (uint256) {
         return erc20Releases[token].totalReleased;
     }
 
     /**
-     * @dev Getter for the amount of Ether already released to a payee.
+     * @notice Returns the amount of native Ether already released to a specific payee.
+     * @param account The address of the payee.
+     * @return The amount of Ether released to the payee.
      */
     function released(address account) public view returns (uint256) {
         return nativeReleases.released[account];
     }
 
     /**
-     * @dev Getter for the amount of `token` tokens already released to a payee. `token` should be the address of an
-     * IERC20 contract.
+     * @notice Returns the amount of a specific ERC20 token already released to a specific payee.
+     * @param token The address of the ERC20 token.
+     * @param account The address of the payee.
+     * @return The amount of tokens released to the payee.
      */
     function released(
         address token,
@@ -162,7 +207,9 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @dev Getter for the address of the payee number `index`.
+     * @notice Returns the address of the payee at the given index.
+     * @param index The index of the payee.
+     * @return The address of the payee.
      */
     function payee(uint256 index) external view returns (address) {
         address[] memory _payees = payees;
@@ -175,8 +222,8 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @dev Triggers a transfer to `account` of the amount of Ether they are owed, according to their percentage of the
-     * total shares and their previous withdrawals.
+     * @dev Releases pending native Ether to a payee.
+     * @param account The address of the payee.
      */
     function _releaseNative(address account) internal {
         uint256 toRelease = _pendingPayment(
@@ -198,9 +245,9 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @dev Triggers a transfer to `account` of the amount of `token` tokens they are owed, according to their
-     * percentage of the total shares and their previous withdrawals. `token` must be the address of an IERC20
-     * contract.
+     * @dev Releases pending ERC20 tokens to a payee.
+     * @param token The address of the ERC20 token.
+     * @param account The address of the payee.
      */
     function _releaseERC20(address token, address account) internal {
         Releases storage _erc20Releases = erc20Releases[token];
@@ -225,9 +272,9 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @dev Add a new payee to the contract.
-     * @param account The address of the payee to add.
-     * @param shares_ The number of shares owned by the payee.
+     * @dev Adds a new payee to the contract with a given number of shares.
+     * @param account The address of the payee.
+     * @param shares_ The number of shares assigned to the payee.
      */
     function _addPayee(address account, uint256 shares_) private {
         if (account == address(0)) {
@@ -249,8 +296,11 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @dev internal logic for computing the pending payment of an `account` given the token historical balances and
-     * already released amounts.
+     * @dev Internal logic for computing the pending payment for an account.
+     * @param account The address of the payee.
+     * @param totalReceived The total amount of funds received by the contract.
+     * @param alreadyReleased The amount already released to the payee.
+     * @return The amount of funds still owed to the payee.
      */
     function _pendingPayment(
         address account,

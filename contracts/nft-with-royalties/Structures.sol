@@ -1,24 +1,59 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+/**
+ * @title NftParameters
+ * @notice A struct that contains all the parameters needed to create an NFT collection.
+ * @dev This struct is used to pass parameters between contracts.
+ */
 struct NftParameters {
-    address storageContract; // Address of the storage contract
+    /// @notice The address of the storage contract where the collection is stored.
+    address storageContract;
+    /// @notice The detailed information about the NFT collection.
     InstanceInfo info;
-    address creator; // Creator address
+    /// @notice The address of the creator of the NFT collection.
+    address creator;
+    /// @notice The platform address associated with the collection.
     address platform;
 }
 
+/**
+ * @title InstanceInfo
+ * @notice A struct that holds detailed information about an individual NFT collection.
+ */
 struct InstanceInfo {
-    string name; //The name of the collection
-    string symbol; // The symbol of the collection
-    string contractURI; // Contract URI of a new collection
-    address payingToken; // Address of ERC20 paying token or ETH address (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)
-    uint256 mintPrice; // Mint price of a token from a new collection
-    uint256 whitelistMintPrice; // Mint price of a token from a new collection for whitelisted users
-    bool transferable; // Shows if tokens will be transferrable or not
-    uint256 maxTotalSupply; // The max total supply of a new collection
-    uint96 feeNumerator; // Royalty fraction for platform + Royalty fraction for creator
-    address feeReceiver; // The royalties receiver address
-    uint256 collectionExpire; // The period of time in which collection is expired (for the BE)
-    bytes signature; // BE's signature
+    /// @notice The name of the NFT collection.
+    string name;
+    /// @notice The symbol of the NFT collection.
+    string symbol;
+    /// @notice The contract URI for the NFT collection, used for metadata.
+    string contractURI;
+    /// @notice The address of the ERC20 token used for payments, or ETH (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) for Ether.
+    address payingToken;
+    /// @notice The price to mint a token in the collection.
+    uint256 mintPrice;
+    /// @notice The price to mint a token for whitelisted users.
+    uint256 whitelistMintPrice;
+    /// @notice A flag indicating whether the tokens in the collection are transferable.
+    bool transferable;
+    /// @notice The maximum total supply of tokens in the collection.
+    uint256 maxTotalSupply;
+    /// @notice The royalty fraction for platform and creator royalties, expressed as a numerator.
+    uint96 feeNumerator;
+    /// @notice The address that will receive the royalties.
+    address feeReceiver;
+    /// @notice The expiration time for the collection.
+    uint256 collectionExpire;
+    /// @notice A signature provided by the backend for validation.
+    bytes signature;
+}
+
+/**
+ * @title StorageInstanceInfo
+ * @notice A simplified struct that holds only the basic information of the NFT collection.
+ */
+struct StorageInstanceInfo {
+    string name;
+    string symbol;
+    address creator;
 }

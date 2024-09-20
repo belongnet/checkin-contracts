@@ -3,26 +3,39 @@ pragma solidity 0.8.25;
 
 import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
 
-/// @notice Revert with an error if the transfer validator is being set to the same address.
+/// @notice Thrown when trying to set a transfer validator to the same address.
+/// @dev This error prevents setting a validator that is already active.
 error SetTransferValidatorError();
+
+/// @notice Thrown when attempting to set a zero address as the transfer validator.
+/// @dev This error prevents setting an invalid address.
 error ZeroAddressPasted();
 
 /**
- * @title  CreatorToken
- * @notice Functionality to use a transfer validator.
+ * @title CreatorToken
+ * @notice Contract that enables the use of a transfer validator to validate token transfers.
+ * @dev The contract stores a reference to the transfer validator and provides functionality for setting and using it.
  */
 abstract contract CreatorToken {
+    /// @notice Emitted when the transfer validator is updated.
+    /// @param oldValidator The old transfer validator address.
+    /// @param newValidator The new transfer validator address.
     event TransferValidatorUpdated(
         ITransferValidator721 oldValidator,
         ITransferValidator721 newValidator
     );
+
+    /// @notice Emitted when the collection's token type cannot be set by the transfer validator.
     event CanNotSetTokenTypeOfCollection();
 
-    /// @dev Store the transfer validator. The null address means no transfer validator is set.
+    /// @dev The current transfer validator. The null address indicates no validator is set.
     ITransferValidator721 internal _transferValidator;
 
-    /// @notice Returns the currently active transfer validator.
-    ///         The null address means no transfer validator is set.
+    /**
+     * @notice Returns the currently active transfer validator.
+     * @dev If the return value is the null address, no transfer validator is set.
+     * @return The address of the currently active transfer validator.
+     */
     function getTransferValidator()
         external
         view
@@ -32,7 +45,10 @@ abstract contract CreatorToken {
     }
 
     /**
-     * @notice Returns the transfer validation function used.
+     * @notice Returns the transfer validation function and whether it is a view function.
+     * @dev This returns the function selector of `validateTransfer` from the `ITransferValidator721` interface.
+     * @return functionSignature The selector of the transfer validation function.
+     * @return isViewFunction True if the transfer validation function is a view function.
      */
     function getTransferValidationFunction()
         external
@@ -43,8 +59,11 @@ abstract contract CreatorToken {
         isViewFunction = true;
     }
 
-    /// @notice Set the transfer validator.
-    ///         The external method that uses this must include access control.
+    /**
+     * @notice Sets a new transfer validator.
+     * @dev The external method calling this function must include access control, such as onlyOwner.
+     * @param newValidator The address of the new transfer validator contract.
+     */
     function _setTransferValidator(
         ITransferValidator721 newValidator
     ) internal {
@@ -56,6 +75,7 @@ abstract contract CreatorToken {
 
         _transferValidator = newValidator;
 
+        // Attempt to set the token type for the collection, if the new validator is not a null address.
         if (address(newValidator) != address(0)) {
             if (address(newValidator).code.length > 0) {
                 try
@@ -72,6 +92,14 @@ abstract contract CreatorToken {
         emit TransferValidatorUpdated(oldValidator, newValidator);
     }
 
+    /**
+     * @notice Validates a transfer using the transfer validator, if one is set.
+     * @dev If no transfer validator is set or the caller is the transfer validator, no validation occurs.
+     * @param caller The address initiating the transfer.
+     * @param from The address transferring the token.
+     * @param to The address receiving the token.
+     * @param tokenId The ID of the token being transferred.
+     */
     function _validateTansfer(
         address caller,
         address from,

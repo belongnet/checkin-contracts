@@ -12,20 +12,34 @@ import {NftParameters} from "./Structures.sol";
 import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
 import {ICreatorToken, ILegacyCreatorToken} from "./interfaces/ICreatorToken.sol";
 
+/// @notice Thrown when a zero address is provided where it's not allowed.
 error ZeroAddressPasted();
+
+/// @notice Thrown when an unauthorized transfer attempt is made.
 error NotTransferable();
 
+/**
+ * @title BaseERC721
+ * @notice A base contract for ERC721 tokens that supports royalties, transfer validation, and metadata management.
+ * @dev This contract extends the OpenZeppelin ERC721Royalty and Solady Ownable contracts and adds support for transfer validation.
+ */
 abstract contract BaseERC721 is
     ERC721Royalty,
     Ownable,
     CreatorToken,
     AutoValidatorTransferApprove
 {
-    uint256 public totalSupply; // The current totalSupply
+    /// @notice The current total supply of tokens.
+    uint256 public totalSupply;
 
-    mapping(uint256 => string) public metadataUri; // token ID -> metadata link
-    mapping(uint256 => uint256) public creationTs; // token ID -> creation Tx
+    /// @notice Mapping of token ID to its metadata URI.
+    mapping(uint256 => string) public metadataUri;
 
+    /// @notice Mapping of token ID to its creation timestamp.
+    mapping(uint256 => uint256) public creationTs;
+
+    /// @notice Modifier to check if the provided address is not a zero address.
+    /// @param _address The address to check.
     modifier zeroAddressCheck(address _address) {
         if (_address == address(0)) {
             revert ZeroAddressPasted();
@@ -33,6 +47,12 @@ abstract contract BaseERC721 is
         _;
     }
 
+    /**
+     * @notice Constructor for BaseERC721.
+     * @dev Initializes the contract with the given parameters, sets royalty information, and the transfer validator.
+     * @param _params The NFT parameters struct containing details like name, symbol, fee receiver, etc.
+     * @param newValidator The address of the transfer validator.
+     */
     constructor(
         NftParameters memory _params,
         ITransferValidator721 newValidator
@@ -50,22 +70,20 @@ abstract contract BaseERC721 is
     }
 
     /**
-     * @notice Set the transfer validator. Only callable by the token owner.
+     * @notice Sets a new transfer validator for the token.
+     * @dev Can only be called by the contract owner.
+     * @param newValidator The new transfer validator contract.
      */
     function setTransferValidator(
         ITransferValidator721 newValidator
     ) external onlyOwner {
-        // Set the new transfer validator.
         _setTransferValidator(newValidator);
     }
 
     /**
-     * @notice Sets if the transfer validator is automatically approved as an operator for all token owners.
-     *
-     * @dev    Throws when the caller is not the contract owner.
-     *
-     * @param autoApprove If true, the collection's transfer validator will be automatically approved to
-     *                    transfer holder's tokens.
+     * @notice Sets whether the transfer validator is automatically approved as an operator for all token owners.
+     * @dev Can only be called by the contract owner.
+     * @param autoApprove If true, the transfer validator will be automatically approved for all token holders.
      */
     function setAutomaticApprovalOfTransfersFromValidator(
         bool autoApprove
@@ -74,8 +92,11 @@ abstract contract BaseERC721 is
     }
 
     /**
-     * @notice Overrides behavior of isApprovedFor all such that if an operator is not explicitly approved
-     *         for all, the contract owner can optionally auto-approve the 721-C transfer validator for transfers.
+     * @notice Checks if an operator is approved to manage all tokens of a given owner.
+     * @dev Overrides the default behavior to automatically approve the transfer validator if enabled.
+     * @param _owner The owner of the tokens.
+     * @param operator The operator trying to manage the tokens.
+     * @return isApproved Whether the operator is approved for all tokens of the owner.
      */
     function isApprovedForAll(
         address _owner,
@@ -89,10 +110,10 @@ abstract contract BaseERC721 is
     }
 
     /**
-     * @notice Returns metadata link for specified ID
-     * @param _tokenId Token ID
+     * @notice Returns the metadata URI for a specific token ID.
+     * @param _tokenId The ID of the token.
+     * @return The metadata URI associated with the given token ID.
      */
-
     function tokenURI(
         uint256 _tokenId
     ) public view override returns (string memory) {
@@ -100,10 +121,11 @@ abstract contract BaseERC721 is
     }
 
     /**
-     * @notice Mints new NFT
-     * @dev Requires a signature from the trusted address
-     * @param to Address that gets ERC721 token
-     * @param tokenUri Metadata URI of the ERC721 token
+     * @notice Mints a new token and assigns it to a specified address.
+     * @dev Increases totalSupply, stores metadata URI, and creation timestamp.
+     * @param to The address that will receive the newly minted token.
+     * @param tokenUri The metadata URI associated with the token.
+     * @param tokenId The ID of the token to be minted.
      */
     function _baseMint(
         uint256 tokenId,
@@ -117,6 +139,14 @@ abstract contract BaseERC721 is
         _safeMint(to, tokenId);
     }
 
+    /**
+     * @notice Internal function to handle updates during transfers.
+     * @dev Validates transfers using the transfer validator, ensuring the transfer is allowed.
+     * @param to The address to transfer the token to.
+     * @param tokenId The ID of the token to transfer.
+     * @param auth The authorized caller of the function.
+     * @return from The address of the current token holder.
+     */
     function _update(
         address to,
         uint256 tokenId,
@@ -124,15 +154,16 @@ abstract contract BaseERC721 is
     ) internal virtual override returns (address from) {
         from = super._update(to, tokenId, auth);
 
-        // Check if the tx is not a mint/burn, only transfer
+        // Check if this is not a mint or burn operation, only a transfer.
         if (from != address(0) && to != address(0)) {
             _validateTansfer(msg.sender, from, to, tokenId);
         }
     }
 
     /**
-     * @notice Returns whether the interface is supported.
-     * @param interfaceId The interface id to check against.
+     * @notice Checks if the contract supports a given interface.
+     * @param interfaceId The interface ID to check.
+     * @return Whether the interface is supported by the contract.
      */
     function supportsInterface(
         bytes4 interfaceId
