@@ -24,12 +24,6 @@ error EmptySymbolPasted()
 error NFTAlreadyExists()
 ```
 
-## NFTCreationFailed
-
-```solidity
-error NFTCreationFailed()
-```
-
 ## ZeroAddressPasted
 
 ```solidity
@@ -115,6 +109,20 @@ Event emitted when the transfer validator is set
 | ---- | ---- | ----------- |
 | newValidator | contract ITransferValidator721 | The new transfer validator contract |
 
+### StorageContractSet
+
+```solidity
+event StorageContractSet(address newStorageContract)
+```
+
+Event emitted when the storage address is set
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| newStorageContract | address | The new storage contract |
+
 ### transferValidator
 
 ```solidity
@@ -190,6 +198,22 @@ Initializes the contract
 | _platformCommission | uint8 | The platform commission in BPs |
 | _storageContract | address | The address of the storage contract |
 | validator | contract ITransferValidator721 | The transfer validator contract |
+
+### setStorageContract
+
+```solidity
+function setStorageContract(address _storageContract) external
+```
+
+Sets new storage contract address
+
+_Can only be called by the owner_
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _storageContract | address | The new storage address |
 
 ### setPlatformCommission
 

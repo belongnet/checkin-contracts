@@ -263,3 +263,30 @@ _Overrides the _update function to include transfer validation based on the coll
 | ---- | ---- | ----------- |
 | from | address | The address the token is being transferred from. |
 
+### _isSignatureValid
+
+```solidity
+function _isSignatureValid(address receiver, uint256 tokenId, string tokenUri, bool whitelisted, bytes signature, address signerAddress) internal view returns (bool)
+```
+
+Verifies if the signature is valid for the current signer address
+
+_This function checks the signature for the provided NFT data_
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| receiver | address | The address receiving the NFT. |
+| tokenId | uint256 | The ID of the token to mint. |
+| tokenUri | string | The metadata URI of the token being minted. |
+| whitelisted | bool | Whether the receiver is whitelisted for a discount. |
+| signature | bytes | The signature of the trusted address for validation. |
+| signerAddress | address |  |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | bool Whether the signature is valid |
+
