@@ -383,9 +383,8 @@ describe('NFTFactory', () => {
 			const newPlatformAddress = bob.address;
 			const newSigner = charlie.address;
 
-			await expect(factory.connect(owner).setPlatformAddress(ZERO_ADDRESS)).to.be
-				.revertedWithCustomError(factory, 'ZeroAddressPasted');
-
+			await factory.connect(owner).setStorageContract(newPlatformAddress);
+			expect(await factory.storageContract()).to.be.equal(newPlatformAddress);
 			await factory.connect(owner).setPlatformAddress(newPlatformAddress);
 			expect(await factory.platformAddress()).to.be.equal(newPlatformAddress);
 			await expect(factory.connect(owner).setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
@@ -399,6 +398,7 @@ describe('NFTFactory', () => {
 			const { factory, alice } = await loadFixture(fixture);
 
 			await expect(factory.connect(alice).setPlatformCommission(1)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setStorageContract(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.connect(alice).setTransferValidator(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
@@ -407,6 +407,7 @@ describe('NFTFactory', () => {
 		it("zero params check", async () => {
 			const { factory, } = await loadFixture(fixture);
 
+			await expect(factory.setStorageContract(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
 			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
 			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
 			await expect(factory.setTransferValidator(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');

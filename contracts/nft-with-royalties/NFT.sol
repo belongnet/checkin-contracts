@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 
 import {ReentrancyGuard} from "solady/src/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {ECDSA} from "solady/src/utils/ECDSA.sol";
+import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 import {StorageContract, NFTFactory} from "./StorageContract.sol";
 import {BaseERC721} from "./BaseERC721.sol";
@@ -39,7 +39,7 @@ error TokenChanged(address expectedPayingToken, address currentPayingToken);
  * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
  */
 contract NFT is BaseERC721, ReentrancyGuard {
-    using ECDSA for bytes32;
+    using SignatureCheckerLib for address;
     using SafeTransferLib for address;
 
     /// @notice Emitted when the paying token and prices are updated.
@@ -95,18 +95,16 @@ contract NFT is BaseERC721, ReentrancyGuard {
 
         // Validate signature
         if (
-            keccak256(
-                abi.encodePacked(
-                    receiver,
-                    tokenId,
-                    tokenUri,
-                    whitelisted,
-                    block.chainid
-                )
-            ).recover(signature) !=
-            StorageContract(_parameters.storageContract)
-                .factory()
-                .signerAddress()
+            !_isSignatureValid(
+                receiver,
+                tokenId,
+                tokenUri,
+                whitelisted,
+                signature,
+                StorageContract(_parameters.storageContract)
+                    .factory()
+                    .signerAddress()
+            )
         ) {
             revert InvalidSignature();
         }
@@ -301,5 +299,38 @@ contract NFT is BaseERC721, ReentrancyGuard {
         ) {
             revert NotTransferable();
         }
+    }
+
+    /**
+     * @notice Verifies if the signature is valid for the current signer address
+     * @dev This function checks the signature for the provided NFT data
+     * @param receiver The address receiving the NFT.
+     * @param tokenId The ID of the token to mint.
+     * @param tokenUri The metadata URI of the token being minted.
+     * @param whitelisted Whether the receiver is whitelisted for a discount.
+     * @param signature The signature of the trusted address for validation.
+     * @return bool Whether the signature is valid
+     */
+    function _isSignatureValid(
+        address receiver,
+        uint256 tokenId,
+        string calldata tokenUri,
+        bool whitelisted,
+        bytes calldata signature,
+        address signerAddress
+    ) internal view returns (bool) {
+        return
+            signerAddress.isValidSignatureNow(
+                keccak256(
+                    abi.encodePacked(
+                        receiver,
+                        tokenId,
+                        tokenUri,
+                        whitelisted,
+                        block.chainid
+                    )
+                ),
+                signature
+            );
     }
 }

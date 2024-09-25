@@ -12,7 +12,6 @@ error InvalidSignature();
 error EmptyNamePasted();
 error EmptySymbolPasted();
 error NFTAlreadyExists();
-error NFTCreationFailed();
 error ZeroAddressPasted();
 
 /// @title NFT Factory Contract
@@ -43,6 +42,10 @@ contract NFTFactory is OwnableUpgradeable {
     /// @notice Event emitted when the transfer validator is set
     /// @param newValidator The new transfer validator contract
     event TransferValidatorSet(ITransferValidator721 newValidator);
+
+    /// @notice Event emitted when the storage address is set
+    /// @param newStorageContract The new storage contract
+    event StorageContractSet(address newStorageContract);
 
     /// @notice Address of the current transfer validator
     /**
@@ -94,12 +97,18 @@ contract NFTFactory is OwnableUpgradeable {
     ) external initializer {
         __Ownable_init(msg.sender);
 
-        storageContract = _storageContract;
-
+        _setStorageContract(_storageContract);
         _setSigner(_signer);
         _setPlatformAddress(_platformAddress);
         _setPlatformCommission(_platformCommission);
         _setTransferValidator(validator);
+    }
+
+    /// @notice Sets new storage contract address
+    /// @dev Can only be called by the owner
+    /// @param _storageContract The new storage address
+    function setStorageContract(address _storageContract) external onlyOwner {
+        _setStorageContract(_storageContract);
     }
 
     /// @notice Sets new platform commission
@@ -219,6 +228,15 @@ contract NFTFactory is OwnableUpgradeable {
                 ),
                 signature
             );
+    }
+
+    /// @notice Private function to set the storage address
+    /// @param _storageContract The new storage address
+    function _setStorageContract(
+        address _storageContract
+    ) private zeroAddressCheck(_storageContract) {
+        storageContract = _storageContract;
+        emit StorageContractSet(_storageContract);
     }
 
     /// @notice Private function to set the platform commission
