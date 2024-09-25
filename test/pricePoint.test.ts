@@ -7,7 +7,7 @@ import { expect, use } from "chai";
 import { PricePointInfoStruct, PricePointParametersStruct } from '../typechain-types/contracts/price-point/PricePoint';
 import EthCrypto from "eth-crypto";
 
-describe.only('PricePoint', () => {
+describe('PricePoint', () => {
 	const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 	const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 	const chainId = 31337;
