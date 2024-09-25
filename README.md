@@ -148,6 +148,8 @@ If NFT was sold on a marketplace, a corresponding RoyaltiesReceiver contract wil
 ![Scheme4](https://sun9-7.userapi.com/impg/NxZjdVcGH3VxFuw2Jt5fUj1S9mjJDNuJ89ZFqg/fP2ZNYXGtvc.jpg?size=793x594&quality=96&sign=46b1617d97628b6f5ab72c2cfd0df2fd&type=album)
 ![Scheme5](https://sun9-82.userapi.com/impg/MYGnmOGZus2Xr4eE6mkCVC-6-xDrPIRfnZwCgQ/dn3TM87PUEU.jpg?size=701x627&quality=96&sign=43032481ac463255cffe0322be944800&type=album)
 ![Scheme6](https://sun9-5.userapi.com/impg/vLHkDiFomNJnQtbjF4I-Kv9hLnmPSqNF6Uj7-Q/GfoPLS0ry4A.jpg?size=596x940&quality=96&sign=5c0b25270f71aca222a211db8a3c1b31&type=album)
+![Scheme7](./pics/PricePoint.png)
+![Scheme8](./pics/PricePointFactory.png)
 
 ### 2.2. Contract Information
 
