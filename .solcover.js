@@ -1,3 +1,3 @@
 module.exports = {
-  skipFiles: ["nft-price-point", "nft-with-royalties/mocks"],
+  skipFiles: ["nft-with-royalties/mocks"],
 };
