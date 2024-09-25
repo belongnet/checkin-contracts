@@ -1,6 +1,6 @@
 import { ethers, upgrades } from "hardhat";
 import { ContractFactory } from "ethers";
-import { MockTransferValidator, NFTFactory, ReceiverFactory, StorageContract } from "../typechain-types";
+import { MockTransferValidator, NFTFactory, ReceiverFactory, StorageContract } from "../../typechain-types";
 
 async function deploy() {
   console.log("Deploying:");

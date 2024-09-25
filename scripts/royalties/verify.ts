@@ -1,5 +1,5 @@
-import { verifyContract } from "./helpers/verify";
-import { InstanceInfoStruct, NftParametersStruct } from "../typechain-types/contracts/nft-with-royalties/NFT";
+import { verifyContract } from "../helpers/verify";
+import { InstanceInfoStruct, NftParametersStruct } from "../../typechain-types/contracts/nft-with-royalties/NFT";
 
 const Storage_Address = "0x55f5662efffb06418DB2b36e98cd53B86BC7D466"; // SKALE_CALYPSO: "0x21e633FAE68838d3B517EBE72f4d01b18dC2b815";
 const NFTFactory_Address = "0xf3134745A7d92c7995611E20F54C3044D3d9c937"; // SKALE_CALYPSO: "0xf36BE8463c25e9AA235185dfbe344Fc486Ba7889";
