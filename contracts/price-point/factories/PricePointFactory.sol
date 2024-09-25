@@ -3,9 +3,7 @@ pragma solidity 0.8.25;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
-
 import {PricePoint} from "../PricePoint.sol";
-
 import {PricePointInfo, PricePointParameters} from "../PricePointStructures.sol";
 
 error InvalidSignature();
@@ -14,15 +12,19 @@ error EmptySymbolPasted();
 error PricePointAlreadyExists(bytes32 hash);
 error ZeroAddressPasted();
 
-/// @title PricePoint Factory Contract
-/// @notice A factory contract to create new PricePoint instances with specific parameters
-/// @dev This contract allows producing PricePoints, managing platform settings, and verifying signatures
+/**
+ * @title PricePoint Factory Contract
+ * @notice A factory contract to create new PricePoint instances with specific parameters
+ * @dev This contract allows producing PricePoints, managing platform settings, and verifying signatures
+ */
 contract PricePointFactory is OwnableUpgradeable {
     using SignatureCheckerLib for address;
 
     /// @notice Event emitted when a new PricePoint is created
+    /// @param user The address of the user who created the PricePoint
     /// @param name Name of the created PricePoint
     /// @param symbol Symbol of the created PricePoint
+    /// @param pricePoint The newly created PricePoint instance
     /// @param id The ID of the newly created PricePoint
     event PricePointCreated(
         address user,
@@ -46,14 +48,17 @@ contract PricePointFactory is OwnableUpgradeable {
 
     /// @notice Platform address that is allowed to collect fees
     address public platformAddress;
+
     /// @notice Address of the signer used for signature verification
     address public signerAddress;
+
     /// @notice Address of the default payment currency
     address public defaultPaymentCurrency;
 
-    /// @notice An array storing all created PricePoint instances.
+    /// @notice An array storing all created PricePoint instances
     PricePoint[] public pricePoints;
-    /// @notice A mapping from keccak256(name, symbol) to the PricePoint instance address.
+
+    /// @notice A mapping from keccak256(name, symbol) to the PricePoint instance address
     mapping(bytes32 => PricePoint) public pricePointsByHash;
 
     /// @notice Modifier to check if the passed address is not zero
@@ -62,57 +67,61 @@ contract PricePointFactory is OwnableUpgradeable {
         if (_address == address(0)) {
             revert ZeroAddressPasted();
         }
-
         _;
     }
 
-    // constructor() {
-    //     _disableInitializers();
-    // }
-
-    /// @notice Initializes the contract
-    /// @param _defaultPaymentCurrency The address of the default payment currency
-    /// @param _signer The address of the signer
-    /// @param _platformAddress The address of the platform that collects fees
+    /**
+     * @notice Initializes the contract with the default payment currency, signer, and platform address
+     * @param _defaultPaymentCurrency The address of the default payment currency
+     * @param _signer The address of the signer used for signature verification
+     * @param _platformAddress The address of the platform that collects fees
+     */
     function initialize(
         address _defaultPaymentCurrency,
         address _signer,
         address _platformAddress
     ) external initializer {
         __Ownable_init(msg.sender);
-
         _setDefaultPaymentCurrency(_defaultPaymentCurrency);
         _setSigner(_signer);
         _setPlatformAddress(_platformAddress);
     }
 
-    /// @notice Sets new default payment currency address
-    /// @dev Can only be called by the owner
-    /// @param _paymentCurrency The new default payment currency address
+    /**
+     * @notice Sets the default payment currency address
+     * @dev Can only be called by the owner
+     * @param _paymentCurrency The new default payment currency address
+     */
     function setDefaultPaymentCurrency(
         address _paymentCurrency
     ) external onlyOwner {
         _setDefaultPaymentCurrency(_paymentCurrency);
     }
 
-    /// @notice Sets new platform address
-    /// @dev Can only be called by the owner
-    /// @param _platformAddress The new platform address
+    /**
+     * @notice Sets the platform address
+     * @dev Can only be called by the owner
+     * @param _platformAddress The new platform address
+     */
     function setPlatformAddress(address _platformAddress) external onlyOwner {
         _setPlatformAddress(_platformAddress);
     }
 
-    /// @notice Sets new signer address
-    /// @dev Can only be called by the owner
-    /// @param _signer The new signer address
+    /**
+     * @notice Sets the signer address used for signature verification
+     * @dev Can only be called by the owner
+     * @param _signer The new signer address
+     */
     function setSigner(address _signer) external onlyOwner {
         _setSigner(_signer);
     }
 
-    /// @notice Produces a new PricePoint instance
-    /// @dev Creates a new instance of the PricePoint and adds the information to the storage contract
-    /// @param _info Struct containing the details of the new PricePoint instance
-    /// @return pricePoint The address of the created PricePoint instance
+    /**
+     * @notice Produces a new PricePoint instance
+     * @dev Creates a new instance of the PricePoint and adds the information to the storage contract
+     * @param _info Struct containing the details of the new PricePoint instance
+     * @return pricePoint The address of the created PricePoint instance
+     */
     function produce(
         PricePointInfo memory _info
     ) external returns (PricePoint pricePoint) {
@@ -155,7 +164,6 @@ contract PricePointFactory is OwnableUpgradeable {
         }
 
         uint256 pricePointId = pricePoints.length;
-
         pricePoint = new PricePoint(params, address(this));
 
         pricePointsByHash[pricePointHash] = pricePoint;
@@ -170,13 +178,16 @@ contract PricePointFactory is OwnableUpgradeable {
         );
     }
 
-    /// @notice Verifies if the signature is valid for the current signer address
-    /// @dev This function checks the signature for the provided NFT data
-    /// @param name Name of the new NFT instance
-    /// @param symbol Symbol of the new NFT instance
-    /// @param contractURI URI for the new contract
-    /// @param signature The signature to validate
-    /// @return bool Whether the signature is valid
+    /**
+     * @notice Verifies if the signature is valid for the current signer address
+     * @dev This function checks the signature for the provided NFT data
+     * @param user The address of the user creating the PricePoint
+     * @param name Name of the new PricePoint instance
+     * @param symbol Symbol of the new PricePoint instance
+     * @param contractURI URI for the new PricePoint instance
+     * @param signature The signature to validate
+     * @return bool Whether the signature is valid
+     */
     function _isSignatureValid(
         address user,
         string memory name,
@@ -199,8 +210,10 @@ contract PricePointFactory is OwnableUpgradeable {
             );
     }
 
-    /// @notice Private function to set the platform address
-    /// @param _platformAddress The new platform address
+    /**
+     * @notice Private function to set the platform address
+     * @param _platformAddress The new platform address
+     */
     function _setPlatformAddress(
         address _platformAddress
     ) private zeroAddressCheck(_platformAddress) {
@@ -208,8 +221,10 @@ contract PricePointFactory is OwnableUpgradeable {
         emit PlatformAddressSet(_platformAddress);
     }
 
-    /// @notice Private function to set the default payment currency address
-    /// @param _paymentCurrency The new default payment currency address
+    /**
+     * @notice Private function to set the default payment currency address
+     * @param _paymentCurrency The new default payment currency address
+     */
     function _setDefaultPaymentCurrency(
         address _paymentCurrency
     ) private zeroAddressCheck(_paymentCurrency) {
@@ -217,8 +232,10 @@ contract PricePointFactory is OwnableUpgradeable {
         emit DefaultPaymentCurrencySet(_paymentCurrency);
     }
 
-    /// @notice Private function to set the signer address
-    /// @param _signer The new signer address
+    /**
+     * @notice Private function to set the signer address
+     * @param _signer The new signer address
+     */
     function _setSigner(address _signer) private zeroAddressCheck(_signer) {
         signerAddress = _signer;
         emit SignerSet(_signer);
