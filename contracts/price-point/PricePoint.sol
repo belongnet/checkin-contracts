@@ -247,7 +247,9 @@ contract PricePoint is ERC721, Ownable {
         super._beforeTokenTransfer(from, to, id);
 
         // Check if the transaction is a regular transfer and not mint/burn
-        if (from != address(0) && to != address(0) && !_params.info.transferable) {
+        if (
+            from != address(0) && to != address(0) && !_params.info.transferable
+        ) {
             revert NotTransferable();
         }
     }
@@ -294,4 +296,3 @@ contract PricePoint is ERC721, Ownable {
         emit PricePointFactoryChanged(_factory);
     }
 }
-``
