@@ -6,39 +6,75 @@
 
 ```
 yarn
-
-npm i
 ```
 
 ### Set Up env
 
 Rename .env.example to .env and fill all the fields there
 
-### Deploy
+### Compile
 
 ```
-    yarn/npx deploy <network_name>
+    yarn compile
+```
+
+### Test
+
+```
+    yarn test
+```
+
+### Coverage
+
+```
+    yarn coverage
+```
+
+### Deploy
+
+- NFT with royalties
+
+```
+    yarn deploy:royalties <network_name>
+```
+
+- NFT Price Point
+
+```
+    yarn deploy:price <network_name>
 ```
 
 signer and platformAddress need to be specified first. ReceiverFactory, Factory and StorageContract will be deployed.
 
 ### Verification
 
+- NFT with royalties
+
+```
+    yarn verify:royalties <network_name>
+```
+
+- NFT Price Point
+
+```
+    yarn verify:price <network_name>
+```
+
+- Or
+
 ```
     yarn/npx hardhat --network <network_name> verify <ReceiverFactory address>
-    yarn/npx hardhat --network <network_name> verify <Factory address>
-    yarn/npx hardhat --network <network_name> verify <StorageContract address>
 ```
 
 ## Foundry Usage
 
 Check [Foundry guide](./Foundry.md).
 
+## Remix Usage
+
 ```
 forge flatten ./contracts/nft-with-royalties/factories/NFTFactory.sol > ./contracts/nft-with-royalties/flattened/NFTFactory_flattened.sol
 ```
-
-## Remix Usage
 
 Check [Remix guide](./Remix.md).
 

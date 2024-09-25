@@ -3,8 +3,10 @@
     "test": "hardhat test",
     "coverage": "hardhat coverage",
     "compile": "hardhat compile",
-    "deploy": "hardhat run ./scripts/deploy.js --network",
-    "verify": "hardhat run ./scripts/verify.ts --network",
+    "deploy:royalties": "hardhat run ./scripts/royalties/deploy.js --network",
+    "deploy:price": "hardhat run ./scripts/pricePoint/deploy.js --network",
+    "verify:royalties": "hardhat run ./scripts/royalties/verify.ts --network",
+    "verify:price": "hardhat run ./scripts/pricePoint/verify.ts --network",
     "docgen": "hardhat docgen"
   },
   "dependencies": {

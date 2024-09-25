@@ -29,6 +29,16 @@
       "address": "0x3d1f856a1258FEcd940aCD46b3DF3dCD935b4792",
       "txHash": "0x355931f815d6b32592c014871c04297feeeff258c6bbfbaf8abcadae31abe541",
       "kind": "transparent"
+    },
+    {
+      "address": "0x56b0dC3149569074Ec66A6e84CC2165b89eCB6A3",
+      "txHash": "0xb82aa40c7e8a5a73b90fd7596e2bb522b49d5d7dbccf8a1a8e32f8e225fc3993",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x5D1899c01B3389605FEbC9d0fC8d6B678E8abAce",
+      "txHash": "0xda6b036fa138bccb586b57185a1dabff0e789ac714e416b6af263d64e9ded708",
+      "kind": "transparent"
     }
   ],
   "impls": {
@@ -277,6 +287,107 @@
           "t_uint8": {
             "label": "uint8",
             "numberOfBytes": "1"
+          },
+          "t_uint64": {
+            "label": "uint64"
+          },
+          "t_bool": {
+            "label": "bool"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:24"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73"
+            }
+          ]
+        }
+      }
+    },
+    "539a47a9695b39c8407670d66edd38fc507953917714b1612509222ed796715a": {
+      "address": "0xc1f8923ccee489A68Af11A104B1F74c7adcf0e9f",
+      "txHash": "0x4315384fb1047812666103ad103823d0a632846a97f7ff476cf887b37e5ec5fa",
+      "layout": {
+        "solcVersion": "0.8.25",
+        "storage": [
+          {
+            "label": "platformAddress",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address",
+            "contract": "PricePointFactory",
+            "src": "contracts\\price-point\\factories\\PricePointFactory.sol:50"
+          },
+          {
+            "label": "signerAddress",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_address",
+            "contract": "PricePointFactory",
+            "src": "contracts\\price-point\\factories\\PricePointFactory.sol:53"
+          },
+          {
+            "label": "defaultPaymentCurrency",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_address",
+            "contract": "PricePointFactory",
+            "src": "contracts\\price-point\\factories\\PricePointFactory.sol:56"
+          },
+          {
+            "label": "pricePoints",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_array(t_contract(PricePoint)7542)dyn_storage",
+            "contract": "PricePointFactory",
+            "src": "contracts\\price-point\\factories\\PricePointFactory.sol:59"
+          },
+          {
+            "label": "pricePointsByHash",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_mapping(t_bytes32,t_contract(PricePoint)7542)",
+            "contract": "PricePointFactory",
+            "src": "contracts\\price-point\\factories\\PricePointFactory.sol:62"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_contract(PricePoint)7542)dyn_storage": {
+            "label": "contract PricePoint[]",
+            "numberOfBytes": "32"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_contract(PricePoint)7542": {
+            "label": "contract PricePoint",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_bytes32,t_contract(PricePoint)7542)": {
+            "label": "mapping(bytes32 => contract PricePoint)",
+            "numberOfBytes": "32"
           },
           "t_uint64": {
             "label": "uint64"
