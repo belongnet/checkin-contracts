@@ -11,7 +11,7 @@ mod NFT {
                 ERC721Component,
                 ERC721HooksEmptyImpl,
             },
-            erc2981::ERC2981Component
+            common::erc2981::ERC2981Component
         }
     };
     use starknet::ContractAddress;
@@ -27,14 +27,13 @@ mod NFT {
     impl ERC721MixinImpl = ERC721Component::ERC721MixinImpl<ContractState>;
     #[abi(embed_v0)]
     impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
-    #[abi(embed_v0)]
-    impl ERC2981MixinImpl = ERC2981Component::ERC2981MixinImpl<ContractState>;
-
-    impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
     impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
+    #[abi(embed_v0)]
+    impl ERC2981Impl = ERC2981Component::ERC2981Impl<ContractState>;
     impl ERC2981InternalImpl = ERC2981Component::InternalImpl<ContractState>;
 
-    const ETH_ADDRESS: ContractAddress = ContractAddress::new(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+    const ETH_ADDRESS_FELT: felt252 = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    const ETH_ADDRESS: ContractAddress = ContractAddress::new(ETH_ADDRESS_FELT);
 
     #[storage]
     struct Storage {
@@ -76,6 +75,13 @@ mod NFT {
         creator: ContractAddress,           // Creator's address
     }
 
+    #[derive(Drop, PartialEq, starknet::Event)]
+    pub struct PayingTokenChanged {
+        paying_token: ContractAddress,
+        mint_price: u256,
+        whitelist_mint_price: u256,
+    }
+
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
@@ -87,12 +93,8 @@ mod NFT {
         OwnableEvent: OwnableComponent::Event,
         #[flat]
         ERC2981Event: ERC2981Component::Event,
-
-        PayingTokenChanged {
-            paying_token: ContractAddress,
-            mint_price: u256,
-            whitelist_mint_price: u256,
-        },
+        #[flat]
+        PayingTokenChanged: PayingTokenChanged,
     }
 
     #[constructor]
@@ -216,7 +218,7 @@ mod NFT {
             ref self: ContractState,
             token_id: u256,
             recipient: ContractAddress,
-            percentage: u64, // e.g., 500 for 5%
+            percentage: u64, // e.g., 1000 for 10%
         ) {
             self.erc2981.set_token_royalty(token_id, recipient, percentage);
         }
