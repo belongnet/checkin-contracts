@@ -4,7 +4,8 @@
     "coverage": "hardhat coverage",
     "compile": "hardhat compile",
     "deploy": "hardhat run ./scripts/deploy.js --network",
-    "verify": "hardhat run ./scripts/verify.ts --network"
+    "verify": "hardhat run ./scripts/verify.ts --network",
+    "docgen": "hardhat docgen"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2",

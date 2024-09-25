@@ -86,7 +86,7 @@ const config: HardhatUserConfig = {
   },
   docgen: {
     outputDir: "./docs/",
-    exclude: ['nft-with-royalties/mocks'],
+    exclude: ['nft-with-royalties/mocks', 'mocks'],
     pages: 'files'
   }
 };
