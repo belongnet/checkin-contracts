@@ -1,9 +1,9 @@
 
 import { ethers, upgrades } from 'hardhat';
 import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
-import { BigNumber, ContractFactory } from "ethers";
+import { ContractFactory } from "ethers";
 import { Erc20Example, PricePointFactory } from "../typechain-types";
-import { expect, use } from "chai";
+import { expect } from "chai";
 import { PricePointInfoStruct } from '../typechain-types/contracts/price-point/PricePoint';
 import EthCrypto from "eth-crypto";
 
@@ -89,7 +89,7 @@ describe('PricePointFactory', () => {
 
 
 		it("should correct deploy NFT instance", async () => {
-			const { factory, erc20Example, platform, user, bob, signer } = await loadFixture(fixture);
+			const { factory, platform, user, bob, signer } = await loadFixture(fixture);
 
 			let message = EthCrypto.hash.keccak256([
 				{ type: "address", value: user.address },
