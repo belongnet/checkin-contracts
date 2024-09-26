@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.27;
 
 /// @title ITransferValidator721 Interface
 /// @notice Interface for validating NFT transfers for ERC721 tokens
