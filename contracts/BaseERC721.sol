@@ -19,6 +19,9 @@ error ZeroAddressPasted();
 /// @notice Thrown when an unauthorized transfer attempt is made.
 error NotTransferable();
 
+/// @notice Error thrown when the total supply limit is reached.
+error TotalSupplyLimitReached();
+
 /**
  * @title BaseERC721
  * @notice A base contract for ERC721 tokens that supports royalties, transfer validation, and metadata management.
@@ -245,6 +248,11 @@ abstract contract BaseERC721 is
         address to,
         string calldata tokenUri
     ) internal {
+        // Ensure the total supply has not been exceeded
+        if (tokenId > parameters.info.maxTotalSupply) {
+            revert TotalSupplyLimitReached();
+        }
+
         totalSupply++;
         metadataUri[tokenId] = tokenUri;
         creationTs[tokenId] = block.timestamp;
