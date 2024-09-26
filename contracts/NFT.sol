@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity 0.8.27;
 
 import {ReentrancyGuard} from "solady/src/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
@@ -10,7 +10,7 @@ import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
 import {NFTFactory} from "./factories/NFTFactory.sol";
 import {BaseERC721} from "./BaseERC721.sol";
 
-import {NftParameters} from "./Structures.sol";
+import {NftParameters, StaticPriceParams, DynamicPriceParams} from "./Structures.sol";
 
 /// @notice Error thrown when the total supply limit is reached.
 error TotalSupplyLimitReached();
@@ -34,6 +34,10 @@ error PriceChanged(uint256 expectedMintPrice, uint256 currentPrice);
 /// @param expectedPayingToken The expected paying token.
 /// @param currentPayingToken The actual paying token.
 error TokenChanged(address expectedPayingToken, address currentPayingToken);
+
+error IncorrecArraysLength();
+
+error WrongArraySize();
 
 /**
  * @title NFT Contract
@@ -71,25 +75,55 @@ contract NFT is BaseERC721, ReentrancyGuard {
     ) BaseERC721(_params, newValidator) {}
 
     /**
+     * @notice Batch mints with static prices a new NFTs to a specified addresses.
+     * @dev Requires a signaturees from a trusted addresses and validates against whitelist status.
+     * @param paramsArray todo
+     */
+    function mintStaticPriceBatch(
+        StaticPriceParams[] calldata paramsArray
+    ) external payable {
+        require(
+            paramsArray.length <= NFTFactory(parameters.factory).maxArraySize(),
+            WrongArraySize()
+        );
+
+        for (uint256 i = 0; i < paramsArray.length; ) {
+            mintStaticPrice(paramsArray[i]);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @notice Batch mints with dynamic prices a new NFTs to a specified addresses.
+     * @dev Requires a signatures from a trusted addresses and validates against whitelist status.
+     * @param paramsArray todo
+     */
+    function mintDynamicPriceBatch(
+        DynamicPriceParams[] calldata paramsArray
+    ) external payable {
+        require(
+            paramsArray.length <= NFTFactory(parameters.factory).maxArraySize(),
+            WrongArraySize()
+        );
+
+        for (uint256 i = 0; i < paramsArray.length; ) {
+            mintDynamicPrice(paramsArray[i]);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
      * @notice Mints a new NFT to a specified address.
      * @dev Requires a signature from a trusted address and validates against whitelist status.
-     * @param receiver The address receiving the NFT.
-     * @param tokenId The ID of the token to mint.
-     * @param tokenUri The metadata URI of the token being minted.
-     * @param whitelisted Whether the receiver is whitelisted for a discount.
-     * @param signature The signature of the trusted address for validation.
-     * @param expectedMintPrice The expected mint price at the time of minting.
-     * @param expectedPayingToken The expected paying token (ETH or another token).
+     * @param params TODO
      */
-    function mintStaticPrice(
-        address receiver,
-        uint256 tokenId,
-        string calldata tokenUri,
-        bool whitelisted,
-        bytes calldata signature,
-        uint256 expectedMintPrice,
-        address expectedPayingToken
-    ) external payable {
+    function mintStaticPrice(StaticPriceParams calldata params) public payable {
         NftParameters memory _parameters = parameters;
 
         // Validate signature
@@ -99,69 +133,71 @@ contract NFT is BaseERC721, ReentrancyGuard {
                 .isValidSignatureNow(
                     keccak256(
                         abi.encodePacked(
-                            receiver,
-                            tokenId,
-                            tokenUri,
-                            whitelisted,
+                            params.receiver,
+                            params.tokenId,
+                            params.tokenUri,
+                            params.whitelisted,
                             block.chainid
                         )
                     ),
-                    signature
+                    params.signature
                 )
         ) {
             revert InvalidSignature();
         }
 
         // Determine the mint price based on whitelist status
-        uint256 price = whitelisted
+        uint256 price = params.whitelisted
             ? _parameters.info.whitelistMintPrice
             : _parameters.info.mintPrice;
 
         // Check if the expected mint price matches the actual price
-        if (expectedMintPrice != price) {
-            revert PriceChanged(expectedMintPrice, price);
+        if (params.expectedMintPrice != price) {
+            revert PriceChanged(params.expectedMintPrice, price);
         }
 
-        _pay(receiver, tokenId, tokenUri, price, expectedPayingToken);
+        _pay(
+            params.receiver,
+            params.tokenId,
+            params.tokenUri,
+            price,
+            params.expectedPayingToken
+        );
     }
 
     /**
      * @notice Mints a new NFT to a specified address.
      * @dev Requires a signature from a trusted address and validates against whitelist status.
-     * @param receiver The address receiving the NFT.
-     * @param tokenId The ID of the token to mint.
-     * @param tokenUri The metadata URI of the token being minted.
-     * @param signature The signature of the trusted address for validation.
-     * @param price The price for the NFT.
-     * @param expectedPayingToken The expected paying token (ETH or another token).
+     * @param params todo
      */
     function mintDynamicPrice(
-        address receiver,
-        uint256 tokenId,
-        string calldata tokenUri,
-        bytes calldata signature,
-        uint256 price,
-        address expectedPayingToken
-    ) external payable {
+        DynamicPriceParams calldata params
+    ) public payable {
         // Validate signature
         if (
             !NFTFactory(parameters.factory).signerAddress().isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
-                        receiver,
-                        tokenId,
-                        tokenUri,
-                        price,
+                        params.receiver,
+                        params.tokenId,
+                        params.tokenUri,
+                        params.price,
                         block.chainid
                     )
                 ),
-                signature
+                params.signature
             )
         ) {
             revert InvalidSignature();
         }
 
-        _pay(receiver, tokenId, tokenUri, price, expectedPayingToken);
+        _pay(
+            params.receiver,
+            params.tokenId,
+            params.tokenUri,
+            params.price,
+            params.expectedPayingToken
+        );
     }
 
     function _pay(
