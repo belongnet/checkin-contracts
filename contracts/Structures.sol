@@ -81,8 +81,6 @@ struct StaticPriceParams {
     address receiver;
     uint256 tokenId;
     bool whitelisted;
-    uint256 expectedMintPrice;
-    address expectedPayingToken;
     string tokenUri;
     bytes signature;
 }
@@ -91,7 +89,6 @@ struct DynamicPriceParams {
     address receiver;
     uint256 tokenId;
     uint256 price;
-    address expectedPayingToken;
     string tokenUri;
     bytes signature;
 }
