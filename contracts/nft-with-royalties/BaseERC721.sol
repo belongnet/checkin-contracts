@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
-import {ERC721Royalty, ERC721} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol";
+import {ERC721} from "solady/src/tokens/ERC721.sol";
+import {ERC2981} from "solady/src/tokens/ERC2981.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
+
+import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
+import {ICreatorToken, ILegacyCreatorToken} from "./interfaces/ICreatorToken.sol";
 
 import {CreatorToken} from "./utils/CreatorToken.sol";
 import {AutoValidatorTransferApprove} from "./utils/AutoValidatorTransferApprove.sol";
 
 import {NftParameters} from "./Structures.sol";
-import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
-import {ICreatorToken, ILegacyCreatorToken} from "./interfaces/ICreatorToken.sol";
 
 /// @notice Thrown when a zero address is provided where it's not allowed.
 error ZeroAddressPasted();
@@ -24,11 +25,22 @@ error NotTransferable();
  * @dev This contract extends the OpenZeppelin ERC721Royalty and Solady Ownable contracts and adds support for transfer validation.
  */
 abstract contract BaseERC721 is
-    ERC721Royalty,
+    ERC721,
+    ERC2981,
     Ownable,
     CreatorToken,
     AutoValidatorTransferApprove
 {
+    /// @notice Emitted when the paying token and prices are updated.
+    /// @param newToken The address of the new paying token.
+    /// @param newPrice The new mint price.
+    /// @param newWLPrice The new whitelist mint price.
+    event PayingTokenChanged(
+        address newToken,
+        uint256 newPrice,
+        uint256 newWLPrice
+    );
+
     /// @notice The current total supply of tokens.
     uint256 public totalSupply;
 
@@ -38,14 +50,8 @@ abstract contract BaseERC721 is
     /// @notice Mapping of token ID to its creation timestamp.
     mapping(uint256 => uint256) public creationTs;
 
-    /// @notice Modifier to check if the provided address is not a zero address.
-    /// @param _address The address to check.
-    modifier zeroAddressCheck(address _address) {
-        if (_address == address(0)) {
-            revert ZeroAddressPasted();
-        }
-        _;
-    }
+    /// @notice The struct containing all NFT parameters for the collection.
+    NftParameters public parameters;
 
     /**
      * @notice Constructor for BaseERC721.
@@ -56,17 +62,13 @@ abstract contract BaseERC721 is
     constructor(
         NftParameters memory _params,
         ITransferValidator721 newValidator
-    )
-        zeroAddressCheck(_params.info.payingToken)
-        zeroAddressCheck(_params.storageContract)
-        zeroAddressCheck(_params.info.feeReceiver)
-        zeroAddressCheck(_params.creator)
-        ERC721(_params.info.name, _params.info.symbol)
-    {
-        _initializeOwner(_params.platform);
+    ) {
+        parameters = _params;
 
         _setDefaultRoyalty(_params.info.feeReceiver, _params.info.feeNumerator);
         _setTransferValidator(newValidator);
+
+        _initializeOwner(_params.creator);
     }
 
     /**
@@ -92,6 +94,28 @@ abstract contract BaseERC721 is
     }
 
     /**
+     * @notice Sets a new paying token and mint prices for the collection.
+     * @param _payingToken The new paying token address.
+     * @param _mintPrice The new mint price.
+     * @param _whitelistMintPrice The new whitelist mint price.
+     */
+    function setPayingToken(
+        address _payingToken,
+        uint256 _mintPrice,
+        uint256 _whitelistMintPrice
+    ) external onlyOwner {
+        if (_payingToken == address(0)) {
+            revert ZeroAddressPasted();
+        }
+
+        parameters.info.payingToken = _payingToken;
+        parameters.info.mintPrice = _mintPrice;
+        parameters.info.whitelistMintPrice = _whitelistMintPrice;
+
+        emit PayingTokenChanged(_payingToken, _mintPrice, _whitelistMintPrice);
+    }
+
+    /**
      * @notice Checks if an operator is approved to manage all tokens of a given owner.
      * @dev Overrides the default behavior to automatically approve the transfer validator if enabled.
      * @param _owner The owner of the tokens.
@@ -101,7 +125,7 @@ abstract contract BaseERC721 is
     function isApprovedForAll(
         address _owner,
         address operator
-    ) public view virtual override returns (bool isApproved) {
+    ) public view override returns (bool isApproved) {
         isApproved = super.isApprovedForAll(_owner, operator);
 
         if (!isApproved && autoApproveTransfersFromValidator) {
@@ -118,6 +142,95 @@ abstract contract BaseERC721 is
         uint256 _tokenId
     ) public view override returns (string memory) {
         return metadataUri[_tokenId];
+    }
+
+    /**
+     * @notice Retrieves the payment receipt for a specific token ID.
+     * @param tokenId The ID of the token.
+     * @return The payment amount associated with the token.
+     */
+    function getReceipt(uint256 tokenId) external view returns (uint96) {
+        return _getExtraData(tokenId);
+    }
+
+    /// @notice Returns the symbol of the token collection.
+    function symbol() public view override returns (string memory) {
+        return parameters.info.symbol;
+    }
+
+    /// @notice Returns the name of the token collection.
+    function name() public view override returns (string memory) {
+        return parameters.info.name;
+    }
+
+    /**
+     * @notice Returns the paying token for the collection.
+     */
+    function payingToken() external view returns (address) {
+        return parameters.info.payingToken;
+    }
+
+    /**
+     * @notice Returns the address of the factory contract.
+     */
+    function factory() external view returns (address) {
+        return parameters.factory;
+    }
+
+    /**
+     * @notice Returns the current mint price for the collection.
+     */
+    function mintPrice() external view returns (uint256) {
+        return parameters.info.mintPrice;
+    }
+
+    /**
+     * @notice Returns the current whitelist mint price for the collection.
+     */
+    function whitelistMintPrice() external view returns (uint256) {
+        return parameters.info.whitelistMintPrice;
+    }
+
+    /**
+     * @notice Returns whether the collection is transferable.
+     */
+    function transferable() external view returns (bool) {
+        return parameters.info.transferable;
+    }
+
+    /**
+     * @notice Returns the maximum total supply for the collection.
+     */
+    function maxTotalSupply() external view returns (uint256) {
+        return parameters.info.maxTotalSupply;
+    }
+
+    /**
+     * @notice Returns the total royalty percentage for the collection.
+     */
+    function totalRoyalty() external view returns (uint256) {
+        return parameters.info.feeNumerator;
+    }
+
+    /**
+     * @notice Returns the creator of the collection.
+     */
+    function creator() external view returns (address) {
+        return parameters.creator;
+    }
+
+    /**
+     * @notice Returns the expiration timestamp for the collection.
+     */
+    function collectionExpire() external view returns (uint256) {
+        return parameters.info.collectionExpire;
+    }
+
+    /**
+     * @notice Returns the contract URI for the collection.
+     */
+    function contractURI() external view returns (string memory) {
+        return parameters.info.contractURI;
     }
 
     /**
@@ -139,24 +252,21 @@ abstract contract BaseERC721 is
         _safeMint(to, tokenId);
     }
 
-    /**
-     * @notice Internal function to handle updates during transfers.
-     * @dev Validates transfers using the transfer validator, ensuring the transfer is allowed.
-     * @param to The address to transfer the token to.
-     * @param tokenId The ID of the token to transfer.
-     * @param auth The authorized caller of the function.
-     * @return from The address of the current token holder.
-     */
-    function _update(
+    /// @dev Hook that is called before any token transfers, including minting and burning.
+    function _beforeTokenTransfer(
+        address from,
         address to,
-        uint256 tokenId,
-        address auth
-    ) internal virtual override returns (address from) {
-        from = super._update(to, tokenId, auth);
+        uint256 id
+    ) internal override {
+        super._beforeTokenTransfer(from, to, id);
 
         // Check if this is not a mint or burn operation, only a transfer.
         if (from != address(0) && to != address(0)) {
-            _validateTansfer(msg.sender, from, to, tokenId);
+            if (!parameters.info.transferable) {
+                revert NotTransferable();
+            }
+
+            _validateTansfer(msg.sender, from, to, id);
         }
     }
 
@@ -167,9 +277,8 @@ abstract contract BaseERC721 is
      */
     function supportsInterface(
         bytes4 interfaceId
-    ) public view virtual override returns (bool) {
+    ) public view virtual override(ERC721, ERC2981) returns (bool) {
         return
-            interfaceId == type(IERC2981).interfaceId ||
             interfaceId == type(ICreatorToken).interfaceId ||
             interfaceId == type(ILegacyCreatorToken).interfaceId ||
             interfaceId == 0x49064906 || // ERC4906

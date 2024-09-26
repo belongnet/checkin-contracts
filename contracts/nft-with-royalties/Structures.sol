@@ -2,19 +2,33 @@
 pragma solidity 0.8.25;
 
 /**
+ * @title NftFactoryInfo
+ * @notice A struct that contains info parameters for NFTFactory.
+ * @dev This struct is used to store parameters in contract.
+ */
+struct NftFactoryInfo {
+    /// @notice Platform address that is allowed to collect fees
+    address platformAddress;
+    /// @notice Address of the signer used for signature verification
+    address signerAddress;
+    /// @notice Address of the default payment currency
+    address defaultPaymentCurrency;
+    /// @notice The platform commission in BPs
+    uint256 platformCommission;
+}
+
+/**
  * @title NftParameters
  * @notice A struct that contains all the parameters needed to create an NFT collection.
  * @dev This struct is used to pass parameters between contracts.
  */
 struct NftParameters {
-    /// @notice The address of the storage contract where the collection is stored.
-    address storageContract;
+    /// @notice The address of the factory contract where the collection is created.
+    address factory;
     /// @notice The detailed information about the NFT collection.
     InstanceInfo info;
     /// @notice The address of the creator of the NFT collection.
     address creator;
-    /// @notice The platform address associated with the collection.
-    address platform;
 }
 
 /**
@@ -49,11 +63,14 @@ struct InstanceInfo {
 }
 
 /**
- * @title StorageInstanceInfo
+ * @title NftParamsInfo
  * @notice A simplified struct that holds only the basic information of the NFT collection.
  */
-struct StorageInstanceInfo {
+struct NftParamsInfo {
+    /// @notice The name of the NFT collection.
     string name;
+    /// @notice The symbol of the NFT collection.
     string symbol;
+    /// @notice The address of the creator of the NFT collection.
     address creator;
 }

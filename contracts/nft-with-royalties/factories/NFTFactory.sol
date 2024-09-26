@@ -3,16 +3,19 @@ pragma solidity 0.8.25;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
-import {NFT} from "../NFT.sol";
-import {StorageContract} from "../StorageContract.sol";
-import {NftParameters, InstanceInfo} from "../Structures.sol";
+
 import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
+
+import {NFT} from "../NFT.sol";
+import {NftFactoryInfo, NftParameters, InstanceInfo, NftParamsInfo} from "../Structures.sol";
 
 error InvalidSignature();
 error EmptyNamePasted();
 error EmptySymbolPasted();
 error NFTAlreadyExists();
 error ZeroAddressPasted();
+/// @notice Error thrown when an incorrect instance ID is provided.
+error IncorrectInstanceId();
 
 /// @title NFT Factory Contract
 /// @notice A factory contract to create new NFT instances with specific parameters
@@ -33,7 +36,7 @@ contract NFTFactory is OwnableUpgradeable {
 
     /// @notice Event emitted when the platform commission is set
     /// @param newComission The new platform commission in BPs (basis points)
-    event PlatformComissionSet(uint8 newComission);
+    event PlatformComissionSet(uint256 newComission);
 
     /// @notice Event emitted when the platform address is set
     /// @param newPlatformAddress The new platform address
@@ -43,9 +46,9 @@ contract NFTFactory is OwnableUpgradeable {
     /// @param newValidator The new transfer validator contract
     event TransferValidatorSet(ITransferValidator721 newValidator);
 
-    /// @notice Event emitted when the storage address is set
-    /// @param newStorageContract The new storage contract
-    event StorageContractSet(address newStorageContract);
+    /// @notice Event emitted when the default payment currency is set
+    /// @param defaultPaymentCurrency The new default payment currency
+    event DefaultPaymentCurrencySet(address defaultPaymentCurrency);
 
     /// @notice Address of the current transfer validator
     /**
@@ -57,17 +60,17 @@ contract NFTFactory is OwnableUpgradeable {
      */
     ITransferValidator721 public transferValidator;
 
-    /// @notice Platform address that is allowed to collect fees
-    address public platformAddress;
+    /// @notice A struct that contains info parameters for NFTFactory.
+    NftFactoryInfo private _info;
 
-    /// @notice Address of the storage contract used to store NFT instances
-    address public storageContract;
+    /// @notice An array storing all created NFT instances.
+    NFT[] public instances;
 
-    /// @notice Address of the signer used for signature verification
-    address public signerAddress;
+    /// @notice A mapping from keccak256(name, symbol) to the NFT instance address.
+    mapping(bytes32 => NFT) public getInstance;
 
-    /// @notice The platform commission in BPs
-    uint8 public platformCommission;
+    /// @notice A mapping from NFT instance address to its storage information.
+    mapping(NFT => NftParamsInfo) public instanceInfos;
 
     /// @notice Modifier to check if the passed address is not zero
     /// @param _address The address to check
@@ -83,55 +86,63 @@ contract NFTFactory is OwnableUpgradeable {
     // }
 
     /// @notice Initializes the contract
-    /// @param _signer The address of the signer
-    /// @param _platformAddress The address of the platform that collects fees
-    /// @param _platformCommission The platform commission in BPs
-    /// @param _storageContract The address of the storage contract
+    /// @param info The info of NFTFactory
     /// @param validator The transfer validator contract
     function initialize(
-        address _signer,
-        address _platformAddress,
-        uint8 _platformCommission,
-        address _storageContract,
+        NftFactoryInfo calldata info,
         ITransferValidator721 validator
     ) external initializer {
-        __Ownable_init(msg.sender);
+        _info = info;
 
-        _setStorageContract(_storageContract);
-        _setSigner(_signer);
-        _setPlatformAddress(_platformAddress);
-        _setPlatformCommission(_platformCommission);
         _setTransferValidator(validator);
+
+        __Ownable_init(msg.sender);
     }
 
-    /// @notice Sets new storage contract address
-    /// @dev Can only be called by the owner
-    /// @param _storageContract The new storage address
-    function setStorageContract(address _storageContract) external onlyOwner {
-        _setStorageContract(_storageContract);
+    /**
+     * @notice Sets the default payment currency address
+     * @dev Can only be called by the owner
+     * @param _paymentCurrency The new default payment currency address
+     */
+    function setDefaultPaymentCurrency(
+        address _paymentCurrency
+    ) external onlyOwner zeroAddressCheck(_paymentCurrency) {
+        _info.defaultPaymentCurrency = _paymentCurrency;
+
+        emit DefaultPaymentCurrencySet(_paymentCurrency);
     }
 
     /// @notice Sets new platform commission
     /// @dev Can only be called by the owner
     /// @param _platformCommission The new platform commission in BPs
     function setPlatformCommission(
-        uint8 _platformCommission
+        uint256 _platformCommission
     ) external onlyOwner {
-        _setPlatformCommission(_platformCommission);
+        _info.platformCommission = _platformCommission;
+
+        emit PlatformComissionSet(_platformCommission);
     }
 
     /// @notice Sets new platform address
     /// @dev Can only be called by the owner
     /// @param _platformAddress The new platform address
-    function setPlatformAddress(address _platformAddress) external onlyOwner {
-        _setPlatformAddress(_platformAddress);
+    function setPlatformAddress(
+        address _platformAddress
+    ) external onlyOwner zeroAddressCheck(_platformAddress) {
+        _info.platformAddress = _platformAddress;
+
+        emit PlatformAddressSet(_platformAddress);
     }
 
     /// @notice Sets new signer address
     /// @dev Can only be called by the owner
     /// @param _signer The new signer address
-    function setSigner(address _signer) external onlyOwner {
-        _setSigner(_signer);
+    function setSigner(
+        address _signer
+    ) external onlyOwner zeroAddressCheck(_signer) {
+        _info.signerAddress = _signer;
+
+        emit SignerSet(_signer);
     }
 
     /// @notice Sets new transfer validator contract
@@ -145,121 +156,131 @@ contract NFTFactory is OwnableUpgradeable {
 
     /// @notice Produces a new NFT instance
     /// @dev Creates a new instance of the NFT and adds the information to the storage contract
-    /// @param _info Struct containing the details of the new NFT instance
+    /// @param info Struct containing the details of the new NFT instance
     /// @return nft The address of the created NFT instance
-    function produce(InstanceInfo calldata _info) external returns (NFT nft) {
-        if ((bytes(_info.name)).length == 0) {
+    function produce(InstanceInfo memory info) external returns (NFT nft) {
+        if ((bytes(info.name)).length == 0) {
             revert EmptyNamePasted();
         }
-        if ((bytes(_info.symbol)).length == 0) {
+        if ((bytes(info.symbol)).length == 0) {
             revert EmptySymbolPasted();
         }
 
         if (
-            !_isSignatureValid(
-                _info.name,
-                _info.symbol,
-                _info.contractURI,
-                _info.feeNumerator,
-                _info.feeReceiver,
-                _info.signature
-            )
-        ) {
-            revert InvalidSignature();
-        }
-
-        address _storageContract = storageContract;
-
-        NftParameters memory params = NftParameters({
-            storageContract: _storageContract,
-            info: _info,
-            creator: msg.sender,
-            platform: platformAddress
-        });
-
-        if (
-            StorageContract(_storageContract).getInstance(
-                keccak256(abi.encodePacked(_info.name, _info.symbol))
-            ) != NFT(address(0))
+            getInstance[keccak256(abi.encodePacked(info.name, info.symbol))] !=
+            NFT(address(0))
         ) {
             revert NFTAlreadyExists();
         }
 
+        if (!_isSignatureValid(info)) {
+            revert InvalidSignature();
+        }
+
+        address payingToken = info.payingToken == address(0)
+            ? _info.defaultPaymentCurrency
+            : info.payingToken;
+
+        uint256 id = instances.length;
+
+        info.payingToken = payingToken;
+
+        NftParameters memory params = NftParameters({
+            factory: address(this),
+            info: info,
+            creator: msg.sender
+        });
+
         nft = new NFT(params, transferValidator);
 
-        uint256 id = StorageContract(_storageContract).addInstance(
-            nft,
-            msg.sender,
-            _info.name,
-            _info.symbol
-        );
+        instances.push(nft);
+        getInstance[keccak256(abi.encodePacked(info.name, info.symbol))] = nft;
+        instanceInfos[nft] = NftParamsInfo({
+            name: info.name,
+            symbol: info.symbol,
+            creator: msg.sender
+        });
 
-        emit NFTCreated(_info.name, _info.symbol, nft, id);
+        emit NFTCreated(info.name, info.symbol, nft, id);
+    }
+
+    /**
+     * @notice Retrieves information about a specific NFT instance.
+     * @param instanceId The ID of the NFT instance.
+     * @return instanceInfo The information about the specified instance.
+     * @dev Reverts with `IncorrectInstanceId` if the provided ID is invalid.
+     */
+    function getInstanceInfo(
+        uint256 instanceId
+    ) external view returns (NftParamsInfo memory) {
+        if (instanceId >= instances.length) {
+            revert IncorrectInstanceId();
+        }
+
+        return instanceInfos[instances[instanceId]];
+    }
+
+    /**
+     * @notice Returns the total count of NFT instances stored in the contract.
+     * @return The number of NFT instances.
+     */
+    function platformAddress() external view returns (address) {
+        return _info.platformAddress;
+    }
+
+    /**
+     * @notice Returns the total count of NFT instances stored in the contract.
+     * @return The number of NFT instances.
+     */
+    function signerAddress() external view returns (address) {
+        return _info.signerAddress;
+    }
+
+    /**
+     * @notice Returns the total count of NFT instances stored in the contract.
+     * @return The number of NFT instances.
+     */
+    function defaultPaymentCurrency() external view returns (address) {
+        return _info.defaultPaymentCurrency;
+    }
+
+    /**
+     * @notice Returns the total count of NFT instances stored in the contract.
+     * @return The number of NFT instances.
+     */
+    function platformCommission() external view returns (uint256) {
+        return _info.platformCommission;
+    }
+
+    /**
+     * @notice Returns the total count of NFT instances stored in the contract.
+     * @return The number of NFT instances.
+     */
+    function instancesCount() external view returns (uint256) {
+        return instances.length;
     }
 
     /// @notice Verifies if the signature is valid for the current signer address
     /// @dev This function checks the signature for the provided NFT data
-    /// @param name Name of the new NFT instance
-    /// @param symbol Symbol of the new NFT instance
-    /// @param contractURI URI for the new contract
-    /// @param feeNumerator Fee numerator for ERC2981 (royalties)
-    /// @param feeReceiver Address to receive the fees
-    /// @param signature The signature to validate
+    /// @param info Struct containing the details of the new NFT instance
     /// @return bool Whether the signature is valid
     function _isSignatureValid(
-        string calldata name,
-        string calldata symbol,
-        string calldata contractURI,
-        uint96 feeNumerator,
-        address feeReceiver,
-        bytes calldata signature
+        InstanceInfo memory info
     ) internal view returns (bool) {
         return
-            signerAddress.isValidSignatureNow(
+            _info.signerAddress.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
-                        name,
-                        symbol,
-                        contractURI,
-                        feeNumerator,
-                        feeReceiver,
+                        info.name,
+                        info.symbol,
+                        info.contractURI,
+                        info.feeNumerator,
+                        info.feeReceiver,
                         block.chainid
                     )
                 ),
-                signature
+                info.signature
             );
-    }
-
-    /// @notice Private function to set the storage address
-    /// @param _storageContract The new storage address
-    function _setStorageContract(
-        address _storageContract
-    ) private zeroAddressCheck(_storageContract) {
-        storageContract = _storageContract;
-        emit StorageContractSet(_storageContract);
-    }
-
-    /// @notice Private function to set the platform commission
-    /// @param _platformCommission The new platform commission in BPs
-    function _setPlatformCommission(uint8 _platformCommission) private {
-        platformCommission = _platformCommission;
-        emit PlatformComissionSet(_platformCommission);
-    }
-
-    /// @notice Private function to set the platform address
-    /// @param _platformAddress The new platform address
-    function _setPlatformAddress(
-        address _platformAddress
-    ) private zeroAddressCheck(_platformAddress) {
-        platformAddress = _platformAddress;
-        emit PlatformAddressSet(_platformAddress);
-    }
-
-    /// @notice Private function to set the signer address
-    /// @param _signer The new signer address
-    function _setSigner(address _signer) private zeroAddressCheck(_signer) {
-        signerAddress = _signer;
-        emit SignerSet(_signer);
     }
 
     /// @notice Private function to set the transfer validator contract
