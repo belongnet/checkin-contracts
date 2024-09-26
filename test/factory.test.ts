@@ -2,11 +2,11 @@
 import { ethers, upgrades } from 'hardhat';
 import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, ContractFactory } from "ethers";
-import { Erc20Example, MockTransferValidator, NFTFactory, StorageContract } from "../typechain-types";
+import { Erc20Example, MockTransferValidator, NFTFactory } from "../typechain-types";
 import { expect } from "chai";
-import { InstanceInfoStruct } from "../typechain-types/contracts/nft-with-royalties/NFT";
+import { InstanceInfoStruct } from "../typechain-types/contracts/NFT";
 import EthCrypto from "eth-crypto";
-import { NftFactoryInfoStruct } from '../typechain-types/contracts/nft-with-royalties/factories/NFTFactory';
+import { NftFactoryInfoStruct } from '../typechain-types/contracts/factories/NFTFactory';
 
 describe('NFTFactory', () => {
 	const PLATFORM_COMISSION = "10";
@@ -32,7 +32,8 @@ describe('NFTFactory', () => {
 			platformAddress: owner.address,
 			signerAddress: signer.address,
 			platformCommission: PLATFORM_COMISSION,
-			defaultPaymentCurrency: ETH_ADDRESS
+			defaultPaymentCurrency: ETH_ADDRESS,
+			maxArraySize: 10
 		} as NftFactoryInfoStruct
 
 		const NFTFactory: ContractFactory = await ethers.getContractFactory("NFTFactory", owner);
@@ -53,6 +54,7 @@ describe('NFTFactory', () => {
 			expect(await factory.platformCommission()).to.be.equal(+PLATFORM_COMISSION);
 			expect(await factory.signerAddress()).to.be.equal(signer.address);
 			expect(await factory.defaultPaymentCurrency()).to.be.equal(ETH_ADDRESS);
+			expect(await factory.maxArraySize()).to.be.equal(nftInfo.maxArraySize);
 		});
 
 		it("can not be initialized again", async () => {
@@ -377,14 +379,38 @@ describe('NFTFactory', () => {
 	});
 
 	describe('Works properly', () => {
+		it("Can set max array size", async () => {
+			const { factory, alice } = await loadFixture(fixture);
+
+			await expect(factory.connect(alice).setMaxArraySize(2)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+
+			const tx = await factory.setMaxArraySize(2);
+
+			await expect(tx).to.emit(factory, 'MaxArraySizeSet').withArgs(2);
+			expect(await factory.maxArraySize()).to.be.equal(2);
+		});
+
 		it("Can set default currency", async () => {
 			const { factory, erc20Example, alice } = await loadFixture(fixture);
 
 			await expect(factory.connect(alice).setDefaultPaymentCurrency(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.setDefaultPaymentCurrency(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
 
-			await factory.setDefaultPaymentCurrency(erc20Example.address);
+			const tx = await factory.setDefaultPaymentCurrency(erc20Example.address);
+
+			await expect(tx).to.emit(factory, 'DefaultPaymentCurrencySet').withArgs(erc20Example.address);
 			expect(await factory.defaultPaymentCurrency()).to.be.equal(erc20Example.address);
+		});
+
+		it("Can set platform comision", async () => {
+			const { factory, erc20Example, alice } = await loadFixture(fixture);
+
+			await expect(factory.connect(alice).setPlatformCommission(2)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+
+			const tx = await factory.setPlatformCommission(2);
+
+			await expect(tx).to.emit(factory, 'PlatformComissionSet').withArgs(2);
+			expect(await factory.platformCommission()).to.be.equal(2);
 		});
 
 		it("Can set platform address", async () => {
@@ -393,7 +419,9 @@ describe('NFTFactory', () => {
 			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
 
-			await factory.setPlatformAddress(erc20Example.address);
+			const tx = await factory.setPlatformAddress(erc20Example.address);
+
+			await expect(tx).to.emit(factory, 'PlatformAddressSet').withArgs(erc20Example.address);
 			expect(await factory.platformAddress()).to.be.equal(erc20Example.address);
 		});
 
@@ -403,7 +431,9 @@ describe('NFTFactory', () => {
 			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
 
-			await factory.setSigner(erc20Example.address);
+			const tx = await factory.setSigner(erc20Example.address);
+
+			await expect(tx).to.emit(factory, 'SignerSet').withArgs(erc20Example.address);
 			expect(await factory.signerAddress()).to.be.equal(erc20Example.address);
 		});
 	});
@@ -416,6 +446,7 @@ describe('NFTFactory', () => {
 			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.connect(alice).setTransferValidator(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setMaxArraySize(2)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 		});
 
 		it("zero params check", async () => {
