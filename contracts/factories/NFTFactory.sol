@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.25;
+pragma solidity 0.8.27;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
@@ -49,6 +49,10 @@ contract NFTFactory is OwnableUpgradeable {
     /// @notice Event emitted when the default payment currency is set
     /// @param defaultPaymentCurrency The new default payment currency
     event DefaultPaymentCurrencySet(address defaultPaymentCurrency);
+
+    /// @notice Event emitted when the max array size is set
+    /// @param arraySize The new max array size
+    event MaxArraySizeSet(uint256 arraySize);
 
     /// @notice Address of the current transfer validator
     /**
@@ -110,6 +114,15 @@ contract NFTFactory is OwnableUpgradeable {
         _info.defaultPaymentCurrency = _paymentCurrency;
 
         emit DefaultPaymentCurrencySet(_paymentCurrency);
+    }
+
+    /// @notice Sets new max array size
+    /// @dev Can only be called by the owner
+    /// @param _arraySize The new max array size
+    function setMaxArraySize(uint256 _arraySize) external onlyOwner {
+        _info.maxArraySize = _arraySize;
+
+        emit MaxArraySizeSet(_arraySize);
     }
 
     /// @notice Sets new platform commission
@@ -250,6 +263,14 @@ contract NFTFactory is OwnableUpgradeable {
      */
     function platformCommission() external view returns (uint256) {
         return _info.platformCommission;
+    }
+
+    /**
+     * @notice Returns the max array size.
+     * @return The max array size.
+     */
+    function maxArraySize() external view returns (uint256) {
+        return _info.maxArraySize;
     }
 
     /**
