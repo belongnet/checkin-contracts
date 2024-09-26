@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.27;
 
 /**
  * @title NftFactoryInfo
@@ -15,6 +15,8 @@ struct NftFactoryInfo {
     address defaultPaymentCurrency;
     /// @notice The platform commission in BPs
     uint256 platformCommission;
+    /// @notice The maximum size of array
+    uint256 maxArraySize;
 }
 
 /**
@@ -73,4 +75,23 @@ struct NftParamsInfo {
     string symbol;
     /// @notice The address of the creator of the NFT collection.
     address creator;
+}
+
+struct StaticPriceParams {
+    address receiver;
+    uint256 tokenId;
+    bool whitelisted;
+    uint256 expectedMintPrice;
+    address expectedPayingToken;
+    string tokenUri;
+    bytes signature;
+}
+
+struct DynamicPriceParams {
+    address receiver;
+    uint256 tokenId;
+    uint256 price;
+    address expectedPayingToken;
+    string tokenUri;
+    bytes signature;
 }
