@@ -81,7 +81,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
      * @param expectedMintPrice The expected mint price at the time of minting.
      * @param expectedPayingToken The expected paying token (ETH or another token).
      */
-    function mint(
+    function mintStaticPrice(
         address receiver,
         uint256 tokenId,
         string calldata tokenUri,
@@ -135,7 +135,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
      * @param price The price for the NFT.
      * @param expectedPayingToken The expected paying token (ETH or another token).
      */
-    function mint(
+    function mintDynamicPrice(
         address receiver,
         uint256 tokenId,
         string calldata tokenUri,
