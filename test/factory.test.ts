@@ -2,10 +2,11 @@
 import { ethers, upgrades } from 'hardhat';
 import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, ContractFactory } from "ethers";
-import { MockTransferValidator, NFTFactory, StorageContract } from "../typechain-types";
+import { Erc20Example, MockTransferValidator, NFTFactory, StorageContract } from "../typechain-types";
 import { expect } from "chai";
 import { InstanceInfoStruct } from "../typechain-types/contracts/nft-with-royalties/NFT";
 import EthCrypto from "eth-crypto";
+import { NftFactoryInfoStruct } from '../typechain-types/contracts/nft-with-royalties/factories/NFTFactory';
 
 describe('NFTFactory', () => {
 	const PLATFORM_COMISSION = "10";
@@ -13,58 +14,57 @@ describe('NFTFactory', () => {
 	const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 	const chainId = 31337;
 
+	let nftInfo: NftFactoryInfoStruct;
+
 	async function fixture() {
 		const [owner, alice, bob, charlie] = await ethers.getSigners();
 		const signer = EthCrypto.createIdentity();
 
-		const Storage: ContractFactory = await ethers.getContractFactory("StorageContract", owner);
-		const storage: StorageContract = await Storage.deploy() as StorageContract;
-		await storage.deployed();
+		const Erc20Example: ContractFactory = await ethers.getContractFactory("Erc20Example");
+		const erc20Example: Erc20Example = await Erc20Example.deploy() as Erc20Example;
+		await erc20Example.deployed();
 
 		const Validator: ContractFactory = await ethers.getContractFactory("MockTransferValidator");
 		const validator: MockTransferValidator = await Validator.deploy(true) as MockTransferValidator;
 		await validator.deployed();
 
+		nftInfo = {
+			platformAddress: owner.address,
+			signerAddress: signer.address,
+			platformCommission: PLATFORM_COMISSION,
+			defaultPaymentCurrency: ETH_ADDRESS
+		} as NftFactoryInfoStruct
+
 		const NFTFactory: ContractFactory = await ethers.getContractFactory("NFTFactory", owner);
 		const factory: NFTFactory = await upgrades.deployProxy(NFTFactory, [
-			signer.address,
-			owner.address,
-			PLATFORM_COMISSION,
-			storage.address,
+			nftInfo,
 			validator.address,
 		]) as NFTFactory;
 		await factory.deployed();
 
-		await storage.connect(owner).setFactory(factory.address);
-
-		return { storage, factory, validator, owner, alice, bob, charlie, signer };
+		return { factory, validator, erc20Example, owner, alice, bob, charlie, signer };
 	}
 
 	describe('Deployment', () => {
 		it("should correct initialize", async () => {
-			const { factory, storage, owner, signer } = await loadFixture(fixture);
+			const { factory, owner, signer } = await loadFixture(fixture);
 
 			expect(await factory.platformAddress()).to.be.equal(owner.address);
-			expect(await factory.storageContract()).to.be.equal(storage.address);
 			expect(await factory.platformCommission()).to.be.equal(+PLATFORM_COMISSION);
 			expect(await factory.signerAddress()).to.be.equal(signer.address);
+			expect(await factory.defaultPaymentCurrency()).to.be.equal(ETH_ADDRESS);
 		});
 
 		it("can not be initialized again", async () => {
-			const { factory, storage, owner, signer, validator } = await loadFixture(fixture);
+			const { factory, validator } = await loadFixture(fixture);
 
-			await expect(factory.initialize(signer.address,
-				owner.address,
-				PLATFORM_COMISSION,
-				storage.address,
-				validator.address,)).to.be.revertedWithCustomError(factory, 'InvalidInitialization')
-
+			await expect(factory.initialize(nftInfo, validator.address,)).to.be.revertedWithCustomError(factory, 'InvalidInitialization')
 		});
 	});
 
 	describe('Deploy NFT', () => {
 		it("should correct deploy NFT instance", async () => {
-			const { factory, storage, owner, alice, signer } = await loadFixture(fixture);
+			const { factory, owner, alice, signer } = await loadFixture(fixture);
 
 			const nftName = "Name 1";
 			const nftSymbol = "S1";
@@ -100,22 +100,6 @@ describe('NFTFactory', () => {
 			};
 
 			const fakeInfo = info;
-
-			fakeInfo.payingToken = ZERO_ADDRESS;
-			await expect(
-				factory
-					.connect(alice)
-					.produce(fakeInfo)
-			).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
-			fakeInfo.payingToken = ETH_ADDRESS;
-
-			fakeInfo.feeReceiver = ZERO_ADDRESS;
-			await expect(
-				factory
-					.connect(alice)
-					.produce(fakeInfo)
-			).to.be.revertedWithCustomError(factory, 'InvalidSignature');
-			fakeInfo.feeReceiver = owner.address;
 
 			const emptyNameMessage = EthCrypto.hash.keccak256([
 				{ type: "string", value: "" },
@@ -185,29 +169,30 @@ describe('NFTFactory', () => {
 				[nftName, nftSymbol]
 			);
 
-			const instanceAddress = await storage.getInstance(hash);
+			const instanceAddress = await factory.getInstance(hash);
 			expect(instanceAddress).to.not.be.equal(ZERO_ADDRESS);
-			expect(instanceAddress).to.be.equal(await storage.instances(0));
-			const instanceInfo = await storage.getInstanceInfo(0);
+			expect(instanceAddress).to.be.equal(await factory.instances(0));
+			const instanceInfo = await factory.getInstanceInfo(0);
 			expect(instanceInfo.name).to.be.equal(nftName);
 			expect(instanceInfo.symbol).to.be.equal(nftSymbol);
 			expect(instanceInfo.creator).to.be.equal(alice.address);
+			await expect(factory.getInstanceInfo(10)).to.be.revertedWithCustomError(factory, 'IncorrectInstanceId');
 
 			console.log("instanceAddress = ", instanceAddress);
 
 			const nft = await ethers.getContractAt("NFT", instanceAddress);
-			const [storageContract, infoReturned, creator] = await nft.parameters();
+			const [factoryAddress, infoReturned, creator] = await nft.parameters();
 
-			expect(storageContract).to.be.equal(storage.address);
+			expect(factoryAddress).to.be.equal(factory.address);
 			expect(infoReturned.payingToken).to.be.equal(info.payingToken);
 			expect(infoReturned.mintPrice).to.be.equal(info.mintPrice);
 			expect(infoReturned.contractURI).to.be.equal(info.contractURI);
 			expect(creator).to.be.equal(alice.address);
-			expect(await storage.instancesCount()).to.be.equal(1);
+			expect(await factory.instancesCount()).to.be.equal(1);
 		});
 
 		it("should correctly deploy several NFT nfts", async () => {
-			const { factory, storage, owner, alice, bob, charlie, signer } = await loadFixture(fixture);
+			const { factory, owner, alice, bob, charlie, signer } = await loadFixture(fixture);
 
 			const nftName1 = "Name 1";
 			const nftName2 = "Name 2";
@@ -239,7 +224,7 @@ describe('NFTFactory', () => {
 					name: nftName1,
 					symbol: nftSymbol1,
 					contractURI: contractURI1,
-					payingToken: ETH_ADDRESS,
+					payingToken: ZERO_ADDRESS,
 					mintPrice: price1,
 					whitelistMintPrice: price1,
 					transferable: true,
@@ -321,21 +306,21 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol3 },
 			]);
 
-			const instanceAddress1 = await storage.getInstance(hash1);
-			const instanceAddress2 = await storage.getInstance(hash2);
-			const instanceAddress3 = await storage.getInstance(hash3);
+			const instanceAddress1 = await factory.getInstance(hash1);
+			const instanceAddress2 = await factory.getInstance(hash2);
+			const instanceAddress3 = await factory.getInstance(hash3);
 
 			expect(instanceAddress1).to.not.be.equal(ZERO_ADDRESS);
 			expect(instanceAddress2).to.not.be.equal(ZERO_ADDRESS);
 			expect(instanceAddress3).to.not.be.equal(ZERO_ADDRESS);
 
-			expect(instanceAddress1).to.be.equal(await storage.instances(0));
-			expect(instanceAddress2).to.be.equal(await storage.instances(1));
-			expect(instanceAddress3).to.be.equal(await storage.instances(2));
+			expect(instanceAddress1).to.be.equal(await factory.instances(0));
+			expect(instanceAddress2).to.be.equal(await factory.instances(1));
+			expect(instanceAddress3).to.be.equal(await factory.instances(2));
 
-			const instanceInfo1 = await storage.getInstanceInfo(0);
-			const instanceInfo2 = await storage.getInstanceInfo(1);
-			const instanceInfo3 = await storage.getInstanceInfo(2);
+			const instanceInfo1 = await factory.getInstanceInfo(0);
+			const instanceInfo2 = await factory.getInstanceInfo(1);
+			const instanceInfo3 = await factory.getInstanceInfo(2);
 
 			expect(instanceInfo1.name).to.be.equal(nftName1);
 			expect(instanceInfo1.symbol).to.be.equal(nftSymbol1);
@@ -354,25 +339,25 @@ describe('NFTFactory', () => {
 			console.log("instanceAddress3 = ", instanceAddress3);
 
 			const nft1 = await ethers.getContractAt("NFT", instanceAddress1);
-			let [storageContract, info, creator] = await nft1.parameters();
+			let [factoryAddress, info, creator] = await nft1.parameters();
 			expect(info.payingToken).to.be.equal(ETH_ADDRESS);
-			expect(storageContract).to.be.equal(storage.address);
+			expect(factoryAddress).to.be.equal(factory.address);
 			expect(info.mintPrice).to.be.equal(price1);
 			expect(info.contractURI).to.be.equal(contractURI1);
 			expect(creator).to.be.equal(alice.address);
 
 			const nft2 = await ethers.getContractAt("NFT", instanceAddress2);
-			[storageContract, info, creator] = await nft2.parameters();
+			[factoryAddress, info, creator] = await nft2.parameters();
 			expect(info.payingToken).to.be.equal(ETH_ADDRESS);
-			expect(storageContract).to.be.equal(storage.address);
+			expect(factoryAddress).to.be.equal(factory.address);
 			expect(info.mintPrice).to.be.equal(price2);
 			expect(info.contractURI).to.be.equal(contractURI2);
 			expect(creator).to.be.equal(bob.address);
 
 			const nft3 = await ethers.getContractAt("NFT", instanceAddress3);
-			[storageContract, info, creator] = await nft3.parameters();
+			[factoryAddress, info, creator] = await nft3.parameters();
 			expect(info.payingToken).to.be.equal(ETH_ADDRESS);
-			expect(storageContract).to.be.equal(storage.address);
+			expect(factoryAddress).to.be.equal(factory.address);
 			expect(info.mintPrice).to.be.equal(price3);
 			expect(info.contractURI).to.be.equal(contractURI3);
 			expect(creator).to.be.equal(charlie.address);
@@ -383,8 +368,6 @@ describe('NFTFactory', () => {
 			const newPlatformAddress = bob.address;
 			const newSigner = charlie.address;
 
-			await factory.connect(owner).setStorageContract(newPlatformAddress);
-			expect(await factory.storageContract()).to.be.equal(newPlatformAddress);
 			await factory.connect(owner).setPlatformAddress(newPlatformAddress);
 			expect(await factory.platformAddress()).to.be.equal(newPlatformAddress);
 			await expect(factory.connect(owner).setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
@@ -393,12 +376,43 @@ describe('NFTFactory', () => {
 		});
 	});
 
+	describe('Works properly', () => {
+		it("Can set default currency", async () => {
+			const { factory, erc20Example, alice } = await loadFixture(fixture);
+
+			await expect(factory.connect(alice).setDefaultPaymentCurrency(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.setDefaultPaymentCurrency(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+
+			await factory.setDefaultPaymentCurrency(erc20Example.address);
+			expect(await factory.defaultPaymentCurrency()).to.be.equal(erc20Example.address);
+		});
+
+		it("Can set platform address", async () => {
+			const { factory, erc20Example, alice } = await loadFixture(fixture);
+
+			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+
+			await factory.setPlatformAddress(erc20Example.address);
+			expect(await factory.platformAddress()).to.be.equal(erc20Example.address);
+		});
+
+		it("Can set signer", async () => {
+			const { factory, erc20Example, alice } = await loadFixture(fixture);
+
+			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+
+			await factory.setSigner(erc20Example.address);
+			expect(await factory.signerAddress()).to.be.equal(erc20Example.address);
+		});
+	});
+
 	describe('Errors', () => {
 		it("only owner", async () => {
 			const { factory, alice } = await loadFixture(fixture);
 
 			await expect(factory.connect(alice).setPlatformCommission(1)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
-			await expect(factory.connect(alice).setStorageContract(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
 			await expect(factory.connect(alice).setTransferValidator(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
@@ -407,7 +421,6 @@ describe('NFTFactory', () => {
 		it("zero params check", async () => {
 			const { factory, } = await loadFixture(fixture);
 
-			await expect(factory.setStorageContract(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
 			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
 			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
 			await expect(factory.setTransferValidator(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
