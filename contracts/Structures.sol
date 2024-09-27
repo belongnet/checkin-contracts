@@ -3,31 +3,31 @@ pragma solidity 0.8.27;
 
 /**
  * @title NftFactoryInfo
- * @notice A struct that contains info parameters for NFTFactory.
- * @dev This struct is used to store parameters in contract.
+ * @notice A struct that contains parameters related to the NFT factory, such as platform and commission details.
+ * @dev This struct is used to store key configuration information for the NFT factory.
  */
 struct NftFactoryInfo {
-    /// @notice Platform address that is allowed to collect fees
+    /// @notice The platform address that is allowed to collect fees.
     address platformAddress;
-    /// @notice Address of the signer used for signature verification
+    /// @notice The address of the signer used for signature verification.
     address signerAddress;
-    /// @notice Address of the default payment currency
+    /// @notice The address of the default payment currency.
     address defaultPaymentCurrency;
-    /// @notice The platform commission in BPs
+    /// @notice The platform commission in basis points (BPs).
     uint256 platformCommission;
-    /// @notice The maximum size of array
+    /// @notice The maximum size of an array allowed in batch operations.
     uint256 maxArraySize;
 }
 
 /**
  * @title NftParameters
- * @notice A struct that contains all the parameters needed to create an NFT collection.
- * @dev This struct is used to pass parameters between contracts.
+ * @notice A struct that contains all necessary parameters for creating an NFT collection.
+ * @dev This struct is used to pass parameters between contracts during the creation of a new NFT collection.
  */
 struct NftParameters {
-    /// @notice The address of the factory contract where the collection is created.
+    /// @notice The address of the factory contract where the NFT collection is created.
     address factory;
-    /// @notice The detailed information about the NFT collection.
+    /// @notice The detailed information about the NFT collection, including its properties and configuration.
     InstanceInfo info;
     /// @notice The address of the creator of the NFT collection.
     address creator;
@@ -35,12 +35,13 @@ struct NftParameters {
 
 /**
  * @title InstanceInfo
- * @notice A struct that holds detailed information about an individual NFT collection.
+ * @notice A struct that holds detailed information about an individual NFT collection, such as name, symbol, and pricing.
+ * @dev This struct is used to store key metadata and configuration information for each NFT collection.
  */
 struct InstanceInfo {
     /// @notice The name of the NFT collection.
     string name;
-    /// @notice The symbol of the NFT collection.
+    /// @notice The symbol representing the NFT collection.
     string symbol;
     /// @notice The contract URI for the NFT collection, used for metadata.
     string contractURI;
@@ -48,47 +49,68 @@ struct InstanceInfo {
     address payingToken;
     /// @notice The price to mint a token in the collection.
     uint256 mintPrice;
-    /// @notice The price to mint a token for whitelisted users.
+    /// @notice The price to mint a token for whitelisted users in the collection.
     uint256 whitelistMintPrice;
-    /// @notice A flag indicating whether the tokens in the collection are transferable.
+    /// @notice A boolean flag indicating whether the tokens in the collection are transferable.
     bool transferable;
     /// @notice The maximum total supply of tokens in the collection.
     uint256 maxTotalSupply;
     /// @notice The royalty fraction for platform and creator royalties, expressed as a numerator.
     uint96 feeNumerator;
-    /// @notice The address that will receive the royalties.
+    /// @notice The address that will receive the royalties from secondary sales.
     address feeReceiver;
-    /// @notice The expiration time for the collection.
+    /// @notice The expiration time (as a timestamp) for the collection.
     uint256 collectionExpire;
-    /// @notice A signature provided by the backend for validation.
+    /// @notice A signature provided by the backend to validate the creation of the collection.
     bytes signature;
 }
 
 /**
  * @title NftParamsInfo
- * @notice A simplified struct that holds only the basic information of the NFT collection.
+ * @notice A simplified struct that holds only the basic information of the NFT collection, such as name, symbol, and creator.
+ * @dev This struct is used for lightweight storage of NFT collection metadata.
  */
 struct NftParamsInfo {
     /// @notice The name of the NFT collection.
     string name;
-    /// @notice The symbol of the NFT collection.
+    /// @notice The symbol representing the NFT collection.
     string symbol;
     /// @notice The address of the creator of the NFT collection.
     address creator;
 }
 
+/**
+ * @title StaticPriceParams
+ * @notice A struct for holding parameters related to minting NFTs with a static price.
+ * @dev This struct is used for static price minting operations.
+ */
 struct StaticPriceParams {
+    /// @notice The address that will receive the newly minted NFT.
     address receiver;
+    /// @notice The ID of the token to be minted.
     uint256 tokenId;
+    /// @notice A flag indicating whether the receiver is whitelisted for special pricing.
     bool whitelisted;
+    /// @notice The URI of the metadata associated with the token being minted.
     string tokenUri;
+    /// @notice The signature for verifying the minting request.
     bytes signature;
 }
 
+/**
+ * @title DynamicPriceParams
+ * @notice A struct for holding parameters related to minting NFTs with a dynamic price.
+ * @dev This struct is used for dynamic price minting operations.
+ */
 struct DynamicPriceParams {
+    /// @notice The address that will receive the newly minted NFT.
     address receiver;
+    /// @notice The ID of the token to be minted.
     uint256 tokenId;
+    /// @notice The price for minting the specific token.
     uint256 price;
+    /// @notice The URI of the metadata associated with the token being minted.
     string tokenUri;
+    /// @notice The signature for verifying the minting request.
     bytes signature;
 }
