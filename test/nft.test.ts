@@ -288,7 +288,7 @@ describe('NFT', () => {
 							value: ethers.utils.parseEther("0.02"),
 						}
 					)
-			).to.be.revertedWithCustomError(nft_eth, `IncorrectETHAmountSent`).withArgs(ethers.utils.parseEther("0.03"));
+			).to.be.revertedWithCustomError(nft_eth, `IncorrectETHAmountSent`).withArgs(ethers.utils.parseEther("0.02"));
 
 
 			await nft_eth
@@ -683,7 +683,7 @@ describe('NFT', () => {
 
 			await expect(
 				nft_eth.connect(alice).setPayingToken(ZERO_ADDRESS, newPrice, newWLPrice)
-			).to.be.revertedWithCustomError(nft_eth, "ZeroAddressPasted");
+			).to.be.revertedWithCustomError(nft_eth, "ZeroAddressPassed");
 
 			await nft_eth
 				.connect(alice)

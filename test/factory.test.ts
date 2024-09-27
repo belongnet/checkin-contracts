@@ -372,7 +372,7 @@ describe('NFTFactory', () => {
 
 			await factory.connect(owner).setPlatformAddress(newPlatformAddress);
 			expect(await factory.platformAddress()).to.be.equal(newPlatformAddress);
-			await expect(factory.connect(owner).setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+			await expect(factory.connect(owner).setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 			await factory.connect(owner).setSigner(newSigner);
 			expect(await factory.signerAddress()).to.be.equal(newSigner);
 		});
@@ -394,7 +394,7 @@ describe('NFTFactory', () => {
 			const { factory, erc20Example, alice } = await loadFixture(fixture);
 
 			await expect(factory.connect(alice).setDefaultPaymentCurrency(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
-			await expect(factory.setDefaultPaymentCurrency(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+			await expect(factory.setDefaultPaymentCurrency(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
 			const tx = await factory.setDefaultPaymentCurrency(erc20Example.address);
 
@@ -409,7 +409,7 @@ describe('NFTFactory', () => {
 
 			const tx = await factory.setPlatformCommission(2);
 
-			await expect(tx).to.emit(factory, 'PlatformComissionSet').withArgs(2);
+			await expect(tx).to.emit(factory, 'PlatformCommissionSet').withArgs(2);
 			expect(await factory.platformCommission()).to.be.equal(2);
 		});
 
@@ -417,7 +417,7 @@ describe('NFTFactory', () => {
 			const { factory, erc20Example, alice } = await loadFixture(fixture);
 
 			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
-			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
 			const tx = await factory.setPlatformAddress(erc20Example.address);
 
@@ -429,7 +429,7 @@ describe('NFTFactory', () => {
 			const { factory, erc20Example, alice } = await loadFixture(fixture);
 
 			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
-			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
 			const tx = await factory.setSigner(erc20Example.address);
 
@@ -452,9 +452,9 @@ describe('NFTFactory', () => {
 		it("zero params check", async () => {
 			const { factory, } = await loadFixture(fixture);
 
-			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
-			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
-			await expect(factory.setTransferValidator(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPasted');
+			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
+			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
+			await expect(factory.setTransferValidator(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 		});
 
 
@@ -531,7 +531,7 @@ describe('NFTFactory', () => {
 						collectionExpire: BigNumber.from("86400"),
 						signature: signature,
 					} as InstanceInfoStruct)
-			).to.be.revertedWithCustomError(factory, "EmptyNamePasted");
+			).to.be.revertedWithCustomError(factory, "EmptyNamePassed");
 
 			await expect(
 				factory
@@ -550,7 +550,7 @@ describe('NFTFactory', () => {
 						collectionExpire: BigNumber.from("86400"),
 						signature: signature,
 					} as InstanceInfoStruct)
-			).to.be.revertedWithCustomError(factory, "EmptySymbolPasted");
+			).to.be.revertedWithCustomError(factory, "EmptySymbolPassed");
 		});
 	});
 });

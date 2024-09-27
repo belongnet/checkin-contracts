@@ -36,7 +36,7 @@ describe("RoyaltiesReceiver", () => {
 				[ZERO_ADDRESS, alice.address],
 				[3000, 7000]
 			)
-		).to.be.revertedWithCustomError(RoyaltiesReceiver, 'ZeroAddressPasted');
+		).to.be.revertedWithCustomError(RoyaltiesReceiver, 'ZeroAddressPassed');
 
 		await expect(
 			RoyaltiesReceiver.deploy([owner.address, alice.address], [0, 7000])
