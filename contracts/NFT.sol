@@ -284,7 +284,7 @@ contract NFT is BaseERC721 {
         amount = expectedPayingToken == ETH_ADDRESS ? msg.value : price;
 
         if (amount != price) {
-            revert IncorrectETHAmountSent(price);
+            revert IncorrectETHAmountSent(amount);
         }
 
         unchecked {
