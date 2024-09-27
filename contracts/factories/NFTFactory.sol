@@ -181,10 +181,11 @@ contract NFTFactory is OwnableUpgradeable {
             revert EmptySymbolPassed();
         }
 
-        if (
-            getInstance[keccak256(abi.encodePacked(info.name, info.symbol))] !=
-            NFT(address(0))
-        ) {
+        bytes32 hashedNameSymbol = keccak256(
+            abi.encodePacked(info.name, info.symbol)
+        );
+
+        if (getInstance[hashedNameSymbol] != NFT(address(0))) {
             revert NFTAlreadyExists();
         }
 
@@ -209,7 +210,7 @@ contract NFTFactory is OwnableUpgradeable {
         nft = new NFT(params, transferValidator);
 
         instances.push(nft);
-        getInstance[keccak256(abi.encodePacked(info.name, info.symbol))] = nft;
+        getInstance[hashedNameSymbol] = nft;
         instanceInfos[nft] = NftParamsInfo({
             name: info.name,
             symbol: info.symbol,
