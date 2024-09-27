@@ -3,12 +3,9 @@ pragma solidity 0.8.27;
 
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
-
 import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
-
 import {NFTFactory} from "./factories/NFTFactory.sol";
 import {BaseERC721} from "./BaseERC721.sol";
-
 import {NftParameters, StaticPriceParams, DynamicPriceParams, InstanceInfo} from "./Structures.sol";
 
 /// @notice Error thrown when insufficient ETH is sent for a minting transaction.
@@ -28,11 +25,13 @@ error PriceChanged(uint256 expectedMintPrice, uint256 currentPrice);
 
 /// @notice Error thrown when the paying token changes unexpectedly.
 /// @param expectedPayingToken The expected paying token.
-/// @param currentPayingToken The actual paying token.
+/// @param currentPayingToken The actual current paying token.
 error TokenChanged(address expectedPayingToken, address currentPayingToken);
 
+/// @notice Error thrown when the lengths of the provided arrays do not match.
 error IncorrecArraysLength();
 
+/// @notice Error thrown when an array exceeds the maximum allowed size.
 error WrongArraySize();
 
 /**
@@ -55,6 +54,7 @@ contract NFT is BaseERC721 {
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /**
+     * @notice Deploys the contract with the given collection parameters and transfer validator.
      * @dev Called by the factory when a new instance is deployed.
      * @param _params Collection parameters containing information like name, symbol, fees, and more.
      * @param newValidator The transfer validator contract address.
@@ -65,9 +65,11 @@ contract NFT is BaseERC721 {
     ) BaseERC721(_params, newValidator) {}
 
     /**
-     * @notice Batch mints with static prices a new NFTs to a specified addresses.
-     * @dev Requires a signaturees from a trusted addresses and validates against whitelist status.
-     * @param paramsArray todo
+     * @notice Batch mints new NFTs with static prices to specified addresses.
+     * @dev Requires signatures from trusted addresses and validates against whitelist status.
+     * @param paramsArray An array of parameters for each mint (receiver, tokenId, tokenUri, whitelisted).
+     * @param expectedPayingToken The expected token used for payments.
+     * @param expectedMintPrice The expected price for the minting operation.
      */
     function mintStaticPriceBatch(
         StaticPriceParams[] calldata paramsArray,
@@ -118,9 +120,10 @@ contract NFT is BaseERC721 {
     }
 
     /**
-     * @notice Batch mints with dynamic prices a new NFTs to a specified addresses.
-     * @dev Requires a signatures from a trusted addresses and validates against whitelist status.
-     * @param paramsArray todo
+     * @notice Batch mints new NFTs with dynamic prices to specified addresses.
+     * @dev Requires signatures from trusted addresses and validates against whitelist status.
+     * @param paramsArray An array of parameters for each mint (receiver, tokenId, tokenUri, price).
+     * @param expectedPayingToken The expected token used for payments.
      */
     function mintDynamicPriceBatch(
         DynamicPriceParams[] calldata paramsArray,
@@ -158,26 +161,25 @@ contract NFT is BaseERC721 {
     }
 
     /**
-     * @notice Mints a new NFT to a specified address.
+     * @notice Mints a new NFT with a static price to a specified address.
      * @dev Requires a signature from a trusted address and validates against whitelist status.
-     * @param params TODO
+     * @param params Minting parameters including receiver, tokenId, tokenUri, and whitelist status.
+     * @param expectedPayingToken The expected token used for payments.
+     * @param expectedMintPrice The expected price for the minting operation.
      */
     function mintStaticPrice(
         StaticPriceParams calldata params,
         address expectedPayingToken,
         uint256 expectedMintPrice
     ) public payable {
-        // Validate signature
         _validateStaticPriceSignature(params);
 
         InstanceInfo memory info = parameters.info;
 
-        // Determine the mint price based on whitelist status
         uint256 price = params.whitelisted
             ? info.whitelistMintPrice
             : info.mintPrice;
 
-        // Check if the expected mint price matches the actual price
         if (expectedMintPrice != price) {
             revert PriceChanged(expectedMintPrice, price);
         }
@@ -194,15 +196,15 @@ contract NFT is BaseERC721 {
     }
 
     /**
-     * @notice Mints a new NFT to a specified address.
+     * @notice Mints a new NFT with a dynamic price to a specified address.
      * @dev Requires a signature from a trusted address and validates against whitelist status.
-     * @param params todo
+     * @param params Minting parameters including receiver, tokenId, tokenUri, and price.
+     * @param expectedPayingToken The expected token used for payments.
      */
     function mintDynamicPrice(
         DynamicPriceParams calldata params,
         address expectedPayingToken
     ) public payable {
-        // Validate signature
         _validateDynamicPriceSignature(params);
 
         (uint256 amount, uint256 fee, uint256 amountToCreator) = _checkPrice(
@@ -216,6 +218,14 @@ contract NFT is BaseERC721 {
         _pay(amount, fee, amountToCreator, expectedPayingToken);
     }
 
+    /**
+     * @notice Handles the payment for minting NFTs, including sending fees to the platform and creator.
+     * @dev Payments can be made in ETH or another token.
+     * @param amount The total amount to be paid.
+     * @param fee The platform commission.
+     * @param amountToCreator The amount to send to the creator.
+     * @param expectedPayingToken The token used for the payment.
+     */
     function _pay(
         uint256 amount,
         uint256 fee,
@@ -225,7 +235,6 @@ contract NFT is BaseERC721 {
         NftParameters memory _parameters = parameters;
         NFTFactory _factory = NFTFactory(_parameters.factory);
 
-        // Handle payments in ETH or other tokens
         if (expectedPayingToken == ETH_ADDRESS) {
             if (fee > 0) {
                 _factory.platformAddress().safeTransferETH(fee);
@@ -251,13 +260,20 @@ contract NFT is BaseERC721 {
         emit Paid(msg.sender, expectedPayingToken, amount);
     }
 
+    /**
+     * @notice Verifies the price and calculates the platform commission and amount to send to the creator.
+     * @param price The price to check.
+     * @param expectedPayingToken The token used for the payment.
+     * @return amount The total amount to be paid.
+     * @return fee The platform commission.
+     * @return amountToCreator The amount to send to the creator.
+     */
     function _checkPrice(
         uint256 price,
         address expectedPayingToken
     ) private returns (uint256 amount, uint256 fee, uint256 amountToCreator) {
         NftParameters memory _parameters = parameters;
 
-        // Check if the expected paying token matches the actual paying token
         if (expectedPayingToken != _parameters.info.payingToken) {
             revert TokenChanged(
                 expectedPayingToken,
@@ -267,12 +283,10 @@ contract NFT is BaseERC721 {
 
         amount = expectedPayingToken == ETH_ADDRESS ? msg.value : price;
 
-        // Check if the correct amount of ETH is sent
         if (amount != price) {
             revert IncorrectETHAmountSent(price);
         }
 
-        // Calculate platform commission and the amount to send to the creator
         unchecked {
             fee =
                 (amount *
@@ -283,6 +297,10 @@ contract NFT is BaseERC721 {
         }
     }
 
+    /**
+     * @notice Validates the signature for a dynamic price minting transaction.
+     * @param params The parameters of the minting operation.
+     */
     function _validateDynamicPriceSignature(
         DynamicPriceParams calldata params
     ) private view {
@@ -304,6 +322,10 @@ contract NFT is BaseERC721 {
         }
     }
 
+    /**
+     * @notice Validates the signature for a static price minting transaction.
+     * @param params The parameters of the minting operation.
+     */
     function _validateStaticPriceSignature(
         StaticPriceParams calldata params
     ) private view {
