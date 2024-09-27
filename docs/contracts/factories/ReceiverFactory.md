@@ -1,11 +1,5 @@
 # Solidity API
 
-## RoyaltiesReceiverCreationFailed
-
-```solidity
-error RoyaltiesReceiverCreationFailed()
-```
-
 ## ReceiverFactory
 
 A factory contract for creating instances of the RoyaltiesReceiver contract

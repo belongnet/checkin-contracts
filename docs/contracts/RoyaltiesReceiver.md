@@ -1,9 +1,9 @@
 # Solidity API
 
-## ZeroAddressPasted
+## ZeroAddressPassed
 
 ```solidity
-error ZeroAddressPasted()
+error ZeroAddressPassed()
 ```
 
 Thrown when a zero address is provided where it's not allowed.
@@ -48,10 +48,10 @@ error AccountHasSharesAlready()
 
 Thrown when an account already has shares.
 
-## DvisonByZero
+## DivisionByZero
 
 ```solidity
-error DvisonByZero()
+error DivisionByZero()
 ```
 
 Thrown when a division by zero is attempted.

@@ -1,9 +1,9 @@
 # Solidity API
 
-## ZeroAddressPasted
+## ZeroAddressPassed
 
 ```solidity
-error ZeroAddressPasted()
+error ZeroAddressPassed()
 ```
 
 Thrown when a zero address is provided where it's not allowed.

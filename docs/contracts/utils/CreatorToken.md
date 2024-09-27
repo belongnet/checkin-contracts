@@ -10,10 +10,10 @@ Thrown when trying to set a transfer validator to the same address.
 
 _This error prevents setting a validator that is already active._
 
-## ZeroAddressPasted
+## ZeroAddressPassed
 
 ```solidity
-error ZeroAddressPasted()
+error ZeroAddressPassed()
 ```
 
 Thrown when attempting to set a zero address as the transfer validator.
@@ -41,10 +41,10 @@ Emitted when the transfer validator is updated.
 | oldValidator | contract ITransferValidator721 | The old transfer validator address. |
 | newValidator | contract ITransferValidator721 | The new transfer validator address. |
 
-### CanNotSetTokenTypeOfCollection
+### CannotSetTokenTypeOfCollection
 
 ```solidity
-event CanNotSetTokenTypeOfCollection()
+event CannotSetTokenTypeOfCollection()
 ```
 
 Emitted when the collection's token type cannot be set by the transfer validator.
@@ -106,10 +106,10 @@ _The external method calling this function must include access control, such as 
 | ---- | ---- | ----------- |
 | newValidator | contract ITransferValidator721 | The address of the new transfer validator contract. |
 
-### _validateTansfer
+### _validateTransfer
 
 ```solidity
-function _validateTansfer(address caller, address from, address to, uint256 tokenId) internal
+function _validateTransfer(address caller, address from, address to, uint256 tokenId) internal
 ```
 
 Validates a transfer using the transfer validator, if one is set.

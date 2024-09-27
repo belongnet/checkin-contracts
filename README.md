@@ -62,7 +62,7 @@ At the beginning, three smart contracts are deployed at the network:
 3. The BE checks if name, symbol and royalties size comply with the rules
 4. BE creates [`contractURI`](https://docs.opensea.io/docs/contract-level-metadata) JSON file and uploads it to some hosting (the fee_recipient field must be equal to the RoyaltiesReceiver address)
 5. BE signs the collection data
-6. Now user can call produce() function on Factory contract. A new nft collection will be deployed and the user becomes the creator (not owner) of the new smart contract
+6. Now user can call `produce()` function on Factory contract. A new nft collection will be deployed and the user becomes the creator (not owner) of the new smart contract
 
 #### Mint token from the collection
 

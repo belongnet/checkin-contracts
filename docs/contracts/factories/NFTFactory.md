@@ -8,18 +8,18 @@ error InvalidSignature()
 
 Error thrown when the signature provided is invalid.
 
-## EmptyNamePasted
+## EmptyNamePassed
 
 ```solidity
-error EmptyNamePasted()
+error EmptyNamePassed()
 ```
 
 Error thrown when an empty name is provided for an NFT.
 
-## EmptySymbolPasted
+## EmptySymbolPassed
 
 ```solidity
-error EmptySymbolPasted()
+error EmptySymbolPassed()
 ```
 
 Error thrown when an empty symbol is provided for an NFT.
@@ -32,10 +32,10 @@ error NFTAlreadyExists()
 
 Error thrown when an NFT with the same name and symbol already exists.
 
-## ZeroAddressPasted
+## ZeroAddressPassed
 
 ```solidity
-error ZeroAddressPasted()
+error ZeroAddressPassed()
 ```
 
 Error thrown when a zero address is passed where it's not allowed.
@@ -85,10 +85,10 @@ Event emitted when the signer address is set.
 | ---- | ---- | ----------- |
 | newSigner | address | The new signer address. |
 
-### PlatformComissionSet
+### PlatformCommissionSet
 
 ```solidity
-event PlatformComissionSet(uint256 newCommission)
+event PlatformCommissionSet(uint256 newCommission)
 ```
 
 Event emitted when the platform commission is set.

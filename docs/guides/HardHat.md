@@ -12,6 +12,14 @@ yarn
 
 Rename .env.example to .env and fill all the fields there
 
+- `PK`: Your Ethereum wallet private key
+- `MNEMONIC`: Your Ethereum wallet's seed phrase
+- `INFURA_ID_PROJECT`: Your Infura API key for network access
+- `ETHERSCAN_API_KEY`: Your Etherscan API key for contract verification
+  (Add any other required fields)
+- `BLASTSCAN_API_KEY`: Your Blastscan API key for contract verification
+  (Add any other required fields)
+
 ### Compile
 
 ```

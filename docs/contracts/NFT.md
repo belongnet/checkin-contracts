@@ -60,10 +60,10 @@ Error thrown when the paying token changes unexpectedly.
 | expectedPayingToken | address | The expected paying token. |
 | currentPayingToken | address | The actual current paying token. |
 
-## IncorrecArraysLength
+## IncorrectArraysLength
 
 ```solidity
-error IncorrecArraysLength()
+error IncorrectArraysLength()
 ```
 
 Error thrown when the lengths of the provided arrays do not match.
