@@ -29,7 +29,7 @@ error PriceChanged(uint256 expectedMintPrice, uint256 currentPrice);
 error TokenChanged(address expectedPayingToken, address currentPayingToken);
 
 /// @notice Error thrown when the lengths of the provided arrays do not match.
-error IncorrecArraysLength();
+error IncorrectArraysLength();
 
 /// @notice Error thrown when an array exceeds the maximum allowed size.
 error WrongArraySize();

@@ -14,7 +14,7 @@ import {AutoValidatorTransferApprove} from "./utils/AutoValidatorTransferApprove
 import {NftParameters} from "./Structures.sol";
 
 /// @notice Thrown when a zero address is provided where it's not allowed.
-error ZeroAddressPasted();
+error ZeroAddressPassed();
 
 /// @notice Thrown when an unauthorized transfer attempt is made.
 error NotTransferable();
@@ -108,7 +108,7 @@ abstract contract BaseERC721 is
         uint256 _whitelistMintPrice
     ) external onlyOwner {
         if (_payingToken == address(0)) {
-            revert ZeroAddressPasted();
+            revert ZeroAddressPassed();
         }
 
         parameters.info.payingToken = _payingToken;
@@ -274,7 +274,7 @@ abstract contract BaseERC721 is
                 revert NotTransferable();
             }
 
-            _validateTansfer(msg.sender, from, to, id);
+            _validateTransfer(msg.sender, from, to, id);
         }
     }
 

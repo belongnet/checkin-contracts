@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 /// @notice Thrown when a zero address is provided where it's not allowed.
-error ZeroAddressPasted();
+error ZeroAddressPassed();
 
 /// @notice Thrown when zero shares are provided for a payee.
 error ZeroSharesPasted();
@@ -23,7 +23,7 @@ error AccountNotDuePayment();
 error AccountHasSharesAlready();
 
 /// @notice Thrown when a division by zero is attempted.
-error DvisonByZero();
+error DivisionByZero();
 
 /// @notice Thrown when an incorrect payee index is provided.
 /// @param incorrectIndex The incorrect index value provided.
@@ -281,7 +281,7 @@ contract RoyaltiesReceiver {
      */
     function _addPayee(address account, uint256 shares_) private {
         if (account == address(0)) {
-            revert ZeroAddressPasted();
+            revert ZeroAddressPassed();
         }
 
         if (shares_ == 0) {

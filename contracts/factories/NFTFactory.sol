@@ -11,13 +11,13 @@ import {NftFactoryInfo, NftParameters, InstanceInfo, NftParamsInfo} from "../Str
 /// @notice Error thrown when the signature provided is invalid.
 error InvalidSignature();
 /// @notice Error thrown when an empty name is provided for an NFT.
-error EmptyNamePasted();
+error EmptyNamePassed();
 /// @notice Error thrown when an empty symbol is provided for an NFT.
-error EmptySymbolPasted();
+error EmptySymbolPassed();
 /// @notice Error thrown when an NFT with the same name and symbol already exists.
 error NFTAlreadyExists();
 /// @notice Error thrown when a zero address is passed where it's not allowed.
-error ZeroAddressPasted();
+error ZeroAddressPassed();
 /// @notice Error thrown when an incorrect instance ID is provided.
 error IncorrectInstanceId();
 
@@ -42,7 +42,7 @@ contract NFTFactory is OwnableUpgradeable {
 
     /// @notice Event emitted when the platform commission is set.
     /// @param newCommission The new platform commission in basis points.
-    event PlatformComissionSet(uint256 newCommission);
+    event PlatformCommissionSet(uint256 newCommission);
 
     /// @notice Event emitted when the platform address is set.
     /// @param newPlatformAddress The new platform address.
@@ -79,7 +79,7 @@ contract NFTFactory is OwnableUpgradeable {
     /// @param _address The address to check.
     modifier zeroAddressCheck(address _address) {
         if (_address == address(0)) {
-            revert ZeroAddressPasted();
+            revert ZeroAddressPassed();
         }
         _;
     }
@@ -129,7 +129,7 @@ contract NFTFactory is OwnableUpgradeable {
         uint256 _platformCommission
     ) external onlyOwner {
         _info.platformCommission = _platformCommission;
-        emit PlatformComissionSet(_platformCommission);
+        emit PlatformCommissionSet(_platformCommission);
     }
 
     /**
@@ -175,10 +175,10 @@ contract NFTFactory is OwnableUpgradeable {
      */
     function produce(InstanceInfo memory info) external returns (NFT nft) {
         if ((bytes(info.name)).length == 0) {
-            revert EmptyNamePasted();
+            revert EmptyNamePassed();
         }
         if ((bytes(info.symbol)).length == 0) {
-            revert EmptySymbolPasted();
+            revert EmptySymbolPassed();
         }
 
         if (

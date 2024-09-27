@@ -9,7 +9,7 @@ error SetTransferValidatorError();
 
 /// @notice Thrown when attempting to set a zero address as the transfer validator.
 /// @dev This error prevents setting an invalid address.
-error ZeroAddressPasted();
+error ZeroAddressPassed();
 
 /**
  * @title CreatorToken
@@ -26,7 +26,7 @@ abstract contract CreatorToken {
     );
 
     /// @notice Emitted when the collection's token type cannot be set by the transfer validator.
-    event CanNotSetTokenTypeOfCollection();
+    event CannotSetTokenTypeOfCollection();
 
     /// @dev The current transfer validator. The null address indicates no validator is set.
     ITransferValidator721 internal _transferValidator;
@@ -84,7 +84,7 @@ abstract contract CreatorToken {
                         uint16(721)
                     )
                 {} catch {
-                    emit CanNotSetTokenTypeOfCollection();
+                    emit CannotSetTokenTypeOfCollection();
                 }
             }
         }
@@ -100,7 +100,7 @@ abstract contract CreatorToken {
      * @param to The address receiving the token.
      * @param tokenId The ID of the token being transferred.
      */
-    function _validateTansfer(
+    function _validateTransfer(
         address caller,
         address from,
         address to,
