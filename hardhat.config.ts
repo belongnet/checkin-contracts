@@ -8,7 +8,11 @@ import dotenv from "dotenv";
 import { ChainIds, createRPClink } from './utils/chainConfig'
 dotenv.config();
 
-const accounts = [process.env.PK!];
+if (!process.env.PK) {
+  throw new Error('Private key (PK) not found in environment variables.');
+}
+const accounts = [process.env.PK];
+
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -47,9 +51,9 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      mainnet: process.env.ETHERSCAN_API_KEY!,
-      blast: process.env.BLASTSCAN_API_KEY!,
-      blast_sepolia: process.env.BLASTSCAN_API_KEY!,
+      mainnet: process.env.ETHERSCAN_API_KEY! || '',
+      blast: process.env.BLASTSCAN_API_KEY! || '',
+      blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
       skale_calypso_testnet: "abc", // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
