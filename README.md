@@ -69,16 +69,30 @@ At the beginning, three smart contracts are deployed at the network:
 1. If some other user wants to mint a new token in this collection, his/her account will have to be validated by the BE
 2. BE generates tokenURI for the new token
 3. If the account meets all the requirements and tokenURI is successfully generated, the BE signs the data for mint. Also, if the user is in the whitelist, BE can specify it with whitelisted flag
-4. The user calls the `mint()` function of the NFT contract
+4. The user calls the mint functions of the NFT contract
 
-If the mint price is larger than zero, the contract will distribute ETH/ERC20 from every primary sale. Some fraction of this money will be transferred to the platform immediately and the rest will be transferred to the creator.
-The owner of the factory can set other platform commission. The creator of the collection can change paying token as well as the mint prices.
-NFTs can be marked as nontransferable at the moment of the deployment. In this case it will be impossible to transfer any NFT to another address or sell it to anyone. The transferable option cannot be changed
-If NFT was sold on a marketplace, a corresponding RoyaltiesReceiver contract will receive royalties and it will be distributed between the creator and the platform.
+If a mint price is greater than zero, the contract will handle payments in either ETH or ERC20 tokens. For every primary sale, a portion of the payment is immediately sent to the platform as a commission, while the remainder is transferred to the creator.
+
+- The factory owner can set or change the platform commission.
+- The collection creator can modify the paying token and adjust the mint prices for both regular and whitelisted users.
+
+At deployment, NFTs can be marked as non-transferable, which means that no token in the collection can be transferred or sold. This transferability setting is immutable and cannot be changed later.
+
+For secondary sales (e.g., through a marketplace), a corresponding RoyaltiesReceiver contract ensures royalties are properly distributed between the creator and the platform.
+
+In batch minting operations, the contract supports both static and dynamic pricing.
+
+- For static price minting, the price for each NFT is determined based on the user's whitelist status.
+- For dynamic price minting, each NFT can have its own custom price.
+
+The contract validates signatures to ensure authorized minting and handles payments by checking the expected mint price and paying token. If the price changes or an incorrect token is used, the mint will fail. Royalties and platform commissions are calculated and distributed accordingly.
 
 ## 2. Technical Requirements
 
 ### 2.1. Architecture Overview
+
+![Diagram1](https://sun9-19.userapi.com/impg/t9SXJJCe9uRMpP6lC5O5UgPyqm44gnYrBRX3Jg/q25RTp2b2dk.jpg?size=1562x1006&quality=96&sign=8be73af3cc40da0a2a459428ecae2a60&type=album)
+![Diagram2](./pics/Diagram2.png)
 
 ![BaseERC721](./pics/BaseERC721.png)
 ![NFT](./pics/NFT.png)
