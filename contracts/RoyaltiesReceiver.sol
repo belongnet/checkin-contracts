@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 /// @notice Thrown when a zero address is provided where it's not allowed.
@@ -257,8 +256,7 @@ contract RoyaltiesReceiver {
 
         uint256 toRelease = _pendingPayment(
             account,
-            IERC20(token).balanceOf(address(this)) +
-                _erc20Releases.totalReleased,
+            token.balanceOf(address(this)) + _erc20Releases.totalReleased,
             _erc20Releases.released[account]
         );
 
@@ -310,11 +308,17 @@ contract RoyaltiesReceiver {
         uint256 totalReceived,
         uint256 alreadyReleased
     ) private view returns (uint256) {
-        uint256 divider = sharesAdded.totalShares - alreadyReleased;
-        if (divider == 0) {
-            revert DvisonByZero();
+        uint256 _totalShares = sharesAdded.totalShares;
+        if (_totalShares == 0) {
+            revert DivisionByZero();
         }
 
-        return (totalReceived * sharesAdded.shares[account]) / divider;
+        uint256 payment = (totalReceived * sharesAdded.shares[account]) /
+            _totalShares;
+
+        if (payment <= alreadyReleased) {
+            return 0;
+        }
+        return payment - alreadyReleased;
     }
 }
