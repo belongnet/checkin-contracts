@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-import {ReentrancyGuard} from "solady/src/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
@@ -41,7 +40,7 @@ error WrongArraySize();
  * @notice Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
  * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
  */
-contract NFT is BaseERC721, ReentrancyGuard {
+contract NFT is BaseERC721 {
     using SignatureCheckerLib for address;
     using SafeTransferLib for address;
 
@@ -80,39 +79,42 @@ contract NFT is BaseERC721, ReentrancyGuard {
             WrongArraySize()
         );
 
+        InstanceInfo memory info = parameters.info;
+
         uint256 amountToPay;
-        uint256 fees;
-        uint256 amountsToCreator;
         for (uint256 i = 0; i < paramsArray.length; ) {
             _validateStaticPriceSignature(paramsArray[i]);
 
-            (
-                uint256 amount,
-                uint256 fee,
-                uint256 amountToCreator
-            ) = _checkPaymentStatic(
-                    paramsArray[i].whitelisted,
-                    expectedPayingToken,
-                    expectedMintPrice
-                );
+            // Determine the mint price based on whitelist status
+            uint256 price = paramsArray[i].whitelisted
+                ? info.whitelistMintPrice
+                : info.mintPrice;
 
-            amountToPay += amount;
-            fees += fee;
-            amountsToCreator += amountToCreator;
+            amountToPay += price;
 
             _baseMint(
                 paramsArray[i].tokenId,
                 paramsArray[i].receiver,
                 paramsArray[i].tokenUri
             );
-            _setExtraData(paramsArray[i].tokenId, uint96(amount));
+            _setExtraData(paramsArray[i].tokenId, uint96(price));
 
             unchecked {
                 ++i;
             }
         }
 
-        _pay(amountToPay, fees, amountsToCreator, expectedPayingToken);
+        (uint256 amount, uint256 fee, uint256 amountToCreator) = _checkPrice(
+            amountToPay,
+            expectedPayingToken
+        );
+
+        // Check if the expected mint price matches the actual price
+        if (expectedMintPrice != amount) {
+            revert PriceChanged(expectedMintPrice, amount);
+        }
+
+        _pay(amount, fee, amountToCreator, expectedPayingToken);
     }
 
     /**
@@ -135,17 +137,6 @@ contract NFT is BaseERC721, ReentrancyGuard {
 
             amountToPay += paramsArray[i].price;
 
-            unchecked {
-                ++i;
-            }
-        }
-
-        (uint256 amount, uint256 fee, uint256 amountToCreator) = _checkPrice(
-            amountToPay,
-            expectedPayingToken
-        );
-
-        for (uint256 i = 0; i < paramsArray.length; ) {
             _baseMint(
                 paramsArray[i].tokenId,
                 paramsArray[i].receiver,
@@ -157,6 +148,11 @@ contract NFT is BaseERC721, ReentrancyGuard {
                 ++i;
             }
         }
+
+        (uint256 amount, uint256 fee, uint256 amountToCreator) = _checkPrice(
+            amountToPay,
+            expectedPayingToken
+        );
 
         _pay(amount, fee, amountToCreator, expectedPayingToken);
     }
@@ -174,15 +170,22 @@ contract NFT is BaseERC721, ReentrancyGuard {
         // Validate signature
         _validateStaticPriceSignature(params);
 
-        (
-            uint256 amount,
-            uint256 fee,
-            uint256 amountToCreator
-        ) = _checkPaymentStatic(
-                params.whitelisted,
-                expectedPayingToken,
-                expectedMintPrice
-            );
+        InstanceInfo memory info = parameters.info;
+
+        // Determine the mint price based on whitelist status
+        uint256 price = params.whitelisted
+            ? info.whitelistMintPrice
+            : info.mintPrice;
+
+        // Check if the expected mint price matches the actual price
+        if (expectedMintPrice != price) {
+            revert PriceChanged(expectedMintPrice, price);
+        }
+
+        (uint256 amount, uint256 fee, uint256 amountToCreator) = _checkPrice(
+            price,
+            expectedPayingToken
+        );
 
         _baseMint(params.tokenId, params.receiver, params.tokenUri);
         _setExtraData(params.tokenId, uint96(amount));
@@ -218,7 +221,7 @@ contract NFT is BaseERC721, ReentrancyGuard {
         uint256 fee,
         uint256 amountToCreator,
         address expectedPayingToken
-    ) private nonReentrant {
+    ) private {
         NftParameters memory _parameters = parameters;
         NFTFactory _factory = NFTFactory(_parameters.factory);
 
@@ -246,27 +249,6 @@ contract NFT is BaseERC721, ReentrancyGuard {
         }
 
         emit Paid(msg.sender, expectedPayingToken, amount);
-    }
-
-    function _checkPaymentStatic(
-        bool whitelisted,
-        address expectedPayingToken,
-        uint256 expectedMintPrice
-    ) private returns (uint256 amount, uint256 fee, uint256 amountToCreator) {
-        InstanceInfo memory info = parameters.info;
-
-        // Determine the mint price based on whitelist status
-        uint256 price = whitelisted ? info.whitelistMintPrice : info.mintPrice;
-
-        // Check if the expected mint price matches the actual price
-        if (expectedMintPrice != price) {
-            revert PriceChanged(expectedMintPrice, price);
-        }
-
-        (amount, fee, amountToCreator) = _checkPrice(
-            price,
-            expectedPayingToken
-        );
     }
 
     function _checkPrice(
