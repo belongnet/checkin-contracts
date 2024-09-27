@@ -3,8 +3,6 @@ pragma solidity 0.8.27;
 
 import {RoyaltiesReceiver} from "../RoyaltiesReceiver.sol";
 
-error RoyaltiesReceiverCreationFailed();
-
 /// @title Receiver Factory Contract
 /// @notice A factory contract for creating instances of the RoyaltiesReceiver contract
 /// @dev This contract deploys new instances of RoyaltiesReceiver and assigns payees and shares
