@@ -16,11 +16,35 @@ error NotTransferable()
 
 Thrown when an unauthorized transfer attempt is made.
 
+## TotalSupplyLimitReached
+
+```solidity
+error TotalSupplyLimitReached()
+```
+
+Error thrown when the total supply limit is reached.
+
 ## BaseERC721
 
 A base contract for ERC721 tokens that supports royalties, transfer validation, and metadata management.
 
 _This contract extends the OpenZeppelin ERC721Royalty and Solady Ownable contracts and adds support for transfer validation._
+
+### PayingTokenChanged
+
+```solidity
+event PayingTokenChanged(address newToken, uint256 newPrice, uint256 newWLPrice)
+```
+
+Emitted when the paying token and prices are updated.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| newToken | address | The address of the new paying token. |
+| newPrice | uint256 | The new mint price. |
+| newWLPrice | uint256 | The new whitelist mint price. |
 
 ### totalSupply
 
@@ -46,19 +70,13 @@ mapping(uint256 => uint256) creationTs
 
 Mapping of token ID to its creation timestamp.
 
-### zeroAddressCheck
+### parameters
 
 ```solidity
-modifier zeroAddressCheck(address _address)
+struct NftParameters parameters
 ```
 
-Modifier to check if the provided address is not a zero address.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _address | address | The address to check. |
+The struct containing all NFT parameters for the collection.
 
 ### constructor
 
@@ -109,10 +127,26 @@ _Can only be called by the contract owner._
 | ---- | ---- | ----------- |
 | autoApprove | bool | If true, the transfer validator will be automatically approved for all token holders. |
 
+### setPayingToken
+
+```solidity
+function setPayingToken(address _payingToken, uint256 _mintPrice, uint256 _whitelistMintPrice) external
+```
+
+Sets a new paying token and mint prices for the collection.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _payingToken | address | The new paying token address. |
+| _mintPrice | uint256 | The new mint price. |
+| _whitelistMintPrice | uint256 | The new whitelist mint price. |
+
 ### isApprovedForAll
 
 ```solidity
-function isApprovedForAll(address _owner, address operator) public view virtual returns (bool isApproved)
+function isApprovedForAll(address _owner, address operator) public view returns (bool isApproved)
 ```
 
 Checks if an operator is approved to manage all tokens of a given owner.
@@ -152,6 +186,122 @@ Returns the metadata URI for a specific token ID.
 | ---- | ---- | ----------- |
 | [0] | string | The metadata URI associated with the given token ID. |
 
+### getReceipt
+
+```solidity
+function getReceipt(uint256 tokenId) external view returns (uint96)
+```
+
+Retrieves the payment receipt for a specific token ID.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| tokenId | uint256 | The ID of the token. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint96 | The payment amount associated with the token. |
+
+### symbol
+
+```solidity
+function symbol() public view returns (string)
+```
+
+Returns the symbol of the token collection.
+
+### name
+
+```solidity
+function name() public view returns (string)
+```
+
+Returns the name of the token collection.
+
+### payingToken
+
+```solidity
+function payingToken() external view returns (address)
+```
+
+Returns the paying token for the collection.
+
+### factory
+
+```solidity
+function factory() external view returns (address)
+```
+
+Returns the address of the factory contract.
+
+### mintPrice
+
+```solidity
+function mintPrice() external view returns (uint256)
+```
+
+Returns the current mint price for the collection.
+
+### whitelistMintPrice
+
+```solidity
+function whitelistMintPrice() external view returns (uint256)
+```
+
+Returns the current whitelist mint price for the collection.
+
+### transferable
+
+```solidity
+function transferable() external view returns (bool)
+```
+
+Returns whether the collection is transferable.
+
+### maxTotalSupply
+
+```solidity
+function maxTotalSupply() external view returns (uint256)
+```
+
+Returns the maximum total supply for the collection.
+
+### totalRoyalty
+
+```solidity
+function totalRoyalty() external view returns (uint256)
+```
+
+Returns the total royalty percentage for the collection.
+
+### creator
+
+```solidity
+function creator() external view returns (address)
+```
+
+Returns the creator of the collection.
+
+### collectionExpire
+
+```solidity
+function collectionExpire() external view returns (uint256)
+```
+
+Returns the expiration timestamp for the collection.
+
+### contractURI
+
+```solidity
+function contractURI() external view returns (string)
+```
+
+Returns the contract URI for the collection.
+
 ### _baseMint
 
 ```solidity
@@ -170,29 +320,13 @@ _Increases totalSupply, stores metadata URI, and creation timestamp._
 | to | address | The address that will receive the newly minted token. |
 | tokenUri | string | The metadata URI associated with the token. |
 
-### _update
+### _beforeTokenTransfer
 
 ```solidity
-function _update(address to, uint256 tokenId, address auth) internal virtual returns (address from)
+function _beforeTokenTransfer(address from, address to, uint256 id) internal
 ```
 
-Internal function to handle updates during transfers.
-
-_Validates transfers using the transfer validator, ensuring the transfer is allowed._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| to | address | The address to transfer the token to. |
-| tokenId | uint256 | The ID of the token to transfer. |
-| auth | address | The authorized caller of the function. |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| from | address | The address of the current token holder. |
+_Hook that is called before any token transfers, including minting and burning._
 
 ### supportsInterface
 

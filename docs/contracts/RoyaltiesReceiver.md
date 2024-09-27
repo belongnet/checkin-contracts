@@ -96,7 +96,10 @@ struct SharesAdded {
 
 A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
 
-_Handles payment distribution based on shares assigned to payees._
+_Handles payment distribution based on shares assigned to payees.
+Fork of OZ's PaymentSplitter with some changes. The only change is that common `release()`
+functions are replaced with `releaseAll()` functions which allow the caller to transfer funds
+for only both the creator and the platform._
 
 ### PayeeAdded
 

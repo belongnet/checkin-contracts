@@ -1,86 +1,26 @@
 # Belong.net
 
-## Hardhat Usage
+## HardHat Usage
 
-### Install Dependencies
-
-```
-yarn
-```
-
-### Set Up env
-
-Rename .env.example to .env and fill all the fields there
-
-### Compile
-
-```
-    yarn compile
-```
-
-### Test
-
-```
-    yarn test
-```
-
-### Coverage
-
-```
-    yarn coverage
-```
-
-### Deploy
-
-- NFT with royalties
-
-```
-    yarn deploy:royalties <network_name>
-```
-
-- NFT Price Point
-
-```
-    yarn deploy:price <network_name>
-```
-
-signer and platformAddress need to be specified first. ReceiverFactory, Factory and StorageContract will be deployed.
-
-### Verification
-
-- NFT with royalties
-
-```
-    yarn verify:royalties <network_name>
-```
-
-- NFT Price Point
-
-```
-    yarn verify:price <network_name>
-```
-
-- Or
-
-```
-    yarn/npx hardhat --network <network_name> verify <ReceiverFactory address>
-```
+Check [HardHat guide](./docs/guides/HardHat.md).
 
 ## Foundry Usage
 
-Check [Foundry guide](./Foundry.md).
+Check [Foundry guide](./docs/guides/Foundry.md).
 
 ## Remix Usage
 
+- Firstly flatten contract:
+
 ```
-forge flatten ./contracts/nft-with-royalties/factories/NFTFactory.sol > ./contracts/nft-with-royalties/flattened/NFTFactory_flattened.sol
+forge flatten ./contracts/contract.sol > ./contracts/contract_flattened.sol
 ```
 
-Check [Remix guide](./Remix.md).
+Check [Remix guide](./docs/guides/Remix.md).
 
 ## Project Overview
 
-The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. The factory implementation can be changed so the information about deployed collections is stored in the separate Storage contract. Factory will be deployed via proxy.
+The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. Factory will be deployed via proxy.
 
 ## 1. Functional Requirements
 
@@ -88,7 +28,7 @@ The protocol allows users to create their own NFT collection, whose tokens repre
 
 Belong NFT project has several roles:
 
-1. The owner: Controls the platform commission, can configure Factory and Storage contracts.
+1. The owner: Controls the platform commission, can configure Factory contract.
 2. Creator: Collection creator can set the mint prices and the paying token of his/her collection. He/she will receive funds from primary sales and some fraction of royalties from secondary sales
 3. Platform address: Receives the royalties from the secondary sales and commissions from primary sales
 4. Signer: The platform’s BE which moderates the data and gives its approval if requirements are met
@@ -107,7 +47,6 @@ Belong NFT project has the following features:
 - Set platform commission (The owner)
 - Set platform address in the Factory contract (The owner)
 - Set signer address in the Factory contract (The owner)
-- Set factory address in the Storage contract (The owner)
 
 ### 1.3 Use Cases
 
@@ -115,7 +54,6 @@ At the beginning, three smart contracts are deployed at the network:
 
 - ReceiverFactory (creates nfts of royalties receivers)
 - Factory (creates nfts of NFT collections)
-- StorageContract (stores the information about all deployed NFT collections)
 
 #### Collection creation
 
@@ -142,338 +80,27 @@ If NFT was sold on a marketplace, a corresponding RoyaltiesReceiver contract wil
 
 ### 2.1. Architecture Overview
 
-![Scheme1](https://sun9-19.userapi.com/impg/t9SXJJCe9uRMpP6lC5O5UgPyqm44gnYrBRX3Jg/q25RTp2b2dk.jpg?size=1562x1006&quality=96&sign=8be73af3cc40da0a2a459428ecae2a60&type=album)
-![Scheme2](https://sun9-79.userapi.com/impg/t9qqDa64GcHaLugTO2hrbVmg7OazXNrWPcmixg/n0jhyfog9pA.jpg?size=789x948&quality=96&sign=5cadcd76acf629e8d1ab91178f8e66f1&type=album)
-![Scheme3](https://sun9-47.userapi.com/impg/_6MlNfB_GtleV_nL8UVsXS1HuZjDYGkKC7HLkQ/0varYmmIs64.jpg?size=674x945&quality=96&sign=b8c2e6d360024f8074c0bd93bbf68c96&type=album)
-![Scheme4](https://sun9-7.userapi.com/impg/NxZjdVcGH3VxFuw2Jt5fUj1S9mjJDNuJ89ZFqg/fP2ZNYXGtvc.jpg?size=793x594&quality=96&sign=46b1617d97628b6f5ab72c2cfd0df2fd&type=album)
-![Scheme5](https://sun9-82.userapi.com/impg/MYGnmOGZus2Xr4eE6mkCVC-6-xDrPIRfnZwCgQ/dn3TM87PUEU.jpg?size=701x627&quality=96&sign=43032481ac463255cffe0322be944800&type=album)
-![Scheme6](https://sun9-5.userapi.com/impg/vLHkDiFomNJnQtbjF4I-Kv9hLnmPSqNF6Uj7-Q/GfoPLS0ry4A.jpg?size=596x940&quality=96&sign=5c0b25270f71aca222a211db8a3c1b31&type=album)
-![Scheme7](./pics/PricePoint.png)
-![Scheme8](./pics/PricePointFactory.png)
+![BaseERC721](./pics/BaseERC721.png)
+![NFT](./pics/NFT.png)
+![NFTFactory](./pics/NFTFactory.png)
+![Receiver](./pics/RoyaltiesReceiver.png)
+![ReceiverFactory](./pics/ReceiverFactory.png)
 
 ### 2.2. Contract Information
 
-This section contains detailed information (their purpose, assets, functions, and events) about the contracts used in the project.
+[This section contains detailed information (their purpose, assets, functions, and events) about the contracts used in the project.](./docs/contracts)
 
 #### 2.2.1. NFT.sol
 
-ERC721 token contract with different payment options and security advancements. Mints tokens from this collection if valid BE signature was provided
-
-##### 2.2.1.1. Assets
-
-Belong NFT contains the following entities:
-
-1.
-
-```
-address payingToken - Current token accepted as a mint payment
-```
-
-2.
-
-```
-address creator - Collection creator address
-```
-
-3.
-
-```
-uint96 totalRoyalty - the total amount of royalties (for example, if platform commission is 1% and user’s royalties are 5%, then totalRoyalty == 6%)
-```
-
-4.
-
-```
-address storageContract - Storage contract address
-```
-
-5.
-
-```
-uint256 mintPrice - Current mint price
-```
-
-6.
-
-```
-uint256 whitelistMintPrice - Mint price for whitelisted users
-```
-
-7.
-
-```
-bool transferable - Flag indicating whether the token is transferable or not
-```
-
-8.
-
-```
-uint256 totalSupply - The current total supply
-```
-
-9.
-
-```
-uint256 maxTotalSupply - The max amount of tokens to be minted
-```
-
-10.
-
-```
-string contractURI - Contract URI (for OpenSea)
-```
-
-11.
-
-```
-address constant ETH - mock ETH address
-```
-
-12.
-
-```
-metadataUri - token ID -> metadata link mapping
-```
-
-13.
-
-```
-creationTs - token ID -> the timestamp of token creation mapping
-```
-
-14.
-
-```
-collectionExpire - The period of time in which collection is expired (for the BE)
-```
-
-##### 2.2.1.2. Functions
-
-Belong NFT has the following functions:
-
-1.
-
-```
-mint(
-   address reciever,
-   uint256 tokenId,
-   string calldata tokenUri,
-   bool whitelisted,
-   bytes calldata signature
-) - Mints ERC721 token
-```
-
-2.
-
-```
-tokenURI(uint256 _tokenId) - Returns metadata link for specified ID
-```
-
-3.
-
-```
-setPayingToken(
-   address _payingToken,
-   uint256 _mintPrice,
-   uint256 _whitelistMintPrice
-) - Sets paying token, mint price and whitelist mint price
-```
-
-4.
-
-```
-
-owner() - Overridden function from Ownable contract. Owner of the contract is always the platform address. Otherwise the user will be able to change royalty information on the marketplaces
-```
+[Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.](./docs/contracts/NFT.md)
 
 #### 2.2.2. Factory.sol
 
-Produces new nfts of NFT contract and registers them in the StorageContract. The NFT contract can be deployed by anyone. Factory also contains data about platform commission, platform address and signer address. All NFT contracts deployed with Factory use current parameters from the Factory contract.
-
-##### 2.2.2.1. Assets
-
-Belong NFT Factory contains the following struct:
-
-```
-struct InstanceInfo {
-   string name; //The name of the collection
-   string symbol; // The symbol of the collection
-   string contractURI; // Contract URI of a new collection
-   address payingToken; // Address of ERC20 paying token or ETH address (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)
-   uint256 mintPrice; // Mint price of a token from a new collection
-   uint256 whitelistMintPrice; // Mint price of a token from a new collection for whitelisted users
-   bool transferable; // Shows if tokens will be transferrable or not
-   uint256 maxTotalSupply; // The max total supply of a new collection
-   uint96 feeNumerator; // Royalty fraction for platform + Royalty fraction for creator
-   address feeReceiver; // The royalties receiver address
-   uint256 collectionExpire; // The period of time in which collection is expired (for the BE)
-   bytes signature; // BE's signature
-}
-```
-
-This structure should be passed to the produce function to deploy a new NFT collection
-
-Belong NFT Factory contains the following entities:
-
-1.
-
-```
-address platformAddress - Platform address
-```
-
-2.
-
-```
-
-address storageContract - Storage contract address
-```
-
-3.
-
-```
-address signerAddress - Signer address
-```
-
-4.
-
-```
-uint8 platformCommission - Platform commission percentage
-```
-
-##### 2.2.2.2. Functions
-
-Belong NFT Factory has the following functions:
-
-1.
-
-```
-produce(InstanceInfo memory _info) - Produces the new instance with defined name and symbol
-```
-
-2.
-
-```
-setPlatformCommission(uint8 _platformCommission) - Sets platform commission
-```
-
-3.
-
-```
-setPlatformAddress(address _platformAddress) - Sets platform address
-```
-
-4.
-
-```
-setSigner(address _signer) - Sets signer address
-```
-
-#### 2.2.3. StorageContract.sol
-
-Contains information about registered NFT nfts (as Factory implementation can be changed)
-
-##### 2.2.3.1. Assets
-
-Belong Storage contract contains the following strucrure:
-
-```
-struct InstanceInfo {
-   string name;
-   string symbol;
-   address creator;
-} - The information about an instance (its name, symbol, creator address)
-```
-
-Belong Storage contract contains the following entities:
-
-1.
-
-```
-address factory - Factory address
-```
-
-2.
-
-```
-getInstance - keccak256("name", "symbol") => instance address mapping
-```
-
-3.
-
-```
-address[] nfts - NFTs’ array
-```
-
-##### 2.2.3.2. Functions
-
-Belong Storage contract has the following functions:
-
-1.
-
-```
-getInstanceInfo(uint256 instanceId) Returns instance info by its ID
-```
-
-2.
-
-```
-instancesCount() - Returns the count of nfts
-```
-
-3.
-
-```
-setFactory(address _factory) - Sets the factory address
-```
-
-4.
-
-```
-addInstance(
-   NFT nft,
-   address creator,
-   string memory name,
-   string memory symbol
-) - Adds new instance with passed parameters. Can be called only by factory
-```
+[A factory contract to create new NFT instances with specific parameters.](./docs/contracts/factories/NFTFactory.md)
 
 #### 2.2.4. RoyaltiesReceiver.sol
 
-Must be deployed before the deployment of a new NFT collection (via ReceiverFactory) and passed to Factory's `produce()` function as a fee receiver. It will split upcoming tokens/ETH between the creator and the platform. It's a fork of OZ's PaymentSplitter with some changes. The only change is that common `release()` functions are replaced with `releaseAll()` functions which allow the caller to transfer funds for only both the creator and the platform.
-
-##### 2.2.4.1. Assets
-
-_(Forked from OZ's PaymentSplitter)_
-
-##### 2.2.4.2. Functions
-
-_(Forked from OZ's PaymentSplitter except for release() functions)_
-
-They were replaced with the following functions:
-
-1.
-
-```
-releaseAll() - claims all available ETH to both creator and the platform. Can be called by anyone
-```
-
-2.
-
-```
-releaseAll(address token) - claims all available ERC20 token to both creator and the platform. Can be called by anyone
-```
-
-#### 2.2.5. ReceiverFactory.sol
-
-Deploys RoyaltiesReceiver nfts
-
-##### 2.2.5.1. Functions
-
-1.
-
-```
-deployReceiver(address[] memory payees, uint256[] memory shares) - Deploys instance of RoyaltiesReceiver with specified fee receiver addresses and their shares.
-```
+[A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.](./docs/contracts/RoyaltiesReceiver.md)
 
 In our case, the receivers will be a creator and the platform address. The sum of both shares must be equal to 10000. Because of that the specified creator royalties and platform fees must be converted to shares with the next formulas:
 
@@ -482,6 +109,10 @@ creator_shares = 10000 - platform_shares
 
 where x - creators’s BPs (input on FE)
 p - platform fee BPs (default is 100)
+
+#### 2.2.5. ReceiverFactory.sol
+
+[A factory contract for creating instances of the RoyaltiesReceiver contract.](./docs/contracts/factories/ReceiverFactory.md)
 
 ## 3. Additional Explanations
 
