@@ -92,7 +92,7 @@ The contract validates signatures to ensure authorized minting and handles payme
 ### 2.1. Architecture Overview
 
 ![Diagram1](https://sun9-19.userapi.com/impg/t9SXJJCe9uRMpP6lC5O5UgPyqm44gnYrBRX3Jg/q25RTp2b2dk.jpg?size=1562x1006&quality=96&sign=8be73af3cc40da0a2a459428ecae2a60&type=album)
-![Diagram2](./pics/Diagram2.png)
+![Diagram2](./pics/Diagram2.jpg)
 
 ![BaseERC721](./pics/BaseERC721.png)
 ![NFT](./pics/NFT.png)
