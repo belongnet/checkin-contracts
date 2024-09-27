@@ -249,7 +249,7 @@ abstract contract BaseERC721 is
         string calldata tokenUri
     ) internal {
         // Ensure the total supply has not been exceeded
-        if (tokenId > parameters.info.maxTotalSupply) {
+        if (totalSupply + 1 > parameters.info.maxTotalSupply) {
             revert TotalSupplyLimitReached();
         }
 
