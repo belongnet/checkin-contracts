@@ -6,7 +6,7 @@ import { Erc20Example, MockTransferValidator, NFTFactory } from "../typechain-ty
 import { expect } from "chai";
 import { InstanceInfoStruct } from "../typechain-types/contracts/NFT";
 import EthCrypto from "eth-crypto";
-import { NftFactoryInfoStruct } from '../typechain-types/contracts/factories/NFTFactory';
+import { NftFactoryParametersStruct } from '../typechain-types/contracts/factories/NFTFactory';
 
 describe('NFTFactory', () => {
 	const PLATFORM_COMISSION = "10";
@@ -14,7 +14,7 @@ describe('NFTFactory', () => {
 	const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 	const chainId = 31337;
 
-	let nftInfo: NftFactoryInfoStruct;
+	let nftInfo: NftFactoryParametersStruct;
 
 	async function fixture() {
 		const [owner, alice, bob, charlie] = await ethers.getSigners();
@@ -34,7 +34,7 @@ describe('NFTFactory', () => {
 			platformCommission: PLATFORM_COMISSION,
 			defaultPaymentCurrency: ETH_ADDRESS,
 			maxArraySize: 10
-		} as NftFactoryInfoStruct
+		} as NftFactoryParametersStruct
 
 		const NFTFactory: ContractFactory = await ethers.getContractFactory("NFTFactory", owner);
 		const factory: NFTFactory = await upgrades.deployProxy(NFTFactory, [

@@ -5,8 +5,8 @@ import { Erc20Example, MockTransferValidator, NFTFactory } from "../typechain-ty
 import { expect } from "chai";
 import { InstanceInfoStruct, NFT, NftParametersStruct } from "../typechain-types/contracts/NFT";
 import EthCrypto from "eth-crypto";
-import { NftFactoryInfoStruct } from '../typechain-types/contracts/factories/NFTFactory';
-import { DynamicPriceParamsStruct, StaticPriceParamsStruct } from '../typechain-types/contracts/NFT';
+import { NftFactoryParametersStruct } from '../typechain-types/contracts/factories/NFTFactory';
+import { DynamicPriceParametersStruct, StaticPriceParametersStruct } from '../typechain-types/contracts/NFT';
 import exp from 'constants';
 
 describe('NFT', () => {
@@ -21,7 +21,7 @@ describe('NFT', () => {
 	const eth_price = ethers.utils.parseEther("0.03");
 	const token_price = 100;
 
-	let instanceInfoETH: InstanceInfoStruct, instanceInfoToken: InstanceInfoStruct, nftInfo: NftFactoryInfoStruct;
+	let instanceInfoETH: InstanceInfoStruct, instanceInfoToken: InstanceInfoStruct, nftInfo: NftFactoryParametersStruct;
 
 	async function fixture() {
 		const [owner, alice, bob, charlie] = await ethers.getSigners();
@@ -41,7 +41,7 @@ describe('NFT', () => {
 			platformCommission: PLATFORM_COMISSION,
 			defaultPaymentCurrency: ETH_ADDRESS,
 			maxArraySize: 10
-		} as NftFactoryInfoStruct
+		} as NftFactoryParametersStruct
 
 		const NFTFactory: ContractFactory = await ethers.getContractFactory("NFTFactory", owner);
 		const factory: NFTFactory = await upgrades.deployProxy(NFTFactory, [
@@ -243,7 +243,7 @@ describe('NFT', () => {
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
 							signature,
-						} as StaticPriceParamsStruct,
+						} as StaticPriceParametersStruct,
 						ETH_ADDRESS,
 						ethers.utils.parseEther("0.02"),
 						{
@@ -262,7 +262,7 @@ describe('NFT', () => {
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
 							signature,
-						} as StaticPriceParamsStruct,
+						} as StaticPriceParametersStruct,
 						alice.address,
 						ethers.utils.parseEther("0.03"),
 						{
@@ -281,7 +281,7 @@ describe('NFT', () => {
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
 							signature,
-						} as StaticPriceParamsStruct,
+						} as StaticPriceParametersStruct,
 						ETH_ADDRESS,
 						ethers.utils.parseEther("0.03"),
 						{
@@ -300,7 +300,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -337,7 +337,7 @@ describe('NFT', () => {
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
 							signature,
-						} as StaticPriceParamsStruct,
+						} as StaticPriceParametersStruct,
 						ETH_ADDRESS,
 						ethers.utils.parseEther("0.03"),
 						{
@@ -367,7 +367,7 @@ describe('NFT', () => {
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
 							signature,
-						} as StaticPriceParamsStruct,
+						} as StaticPriceParametersStruct,
 						ETH_ADDRESS,
 						ethers.utils.parseEther("0.03"),
 						{
@@ -413,14 +413,14 @@ describe('NFT', () => {
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
 							signature,
-						} as StaticPriceParamsStruct,
+						} as StaticPriceParametersStruct,
 						{
 							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
 							signature,
-						} as StaticPriceParamsStruct,
+						} as StaticPriceParametersStruct,
 					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
@@ -440,7 +440,7 @@ describe('NFT', () => {
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
 							signature: signature2,
-						} as StaticPriceParamsStruct,
+						} as StaticPriceParametersStruct,
 					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.04"),
@@ -459,7 +459,7 @@ describe('NFT', () => {
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: true,
 							signature,
-						} as StaticPriceParamsStruct,
+						} as StaticPriceParametersStruct,
 					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
@@ -496,7 +496,7 @@ describe('NFT', () => {
 					tokenUri: NFT_721_BASE_URI,
 					whitelisted: false,
 					signature,
-				} as StaticPriceParamsStruct);
+				} as StaticPriceParametersStruct);
 			}
 
 			await nft_eth
@@ -539,7 +539,7 @@ describe('NFT', () => {
 						price: ethers.utils.parseEther("0.01"),
 						tokenUri: NFT_721_BASE_URI,
 						signature,
-					} as DynamicPriceParamsStruct,
+					} as DynamicPriceParametersStruct,
 					ETH_ADDRESS,
 					{
 						value: ethers.utils.parseEther("0.01"),
@@ -556,7 +556,7 @@ describe('NFT', () => {
 							price: ethers.utils.parseEther("0.02"),
 							tokenUri: NFT_721_BASE_URI,
 							signature,
-						} as DynamicPriceParamsStruct,
+						} as DynamicPriceParametersStruct,
 						ETH_ADDRESS,
 						{
 							value: ethers.utils.parseEther("0.02"),
@@ -592,14 +592,14 @@ describe('NFT', () => {
 							price: ethers.utils.parseEther("0.02"),
 							tokenUri: NFT_721_BASE_URI,
 							signature,
-						} as DynamicPriceParamsStruct,
+						} as DynamicPriceParametersStruct,
 						{
 							receiver: alice.address,
 							tokenId: 0,
 							price: ethers.utils.parseEther("0.02"),
 							tokenUri: NFT_721_BASE_URI,
 							signature,
-						} as DynamicPriceParamsStruct
+						} as DynamicPriceParametersStruct
 					],
 					ETH_ADDRESS,
 					{
@@ -617,7 +617,7 @@ describe('NFT', () => {
 						price: ethers.utils.parseEther("0.02"),
 						tokenUri: NFT_721_BASE_URI,
 						signature,
-					} as DynamicPriceParamsStruct],
+					} as DynamicPriceParametersStruct],
 					ETH_ADDRESS,
 					{
 						value: ethers.utils.parseEther("0.02"),
@@ -652,7 +652,7 @@ describe('NFT', () => {
 					price: ethers.utils.parseEther("0.02"),
 					tokenUri: NFT_721_BASE_URI,
 					signature,
-				} as DynamicPriceParamsStruct);
+				} as DynamicPriceParametersStruct);
 			}
 
 			// await nft_eth
@@ -727,7 +727,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					erc20Example.address,
 					100
 				);
@@ -765,7 +765,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					erc20Example.address,
 					100
 				);
@@ -806,7 +806,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					erc20Example.address,
 					100
 				);
@@ -847,7 +847,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					erc20Example.address,
 					100
 				);
@@ -876,7 +876,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature: signature2,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					erc20Example.address,
 					100
 				);
@@ -941,7 +941,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					erc20Example.address,
 					100
 				);
@@ -1008,7 +1008,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: true,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					erc20Example.address,
 					ethers.utils.parseEther("50"),
 				);
@@ -1050,7 +1050,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature: bad_signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{ value: ethers.utils.parseEther("0.03"), }
@@ -1081,7 +1081,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.02"),
 					{ value: ethers.utils.parseEther("0.02"), }
@@ -1096,7 +1096,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.02"),
 				)
@@ -1128,7 +1128,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					erc20Example.address,
 					token_price
 				)
@@ -1161,7 +1161,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -1201,7 +1201,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -1239,7 +1239,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -1299,7 +1299,7 @@ describe('NFT', () => {
 						tokenUri: NFT_721_BASE_URI,
 						whitelisted: false,
 						signature,
-					} as StaticPriceParamsStruct,
+					} as StaticPriceParametersStruct,
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
