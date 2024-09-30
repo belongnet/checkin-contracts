@@ -4,9 +4,10 @@ pragma solidity 0.8.27;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
-import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
+import {ReferralSystem} from "../utils/ReferralSystem.sol";
 import {NFT} from "../NFT.sol";
-import {NftFactoryInfo, NftParameters, InstanceInfo, NftParamsInfo} from "../Structures.sol";
+import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
+import {ReferralPercentages, NftFactoryParameters, NftParameters, InstanceInfo, NftParametersForFactory} from "../Structures.sol";
 
 /// @notice Error thrown when the signature provided is invalid.
 error InvalidSignature();
@@ -26,7 +27,7 @@ error IncorrectInstanceId();
  * @notice A factory contract to create new NFT instances with specific parameters.
  * @dev This contract allows producing NFTs, managing platform settings, and verifying signatures.
  */
-contract NFTFactory is OwnableUpgradeable {
+contract NFTFactory is OwnableUpgradeable, ReferralSystem {
     using SignatureCheckerLib for address;
 
     /// @notice Event emitted when a new NFT is created.
@@ -64,7 +65,7 @@ contract NFTFactory is OwnableUpgradeable {
     ITransferValidator721 public transferValidator;
 
     /// @notice A struct that contains info parameters for the NFTFactory.
-    NftFactoryInfo private _info;
+    NftFactoryParameters private _info;
 
     /// @notice An array storing all created NFT instances.
     NFT[] public instances;
@@ -73,7 +74,7 @@ contract NFTFactory is OwnableUpgradeable {
     mapping(bytes32 => NFT) public getInstance;
 
     /// @notice A mapping from NFT instance address to its storage information.
-    mapping(NFT => NftParamsInfo) public instanceInfos;
+    mapping(NFT => NftParametersForFactory) public instanceInfos;
 
     /// @notice Modifier to check if the passed address is not zero.
     /// @param _address The address to check.
@@ -90,11 +91,14 @@ contract NFTFactory is OwnableUpgradeable {
      * @param validator The transfer validator contract.
      */
     function initialize(
-        NftFactoryInfo calldata info,
+        ReferralPercentages memory percentages,
+        NftFactoryParameters calldata info,
         ITransferValidator721 validator
     ) external initializer {
         _info = info;
+
         _setTransferValidator(validator);
+        _setReferralPercentages(percentages);
         __Ownable_init(msg.sender);
     }
 
@@ -144,6 +148,12 @@ contract NFTFactory is OwnableUpgradeable {
         emit PlatformAddressSet(_platformAddress);
     }
 
+    function setReferralPercentages(
+        ReferralPercentages memory percentages
+    ) external onlyOwner {
+        _setReferralPercentages(percentages);
+    }
+
     /**
      * @notice Sets a new signer address.
      * @dev Can only be called by the owner.
@@ -167,19 +177,22 @@ contract NFTFactory is OwnableUpgradeable {
         _setTransferValidator(validator);
     }
 
+    function createReferralCode() external returns (bytes32) {
+        return _createReferralCode();
+    }
+
     /**
      * @notice Produces a new NFT instance.
      * @dev Creates a new instance of the NFT and adds the information to the storage contract.
      * @param info Struct containing the details of the new NFT instance.
      * @return nft The address of the created NFT instance.
      */
-    function produce(InstanceInfo memory info) external returns (NFT nft) {
-        if ((bytes(info.name)).length == 0) {
-            revert EmptyNamePassed();
-        }
-        if ((bytes(info.symbol)).length == 0) {
-            revert EmptySymbolPassed();
-        }
+    function produce(
+        InstanceInfo memory info,
+        bytes32 referralCode
+    ) external returns (NFT nft) {
+        require((bytes(info.name)).length != 0, EmptyNamePassed());
+        require((bytes(info.symbol)).length != 0, EmptySymbolPassed());
 
         bytes32 hashedNameSymbol = keccak256(
             abi.encodePacked(info.name, info.symbol)
@@ -193,29 +206,33 @@ contract NFTFactory is OwnableUpgradeable {
             revert InvalidSignature();
         }
 
-        address payingToken = info.payingToken == address(0)
-            ? _info.defaultPaymentCurrency
-            : info.payingToken;
+        _checkReferralCode(referralCode);
 
         uint256 id = instances.length;
 
-        info.payingToken = payingToken;
+        info.payingToken = info.payingToken == address(0)
+            ? _info.defaultPaymentCurrency
+            : info.payingToken;
 
-        NftParameters memory params = NftParameters({
-            factory: address(this),
-            info: info,
-            creator: msg.sender
-        });
-
-        nft = new NFT(params, transferValidator);
+        nft = new NFT(
+            NftParameters({
+                factory: address(this),
+                info: info,
+                creator: msg.sender,
+                refferalCode: referralCode
+            }),
+            transferValidator
+        );
 
         instances.push(nft);
         getInstance[hashedNameSymbol] = nft;
-        instanceInfos[nft] = NftParamsInfo({
+        instanceInfos[nft] = NftParametersForFactory({
             name: info.name,
             symbol: info.symbol,
             creator: msg.sender
         });
+
+        _setReferral(referralCode, msg.sender);
 
         emit NFTCreated(info.name, info.symbol, nft, id);
     }
@@ -228,7 +245,7 @@ contract NFTFactory is OwnableUpgradeable {
      */
     function getInstanceInfo(
         uint256 instanceId
-    ) external view returns (NftParamsInfo memory) {
+    ) external view returns (NftParametersForFactory memory) {
         if (instanceId >= instances.length) {
             revert IncorrectInstanceId();
         }
