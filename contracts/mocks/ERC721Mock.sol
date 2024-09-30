@@ -23,7 +23,12 @@ contract ERC721Mock is BaseERC721 {
             signature: bytes("")
         });
     NftParameters params =
-        NftParameters({factory: msg.sender, info: _info, creator: msg.sender});
+        NftParameters({
+            factory: msg.sender,
+            info: _info,
+            creator: msg.sender,
+            refferalCode: bytes32(0)
+        });
 
     /**
      * @dev called by factory when instance deployed
