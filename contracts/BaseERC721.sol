@@ -156,14 +156,28 @@ abstract contract BaseERC721 is
         return _getExtraData(tokenId);
     }
 
-    /// @notice Returns the symbol of the token collection.
-    function symbol() public view override returns (string memory) {
-        return parameters.info.symbol;
+    /**
+     * @notice Returns the address of the factory contract.
+     */
+    function factory() external view returns (address) {
+        return parameters.factory;
     }
 
     /// @notice Returns the name of the token collection.
     function name() public view override returns (string memory) {
         return parameters.info.name;
+    }
+
+    /// @notice Returns the symbol of the token collection.
+    function symbol() public view override returns (string memory) {
+        return parameters.info.symbol;
+    }
+
+    /**
+     * @notice Returns the contract URI for the collection.
+     */
+    function contractURI() external view returns (string memory) {
+        return parameters.info.contractURI;
     }
 
     /**
@@ -174,24 +188,17 @@ abstract contract BaseERC721 is
     }
 
     /**
-     * @notice Returns the address of the factory contract.
+     * @notice Returns the paying token for the collection.
      */
-    function factory() external view returns (address) {
-        return parameters.factory;
+    function feeReceiver() external view returns (address) {
+        return parameters.info.feeReceiver;
     }
 
     /**
-     * @notice Returns the current mint price for the collection.
+     * @notice Returns the total royalty percentage for the collection.
      */
-    function mintPrice() external view returns (uint256) {
-        return parameters.info.mintPrice;
-    }
-
-    /**
-     * @notice Returns the current whitelist mint price for the collection.
-     */
-    function whitelistMintPrice() external view returns (uint256) {
-        return parameters.info.whitelistMintPrice;
+    function totalRoyalty() external view returns (uint256) {
+        return parameters.info.feeNumerator;
     }
 
     /**
@@ -209,17 +216,17 @@ abstract contract BaseERC721 is
     }
 
     /**
-     * @notice Returns the total royalty percentage for the collection.
+     * @notice Returns the current mint price for the collection.
      */
-    function totalRoyalty() external view returns (uint256) {
-        return parameters.info.feeNumerator;
+    function mintPrice() external view returns (uint256) {
+        return parameters.info.mintPrice;
     }
 
     /**
-     * @notice Returns the creator of the collection.
+     * @notice Returns the current whitelist mint price for the collection.
      */
-    function creator() external view returns (address) {
-        return parameters.creator;
+    function whitelistMintPrice() external view returns (uint256) {
+        return parameters.info.whitelistMintPrice;
     }
 
     /**
@@ -230,10 +237,17 @@ abstract contract BaseERC721 is
     }
 
     /**
-     * @notice Returns the contract URI for the collection.
+     * @notice Returns the creator of the collection.
      */
-    function contractURI() external view returns (string memory) {
-        return parameters.info.contractURI;
+    function creator() external view returns (address) {
+        return parameters.creator;
+    }
+
+    /**
+     * @notice Returns the creator of the collection.
+     */
+    function refferalCodeCreator() external view returns (bytes32) {
+        return parameters.refferalCode;
     }
 
     /**

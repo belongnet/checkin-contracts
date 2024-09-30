@@ -6,7 +6,7 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
 import {NFTFactory} from "./factories/NFTFactory.sol";
 import {BaseERC721} from "./BaseERC721.sol";
-import {NftParameters, StaticPriceParams, DynamicPriceParams, InstanceInfo} from "./Structures.sol";
+import {NftParameters, StaticPriceParameters, DynamicPriceParameters, InstanceInfo} from "./Structures.sol";
 
 /// @notice Error thrown when insufficient ETH is sent for a minting transaction.
 /// @param ETHsent The amount of ETH sent.
@@ -72,7 +72,7 @@ contract NFT is BaseERC721 {
      * @param expectedMintPrice The expected price for the minting operation.
      */
     function mintStaticPriceBatch(
-        StaticPriceParams[] calldata paramsArray,
+        StaticPriceParameters[] calldata paramsArray,
         address expectedPayingToken,
         uint256 expectedMintPrice
     ) external payable {
@@ -106,7 +106,7 @@ contract NFT is BaseERC721 {
             }
         }
 
-        (uint256 amount, uint256 fee, uint256 amountToCreator) = _checkPrice(
+        (uint256 amount, uint256 fees, uint256 amountToCreator) = _checkPrice(
             amountToPay,
             expectedPayingToken
         );
@@ -116,7 +116,7 @@ contract NFT is BaseERC721 {
             revert PriceChanged(expectedMintPrice, amount);
         }
 
-        _pay(amount, fee, amountToCreator, expectedPayingToken);
+        _pay(amount, fees, amountToCreator, expectedPayingToken);
     }
 
     /**
@@ -126,7 +126,7 @@ contract NFT is BaseERC721 {
      * @param expectedPayingToken The expected token used for payments.
      */
     function mintDynamicPriceBatch(
-        DynamicPriceParams[] calldata paramsArray,
+        DynamicPriceParameters[] calldata paramsArray,
         address expectedPayingToken
     ) external payable {
         require(
@@ -152,12 +152,12 @@ contract NFT is BaseERC721 {
             }
         }
 
-        (uint256 amount, uint256 fee, uint256 amountToCreator) = _checkPrice(
+        (uint256 amount, uint256 fees, uint256 amountToCreator) = _checkPrice(
             amountToPay,
             expectedPayingToken
         );
 
-        _pay(amount, fee, amountToCreator, expectedPayingToken);
+        _pay(amount, fees, amountToCreator, expectedPayingToken);
     }
 
     /**
@@ -168,7 +168,7 @@ contract NFT is BaseERC721 {
      * @param expectedMintPrice The expected price for the minting operation.
      */
     function mintStaticPrice(
-        StaticPriceParams calldata params,
+        StaticPriceParameters calldata params,
         address expectedPayingToken,
         uint256 expectedMintPrice
     ) public payable {
@@ -184,7 +184,7 @@ contract NFT is BaseERC721 {
             revert PriceChanged(expectedMintPrice, price);
         }
 
-        (uint256 amount, uint256 fee, uint256 amountToCreator) = _checkPrice(
+        (uint256 amount, uint256 fees, uint256 amountToCreator) = _checkPrice(
             price,
             expectedPayingToken
         );
@@ -192,7 +192,7 @@ contract NFT is BaseERC721 {
         _baseMint(params.tokenId, params.receiver, params.tokenUri);
         _setExtraData(params.tokenId, uint96(amount));
 
-        _pay(amount, fee, amountToCreator, expectedPayingToken);
+        _pay(amount, fees, amountToCreator, expectedPayingToken);
     }
 
     /**
@@ -202,12 +202,12 @@ contract NFT is BaseERC721 {
      * @param expectedPayingToken The expected token used for payments.
      */
     function mintDynamicPrice(
-        DynamicPriceParams calldata params,
+        DynamicPriceParameters calldata params,
         address expectedPayingToken
     ) public payable {
         _validateDynamicPriceSignature(params);
 
-        (uint256 amount, uint256 fee, uint256 amountToCreator) = _checkPrice(
+        (uint256 amount, uint256 fees, uint256 amountToCreator) = _checkPrice(
             params.price,
             expectedPayingToken
         );
@@ -215,38 +215,62 @@ contract NFT is BaseERC721 {
         _baseMint(params.tokenId, params.receiver, params.tokenUri);
         _setExtraData(params.tokenId, uint96(params.price));
 
-        _pay(amount, fee, amountToCreator, expectedPayingToken);
+        _pay(amount, fees, amountToCreator, expectedPayingToken);
     }
 
     /**
      * @notice Handles the payment for minting NFTs, including sending fees to the platform and creator.
      * @dev Payments can be made in ETH or another token.
      * @param amount The total amount to be paid.
-     * @param fee The platform commission.
+     * @param fees The platform commission.
      * @param amountToCreator The amount to send to the creator.
      * @param expectedPayingToken The token used for the payment.
      */
     function _pay(
         uint256 amount,
-        uint256 fee,
+        uint256 fees,
         uint256 amountToCreator,
         address expectedPayingToken
     ) private {
         NftParameters memory _parameters = parameters;
         NFTFactory _factory = NFTFactory(_parameters.factory);
 
+        bytes32 refferalCode = _parameters.refferalCode;
+        address refferalCreator = _factory.referralCreators(refferalCode);
+
+        uint256 feesToPlatform = fees;
+        uint256 referralFees;
+        if (refferalCode != bytes32(0)) {
+            referralFees = _factory.getReferralRate(
+                _parameters.creator,
+                refferalCode,
+                fees
+            );
+            feesToPlatform -= referralFees;
+        }
+
         if (expectedPayingToken == ETH_ADDRESS) {
-            if (fee > 0) {
-                _factory.platformAddress().safeTransferETH(fee);
+            if (feesToPlatform > 0) {
+                _factory.platformAddress().safeTransferETH(feesToPlatform);
+            }
+            if (referralFees > 0) {
+                refferalCreator.safeTransferETH(referralFees);
             }
 
             _parameters.creator.safeTransferETH(amountToCreator);
         } else {
-            if (fee > 0) {
+            if (feesToPlatform > 0) {
                 expectedPayingToken.safeTransferFrom(
                     msg.sender,
                     _factory.platformAddress(),
-                    fee
+                    feesToPlatform
+                );
+            }
+            if (referralFees > 0) {
+                expectedPayingToken.safeTransferFrom(
+                    msg.sender,
+                    refferalCreator,
+                    referralFees
                 );
             }
 
@@ -265,13 +289,13 @@ contract NFT is BaseERC721 {
      * @param price The price to check.
      * @param expectedPayingToken The token used for the payment.
      * @return amount The total amount to be paid.
-     * @return fee The platform commission.
+     * @return fees The platform commission.
      * @return amountToCreator The amount to send to the creator.
      */
     function _checkPrice(
         uint256 price,
         address expectedPayingToken
-    ) private returns (uint256 amount, uint256 fee, uint256 amountToCreator) {
+    ) private returns (uint256 amount, uint256 fees, uint256 amountToCreator) {
         NftParameters memory _parameters = parameters;
 
         if (expectedPayingToken != _parameters.info.payingToken) {
@@ -288,12 +312,12 @@ contract NFT is BaseERC721 {
         }
 
         unchecked {
-            fee =
+            fees =
                 (amount *
                     NFTFactory(_parameters.factory).platformCommission()) /
                 _feeDenominator();
 
-            amountToCreator = amount - fee;
+            amountToCreator = amount - fees;
         }
     }
 
@@ -302,7 +326,7 @@ contract NFT is BaseERC721 {
      * @param params The parameters of the minting operation.
      */
     function _validateDynamicPriceSignature(
-        DynamicPriceParams calldata params
+        DynamicPriceParameters calldata params
     ) private view {
         if (
             !NFTFactory(parameters.factory).signerAddress().isValidSignatureNow(
@@ -327,7 +351,7 @@ contract NFT is BaseERC721 {
      * @param params The parameters of the minting operation.
      */
     function _validateStaticPriceSignature(
-        StaticPriceParams calldata params
+        StaticPriceParameters calldata params
     ) private view {
         if (
             !NFTFactory(parameters.factory).signerAddress().isValidSignatureNow(
