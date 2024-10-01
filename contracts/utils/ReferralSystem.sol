@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-import {ReferralPercentages} from "../Structures.sol";
+import {ReferralPercentages, ReferralCode} from "../Structures.sol";
 
-error ReferralCodeExists(address referralCodeCreator, bytes32 hashedCode);
+error ReferralCodeExists(address referralcreator, bytes32 hashedCode);
 error ReferralCodeUserExists(address referralUser);
-error ReferralCodeUserAddressZero();
 error ReferralCodeOwnerNotExist();
 error CanNotAddAsReferrerOurself();
 
@@ -18,45 +17,44 @@ abstract contract ReferralSystem {
 
     mapping(uint256 timesUsed => uint256 percentage) public usedToPercentage;
 
-    mapping(bytes32 code => address codeCreator) public referralCreators;
-    mapping(bytes32 code => address[] referralUser) public referralUsers;
+    mapping(bytes32 code => ReferralCode referralCode) public referrals;
 
     mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed))
         public usedCode;
 
-    function _createReferralCode() internal returns (bytes32 hashedCode) {
+    function createReferralCode() public returns (bytes32 hashedCode) {
         hashedCode = keccak256(abi.encodePacked(msg.sender));
-        address codeCreator = referralCreators[hashedCode];
 
         require(
-            codeCreator == address(0),
+            referrals[hashedCode].creator == address(0),
             ReferralCodeExists(msg.sender, hashedCode)
         );
 
-        referralCreators[hashedCode] = msg.sender;
+        referrals[hashedCode].creator = msg.sender;
 
         emit ReferralCodeCreated(msg.sender, hashedCode);
     }
 
-    function _setReferral(bytes32 hashedCode, address referralUser) internal {
+    function _setReferralUser(
+        bytes32 hashedCode,
+        address referralUser
+    ) internal {
         if (hashedCode == bytes32(0)) {
             return;
         }
 
-        require(referralUser != address(0), ReferralCodeUserAddressZero());
-
         require(
-            referralUser != referralCreators[hashedCode],
+            referralUser != referrals[hashedCode].creator,
             CanNotAddAsReferrerOurself()
         );
 
         if (usedCode[referralUser][hashedCode] < 3) {
             ++usedCode[referralUser][hashedCode];
         } else {
-            usedCode[referralUser][hashedCode] = 0;
+            usedCode[referralUser][hashedCode] = 4;
         }
 
-        referralUsers[hashedCode].push(referralUser);
+        referrals[hashedCode].referralUsers.push(referralUser);
 
         emit ReferreralCodeUsed(hashedCode, referralUser);
     }
@@ -67,7 +65,7 @@ abstract contract ReferralSystem {
         usedToPercentage[1] = percentages.initial;
         usedToPercentage[2] = percentages.second;
         usedToPercentage[3] = percentages.third;
-        usedToPercentage[0] = percentages.byDefault;
+        usedToPercentage[4] = percentages.byDefault;
 
         emit PercentagesSet(percentages);
     }
@@ -78,7 +76,7 @@ abstract contract ReferralSystem {
         }
 
         require(
-            referralCreators[hashedCode] != address(0),
+            referrals[hashedCode].creator != address(0),
             ReferralCodeOwnerNotExist()
         );
     }
@@ -93,8 +91,14 @@ abstract contract ReferralSystem {
             SCALING_FACTOR;
     }
 
-    function getReferralReceiver(bytes32 code) external view returns (address) {
-        return referralCreators[code];
+    function getReferralCreator(bytes32 code) external view returns (address) {
+        return referrals[code].creator;
+    }
+
+    function getReferralUsers(
+        bytes32 code
+    ) external view returns (address[] memory) {
+        return referrals[code].referralUsers;
     }
 
     // Reserved storage space to allow for layout changes in the future.
