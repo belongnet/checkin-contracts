@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.27;
 
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "solady/src/utils/Initializable.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 import {ReferralSystem} from "../utils/ReferralSystem.sol";
 import {NFT} from "../NFT.sol";
-import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
-import {ReferralPercentages, NftFactoryParameters, NftParameters, InstanceInfo, NftParametersForFactory} from "../Structures.sol";
+import {ReferralPercentages, NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo} from "../Structures.sol";
 
 /// @notice Error thrown when the signature provided is invalid.
 error InvalidSignature();
 /// @notice Error thrown when an empty name is provided for an NFT.
-error EmptyNamePassed();
-/// @notice Error thrown when an empty symbol is provided for an NFT.
-error EmptySymbolPassed();
+error EmptyNameSymbolPassed(string name, string symbol);
 /// @notice Error thrown when an NFT with the same name and symbol already exists.
 error NFTAlreadyExists();
 /// @notice Error thrown when a zero address is passed where it's not allowed.
@@ -27,15 +25,11 @@ error IncorrectInstanceId();
  * @notice A factory contract to create new NFT instances with specific parameters.
  * @dev This contract allows producing NFTs, managing platform settings, and verifying signatures.
  */
-contract NFTFactory is OwnableUpgradeable, ReferralSystem {
+contract NFTFactory is Initializable, Ownable, ReferralSystem {
     using SignatureCheckerLib for address;
 
     /// @notice Event emitted when a new NFT is created.
-    /// @param name Name of the created NFT.
-    /// @param symbol Symbol of the created NFT.
-    /// @param instance The address of the created NFT instance.
-    /// @param id The ID of the newly created NFT.
-    event NFTCreated(string name, string symbol, NFT instance, uint256 id);
+    event NFTCreated(bytes32 _hash, NftInstanceInfo info);
 
     /// @notice Event emitted when the signer address is set.
     /// @param newSigner The new signer address.
@@ -51,7 +45,7 @@ contract NFTFactory is OwnableUpgradeable, ReferralSystem {
 
     /// @notice Event emitted when the transfer validator is set.
     /// @param newValidator The new transfer validator contract.
-    event TransferValidatorSet(ITransferValidator721 newValidator);
+    event TransferValidatorSet(address newValidator);
 
     /// @notice Event emitted when the default payment currency is set.
     /// @param defaultPaymentCurrency The new default payment currency.
@@ -61,20 +55,11 @@ contract NFTFactory is OwnableUpgradeable, ReferralSystem {
     /// @param arraySize The new maximum array size.
     event MaxArraySizeSet(uint256 arraySize);
 
-    /// @notice The current transfer validator contract.
-    ITransferValidator721 public transferValidator;
-
-    /// @notice A struct that contains info parameters for the NFTFactory.
-    NftFactoryParameters private _info;
-
-    /// @notice An array storing all created NFT instances.
-    NFT[] public instances;
+    /// @notice A struct that contains _info parameters for the NFTFactory.
+    NftFactoryParameters private _nftFactoryParameters;
 
     /// @notice A mapping from keccak256(name, symbol) to the NFT instance address.
-    mapping(bytes32 => NFT) public getInstance;
-
-    /// @notice A mapping from NFT instance address to its storage information.
-    mapping(NFT => NftParametersForFactory) public instanceInfos;
+    mapping(bytes32 => NftInstanceInfo) public getNftInstanceInfo;
 
     /// @notice Modifier to check if the passed address is not zero.
     /// @param _address The address to check.
@@ -86,20 +71,89 @@ contract NFTFactory is OwnableUpgradeable, ReferralSystem {
     }
 
     /**
-     * @notice Initializes the contract with NFT factory info and validator.
-     * @param info The info of NFTFactory.
-     * @param validator The transfer validator contract.
+     * @notice Initializes the contract with NFT factory _info and validator.
      */
     function initialize(
-        ReferralPercentages memory percentages,
-        NftFactoryParameters calldata info,
-        ITransferValidator721 validator
+        ReferralPercentages calldata percentages,
+        NftFactoryParameters calldata nftFactoryParameters_
     ) external initializer {
-        _info = info;
+        _nftFactoryParameters = nftFactoryParameters_;
 
-        _setTransferValidator(validator);
         _setReferralPercentages(percentages);
-        __Ownable_init(msg.sender);
+        _initializeOwner(msg.sender);
+    }
+
+    /**
+     * @notice Produces a new NFT instance.
+     * @dev Creates a new instance of the NFT and adds the information to the storage contract.
+     * @param _info Struct containing the details of the new NFT instance.
+     * @return nftAddress The address of the created NFT instance.
+     */
+    function produce(
+        InstanceInfo memory _info,
+        bytes32 referralCode
+    ) external returns (address nftAddress) {
+        require(
+            (bytes(_info.name)).length != 0 &&
+                (bytes(_info.symbol)).length != 0,
+            EmptyNameSymbolPassed(_info.name, _info.symbol)
+        );
+
+        bytes32 _hash = keccak256(abi.encodePacked(_info.name, _info.symbol));
+
+        require(
+            getNftInstanceInfo[_hash].nftAddress == address(0),
+            NFTAlreadyExists()
+        );
+
+        if (
+            !_nftFactoryParameters.signerAddress.isValidSignatureNow(
+                keccak256(
+                    abi.encodePacked(
+                        _info.name,
+                        _info.symbol,
+                        _info.contractURI,
+                        _info.feeNumerator,
+                        _info.feeReceiver,
+                        block.chainid
+                    )
+                ),
+                _info.signature
+            )
+        ) {
+            revert InvalidSignature();
+        }
+
+        _checkReferralCode(referralCode);
+
+        _info.payingToken = _info.payingToken == address(0)
+            ? _nftFactoryParameters.defaultPaymentCurrency
+            : _info.payingToken;
+
+        NFT nftInstance = new NFT(
+            NftParameters({
+                transferValidator: _nftFactoryParameters.transferValidator,
+                factory: address(this),
+                info: _info,
+                creator: msg.sender,
+                refferalCode: referralCode
+            })
+        );
+
+        nftAddress = address(nftInstance);
+
+        NftInstanceInfo memory info = NftInstanceInfo({
+            name: _info.name,
+            symbol: _info.symbol,
+            creator: msg.sender,
+            nftAddress: nftAddress
+        });
+
+        getNftInstanceInfo[_hash] = info;
+
+        _setReferralUser(referralCode, msg.sender);
+
+        emit NFTCreated(_hash, info);
     }
 
     /**
@@ -110,7 +164,7 @@ contract NFTFactory is OwnableUpgradeable, ReferralSystem {
     function setDefaultPaymentCurrency(
         address _paymentCurrency
     ) external onlyOwner zeroAddressCheck(_paymentCurrency) {
-        _info.defaultPaymentCurrency = _paymentCurrency;
+        _nftFactoryParameters.defaultPaymentCurrency = _paymentCurrency;
         emit DefaultPaymentCurrencySet(_paymentCurrency);
     }
 
@@ -120,7 +174,7 @@ contract NFTFactory is OwnableUpgradeable, ReferralSystem {
      * @param _arraySize The new maximum array size.
      */
     function setMaxArraySize(uint256 _arraySize) external onlyOwner {
-        _info.maxArraySize = _arraySize;
+        _nftFactoryParameters.maxArraySize = _arraySize;
         emit MaxArraySizeSet(_arraySize);
     }
 
@@ -132,7 +186,7 @@ contract NFTFactory is OwnableUpgradeable, ReferralSystem {
     function setPlatformCommission(
         uint256 _platformCommission
     ) external onlyOwner {
-        _info.platformCommission = _platformCommission;
+        _nftFactoryParameters.platformCommission = _platformCommission;
         emit PlatformCommissionSet(_platformCommission);
     }
 
@@ -144,14 +198,8 @@ contract NFTFactory is OwnableUpgradeable, ReferralSystem {
     function setPlatformAddress(
         address _platformAddress
     ) external onlyOwner zeroAddressCheck(_platformAddress) {
-        _info.platformAddress = _platformAddress;
+        _nftFactoryParameters.platformAddress = _platformAddress;
         emit PlatformAddressSet(_platformAddress);
-    }
-
-    function setReferralPercentages(
-        ReferralPercentages memory percentages
-    ) external onlyOwner {
-        _setReferralPercentages(percentages);
     }
 
     /**
@@ -162,7 +210,7 @@ contract NFTFactory is OwnableUpgradeable, ReferralSystem {
     function setSigner(
         address _signer
     ) external onlyOwner zeroAddressCheck(_signer) {
-        _info.signerAddress = _signer;
+        _nftFactoryParameters.signerAddress = _signer;
         emit SignerSet(_signer);
     }
 
@@ -172,164 +220,27 @@ contract NFTFactory is OwnableUpgradeable, ReferralSystem {
      * @param validator The new transfer validator contract.
      */
     function setTransferValidator(
-        ITransferValidator721 validator
-    ) external onlyOwner {
-        _setTransferValidator(validator);
-    }
-
-    function createReferralCode() external returns (bytes32) {
-        return _createReferralCode();
-    }
-
-    /**
-     * @notice Produces a new NFT instance.
-     * @dev Creates a new instance of the NFT and adds the information to the storage contract.
-     * @param info Struct containing the details of the new NFT instance.
-     * @return nft The address of the created NFT instance.
-     */
-    function produce(
-        InstanceInfo memory info,
-        bytes32 referralCode
-    ) external returns (NFT nft) {
-        require((bytes(info.name)).length != 0, EmptyNamePassed());
-        require((bytes(info.symbol)).length != 0, EmptySymbolPassed());
-
-        bytes32 hashedNameSymbol = keccak256(
-            abi.encodePacked(info.name, info.symbol)
-        );
-
-        if (getInstance[hashedNameSymbol] != NFT(address(0))) {
-            revert NFTAlreadyExists();
-        }
-
-        if (!_isSignatureValid(info)) {
-            revert InvalidSignature();
-        }
-
-        _checkReferralCode(referralCode);
-
-        uint256 id = instances.length;
-
-        info.payingToken = info.payingToken == address(0)
-            ? _info.defaultPaymentCurrency
-            : info.payingToken;
-
-        nft = new NFT(
-            NftParameters({
-                factory: address(this),
-                info: info,
-                creator: msg.sender,
-                refferalCode: referralCode
-            }),
-            transferValidator
-        );
-
-        instances.push(nft);
-        getInstance[hashedNameSymbol] = nft;
-        instanceInfos[nft] = NftParametersForFactory({
-            name: info.name,
-            symbol: info.symbol,
-            creator: msg.sender
-        });
-
-        _setReferral(referralCode, msg.sender);
-
-        emit NFTCreated(info.name, info.symbol, nft, id);
-    }
-
-    /**
-     * @notice Retrieves information about a specific NFT instance.
-     * @param instanceId The ID of the NFT instance.
-     * @return instanceInfo The information about the specified instance.
-     * @dev Reverts with `IncorrectInstanceId` if the provided ID is invalid.
-     */
-    function getInstanceInfo(
-        uint256 instanceId
-    ) external view returns (NftParametersForFactory memory) {
-        if (instanceId >= instances.length) {
-            revert IncorrectInstanceId();
-        }
-
-        return instanceInfos[instances[instanceId]];
-    }
-
-    /**
-     * @notice Returns the total count of NFT instances stored in the contract.
-     * @return The number of NFT instances.
-     */
-    function platformAddress() external view returns (address) {
-        return _info.platformAddress;
-    }
-
-    /**
-     * @notice Returns the total count of NFT instances stored in the contract.
-     * @return The number of NFT instances.
-     */
-    function signerAddress() external view returns (address) {
-        return _info.signerAddress;
-    }
-
-    /**
-     * @notice Returns the total count of NFT instances stored in the contract.
-     * @return The number of NFT instances.
-     */
-    function defaultPaymentCurrency() external view returns (address) {
-        return _info.defaultPaymentCurrency;
-    }
-
-    /**
-     * @notice Returns the total count of NFT instances stored in the contract.
-     * @return The number of NFT instances.
-     */
-    function platformCommission() external view returns (uint256) {
-        return _info.platformCommission;
-    }
-
-    /**
-     * @notice Returns the max array size.
-     * @return The max array size.
-     */
-    function maxArraySize() external view returns (uint256) {
-        return _info.maxArraySize;
-    }
-
-    /**
-     * @notice Returns the total count of NFT instances stored in the contract.
-     * @return The number of NFT instances.
-     */
-    function instancesCount() external view returns (uint256) {
-        return instances.length;
-    }
-
-    /// @notice Verifies if the signature is valid for the current signer address.
-    /// @dev This function checks the signature for the provided NFT data.
-    /// @param info Struct containing the details of the new NFT instance.
-    /// @return bool Whether the signature is valid.
-    function _isSignatureValid(
-        InstanceInfo memory info
-    ) internal view returns (bool) {
-        return
-            _info.signerAddress.isValidSignatureNow(
-                keccak256(
-                    abi.encodePacked(
-                        info.name,
-                        info.symbol,
-                        info.contractURI,
-                        info.feeNumerator,
-                        info.feeReceiver,
-                        block.chainid
-                    )
-                ),
-                info.signature
-            );
-    }
-
-    /// @notice Private function to set the transfer validator contract.
-    /// @param validator The new transfer validator contract.
-    function _setTransferValidator(
-        ITransferValidator721 validator
-    ) private zeroAddressCheck(address(validator)) {
-        transferValidator = validator;
+        address validator
+    ) external onlyOwner zeroAddressCheck(validator) {
+        _nftFactoryParameters.transferValidator = validator;
         emit TransferValidatorSet(validator);
+    }
+
+    function setReferralPercentages(
+        ReferralPercentages memory percentages
+    ) external onlyOwner {
+        _setReferralPercentages(percentages);
+    }
+
+    /**
+     * @notice Returns the total count of NFT instances stored in the contract.
+     * @return The number of NFT instances.
+     */
+    function nftFactoryParameters()
+        external
+        view
+        returns (NftFactoryParameters memory)
+    {
+        return _nftFactoryParameters;
     }
 }
