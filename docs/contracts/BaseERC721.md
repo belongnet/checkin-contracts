@@ -387,10 +387,10 @@ Returns the creator of the collection.
 | ---- | ---- | ----------- |
 | [0] | address | The creator's address. |
 
-### refferalCodeCreator
+### referralCodeCreator
 
 ```solidity
-function refferalCodeCreator() external view returns (bytes32)
+function referralCodeCreator() external view returns (bytes32)
 ```
 
 Returns the referral code of the creator.

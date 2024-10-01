@@ -26,7 +26,7 @@ Error thrown when the referral user already exists for a given code.
 ## ReferralCodeOwnerNotExist
 
 ```solidity
-error ReferralCodeOwnerNotExist()
+error ReferralCodeOwnerNotExist(bytes32 hashedCode)
 ```
 
 Error thrown when a referral code is used that does not have an owner.
@@ -74,10 +74,10 @@ Emitted when a new referral code is created.
 | createdBy | address | The address that created the referral code. |
 | code | bytes32 | The created referral code. |
 
-### ReferreralCodeUsed
+### ReferralCodeUsed
 
 ```solidity
-event ReferreralCodeUsed(bytes32 code, address usedBy)
+event ReferralCodeUsed(bytes32 code, address usedBy)
 ```
 
 Emitted when a referral code is used.
