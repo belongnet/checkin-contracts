@@ -24,6 +24,7 @@ contract ERC721Mock is BaseERC721 {
         });
     NftParameters params =
         NftParameters({
+            transferValidator: 0x721C0078c2328597Ca70F5451ffF5A7B38D4E947,
             factory: msg.sender,
             info: _info,
             creator: msg.sender,
@@ -34,12 +35,7 @@ contract ERC721Mock is BaseERC721 {
      * @dev called by factory when instance deployed
 
      */
-    constructor()
-        BaseERC721(
-            params,
-            ITransferValidator721(0x721C0078c2328597Ca70F5451ffF5A7B38D4E947)
-        )
-    {}
+    constructor() BaseERC721(params) {}
 
     /**
      * @notice Mints new NFT
