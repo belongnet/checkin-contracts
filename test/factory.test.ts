@@ -473,7 +473,7 @@ describe('NFTFactory', () => {
 				} as InstanceInfoStruct,
 					hashedCode);
 
-			await expect(tx).to.emit(factory, 'ReferreralCodeUsed').withArgs(hashedCode, bob.address);
+			await expect(tx).to.emit(factory, 'ReferralCodeUsed').withArgs(hashedCode, bob.address);
 			expect((await factory.getReferralUsers(hashedCode))[0]).to.eq(bob.address);
 
 			const amount = 10000;
