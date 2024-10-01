@@ -1,18 +1,39 @@
 # Solidity API
 
-## NftFactoryInfo
+## ReferralCode
+
+```solidity
+struct ReferralCode {
+  address creator;
+  address[] referralUsers;
+}
+```
+
+## ReferralPercentages
+
+```solidity
+struct ReferralPercentages {
+  uint256 initial;
+  uint256 second;
+  uint256 third;
+  uint256 byDefault;
+}
+```
+
+## NftFactoryParameters
 
 A struct that contains parameters related to the NFT factory, such as platform and commission details.
 
 _This struct is used to store key configuration information for the NFT factory._
 
 ```solidity
-struct NftFactoryInfo {
+struct NftFactoryParameters {
   address platformAddress;
   address signerAddress;
   address defaultPaymentCurrency;
   uint256 platformCommission;
   uint256 maxArraySize;
+  address transferValidator;
 }
 ```
 
@@ -24,9 +45,11 @@ _This struct is used to pass parameters between contracts during the creation of
 
 ```solidity
 struct NftParameters {
+  address transferValidator;
   address factory;
   struct InstanceInfo info;
   address creator;
+  bytes32 refferalCode;
 }
 ```
 
@@ -42,39 +65,40 @@ struct InstanceInfo {
   string symbol;
   string contractURI;
   address payingToken;
-  uint256 mintPrice;
-  uint256 whitelistMintPrice;
+  address feeReceiver;
+  uint96 feeNumerator;
   bool transferable;
   uint256 maxTotalSupply;
-  uint96 feeNumerator;
-  address feeReceiver;
+  uint256 mintPrice;
+  uint256 whitelistMintPrice;
   uint256 collectionExpire;
   bytes signature;
 }
 ```
 
-## NftParamsInfo
+## NftInstanceInfo
 
 A simplified struct that holds only the basic information of the NFT collection, such as name, symbol, and creator.
 
 _This struct is used for lightweight storage of NFT collection metadata._
 
 ```solidity
-struct NftParamsInfo {
+struct NftInstanceInfo {
   string name;
   string symbol;
   address creator;
+  address nftAddress;
 }
 ```
 
-## StaticPriceParams
+## StaticPriceParameters
 
 A struct for holding parameters related to minting NFTs with a static price.
 
 _This struct is used for static price minting operations._
 
 ```solidity
-struct StaticPriceParams {
+struct StaticPriceParameters {
   address receiver;
   uint256 tokenId;
   bool whitelisted;
@@ -83,14 +107,14 @@ struct StaticPriceParams {
 }
 ```
 
-## DynamicPriceParams
+## DynamicPriceParameters
 
 A struct for holding parameters related to minting NFTs with a dynamic price.
 
 _This struct is used for dynamic price minting operations._
 
 ```solidity
-struct DynamicPriceParams {
+struct DynamicPriceParameters {
   address receiver;
   uint256 tokenId;
   uint256 price;

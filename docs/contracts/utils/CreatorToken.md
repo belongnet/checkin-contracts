@@ -93,7 +93,7 @@ _This returns the function selector of `validateTransfer` from the `ITransferVal
 ### _setTransferValidator
 
 ```solidity
-function _setTransferValidator(contract ITransferValidator721 newValidator) internal
+function _setTransferValidator(address _newValidator) internal
 ```
 
 Sets a new transfer validator.
@@ -104,7 +104,7 @@ _The external method calling this function must include access control, such as 
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| newValidator | contract ITransferValidator721 | The address of the new transfer validator contract. |
+| _newValidator | address | The address of the new transfer validator contract. |
 
 ### _validateTransfer
 

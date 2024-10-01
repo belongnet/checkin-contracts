@@ -109,7 +109,7 @@ The constant address representing ETH.
 ### constructor
 
 ```solidity
-constructor(struct NftParameters _params, contract ITransferValidator721 newValidator) public
+constructor(struct NftParameters _params) public
 ```
 
 Deploys the contract with the given collection parameters and transfer validator.
@@ -121,12 +121,11 @@ _Called by the factory when a new instance is deployed._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _params | struct NftParameters | Collection parameters containing information like name, symbol, fees, and more. |
-| newValidator | contract ITransferValidator721 | The transfer validator contract address. |
 
 ### mintStaticPriceBatch
 
 ```solidity
-function mintStaticPriceBatch(struct StaticPriceParams[] paramsArray, address expectedPayingToken, uint256 expectedMintPrice) external payable
+function mintStaticPriceBatch(struct StaticPriceParameters[] paramsArray, address expectedPayingToken, uint256 expectedMintPrice) external payable
 ```
 
 Batch mints new NFTs with static prices to specified addresses.
@@ -137,14 +136,14 @@ _Requires signatures from trusted addresses and validates against whitelist stat
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| paramsArray | struct StaticPriceParams[] | An array of parameters for each mint (receiver, tokenId, tokenUri, whitelisted). |
+| paramsArray | struct StaticPriceParameters[] | An array of parameters for each mint (receiver, tokenId, tokenUri, whitelisted). |
 | expectedPayingToken | address | The expected token used for payments. |
 | expectedMintPrice | uint256 | The expected price for the minting operation. |
 
 ### mintDynamicPriceBatch
 
 ```solidity
-function mintDynamicPriceBatch(struct DynamicPriceParams[] paramsArray, address expectedPayingToken) external payable
+function mintDynamicPriceBatch(struct DynamicPriceParameters[] paramsArray, address expectedPayingToken) external payable
 ```
 
 Batch mints new NFTs with dynamic prices to specified addresses.
@@ -155,13 +154,13 @@ _Requires signatures from trusted addresses and validates against whitelist stat
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| paramsArray | struct DynamicPriceParams[] | An array of parameters for each mint (receiver, tokenId, tokenUri, price). |
+| paramsArray | struct DynamicPriceParameters[] | An array of parameters for each mint (receiver, tokenId, tokenUri, price). |
 | expectedPayingToken | address | The expected token used for payments. |
 
 ### mintStaticPrice
 
 ```solidity
-function mintStaticPrice(struct StaticPriceParams params, address expectedPayingToken, uint256 expectedMintPrice) public payable
+function mintStaticPrice(struct StaticPriceParameters params, address expectedPayingToken, uint256 expectedMintPrice) public payable
 ```
 
 Mints a new NFT with a static price to a specified address.
@@ -172,14 +171,14 @@ _Requires a signature from a trusted address and validates against whitelist sta
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| params | struct StaticPriceParams | Minting parameters including receiver, tokenId, tokenUri, and whitelist status. |
+| params | struct StaticPriceParameters | Minting parameters including receiver, tokenId, tokenUri, and whitelist status. |
 | expectedPayingToken | address | The expected token used for payments. |
 | expectedMintPrice | uint256 | The expected price for the minting operation. |
 
 ### mintDynamicPrice
 
 ```solidity
-function mintDynamicPrice(struct DynamicPriceParams params, address expectedPayingToken) public payable
+function mintDynamicPrice(struct DynamicPriceParameters params, address expectedPayingToken) public payable
 ```
 
 Mints a new NFT with a dynamic price to a specified address.
@@ -190,6 +189,6 @@ _Requires a signature from a trusted address and validates against whitelist sta
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| params | struct DynamicPriceParams | Minting parameters including receiver, tokenId, tokenUri, and price. |
+| params | struct DynamicPriceParameters | Minting parameters including receiver, tokenId, tokenUri, and price. |
 | expectedPayingToken | address | The expected token used for payments. |
 

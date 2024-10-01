@@ -57,12 +57,21 @@ At the beginning, three smart contracts are deployed at the network:
 
 #### Collection creation
 
-1. User specifies the settings of his collection (name, symbol, contractURI with royalty information, mint price, whitelisted mint price, paying token, royalties and “transferable” flag) on the front-end
-2. User deploys the RoyaltiesReceiver contract with deployReceiver() function of ReceiverFactory contract. BE (which is subscribed to the ReceiverFactory's events) checks it it was deployed.
+1. Creator specifies the settings of his collection (name, symbol, contractURI with royalty information, mint price, whitelisted mint price, paying token, royalties and “transferable” flag) on the front-end
+2. Creator deploys the RoyaltiesReceiver contract with deployReceiver() function of ReceiverFactory contract. BE (which is subscribed to the ReceiverFactory's events) checks it it was deployed.
 3. The BE checks if name, symbol and royalties size comply with the rules
 4. BE creates [`contractURI`](https://docs.opensea.io/docs/contract-level-metadata) JSON file and uploads it to some hosting (the fee_recipient field must be equal to the RoyaltiesReceiver address)
 5. BE signs the collection data
-6. Now user can call `produce()` function on Factory contract. A new nft collection will be deployed and the user becomes the creator (not owner) of the new smart contract
+6. Now the creator can call `produce()` function on Factory contract. A new nft collection will be deployed.
+
+Additional case - Referral System:
+
+- Any user can create his own referral code.
+
+1. This code can be shared to creator.
+2. Creator can use this code during the collection creation.
+3. Now the referral code creator are attached to this collection.
+4. The referral code creator will receive the percentage of the comission from mint tokens.
 
 #### Mint token from the collection
 
@@ -72,6 +81,7 @@ At the beginning, three smart contracts are deployed at the network:
 4. The user calls the mint functions of the NFT contract
 
 If a mint price is greater than zero, the contract will handle payments in either ETH or ERC20 tokens. For every primary sale, a portion of the payment is immediately sent to the platform as a commission, while the remainder is transferred to the creator.
+If referral code shared to the creator, and this code was used, then some percentage from platform commissions will be transfered to the referral code creator.
 
 - The factory owner can set or change the platform commission.
 - The collection creator can modify the paying token and adjust the mint prices for both regular and whitelisted users.
@@ -108,7 +118,11 @@ The contract validates signatures to ensure authorized minting and handles payme
 
 [Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.](./docs/contracts/NFT.md)
 
-#### 2.2.2. Factory.sol
+#### 2.2.2. NFTFactory.sol
+
+[A factory contract to create new NFT instances with specific parameters.](./docs/contracts/factories/NFTFactory.md)
+
+#### 2.2.3. ReferralSystem.sol
 
 [A factory contract to create new NFT instances with specific parameters.](./docs/contracts/factories/NFTFactory.md)
 

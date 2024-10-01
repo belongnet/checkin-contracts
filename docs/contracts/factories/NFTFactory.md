@@ -8,21 +8,20 @@ error InvalidSignature()
 
 Error thrown when the signature provided is invalid.
 
-## EmptyNamePassed
+## EmptyNameSymbolPassed
 
 ```solidity
-error EmptyNamePassed()
+error EmptyNameSymbolPassed(string name, string symbol)
 ```
 
-Error thrown when an empty name is provided for an NFT.
+Error thrown when an empty name or symbol is provided for an NFT.
 
-## EmptySymbolPassed
+### Parameters
 
-```solidity
-error EmptySymbolPassed()
-```
-
-Error thrown when an empty symbol is provided for an NFT.
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| name | string | The name that was passed (empty). |
+| symbol | string | The symbol that was passed (empty). |
 
 ## NFTAlreadyExists
 
@@ -57,7 +56,7 @@ _This contract allows producing NFTs, managing platform settings, and verifying 
 ### NFTCreated
 
 ```solidity
-event NFTCreated(string name, string symbol, contract NFT instance, uint256 id)
+event NFTCreated(bytes32 _hash, struct NftInstanceInfo info)
 ```
 
 Event emitted when a new NFT is created.
@@ -66,10 +65,8 @@ Event emitted when a new NFT is created.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| name | string | Name of the created NFT. |
-| symbol | string | Symbol of the created NFT. |
-| instance | contract NFT | The address of the created NFT instance. |
-| id | uint256 | The ID of the newly created NFT. |
+| _hash | bytes32 | The keccak256 hash of the NFT's name and symbol. |
+| info | struct NftInstanceInfo | The information about the created NFT instance. |
 
 ### SignerSet
 
@@ -116,7 +113,7 @@ Event emitted when the platform address is set.
 ### TransferValidatorSet
 
 ```solidity
-event TransferValidatorSet(contract ITransferValidator721 newValidator)
+event TransferValidatorSet(address newValidator)
 ```
 
 Event emitted when the transfer validator is set.
@@ -125,7 +122,7 @@ Event emitted when the transfer validator is set.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| newValidator | contract ITransferValidator721 | The new transfer validator contract. |
+| newValidator | address | The new transfer validator contract. |
 
 ### DefaultPaymentCurrencySet
 
@@ -155,37 +152,13 @@ Event emitted when the maximum array size is set.
 | ---- | ---- | ----------- |
 | arraySize | uint256 | The new maximum array size. |
 
-### transferValidator
+### getNftInstanceInfo
 
 ```solidity
-contract ITransferValidator721 transferValidator
-```
-
-The current transfer validator contract.
-
-### instances
-
-```solidity
-contract NFT[] instances
-```
-
-An array storing all created NFT instances.
-
-### getInstance
-
-```solidity
-mapping(bytes32 => contract NFT) getInstance
+mapping(bytes32 => struct NftInstanceInfo) getNftInstanceInfo
 ```
 
 A mapping from keccak256(name, symbol) to the NFT instance address.
-
-### instanceInfos
-
-```solidity
-mapping(contract NFT => struct NftParamsInfo) instanceInfos
-```
-
-A mapping from NFT instance address to its storage information.
 
 ### zeroAddressCheck
 
@@ -204,17 +177,40 @@ Modifier to check if the passed address is not zero.
 ### initialize
 
 ```solidity
-function initialize(struct NftFactoryInfo info, contract ITransferValidator721 validator) external
+function initialize(struct ReferralPercentages percentages, struct NftFactoryParameters nftFactoryParameters_) external
 ```
 
-Initializes the contract with NFT factory info and validator.
+Initializes the contract with NFT factory parameters and referral percentages.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| info | struct NftFactoryInfo | The info of NFTFactory. |
-| validator | contract ITransferValidator721 | The transfer validator contract. |
+| percentages | struct ReferralPercentages | The referral percentages for the system. |
+| nftFactoryParameters_ | struct NftFactoryParameters | The NFT factory parameters to be set. |
+
+### produce
+
+```solidity
+function produce(struct InstanceInfo _info, bytes32 referralCode) external returns (address nftAddress)
+```
+
+Produces a new NFT instance.
+
+_Creates a new instance of the NFT and adds the information to the storage contract._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _info | struct InstanceInfo | Struct containing the details of the new NFT instance. |
+| referralCode | bytes32 | The referral code associated with this NFT instance. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| nftAddress | address | The address of the created NFT instance. |
 
 ### setDefaultPaymentCurrency
 
@@ -299,7 +295,7 @@ _Can only be called by the owner._
 ### setTransferValidator
 
 ```solidity
-function setTransferValidator(contract ITransferValidator721 validator) external
+function setTransferValidator(address validator) external
 ```
 
 Sets a new transfer validator contract.
@@ -310,155 +306,35 @@ _Can only be called by the owner._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| validator | contract ITransferValidator721 | The new transfer validator contract. |
+| validator | address | The new transfer validator contract. |
 
-### produce
+### setReferralPercentages
 
 ```solidity
-function produce(struct InstanceInfo info) external returns (contract NFT nft)
+function setReferralPercentages(struct ReferralPercentages percentages) external
 ```
 
-Produces a new NFT instance.
+Sets the referral percentages.
 
-_Creates a new instance of the NFT and adds the information to the storage contract._
+_Can only be called by the owner._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| info | struct InstanceInfo | Struct containing the details of the new NFT instance. |
+| percentages | struct ReferralPercentages | The new referral percentages. |
 
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| nft | contract NFT | The address of the created NFT instance. |
-
-### getInstanceInfo
+### nftFactoryParameters
 
 ```solidity
-function getInstanceInfo(uint256 instanceId) external view returns (struct NftParamsInfo)
+function nftFactoryParameters() external view returns (struct NftFactoryParameters)
 ```
 
-Retrieves information about a specific NFT instance.
-
-_Reverts with `IncorrectInstanceId` if the provided ID is invalid._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| instanceId | uint256 | The ID of the NFT instance. |
+Returns the current NFT factory parameters.
 
 #### Return Values
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | struct NftParamsInfo | instanceInfo The information about the specified instance. |
-
-### platformAddress
-
-```solidity
-function platformAddress() external view returns (address)
-```
-
-Returns the total count of NFT instances stored in the contract.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | address | The number of NFT instances. |
-
-### signerAddress
-
-```solidity
-function signerAddress() external view returns (address)
-```
-
-Returns the total count of NFT instances stored in the contract.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | address | The number of NFT instances. |
-
-### defaultPaymentCurrency
-
-```solidity
-function defaultPaymentCurrency() external view returns (address)
-```
-
-Returns the total count of NFT instances stored in the contract.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | address | The number of NFT instances. |
-
-### platformCommission
-
-```solidity
-function platformCommission() external view returns (uint256)
-```
-
-Returns the total count of NFT instances stored in the contract.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The number of NFT instances. |
-
-### maxArraySize
-
-```solidity
-function maxArraySize() external view returns (uint256)
-```
-
-Returns the max array size.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The max array size. |
-
-### instancesCount
-
-```solidity
-function instancesCount() external view returns (uint256)
-```
-
-Returns the total count of NFT instances stored in the contract.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The number of NFT instances. |
-
-### _isSignatureValid
-
-```solidity
-function _isSignatureValid(struct InstanceInfo info) internal view returns (bool)
-```
-
-Verifies if the signature is valid for the current signer address.
-
-_This function checks the signature for the provided NFT data._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| info | struct InstanceInfo | Struct containing the details of the new NFT instance. |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | bool | bool Whether the signature is valid. |
+| [0] | struct NftFactoryParameters | The NFT factory parameters. |
 
