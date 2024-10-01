@@ -1,12 +1,12 @@
 
 import { ethers, upgrades } from 'hardhat';
 import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
-import { BigNumber, ContractFactory } from "ethers";
+import { BigNumber, BigNumberish, ContractFactory } from "ethers";
 import { Erc20Example, MockTransferValidator, NFTFactory } from "../typechain-types";
 import { expect } from "chai";
 import { InstanceInfoStruct } from "../typechain-types/contracts/NFT";
 import EthCrypto from "eth-crypto";
-import { NftFactoryParametersStruct } from '../typechain-types/contracts/factories/NFTFactory';
+import { NftFactoryParametersStruct, NftInstanceInfoStruct, ReferralPercentagesStruct } from '../typechain-types/contracts/factories/NFTFactory';
 
 describe('NFTFactory', () => {
 	const PLATFORM_COMISSION = "10";
@@ -14,7 +14,7 @@ describe('NFTFactory', () => {
 	const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 	const chainId = 31337;
 
-	let nftInfo: NftFactoryParametersStruct;
+	let nftInfo: NftFactoryParametersStruct, referralPercentages: ReferralPercentagesStruct;
 
 	async function fixture() {
 		const [owner, alice, bob, charlie] = await ethers.getSigners();
@@ -29,17 +29,25 @@ describe('NFTFactory', () => {
 		await validator.deployed();
 
 		nftInfo = {
+			transferValidator: validator.address,
 			platformAddress: owner.address,
 			signerAddress: signer.address,
 			platformCommission: PLATFORM_COMISSION,
 			defaultPaymentCurrency: ETH_ADDRESS,
 			maxArraySize: 10
-		} as NftFactoryParametersStruct
+		} as NftFactoryParametersStruct;
+
+		referralPercentages = {
+			initial: 5000,
+			second: 3000,
+			third: 1500,
+			byDefault: 500
+		};
 
 		const NFTFactory: ContractFactory = await ethers.getContractFactory("NFTFactory", owner);
 		const factory: NFTFactory = await upgrades.deployProxy(NFTFactory, [
+			referralPercentages,
 			nftInfo,
-			validator.address,
 		]) as NFTFactory;
 		await factory.deployed();
 
@@ -48,25 +56,30 @@ describe('NFTFactory', () => {
 
 	describe('Deployment', () => {
 		it("should correct initialize", async () => {
-			const { factory, owner, signer } = await loadFixture(fixture);
+			const { factory, owner, signer, validator } = await loadFixture(fixture);
 
-			expect(await factory.platformAddress()).to.be.equal(owner.address);
-			expect(await factory.platformCommission()).to.be.equal(+PLATFORM_COMISSION);
-			expect(await factory.signerAddress()).to.be.equal(signer.address);
-			expect(await factory.defaultPaymentCurrency()).to.be.equal(ETH_ADDRESS);
-			expect(await factory.maxArraySize()).to.be.equal(nftInfo.maxArraySize);
+			expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(owner.address);
+			expect((await factory.nftFactoryParameters()).platformCommission).to.be.equal(+PLATFORM_COMISSION);
+			expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(signer.address);
+			expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(ETH_ADDRESS);
+			expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(nftInfo.maxArraySize);
+			expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(validator.address);
+			expect(await factory.usedToPercentage(1)).to.be.equal(referralPercentages.initial);
+			expect(await factory.usedToPercentage(2)).to.be.equal(referralPercentages.second);
+			expect(await factory.usedToPercentage(3)).to.be.equal(referralPercentages.third);
+			expect(await factory.usedToPercentage(4)).to.be.equal(referralPercentages.byDefault);
 		});
 
 		it("can not be initialized again", async () => {
-			const { factory, validator } = await loadFixture(fixture);
+			const { factory } = await loadFixture(fixture);
 
-			await expect(factory.initialize(nftInfo, validator.address,)).to.be.revertedWithCustomError(factory, 'InvalidInitialization')
+			await expect(factory.initialize(referralPercentages, nftInfo,)).to.be.revertedWithCustomError(factory, 'InvalidInitialization')
 		});
 	});
 
 	describe('Deploy NFT', () => {
 		it("should correct deploy NFT instance", async () => {
-			const { factory, owner, alice, signer } = await loadFixture(fixture);
+			const { factory, validator, owner, alice, signer } = await loadFixture(fixture);
 
 			const nftName = "Name 1";
 			const nftSymbol = "S1";
@@ -121,7 +134,7 @@ describe('NFTFactory', () => {
 			await expect(
 				factory
 					.connect(alice)
-					.produce(fakeInfo)
+					.produce(fakeInfo, ethers.constants.HashZero)
 			).to.be.revertedWithCustomError(factory, 'InvalidSignature');;
 
 			const emptySymbolMessage = EthCrypto.hash.keccak256([
@@ -142,7 +155,7 @@ describe('NFTFactory', () => {
 			await expect(
 				factory
 					.connect(alice)
-					.produce(fakeInfo)
+					.produce(fakeInfo, ethers.constants.HashZero)
 			).to.be.revertedWithCustomError(factory, 'InvalidSignature');;
 
 			const badMessage = EthCrypto.hash.keccak256([
@@ -160,37 +173,35 @@ describe('NFTFactory', () => {
 			await expect(
 				factory
 					.connect(alice)
-					.produce(fakeInfo)
+					.produce(fakeInfo, ethers.constants.HashZero)
 			).to.be.revertedWithCustomError(factory, 'InvalidSignature');;
 			fakeInfo.signature = signature;
 
-			await factory.connect(alice).produce(info);
+			await factory.connect(alice).produce(info, ethers.constants.HashZero);
 
 			const hash = ethers.utils.solidityKeccak256(
 				['string', 'string'],
 				[nftName, nftSymbol]
 			);
 
-			const instanceAddress = await factory.getInstance(hash);
-			expect(instanceAddress).to.not.be.equal(ZERO_ADDRESS);
-			expect(instanceAddress).to.be.equal(await factory.instances(0));
-			const instanceInfo = await factory.getInstanceInfo(0);
-			expect(instanceInfo.name).to.be.equal(nftName);
-			expect(instanceInfo.symbol).to.be.equal(nftSymbol);
-			expect(instanceInfo.creator).to.be.equal(alice.address);
-			await expect(factory.getInstanceInfo(10)).to.be.revertedWithCustomError(factory, 'IncorrectInstanceId');
+			const nftInstanceInfo = await factory.getNftInstanceInfo(hash);
+			const nftAddress = nftInstanceInfo.nftAddress;
+			expect(nftAddress).to.not.be.equal(ZERO_ADDRESS);
+			expect(nftInstanceInfo.name).to.be.equal(nftName);
+			expect(nftInstanceInfo.symbol).to.be.equal(nftSymbol);
+			expect(nftInstanceInfo.creator).to.be.equal(alice.address);
 
-			console.log("instanceAddress = ", instanceAddress);
+			console.log("instanceAddress = ", nftAddress);
 
-			const nft = await ethers.getContractAt("NFT", instanceAddress);
-			const [factoryAddress, infoReturned, creator] = await nft.parameters();
+			const nft = await ethers.getContractAt("NFT", nftAddress);
+			const [transferValidator, factoryAddress, infoReturned, creator, referralCode] = await nft.parameters();
 
+			expect(transferValidator).to.be.equal(validator.address);
 			expect(factoryAddress).to.be.equal(factory.address);
 			expect(infoReturned.payingToken).to.be.equal(info.payingToken);
 			expect(infoReturned.mintPrice).to.be.equal(info.mintPrice);
 			expect(infoReturned.contractURI).to.be.equal(info.contractURI);
 			expect(creator).to.be.equal(alice.address);
-			expect(await factory.instancesCount()).to.be.equal(1);
 		});
 
 		it("should correctly deploy several NFT nfts", async () => {
@@ -235,7 +246,8 @@ describe('NFTFactory', () => {
 					feeReceiver: owner.address,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature1,
-				} as InstanceInfoStruct);
+				} as InstanceInfoStruct,
+					ethers.constants.HashZero);
 
 			const message2 = EthCrypto.hash.keccak256([
 				{ type: "string", value: nftName2 },
@@ -263,7 +275,8 @@ describe('NFTFactory', () => {
 					feeReceiver: owner.address,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature2,
-				} as InstanceInfoStruct);
+				} as InstanceInfoStruct,
+					ethers.constants.HashZero);
 
 			const message3 = EthCrypto.hash.keccak256([
 				{ type: "string", value: nftName3 },
@@ -291,7 +304,8 @@ describe('NFTFactory', () => {
 					feeReceiver: owner.address,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature3,
-				} as InstanceInfoStruct);
+				} as InstanceInfoStruct,
+					ethers.constants.HashZero);
 
 			const hash1 = EthCrypto.hash.keccak256([
 				{ type: "string", value: nftName1 },
@@ -308,21 +322,13 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol3 },
 			]);
 
-			const instanceAddress1 = await factory.getInstance(hash1);
-			const instanceAddress2 = await factory.getInstance(hash2);
-			const instanceAddress3 = await factory.getInstance(hash3);
+			const instanceInfo1 = await factory.getNftInstanceInfo(hash1);
+			const instanceInfo2 = await factory.getNftInstanceInfo(hash2);
+			const instanceInfo3 = await factory.getNftInstanceInfo(hash3);
 
-			expect(instanceAddress1).to.not.be.equal(ZERO_ADDRESS);
-			expect(instanceAddress2).to.not.be.equal(ZERO_ADDRESS);
-			expect(instanceAddress3).to.not.be.equal(ZERO_ADDRESS);
-
-			expect(instanceAddress1).to.be.equal(await factory.instances(0));
-			expect(instanceAddress2).to.be.equal(await factory.instances(1));
-			expect(instanceAddress3).to.be.equal(await factory.instances(2));
-
-			const instanceInfo1 = await factory.getInstanceInfo(0);
-			const instanceInfo2 = await factory.getInstanceInfo(1);
-			const instanceInfo3 = await factory.getInstanceInfo(2);
+			expect(instanceInfo1.nftAddress).to.not.be.equal(ZERO_ADDRESS);
+			expect(instanceInfo2.nftAddress).to.not.be.equal(ZERO_ADDRESS);
+			expect(instanceInfo3.nftAddress).to.not.be.equal(ZERO_ADDRESS);
 
 			expect(instanceInfo1.name).to.be.equal(nftName1);
 			expect(instanceInfo1.symbol).to.be.equal(nftSymbol1);
@@ -336,45 +342,312 @@ describe('NFTFactory', () => {
 			expect(instanceInfo3.symbol).to.be.equal(nftSymbol3);
 			expect(instanceInfo3.creator).to.be.equal(charlie.address);
 
-			console.log("instanceAddress1 = ", instanceAddress1);
-			console.log("instanceAddress2 = ", instanceAddress2);
-			console.log("instanceAddress3 = ", instanceAddress3);
+			console.log("instanceAddress1 = ", instanceInfo1.nftAddress);
+			console.log("instanceAddress2 = ", instanceInfo2.nftAddress);
+			console.log("instanceAddress3 = ", instanceInfo3.nftAddress);
 
-			const nft1 = await ethers.getContractAt("NFT", instanceAddress1);
-			let [factoryAddress, info, creator] = await nft1.parameters();
-			expect(info.payingToken).to.be.equal(ETH_ADDRESS);
+			const nft1 = await ethers.getContractAt("NFT", instanceInfo1.nftAddress);
+			let [transferValidator, factoryAddress, infoReturned, creator, referralCode] = await nft1.parameters();
+			expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
 			expect(factoryAddress).to.be.equal(factory.address);
-			expect(info.mintPrice).to.be.equal(price1);
-			expect(info.contractURI).to.be.equal(contractURI1);
+			expect(infoReturned.mintPrice).to.be.equal(price1);
+			expect(infoReturned.contractURI).to.be.equal(contractURI1);
 			expect(creator).to.be.equal(alice.address);
 
-			const nft2 = await ethers.getContractAt("NFT", instanceAddress2);
-			[factoryAddress, info, creator] = await nft2.parameters();
-			expect(info.payingToken).to.be.equal(ETH_ADDRESS);
+			const nft2 = await ethers.getContractAt("NFT", instanceInfo2.nftAddress);
+			[transferValidator, factoryAddress, infoReturned, creator, referralCode] = await nft2.parameters();
+			expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
 			expect(factoryAddress).to.be.equal(factory.address);
-			expect(info.mintPrice).to.be.equal(price2);
-			expect(info.contractURI).to.be.equal(contractURI2);
+			expect(infoReturned.mintPrice).to.be.equal(price2);
+			expect(infoReturned.contractURI).to.be.equal(contractURI2);
 			expect(creator).to.be.equal(bob.address);
 
-			const nft3 = await ethers.getContractAt("NFT", instanceAddress3);
-			[factoryAddress, info, creator] = await nft3.parameters();
-			expect(info.payingToken).to.be.equal(ETH_ADDRESS);
+			const nft3 = await ethers.getContractAt("NFT", instanceInfo3.nftAddress);
+			[transferValidator, factoryAddress, infoReturned, creator, referralCode] = await nft3.parameters();
+			expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
 			expect(factoryAddress).to.be.equal(factory.address);
-			expect(info.mintPrice).to.be.equal(price3);
-			expect(info.contractURI).to.be.equal(contractURI3);
+			expect(infoReturned.mintPrice).to.be.equal(price3);
+			expect(infoReturned.contractURI).to.be.equal(contractURI3);
 			expect(creator).to.be.equal(charlie.address);
 		});
+	});
 
-		it("should correct set parameters", async () => {
-			const { factory, owner, bob, charlie, } = await loadFixture(fixture);
-			const newPlatformAddress = bob.address;
-			const newSigner = charlie.address;
+	describe('Deploy NFT', () => {
+		it("Can create referral code", async () => {
+			const { factory, alice } = await loadFixture(fixture);
 
-			await factory.connect(owner).setPlatformAddress(newPlatformAddress);
-			expect(await factory.platformAddress()).to.be.equal(newPlatformAddress);
-			await expect(factory.connect(owner).setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
-			await factory.connect(owner).setSigner(newSigner);
-			expect(await factory.signerAddress()).to.be.equal(newSigner);
+			const hashedCode = EthCrypto.hash.keccak256([
+				{ type: "address", value: alice.address },
+			]);
+
+			const tx = await factory.connect(alice).createReferralCode();
+
+			await expect(tx).to.emit(factory, 'ReferralCodeCreated').withArgs(alice.address, hashedCode);
+			expect(await factory.getReferralCreator(hashedCode)).to.eq(alice.address);
+
+			await expect(factory.connect(alice).createReferralCode()).to.be.revertedWithCustomError(factory, 'ReferralCodeExists').withArgs(alice.address, hashedCode);
+		});
+
+		it("Can set referral", async () => {
+			const { factory, signer, owner, alice, bob } = await loadFixture(fixture);
+
+			const hashedCode = EthCrypto.hash.keccak256([
+				{ type: "address", value: alice.address },
+			]);
+
+			const hashedCodeFalse = EthCrypto.hash.keccak256([
+				{ type: "address", value: bob.address },
+			]);
+
+			await factory.connect(alice).createReferralCode();
+
+			let nftName = "Name";
+			let nftSymbol = "S";
+			const contractURI = "contractURI/123";
+			const price = ethers.utils.parseEther("0.01");
+			const feeNumerator = 500;
+			const feeReceiver = owner.address;
+
+			let message = EthCrypto.hash.keccak256([
+				{ type: "string", value: nftName },
+				{ type: "string", value: nftSymbol },
+				{ type: "string", value: contractURI },
+				{ type: "uint96", value: feeNumerator },
+				{ type: "address", value: feeReceiver },
+				{ type: "uint256", value: chainId },
+			]);
+
+			let signature = EthCrypto.sign(signer.privateKey, message);
+
+			await expect(factory
+				.connect(alice)
+				.produce({
+					name: nftName,
+					symbol: nftSymbol,
+					contractURI: contractURI,
+					payingToken: ETH_ADDRESS,
+					mintPrice: price,
+					whitelistMintPrice: price,
+					transferable: true,
+					maxTotalSupply: BigNumber.from("1000"),
+					feeNumerator: feeNumerator,
+					feeReceiver: feeReceiver,
+					collectionExpire: BigNumber.from("86400"),
+					signature: signature,
+				} as InstanceInfoStruct,
+					hashedCodeFalse)).to.be.revertedWithCustomError(factory, 'ReferralCodeOwnerNotExist');
+
+			await expect(factory
+				.connect(alice)
+				.produce({
+					name: nftName,
+					symbol: nftSymbol,
+					contractURI: contractURI,
+					payingToken: ETH_ADDRESS,
+					mintPrice: price,
+					whitelistMintPrice: price,
+					transferable: true,
+					maxTotalSupply: BigNumber.from("1000"),
+					feeNumerator: feeNumerator,
+					feeReceiver: feeReceiver,
+					collectionExpire: BigNumber.from("86400"),
+					signature: signature,
+				} as InstanceInfoStruct,
+					hashedCode)).to.be.revertedWithCustomError(factory, 'CanNotAddAsReferrerOurself');
+
+			const tx = await factory
+				.connect(bob)
+				.produce({
+					name: nftName,
+					symbol: nftSymbol,
+					contractURI: contractURI,
+					payingToken: ETH_ADDRESS,
+					mintPrice: price,
+					whitelistMintPrice: price,
+					transferable: true,
+					maxTotalSupply: BigNumber.from("1000"),
+					feeNumerator: feeNumerator,
+					feeReceiver: feeReceiver,
+					collectionExpire: BigNumber.from("86400"),
+					signature: signature,
+				} as InstanceInfoStruct,
+					hashedCode);
+
+			await expect(tx).to.emit(factory, 'ReferreralCodeUsed').withArgs(hashedCode, bob.address);
+			expect((await factory.getReferralUsers(hashedCode))[0]).to.eq(bob.address);
+
+			const amount = 10000;
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(amount / 2);
+
+			nftName = "Name2";
+			nftSymbol = "S2";
+
+			message = EthCrypto.hash.keccak256([
+				{ type: "string", value: nftName },
+				{ type: "string", value: nftSymbol },
+				{ type: "string", value: contractURI },
+				{ type: "uint96", value: feeNumerator },
+				{ type: "address", value: feeReceiver },
+				{ type: "uint256", value: chainId },
+			]);
+
+			signature = EthCrypto.sign(signer.privateKey, message);
+
+			await factory
+				.connect(bob)
+				.produce({
+					name: nftName,
+					symbol: nftSymbol,
+					contractURI: contractURI,
+					payingToken: ETH_ADDRESS,
+					mintPrice: price,
+					whitelistMintPrice: price,
+					transferable: true,
+					maxTotalSupply: BigNumber.from("1000"),
+					feeNumerator: feeNumerator,
+					feeReceiver: feeReceiver,
+					collectionExpire: BigNumber.from("86400"),
+					signature: signature,
+				} as InstanceInfoStruct,
+					hashedCode);
+
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.second));
+
+			nftName = "Name3";
+			nftSymbol = "S3";
+
+			message = EthCrypto.hash.keccak256([
+				{ type: "string", value: nftName },
+				{ type: "string", value: nftSymbol },
+				{ type: "string", value: contractURI },
+				{ type: "uint96", value: feeNumerator },
+				{ type: "address", value: feeReceiver },
+				{ type: "uint256", value: chainId },
+			]);
+
+			signature = EthCrypto.sign(signer.privateKey, message);
+
+			await factory
+				.connect(bob)
+				.produce({
+					name: nftName,
+					symbol: nftSymbol,
+					contractURI: contractURI,
+					payingToken: ETH_ADDRESS,
+					mintPrice: price,
+					whitelistMintPrice: price,
+					transferable: true,
+					maxTotalSupply: BigNumber.from("1000"),
+					feeNumerator: feeNumerator,
+					feeReceiver: feeReceiver,
+					collectionExpire: BigNumber.from("86400"),
+					signature: signature,
+				} as InstanceInfoStruct,
+					hashedCode);
+
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.third));
+
+			nftName = "Name4";
+			nftSymbol = "S4";
+
+			message = EthCrypto.hash.keccak256([
+				{ type: "string", value: nftName },
+				{ type: "string", value: nftSymbol },
+				{ type: "string", value: contractURI },
+				{ type: "uint96", value: feeNumerator },
+				{ type: "address", value: feeReceiver },
+				{ type: "uint256", value: chainId },
+			]);
+
+			signature = EthCrypto.sign(signer.privateKey, message);
+
+			await factory
+				.connect(bob)
+				.produce({
+					name: nftName,
+					symbol: nftSymbol,
+					contractURI: contractURI,
+					payingToken: ETH_ADDRESS,
+					mintPrice: price,
+					whitelistMintPrice: price,
+					transferable: true,
+					maxTotalSupply: BigNumber.from("1000"),
+					feeNumerator: feeNumerator,
+					feeReceiver: feeReceiver,
+					collectionExpire: BigNumber.from("86400"),
+					signature: signature,
+				} as InstanceInfoStruct,
+					hashedCode);
+
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.byDefault));
+
+			nftName = "Name5";
+			nftSymbol = "S5";
+
+			message = EthCrypto.hash.keccak256([
+				{ type: "string", value: nftName },
+				{ type: "string", value: nftSymbol },
+				{ type: "string", value: contractURI },
+				{ type: "uint96", value: feeNumerator },
+				{ type: "address", value: feeReceiver },
+				{ type: "uint256", value: chainId },
+			]);
+
+			signature = EthCrypto.sign(signer.privateKey, message);
+
+			await factory
+				.connect(bob)
+				.produce({
+					name: nftName,
+					symbol: nftSymbol,
+					contractURI: contractURI,
+					payingToken: ETH_ADDRESS,
+					mintPrice: price,
+					whitelistMintPrice: price,
+					transferable: true,
+					maxTotalSupply: BigNumber.from("1000"),
+					feeNumerator: feeNumerator,
+					feeReceiver: feeReceiver,
+					collectionExpire: BigNumber.from("86400"),
+					signature: signature,
+				} as InstanceInfoStruct,
+					hashedCode);
+
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.byDefault));
+
+			nftName = "Name6";
+			nftSymbol = "S6";
+
+			message = EthCrypto.hash.keccak256([
+				{ type: "string", value: nftName },
+				{ type: "string", value: nftSymbol },
+				{ type: "string", value: contractURI },
+				{ type: "uint96", value: feeNumerator },
+				{ type: "address", value: feeReceiver },
+				{ type: "uint256", value: chainId },
+			]);
+
+			signature = EthCrypto.sign(signer.privateKey, message);
+
+			await factory
+				.connect(bob)
+				.produce({
+					name: nftName,
+					symbol: nftSymbol,
+					contractURI: contractURI,
+					payingToken: ETH_ADDRESS,
+					mintPrice: price,
+					whitelistMintPrice: price,
+					transferable: true,
+					maxTotalSupply: BigNumber.from("1000"),
+					feeNumerator: feeNumerator,
+					feeReceiver: feeReceiver,
+					collectionExpire: BigNumber.from("86400"),
+					signature: signature,
+				} as InstanceInfoStruct,
+					hashedCode);
+
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.byDefault));
 		});
 	});
 
@@ -382,71 +655,108 @@ describe('NFTFactory', () => {
 		it("Can set max array size", async () => {
 			const { factory, alice } = await loadFixture(fixture);
 
-			await expect(factory.connect(alice).setMaxArraySize(2)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setMaxArraySize(2)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 
 			const tx = await factory.setMaxArraySize(2);
 
 			await expect(tx).to.emit(factory, 'MaxArraySizeSet').withArgs(2);
-			expect(await factory.maxArraySize()).to.be.equal(2);
+			expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(2);
 		});
 
 		it("Can set default currency", async () => {
 			const { factory, erc20Example, alice } = await loadFixture(fixture);
 
-			await expect(factory.connect(alice).setDefaultPaymentCurrency(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setDefaultPaymentCurrency(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 			await expect(factory.setDefaultPaymentCurrency(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
 			const tx = await factory.setDefaultPaymentCurrency(erc20Example.address);
 
 			await expect(tx).to.emit(factory, 'DefaultPaymentCurrencySet').withArgs(erc20Example.address);
-			expect(await factory.defaultPaymentCurrency()).to.be.equal(erc20Example.address);
+			expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(erc20Example.address);
 		});
 
 		it("Can set platform comision", async () => {
-			const { factory, erc20Example, alice } = await loadFixture(fixture);
+			const { factory, alice } = await loadFixture(fixture);
 
-			await expect(factory.connect(alice).setPlatformCommission(2)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setPlatformCommission(2)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 
 			const tx = await factory.setPlatformCommission(2);
 
 			await expect(tx).to.emit(factory, 'PlatformCommissionSet').withArgs(2);
-			expect(await factory.platformCommission()).to.be.equal(2);
+			expect((await factory.nftFactoryParameters()).platformCommission).to.be.equal(2);
 		});
 
 		it("Can set platform address", async () => {
 			const { factory, erc20Example, alice } = await loadFixture(fixture);
 
-			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
 			const tx = await factory.setPlatformAddress(erc20Example.address);
 
 			await expect(tx).to.emit(factory, 'PlatformAddressSet').withArgs(erc20Example.address);
-			expect(await factory.platformAddress()).to.be.equal(erc20Example.address);
+			expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(erc20Example.address);
 		});
 
 		it("Can set signer", async () => {
 			const { factory, erc20Example, alice } = await loadFixture(fixture);
 
-			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
 			const tx = await factory.setSigner(erc20Example.address);
 
 			await expect(tx).to.emit(factory, 'SignerSet').withArgs(erc20Example.address);
-			expect(await factory.signerAddress()).to.be.equal(erc20Example.address);
+			expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(erc20Example.address);
 		});
 	});
 
 	describe('Errors', () => {
+		it("should correct set parameters", async () => {
+			const { factory, owner, bob, charlie, } = await loadFixture(fixture);
+			const newPlatformAddress = bob.address;
+			const newSigner = charlie.address;
+
+			const tx1 = await factory.connect(owner).setDefaultPaymentCurrency(newPlatformAddress);
+			expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(newPlatformAddress);
+			await expect(tx1).to.emit(factory, 'DefaultPaymentCurrencySet').withArgs(newPlatformAddress);
+
+			const tx2 = await factory.connect(owner).setMaxArraySize(2);
+			expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(2);
+			await expect(tx2).to.emit(factory, 'MaxArraySizeSet').withArgs(2);
+
+			const tx3 = await factory.connect(owner).setPlatformCommission(2);
+			expect((await factory.nftFactoryParameters()).platformCommission).to.be.equal(2);
+			await expect(tx3).to.emit(factory, 'PlatformCommissionSet').withArgs(2);
+
+			const tx4 = await factory.connect(owner).setPlatformAddress(newPlatformAddress);
+			expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(newPlatformAddress);
+			await expect(tx4).to.emit(factory, 'PlatformAddressSet').withArgs(newPlatformAddress);
+
+			const tx5 = await factory.connect(owner).setSigner(newSigner);
+			expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(newSigner);
+			await expect(tx5).to.emit(factory, 'SignerSet').withArgs(newSigner);
+
+			const tx6 = await factory.connect(owner).setTransferValidator(newPlatformAddress);
+			expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(newPlatformAddress);
+			await expect(tx6).to.emit(factory, 'TransferValidatorSet').withArgs(newPlatformAddress);
+
+			referralPercentages.byDefault = 1;
+			const tx7 = await factory.connect(owner).setReferralPercentages(referralPercentages);
+			expect(await factory.usedToPercentage(4)).to.be.equal(referralPercentages.byDefault);
+			await expect(tx7).to.emit(factory, 'PercentagesSet');
+		});
+
 		it("only owner", async () => {
 			const { factory, alice } = await loadFixture(fixture);
 
-			await expect(factory.connect(alice).setPlatformCommission(1)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
-			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
-			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
-			await expect(factory.connect(alice).setTransferValidator(alice.address)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
-			await expect(factory.connect(alice).setMaxArraySize(2)).to.be.revertedWithCustomError(factory, 'OwnableUnauthorizedAccount').withArgs(alice.address);
+			await expect(factory.connect(alice).setPlatformCommission(1)).to.be.revertedWithCustomError(factory, 'Unauthorized');
+			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
+			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
+			await expect(factory.connect(alice).setTransferValidator(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
+			await expect(factory.connect(alice).setMaxArraySize(2)).to.be.revertedWithCustomError(factory, 'Unauthorized');
+			await expect(factory.connect(alice).setTransferValidator(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
+			await expect(factory.connect(alice).setReferralPercentages(referralPercentages)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 		});
 
 		it("zero params check", async () => {
@@ -454,6 +764,7 @@ describe('NFTFactory', () => {
 
 			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
+			await expect(factory.setTransferValidator(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 			await expect(factory.setTransferValidator(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 		});
 
@@ -493,7 +804,8 @@ describe('NFTFactory', () => {
 					feeReceiver: owner.address,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
-				} as InstanceInfoStruct);
+				} as InstanceInfoStruct,
+					ethers.constants.HashZero);
 
 			await expect(
 				factory
@@ -511,7 +823,8 @@ describe('NFTFactory', () => {
 						feeReceiver: owner.address,
 						collectionExpire: BigNumber.from("86400"),
 						signature: signature,
-					} as InstanceInfoStruct)
+					} as InstanceInfoStruct,
+						ethers.constants.HashZero)
 			).to.be.revertedWithCustomError(factory, "NFTAlreadyExists");
 
 			await expect(
@@ -530,8 +843,9 @@ describe('NFTFactory', () => {
 						feeReceiver: owner.address,
 						collectionExpire: BigNumber.from("86400"),
 						signature: signature,
-					} as InstanceInfoStruct)
-			).to.be.revertedWithCustomError(factory, "EmptyNamePassed");
+					} as InstanceInfoStruct,
+						ethers.constants.HashZero)
+			).to.be.revertedWithCustomError(factory, "EmptyNameSymbolPassed");
 
 			await expect(
 				factory
@@ -549,8 +863,17 @@ describe('NFTFactory', () => {
 						feeReceiver: owner.address,
 						collectionExpire: BigNumber.from("86400"),
 						signature: signature,
-					} as InstanceInfoStruct)
-			).to.be.revertedWithCustomError(factory, "EmptySymbolPassed");
+					} as InstanceInfoStruct,
+						ethers.constants.HashZero)
+			).to.be.revertedWithCustomError(factory, "EmptyNameSymbolPassed");
 		});
 	});
 });
+
+function getPercentage(
+	amount: BigNumberish,
+	percentage: BigNumberish
+): number {
+	return (amount * percentage) /
+		10000;
+}
