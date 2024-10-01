@@ -12,7 +12,7 @@ error ReferralCodeExists(address referralcreator, bytes32 hashedCode);
 error ReferralCodeUserExists(address referralUser);
 
 /// @notice Error thrown when a referral code is used that does not have an owner.
-error ReferralCodeOwnerNotExist();
+error ReferralCodeOwnerNotExist(bytes32 hashedCode);
 
 /// @notice Error thrown when a user tries to add themselves as their own referrer.
 error CanNotAddAsReferrerOurself();
@@ -37,7 +37,7 @@ abstract contract ReferralSystem {
     /// @notice Emitted when a referral code is used.
     /// @param code The referral code that was used.
     /// @param usedBy The address that used the referral code.
-    event ReferreralCodeUsed(bytes32 indexed code, address indexed usedBy);
+    event ReferralCodeUsed(bytes32 indexed code, address indexed usedBy);
 
     // ========== Constants ==========
 
@@ -103,7 +103,7 @@ abstract contract ReferralSystem {
 
         referrals[hashedCode].referralUsers.push(referralUser);
 
-        emit ReferreralCodeUsed(hashedCode, referralUser);
+        emit ReferralCodeUsed(hashedCode, referralUser);
     }
 
     /**
@@ -134,7 +134,7 @@ abstract contract ReferralSystem {
 
         require(
             referrals[hashedCode].creator != address(0),
-            ReferralCodeOwnerNotExist()
+            ReferralCodeOwnerNotExist(hashedCode)
         );
     }
 

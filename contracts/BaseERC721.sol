@@ -264,7 +264,7 @@ abstract contract BaseERC721 is
      * @notice Returns the referral code of the creator.
      * @return The referral code of the creator.
      */
-    function refferalCodeCreator() external view returns (bytes32) {
+    function referralCodeCreator() external view returns (bytes32) {
         return parameters.refferalCode;
     }
 
