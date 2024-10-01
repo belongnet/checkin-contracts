@@ -60,16 +60,12 @@ abstract contract BaseERC721 is
      * @notice Constructor for BaseERC721.
      * @dev Initializes the contract with the given parameters, sets royalty information, and the transfer validator.
      * @param _params The NFT parameters struct containing details like name, symbol, fee receiver, etc.
-     * @param newValidator The address of the transfer validator.
      */
-    constructor(
-        NftParameters memory _params,
-        ITransferValidator721 newValidator
-    ) {
+    constructor(NftParameters memory _params) {
         parameters = _params;
 
         _setDefaultRoyalty(_params.info.feeReceiver, _params.info.feeNumerator);
-        _setTransferValidator(newValidator);
+        _setTransferValidator(_params.transferValidator);
 
         _initializeOwner(_params.creator);
     }
@@ -79,9 +75,7 @@ abstract contract BaseERC721 is
      * @dev Can only be called by the contract owner.
      * @param newValidator The new transfer validator contract.
      */
-    function setTransferValidator(
-        ITransferValidator721 newValidator
-    ) external onlyOwner {
+    function setTransferValidator(address newValidator) external onlyOwner {
         _setTransferValidator(newValidator);
     }
 

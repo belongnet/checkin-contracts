@@ -57,12 +57,8 @@ contract NFT is BaseERC721 {
      * @notice Deploys the contract with the given collection parameters and transfer validator.
      * @dev Called by the factory when a new instance is deployed.
      * @param _params Collection parameters containing information like name, symbol, fees, and more.
-     * @param newValidator The transfer validator contract address.
      */
-    constructor(
-        NftParameters memory _params,
-        ITransferValidator721 newValidator
-    ) BaseERC721(_params, newValidator) {}
+    constructor(NftParameters memory _params) BaseERC721(_params) {}
 
     /**
      * @notice Batch mints new NFTs with static prices to specified addresses.
@@ -77,7 +73,10 @@ contract NFT is BaseERC721 {
         uint256 expectedMintPrice
     ) external payable {
         require(
-            paramsArray.length <= NFTFactory(parameters.factory).maxArraySize(),
+            paramsArray.length <=
+                NFTFactory(parameters.factory)
+                    .nftFactoryParameters()
+                    .maxArraySize,
             WrongArraySize()
         );
 
@@ -130,7 +129,10 @@ contract NFT is BaseERC721 {
         address expectedPayingToken
     ) external payable {
         require(
-            paramsArray.length <= NFTFactory(parameters.factory).maxArraySize(),
+            paramsArray.length <=
+                NFTFactory(parameters.factory)
+                    .nftFactoryParameters()
+                    .maxArraySize,
             WrongArraySize()
         );
 
@@ -236,7 +238,7 @@ contract NFT is BaseERC721 {
         NFTFactory _factory = NFTFactory(_parameters.factory);
 
         bytes32 refferalCode = _parameters.refferalCode;
-        address refferalCreator = _factory.referralCreators(refferalCode);
+        address refferalCreator = _factory.getReferralCreator(refferalCode);
 
         uint256 feesToPlatform = fees;
         uint256 referralFees;
@@ -251,7 +253,9 @@ contract NFT is BaseERC721 {
 
         if (expectedPayingToken == ETH_ADDRESS) {
             if (feesToPlatform > 0) {
-                _factory.platformAddress().safeTransferETH(feesToPlatform);
+                _factory.nftFactoryParameters().platformAddress.safeTransferETH(
+                    feesToPlatform
+                );
             }
             if (referralFees > 0) {
                 refferalCreator.safeTransferETH(referralFees);
@@ -262,7 +266,7 @@ contract NFT is BaseERC721 {
             if (feesToPlatform > 0) {
                 expectedPayingToken.safeTransferFrom(
                     msg.sender,
-                    _factory.platformAddress(),
+                    _factory.nftFactoryParameters().platformAddress,
                     feesToPlatform
                 );
             }
@@ -314,7 +318,9 @@ contract NFT is BaseERC721 {
         unchecked {
             fees =
                 (amount *
-                    NFTFactory(_parameters.factory).platformCommission()) /
+                    NFTFactory(_parameters.factory)
+                        .nftFactoryParameters()
+                        .platformCommission) /
                 _feeDenominator();
 
             amountToCreator = amount - fees;
@@ -329,18 +335,21 @@ contract NFT is BaseERC721 {
         DynamicPriceParameters calldata params
     ) private view {
         if (
-            !NFTFactory(parameters.factory).signerAddress().isValidSignatureNow(
-                keccak256(
-                    abi.encodePacked(
-                        params.receiver,
-                        params.tokenId,
-                        params.tokenUri,
-                        params.price,
-                        block.chainid
-                    )
-                ),
-                params.signature
-            )
+            !NFTFactory(parameters.factory)
+                .nftFactoryParameters()
+                .signerAddress
+                .isValidSignatureNow(
+                    keccak256(
+                        abi.encodePacked(
+                            params.receiver,
+                            params.tokenId,
+                            params.tokenUri,
+                            params.price,
+                            block.chainid
+                        )
+                    ),
+                    params.signature
+                )
         ) {
             revert InvalidSignature();
         }
@@ -354,18 +363,21 @@ contract NFT is BaseERC721 {
         StaticPriceParameters calldata params
     ) private view {
         if (
-            !NFTFactory(parameters.factory).signerAddress().isValidSignatureNow(
-                keccak256(
-                    abi.encodePacked(
-                        params.receiver,
-                        params.tokenId,
-                        params.tokenUri,
-                        params.whitelisted,
-                        block.chainid
-                    )
-                ),
-                params.signature
-            )
+            !NFTFactory(parameters.factory)
+                .nftFactoryParameters()
+                .signerAddress
+                .isValidSignatureNow(
+                    keccak256(
+                        abi.encodePacked(
+                            params.receiver,
+                            params.tokenId,
+                            params.tokenUri,
+                            params.whitelisted,
+                            block.chainid
+                        )
+                    ),
+                    params.signature
+                )
         ) {
             revert InvalidSignature();
         }
