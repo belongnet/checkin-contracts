@@ -62,11 +62,12 @@ abstract contract CreatorToken {
     /**
      * @notice Sets a new transfer validator.
      * @dev The external method calling this function must include access control, such as onlyOwner.
-     * @param newValidator The address of the new transfer validator contract.
+     * @param _newValidator The address of the new transfer validator contract.
      */
-    function _setTransferValidator(
-        ITransferValidator721 newValidator
-    ) internal {
+    function _setTransferValidator(address _newValidator) internal {
+        ITransferValidator721 newValidator = ITransferValidator721(
+            _newValidator
+        );
         ITransferValidator721 oldValidator = _transferValidator;
 
         if (oldValidator == newValidator) {
