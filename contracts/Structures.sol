@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
+struct ReferralCode {
+    address creator;
+    address[] referralUsers;
+}
+
 struct ReferralPercentages {
     uint256 initial;
     uint256 second;
@@ -24,6 +29,7 @@ struct NftFactoryParameters {
     uint256 platformCommission;
     /// @notice The maximum size of an array allowed in batch operations.
     uint256 maxArraySize;
+    address transferValidator;
 }
 
 /**
@@ -32,6 +38,7 @@ struct NftFactoryParameters {
  * @dev This struct is used to pass parameters between contracts during the creation of a new NFT collection.
  */
 struct NftParameters {
+    address transferValidator;
     /// @notice The address of the factory contract where the NFT collection is created.
     address factory;
     /// @notice The detailed information about the NFT collection, including its properties and configuration.
@@ -74,17 +81,18 @@ struct InstanceInfo {
 }
 
 /**
- * @title NftParametersForFactory
+ * @title NftInstanceInfo
  * @notice A simplified struct that holds only the basic information of the NFT collection, such as name, symbol, and creator.
  * @dev This struct is used for lightweight storage of NFT collection metadata.
  */
-struct NftParametersForFactory {
+struct NftInstanceInfo {
     /// @notice The name of the NFT collection.
     string name;
     /// @notice The symbol representing the NFT collection.
     string symbol;
     /// @notice The address of the creator of the NFT collection.
     address creator;
+    address nftAddress;
 }
 
 /**
