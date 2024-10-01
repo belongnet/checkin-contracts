@@ -46,7 +46,7 @@ abstract contract ReferralSystem {
         require(referralUser != address(0), ReferralCodeUserAddressZero());
 
         require(
-            referral User != referralCreators[hashedCode],
+            referralUser != referralCreators[hashedCode],
             CanNotAddAsReferrerOurself()
         );
 
@@ -64,7 +64,7 @@ abstract contract ReferralSystem {
     function _setReferralPercentages(
         ReferralPercentages memory percentages
     ) internal {
-        usedToPercentage[1] = percentages.i nitial;
+        usedToPercentage[1] = percentages.initial;
         usedToPercentage[2] = percentages.second;
         usedToPercentage[3] = percentages.third;
         usedToPercentage[0] = percentages.byDefault;
