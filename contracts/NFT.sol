@@ -8,6 +8,8 @@ import {NFTFactory} from "./factories/NFTFactory.sol";
 import {BaseERC721} from "./BaseERC721.sol";
 import {NftParameters, StaticPriceParameters, DynamicPriceParameters, InstanceInfo} from "./Structures.sol";
 
+// ========== Errors ==========
+
 /// @notice Error thrown when insufficient ETH is sent for a minting transaction.
 /// @param ETHsent The amount of ETH sent.
 error IncorrectETHAmountSent(uint256 ETHsent);
@@ -43,15 +45,21 @@ contract NFT is BaseERC721 {
     using SignatureCheckerLib for address;
     using SafeTransferLib for address;
 
+    // ========== Events ==========
+
     /// @notice Event emitted when a payment is made to the PricePoint.
     /// @param sender The address that made the payment.
     /// @param paymentCurrency The currency used for the payment.
     /// @param value The amount of the payment.
     event Paid(address sender, address paymentCurrency, uint256 value);
 
+    // ========== State Variables ==========
+
     /// @notice The constant address representing ETH.
     address public constant ETH_ADDRESS =
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    // ========== Constructor ==========
 
     /**
      * @notice Deploys the contract with the given collection parameters and transfer validator.
@@ -59,6 +67,8 @@ contract NFT is BaseERC721 {
      * @param _params Collection parameters containing information like name, symbol, fees, and more.
      */
     constructor(NftParameters memory _params) BaseERC721(_params) {}
+
+    // ========== Functions ==========
 
     /**
      * @notice Batch mints new NFTs with static prices to specified addresses.
