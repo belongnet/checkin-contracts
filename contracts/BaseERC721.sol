@@ -13,6 +13,8 @@ import {AutoValidatorTransferApprove} from "./utils/AutoValidatorTransferApprove
 
 import {NftParameters} from "./Structures.sol";
 
+// ========== Errors ==========
+
 /// @notice Thrown when a zero address is provided where it's not allowed.
 error ZeroAddressPassed();
 
@@ -23,9 +25,9 @@ error NotTransferable();
 error TotalSupplyLimitReached();
 
 /**
- * @title BaseERC721
+ * @title BaseERC721 Contract
  * @notice A base contract for ERC721 tokens that supports royalties, transfer validation, and metadata management.
- * @dev This contract extends the OpenZeppelin ERC721Royalty and Solady Ownable contracts and adds support for transfer validation.
+ * @dev This contract extends the Solady ERC721, ERC2981, Ownable contracts, and includes transfer validation features.
  */
 abstract contract BaseERC721 is
     ERC721,
@@ -34,6 +36,8 @@ abstract contract BaseERC721 is
     CreatorToken,
     AutoValidatorTransferApprove
 {
+    // ========== Events ==========
+
     /// @notice Emitted when the paying token and prices are updated.
     /// @param newToken The address of the new paying token.
     /// @param newPrice The new mint price.
@@ -43,6 +47,8 @@ abstract contract BaseERC721 is
         uint256 newPrice,
         uint256 newWLPrice
     );
+
+    // ========== State Variables ==========
 
     /// @notice The current total supply of tokens.
     uint256 public totalSupply;
@@ -55,6 +61,8 @@ abstract contract BaseERC721 is
 
     /// @notice The struct containing all NFT parameters for the collection.
     NftParameters public parameters;
+
+    // ========== Constructor ==========
 
     /**
      * @notice Constructor for BaseERC721.
@@ -69,6 +77,8 @@ abstract contract BaseERC721 is
 
         _initializeOwner(_params.creator);
     }
+
+    // ========== Functions ==========
 
     /**
      * @notice Sets a new transfer validator for the token.
@@ -152,23 +162,27 @@ abstract contract BaseERC721 is
 
     /**
      * @notice Returns the address of the factory contract.
+     * @return The factory contract address.
      */
     function factory() external view returns (address) {
         return parameters.factory;
     }
 
     /// @notice Returns the name of the token collection.
+    /// @return The name of the token.
     function name() public view override returns (string memory) {
         return parameters.info.name;
     }
 
     /// @notice Returns the symbol of the token collection.
+    /// @return The symbol of the token.
     function symbol() public view override returns (string memory) {
         return parameters.info.symbol;
     }
 
     /**
      * @notice Returns the contract URI for the collection.
+     * @return The contract URI.
      */
     function contractURI() external view returns (string memory) {
         return parameters.info.contractURI;
@@ -176,13 +190,15 @@ abstract contract BaseERC721 is
 
     /**
      * @notice Returns the paying token for the collection.
+     * @return The paying token address.
      */
     function payingToken() external view returns (address) {
         return parameters.info.payingToken;
     }
 
     /**
-     * @notice Returns the paying token for the collection.
+     * @notice Returns the fee receiver address for the collection.
+     * @return The fee receiver address.
      */
     function feeReceiver() external view returns (address) {
         return parameters.info.feeReceiver;
@@ -190,6 +206,7 @@ abstract contract BaseERC721 is
 
     /**
      * @notice Returns the total royalty percentage for the collection.
+     * @return The total royalty percentage.
      */
     function totalRoyalty() external view returns (uint256) {
         return parameters.info.feeNumerator;
@@ -197,6 +214,7 @@ abstract contract BaseERC721 is
 
     /**
      * @notice Returns whether the collection is transferable.
+     * @return True if the collection is transferable, false otherwise.
      */
     function transferable() external view returns (bool) {
         return parameters.info.transferable;
@@ -204,6 +222,7 @@ abstract contract BaseERC721 is
 
     /**
      * @notice Returns the maximum total supply for the collection.
+     * @return The maximum total supply.
      */
     function maxTotalSupply() external view returns (uint256) {
         return parameters.info.maxTotalSupply;
@@ -211,6 +230,7 @@ abstract contract BaseERC721 is
 
     /**
      * @notice Returns the current mint price for the collection.
+     * @return The current mint price.
      */
     function mintPrice() external view returns (uint256) {
         return parameters.info.mintPrice;
@@ -218,6 +238,7 @@ abstract contract BaseERC721 is
 
     /**
      * @notice Returns the current whitelist mint price for the collection.
+     * @return The current whitelist mint price.
      */
     function whitelistMintPrice() external view returns (uint256) {
         return parameters.info.whitelistMintPrice;
@@ -225,6 +246,7 @@ abstract contract BaseERC721 is
 
     /**
      * @notice Returns the expiration timestamp for the collection.
+     * @return The collection expiration timestamp.
      */
     function collectionExpire() external view returns (uint256) {
         return parameters.info.collectionExpire;
@@ -232,13 +254,15 @@ abstract contract BaseERC721 is
 
     /**
      * @notice Returns the creator of the collection.
+     * @return The creator's address.
      */
     function creator() external view returns (address) {
         return parameters.creator;
     }
 
     /**
-     * @notice Returns the creator of the collection.
+     * @notice Returns the referral code of the creator.
+     * @return The referral code of the creator.
      */
     function refferalCodeCreator() external view returns (bytes32) {
         return parameters.refferalCode;
@@ -269,6 +293,9 @@ abstract contract BaseERC721 is
     }
 
     /// @dev Hook that is called before any token transfers, including minting and burning.
+    /// @param from The address tokens are being transferred from.
+    /// @param to The address tokens are being transferred to.
+    /// @param id The token ID being transferred.
     function _beforeTokenTransfer(
         address from,
         address to,
