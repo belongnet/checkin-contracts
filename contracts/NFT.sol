@@ -2,11 +2,13 @@
 pragma solidity 0.8.27;
 
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {ITransferValidator721} from "./interfaces/ITransferValidator721.sol";
-import {NFTFactory} from "./factories/NFTFactory.sol";
+
+import {NFTFactory, SignatureCheckerLib, NftParameters, InstanceInfo} from "./factories/NFTFactory.sol";
+
 import {BaseERC721} from "./BaseERC721.sol";
-import {NftParameters, StaticPriceParameters, DynamicPriceParameters, InstanceInfo} from "./Structures.sol";
+
+import {StaticPriceParameters, DynamicPriceParameters} from "./Structures.sol";
 
 // ========== Errors ==========
 
