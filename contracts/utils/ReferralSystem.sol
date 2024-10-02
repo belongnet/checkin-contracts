@@ -96,6 +96,10 @@ abstract contract ReferralSystem {
 
         ReferralCode memory referral = referrals[hashedCode];
 
+        require(
+            referral.creator != address(0),
+            ReferralCodeOwnerNotExist(hashedCode)
+        );
         require(referralUser != referral.creator, CannotReferSelf());
 
         uint256 used = usedCode[referralUser][hashedCode];
@@ -137,22 +141,6 @@ abstract contract ReferralSystem {
         usedToPercentage[2] = percentages.secondTimePercentage;
         usedToPercentage[3] = percentages.thirdTimePercentage;
         usedToPercentage[4] = percentages.percentageByDefault;
-    }
-
-    /**
-     * @notice Checks if a referral code is valid and has an associated owner.
-     * @dev Internal view function to check if the referral code has a valid owner.
-     * @param hashedCode The referral code to check.
-     */
-    function _checkReferralCode(bytes32 hashedCode) internal view {
-        if (hashedCode == bytes32(0)) {
-            return;
-        }
-
-        require(
-            referrals[hashedCode].creator != address(0),
-            ReferralCodeOwnerNotExist(hashedCode)
-        );
     }
 
     /**
