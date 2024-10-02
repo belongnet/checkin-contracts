@@ -63,7 +63,9 @@ contract RoyaltiesReceiver {
     /// @notice Maximum array size used.
     uint256 public constant ARRAY_SIZE = 3;
 
-    /// @notice List of payee addresses.
+    /**
+     * @notice List of payee addresses. Returns the address of the payee at the given index.
+     */
     address[ARRAY_SIZE] public payees;
 
     /// @notice Struct storing payee shares and total shares.
@@ -173,7 +175,7 @@ contract RoyaltiesReceiver {
      * @notice Returns the total amount of native Ether already released to payees.
      * @return The total amount of Ether released.
      */
-    function totalReleased() public view returns (uint256) {
+    function totalReleased() external view returns (uint256) {
         return nativeReleases.totalReleased;
     }
 
@@ -182,7 +184,7 @@ contract RoyaltiesReceiver {
      * @param token The address of the ERC20 token.
      * @return The total amount of tokens released.
      */
-    function totalReleased(address token) public view returns (uint256) {
+    function totalReleased(address token) external view returns (uint256) {
         return erc20Releases[token].totalReleased;
     }
 
@@ -191,7 +193,7 @@ contract RoyaltiesReceiver {
      * @param account The address of the payee.
      * @return The amount of Ether released to the payee.
      */
-    function released(address account) public view returns (uint256) {
+    function released(address account) external view returns (uint256) {
         return nativeReleases.released[account];
     }
 
@@ -204,7 +206,7 @@ contract RoyaltiesReceiver {
     function released(
         address token,
         address account
-    ) public view returns (uint256) {
+    ) external view returns (uint256) {
         return erc20Releases[token].released[account];
     }
 

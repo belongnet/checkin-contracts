@@ -1196,7 +1196,7 @@ describe('NFT', () => {
 					}
 				);
 
-			await expect(nft_eth.tokenURI(100)).to.be.revertedWithCustomError(nft_eth, 'TokenIdNotExists');
+			await expect(nft_eth.tokenURI(100)).to.be.revertedWithCustomError(nft_eth, 'TokenIdDoesNotExist');
 			expect(await nft_eth.tokenURI(0)).to.be.deep.equal(NFT_721_BASE_URI);
 
 		});

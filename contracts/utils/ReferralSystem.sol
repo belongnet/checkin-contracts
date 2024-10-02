@@ -19,7 +19,7 @@ error ReferralCodeOwnerNotExist(bytes32 hashedCode);
 /// @notice Error thrown when a user tries to add themselves as their own referrer.
 error CannotReferSelf();
 
-error ReferralUserToCodeError(address referralUser, bytes32 code);
+error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
 
 /**
  * @title Referral System Contract
@@ -115,6 +115,7 @@ abstract contract ReferralSystem {
             if (referral.referralUsers[i] == referralUser) {
                 // User already added; no need to add again
                 inArray = true;
+                break;
             }
 
             unchecked {
@@ -156,7 +157,7 @@ abstract contract ReferralSystem {
         uint256 amount
     ) external view returns (uint256) {
         uint256 used = usedCode[referralUser][code];
-        require(used > 0, ReferralUserToCodeError(referralUser, code));
+        require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
 
         return (amount * usedToPercentage[used]) / SCALING_FACTOR;
     }

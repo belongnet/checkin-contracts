@@ -25,7 +25,7 @@ error NotTransferable();
 error TotalSupplyLimitReached();
 
 /// @notice Error thrown when the token id is not exist.
-error TokenIdNotExists();
+error TokenIdDoesNotExist();
 
 /**
  * @title BaseERC721 Contract
@@ -152,7 +152,7 @@ abstract contract BaseERC721 is
         uint256 _tokenId
     ) public view override returns (string memory) {
         if (!_exists(_tokenId)) {
-            revert TokenIdNotExists();
+            revert TokenIdDoesNotExist();
         }
 
         return metadataUri[_tokenId];

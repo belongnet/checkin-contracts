@@ -34,8 +34,8 @@ describe("ReceiverFactory", () => {
       receiverAddress
     );
 
-    expect(await receiver.payee(0)).to.be.equal(owner.address);
-    expect(await receiver.payee(1)).to.be.equal(alice.address);
+    expect(await receiver.payees(0)).to.be.equal(owner.address);
+    expect(await receiver.payees(1)).to.be.equal(alice.address);
     expect(await receiver.shares(owner.address)).to.be.equal(3000);
     expect(await receiver.shares(alice.address)).to.be.equal(7000);
     expect(await receiver.totalShares()).to.be.equal(10000);
