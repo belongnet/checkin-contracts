@@ -2,7 +2,7 @@
 
 ## ReferralCode
 
-TODO
+Struct for managing a referral code and its users.
 
 ```solidity
 struct ReferralCode {
@@ -13,7 +13,7 @@ struct ReferralCode {
 
 ## ReferralPercentages
 
-TODO
+Struct for managing referral percentages for different usages.
 
 ```solidity
 struct ReferralPercentages {

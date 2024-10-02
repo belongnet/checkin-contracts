@@ -40,14 +40,29 @@ error DivisionByZero()
 
 Thrown when a division by zero is attempted.
 
+## ThirdPayeeExists
+
+```solidity
+error ThirdPayeeExists()
+```
+
+Thrown when a third payee already exists.
+
+## ThirdPayeeCanBeAddedOnlyByPayees
+
+```solidity
+error ThirdPayeeCanBeAddedOnlyByPayees()
+```
+
+Thrown when only payees can add a third payee.
+
 ## RoyaltiesReceiver
 
 A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
 
-_Handles payment distribution based on shares assigned to payees.
-Fork of OZ's PaymentSplitter with some changes. The only change is that common `release()`
-functions are replaced with `releaseAll()` functions which allow the caller to transfer funds
-for only both the creator and the platform._
+_Handles payment distribution based on shares assigned to payees. Fork of OZ's PaymentSplitter with some changes.
+The only change is that common `release()` functions are replaced with `releaseAll()` functions,
+which allow the caller to transfer funds for both the creator and the platform._
 
 ### PayeeAdded
 
@@ -121,7 +136,7 @@ Maximum array size used.
 ### payees
 
 ```solidity
-address[2] payees
+address[3] payees
 ```
 
 List of payee addresses.
@@ -156,7 +171,7 @@ Mapping of ERC20 token addresses to their respective release tracking structs.
 constructor(address[2] payees_, uint128[2] shares_) public payable
 ```
 
-_Initializes the contract with a list of payees and their respective shares._
+Initializes the contract with a list of payees and their respective shares.
 
 #### Parameters
 
@@ -171,7 +186,22 @@ _Initializes the contract with a list of payees and their respective shares._
 receive() external payable
 ```
 
-_Logs the receipt of Ether. Called when the contract receives Ether._
+Logs the receipt of Ether. Called when the contract receives Ether.
+
+### addThirdPayee
+
+```solidity
+function addThirdPayee(address payee_, uint128 shares_) external
+```
+
+Adds a third payee to the contract, if not already present.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| payee_ | address | The address of the new payee. |
+| shares_ | uint128 | The number of shares assigned to the new payee. |
 
 ### releaseAll
 
@@ -187,7 +217,7 @@ Releases all pending native Ether payments to the payees.
 function releaseAll(address token) external
 ```
 
-Releases all pending ERC20 payments for a given token to the payees.
+Releases all pending ERC20 token payments for a given token to the payees.
 
 #### Parameters
 
