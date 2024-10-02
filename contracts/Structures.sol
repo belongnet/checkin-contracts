@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-/// @notice TODO
+/// @notice Struct for managing a referral code and its users.
 struct ReferralCode {
-    /// @notice TODO
+    /// @notice The creator of the referral code.
     address creator;
-    /// @notice TODO
+    /// @notice The list of users who have used the referral code.
     address[] referralUsers;
 }
 
-/// @notice TODO
+/// @notice Struct for managing referral percentages for different usages.
 struct ReferralPercentages {
-    /// @notice TODO
+    /// @notice The percentage applied the first time the referral code is used.
     uint16 initialPercentage;
-    /// @notice TODO
+    /// @notice The percentage applied the second time the referral code is used.
     uint16 secondTimePercentage;
-    /// @notice TODO
+    /// @notice The percentage applied the third time the referral code is used.
     uint16 thirdTimePercentage;
-    /// @notice TODO
+    /// @notice The default percentage applied after the third usage of the referral code.
     uint16 percentageByDefault;
 }
 
@@ -37,7 +37,7 @@ struct NftFactoryParameters {
     uint256 platformCommission;
     /// @notice The maximum size of an array allowed in batch operations.
     uint256 maxArraySize;
-    /// @notice TODO
+    /// @notice The address of the contract used to validate token transfers.
     address transferValidator;
 }
 
@@ -47,7 +47,7 @@ struct NftFactoryParameters {
  * @dev This struct is used to pass parameters between contracts during the creation of a new NFT collection.
  */
 struct NftParameters {
-    /// @notice TODO
+    /// @notice The address of the contract used to validate token transfers.
     address transferValidator;
     /// @notice The address of the factory contract where the NFT collection is created.
     address factory;
@@ -55,7 +55,7 @@ struct NftParameters {
     InstanceInfo info;
     /// @notice The address of the creator of the NFT collection.
     address creator;
-    /// @notice TODO
+    /// @notice The referral code associated with the NFT collection.
     bytes32 referralCode;
 }
 
@@ -145,12 +145,16 @@ struct DynamicPriceParameters {
 
 /// @notice Struct for tracking total released amounts and account-specific released amounts.
 struct Releases {
+    /// @notice The total amount of funds released from the contract.
     uint256 totalReleased;
+    /// @notice A mapping to track the released amount per payee account.
     mapping(address => uint256) released;
 }
 
 /// @notice Struct for managing total shares and individual account shares.
 struct SharesAdded {
+    /// @notice The total number of shares allocated across all payees.
     uint256 totalShares;
+    /// @notice A mapping to track the shares allocated to each payee.
     mapping(address => uint256) shares;
 }
