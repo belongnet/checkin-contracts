@@ -38,10 +38,10 @@ describe('NFTFactory', () => {
 		} as NftFactoryParametersStruct;
 
 		referralPercentages = {
-			initial: 5000,
-			second: 3000,
-			third: 1500,
-			byDefault: 500
+			initialPercentage: 5000,
+			secondTimePercentage: 3000,
+			thirdTimePercentage: 1500,
+			percentageByDefault: 500
 		};
 
 		const NFTFactory: ContractFactory = await ethers.getContractFactory("NFTFactory", owner);
@@ -64,10 +64,10 @@ describe('NFTFactory', () => {
 			expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(ETH_ADDRESS);
 			expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(nftInfo.maxArraySize);
 			expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(validator.address);
-			expect(await factory.usedToPercentage(1)).to.be.equal(referralPercentages.initial);
-			expect(await factory.usedToPercentage(2)).to.be.equal(referralPercentages.second);
-			expect(await factory.usedToPercentage(3)).to.be.equal(referralPercentages.third);
-			expect(await factory.usedToPercentage(4)).to.be.equal(referralPercentages.byDefault);
+			expect(await factory.usedToPercentage(1)).to.be.equal(referralPercentages.initialPercentage);
+			expect(await factory.usedToPercentage(2)).to.be.equal(referralPercentages.secondTimePercentage);
+			expect(await factory.usedToPercentage(3)).to.be.equal(referralPercentages.thirdTimePercentage);
+			expect(await factory.usedToPercentage(4)).to.be.equal(referralPercentages.percentageByDefault);
 		});
 
 		it("can not be initialized again", async () => {
@@ -744,9 +744,9 @@ describe('NFTFactory', () => {
 			expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(newPlatformAddress);
 			await expect(tx6).to.emit(factory, 'TransferValidatorSet').withArgs(newPlatformAddress);
 
-			referralPercentages.byDefault = 1;
+			referralPercentages.percentageByDefault = 1;
 			const tx7 = await factory.connect(owner).setReferralPercentages(referralPercentages);
-			expect(await factory.usedToPercentage(4)).to.be.equal(referralPercentages.byDefault);
+			expect(await factory.usedToPercentage(4)).to.be.equal(referralPercentages.percentageByDefault);
 			await expect(tx7).to.emit(factory, 'PercentagesSet');
 		});
 

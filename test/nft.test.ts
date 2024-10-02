@@ -8,7 +8,7 @@ import EthCrypto from "eth-crypto";
 import { NftFactoryParametersStruct, ReferralPercentagesStruct } from '../typechain-types/contracts/factories/NFTFactory';
 import { DynamicPriceParametersStruct, StaticPriceParametersStruct } from '../typechain-types/contracts/NFT';
 
-describe.only('NFT', () => {
+describe('NFT', () => {
 	const PLATFORM_COMISSION = "100";
 	const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 	const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -44,10 +44,10 @@ describe.only('NFT', () => {
 		} as NftFactoryParametersStruct;
 
 		referralPercentages = {
-			initial: 5000,
-			second: 3000,
-			third: 1500,
-			byDefault: 500
+			initialPercentage: 5000,
+			secondTimePercentage: 3000,
+			thirdTimePercentage: 1500,
+			percentageByDefault: 500
 		};
 
 		const NFTFactory: ContractFactory = await ethers.getContractFactory("NFTFactory", owner);
