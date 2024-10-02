@@ -2,6 +2,8 @@
 
 ## ReferralCode
 
+TODO
+
 ```solidity
 struct ReferralCode {
   address creator;
@@ -11,12 +13,14 @@ struct ReferralCode {
 
 ## ReferralPercentages
 
+TODO
+
 ```solidity
 struct ReferralPercentages {
-  uint256 initial;
-  uint256 second;
-  uint256 third;
-  uint256 byDefault;
+  uint16 initialPercentage;
+  uint16 secondTimePercentage;
+  uint16 thirdTimePercentage;
+  uint16 percentageByDefault;
 }
 ```
 
@@ -49,7 +53,7 @@ struct NftParameters {
   address factory;
   struct InstanceInfo info;
   address creator;
-  bytes32 refferalCode;
+  bytes32 referralCode;
 }
 ```
 
@@ -120,6 +124,28 @@ struct DynamicPriceParameters {
   uint256 price;
   string tokenUri;
   bytes signature;
+}
+```
+
+## Releases
+
+Struct for tracking total released amounts and account-specific released amounts.
+
+```solidity
+struct Releases {
+  uint256 totalReleased;
+  mapping(address => uint256) released;
+}
+```
+
+## SharesAdded
+
+Struct for managing total shares and individual account shares.
+
+```solidity
+struct SharesAdded {
+  uint256 totalShares;
+  mapping(address => uint256) shares;
 }
 ```
 

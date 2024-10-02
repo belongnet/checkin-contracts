@@ -3,7 +3,7 @@
 ## ReferralCodeExists
 
 ```solidity
-error ReferralCodeExists(address referralcreator, bytes32 hashedCode)
+error ReferralCodeExists(address referralCreator, bytes32 hashedCode)
 ```
 
 Error thrown when a referral code already exists for the creator.
@@ -12,7 +12,7 @@ Error thrown when a referral code already exists for the creator.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| referralcreator | address | The address of the creator who already has a referral code. |
+| referralCreator | address | The address of the creator who already has a referral code. |
 | hashedCode | bytes32 | The existing referral code. |
 
 ## ReferralCodeUserExists
@@ -31,13 +31,19 @@ error ReferralCodeOwnerNotExist(bytes32 hashedCode)
 
 Error thrown when a referral code is used that does not have an owner.
 
-## CanNotAddAsReferrerOurself
+## CannotReferSelf
 
 ```solidity
-error CanNotAddAsReferrerOurself()
+error CannotReferSelf()
 ```
 
 Error thrown when a user tries to add themselves as their own referrer.
+
+## ReferralUserToCodeError
+
+```solidity
+error ReferralUserToCodeError(address referralUser, bytes32 code)
+```
 
 ## ReferralSystem
 
@@ -92,7 +98,7 @@ Emitted when a referral code is used.
 ### SCALING_FACTOR
 
 ```solidity
-uint256 SCALING_FACTOR
+uint16 SCALING_FACTOR
 ```
 
 The scaling factor for referral percentages.
@@ -100,7 +106,7 @@ The scaling factor for referral percentages.
 ### usedToPercentage
 
 ```solidity
-mapping(uint256 => uint256) usedToPercentage
+mapping(uint256 => uint16) usedToPercentage
 ```
 
 Maps the number of times a referral code was used to the corresponding percentage.
@@ -124,7 +130,7 @@ Maps referral users to their respective used codes and counts the number of time
 ### createReferralCode
 
 ```solidity
-function createReferralCode() public returns (bytes32 hashedCode)
+function createReferralCode() external returns (bytes32 hashedCode)
 ```
 
 Creates a new referral code for the caller.
@@ -169,22 +175,6 @@ _Internal function to set referral percentages._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | percentages | struct ReferralPercentages | A struct containing the referral percentages for initial, second, third, and default use. |
-
-### _checkReferralCode
-
-```solidity
-function _checkReferralCode(bytes32 hashedCode) internal view
-```
-
-Checks if a referral code is valid and has an associated owner.
-
-_Internal view function to check if the referral code has a valid owner._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| hashedCode | bytes32 | The referral code to check. |
 
 ### getReferralRate
 

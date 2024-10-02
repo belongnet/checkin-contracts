@@ -70,28 +70,6 @@ Thrown when an incorrect payee index is provided.
 | ---- | ---- | ----------- |
 | incorrectIndex | uint256 | The incorrect index value provided. |
 
-## Releases
-
-Struct for tracking total released amounts and account-specific released amounts.
-
-```solidity
-struct Releases {
-  uint256 totalReleased;
-  mapping(address => uint256) released;
-}
-```
-
-## SharesAdded
-
-Struct for managing total shares and individual account shares.
-
-```solidity
-struct SharesAdded {
-  uint256 totalShares;
-  mapping(address => uint256) shares;
-}
-```
-
 ## RoyaltiesReceiver
 
 A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
@@ -162,18 +140,18 @@ Emitted when the contract receives native Ether.
 | from | address | The address sending the Ether. |
 | amount | uint256 | The amount of Ether received. |
 
-### MAX_PAYEES_LENGTH
+### ARRAY_SIZE
 
 ```solidity
-uint256 MAX_PAYEES_LENGTH
+uint256 ARRAY_SIZE
 ```
 
-Maximum number of payees allowed.
+Maximum array size used.
 
 ### payees
 
 ```solidity
-address[] payees
+address[2] payees
 ```
 
 List of payee addresses.
@@ -205,7 +183,7 @@ Mapping of ERC20 token addresses to their respective release tracking structs.
 ### constructor
 
 ```solidity
-constructor(address[] payees_, uint256[] shares_) public payable
+constructor(address[2] payees_, uint128[2] shares_) public payable
 ```
 
 _Initializes the contract with a list of payees and their respective shares._
@@ -214,8 +192,8 @@ _Initializes the contract with a list of payees and their respective shares._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| payees_ | address[] | The list of payee addresses. |
-| shares_ | uint256[] | The list of shares corresponding to each payee. |
+| payees_ | address[2] | The list of payee addresses. |
+| shares_ | uint128[2] | The list of shares corresponding to each payee. |
 
 ### receive
 

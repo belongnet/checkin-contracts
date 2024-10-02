@@ -24,6 +24,14 @@ error TotalSupplyLimitReached()
 
 Error thrown when the total supply limit is reached.
 
+## TokenIdNotExists
+
+```solidity
+error TokenIdNotExists()
+```
+
+Error thrown when the token id is not exist.
+
 ## BaseERC721
 
 A base contract for ERC721 tokens that supports royalties, transfer validation, and metadata management.
@@ -129,7 +137,7 @@ _Can only be called by the contract owner._
 ### setPayingToken
 
 ```solidity
-function setPayingToken(address _payingToken, uint256 _mintPrice, uint256 _whitelistMintPrice) external
+function setPayingToken(address _payingToken, uint128 _mintPrice, uint128 _whitelistMintPrice) external
 ```
 
 Sets a new paying token and mint prices for the collection.
@@ -139,8 +147,8 @@ Sets a new paying token and mint prices for the collection.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _payingToken | address | The new paying token address. |
-| _mintPrice | uint256 | The new mint price. |
-| _whitelistMintPrice | uint256 | The new whitelist mint price. |
+| _mintPrice | uint128 | The new mint price. |
+| _whitelistMintPrice | uint128 | The new whitelist mint price. |
 
 ### isApprovedForAll
 
@@ -205,20 +213,6 @@ Retrieves the payment receipt for a specific token ID.
 | ---- | ---- | ----------- |
 | [0] | uint96 | The payment amount associated with the token. |
 
-### factory
-
-```solidity
-function factory() external view returns (address)
-```
-
-Returns the address of the factory contract.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | address | The factory contract address. |
-
 ### name
 
 ```solidity
@@ -260,146 +254,6 @@ Returns the contract URI for the collection.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | string | The contract URI. |
-
-### payingToken
-
-```solidity
-function payingToken() external view returns (address)
-```
-
-Returns the paying token for the collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | address | The paying token address. |
-
-### feeReceiver
-
-```solidity
-function feeReceiver() external view returns (address)
-```
-
-Returns the fee receiver address for the collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | address | The fee receiver address. |
-
-### totalRoyalty
-
-```solidity
-function totalRoyalty() external view returns (uint256)
-```
-
-Returns the total royalty percentage for the collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The total royalty percentage. |
-
-### transferable
-
-```solidity
-function transferable() external view returns (bool)
-```
-
-Returns whether the collection is transferable.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | bool | True if the collection is transferable, false otherwise. |
-
-### maxTotalSupply
-
-```solidity
-function maxTotalSupply() external view returns (uint256)
-```
-
-Returns the maximum total supply for the collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The maximum total supply. |
-
-### mintPrice
-
-```solidity
-function mintPrice() external view returns (uint256)
-```
-
-Returns the current mint price for the collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The current mint price. |
-
-### whitelistMintPrice
-
-```solidity
-function whitelistMintPrice() external view returns (uint256)
-```
-
-Returns the current whitelist mint price for the collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The current whitelist mint price. |
-
-### collectionExpire
-
-```solidity
-function collectionExpire() external view returns (uint256)
-```
-
-Returns the expiration timestamp for the collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The collection expiration timestamp. |
-
-### creator
-
-```solidity
-function creator() external view returns (address)
-```
-
-Returns the creator of the collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | address | The creator's address. |
-
-### referralCodeCreator
-
-```solidity
-function referralCodeCreator() external view returns (bytes32)
-```
-
-Returns the referral code of the creator.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | bytes32 | The referral code of the creator. |
 
 ### _baseMint
 
