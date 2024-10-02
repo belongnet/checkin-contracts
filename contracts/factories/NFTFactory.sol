@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {Initializable} from "solady/src/utils/Initializable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
+
 import {ReferralSystem} from "../utils/ReferralSystem.sol";
 
 import {NFT} from "../NFT.sol";
@@ -103,8 +104,10 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
             NFTAlreadyExists()
         );
 
+        NftFactoryParameters memory params = _nftFactoryParameters;
+
         if (
-            !_nftFactoryParameters.signerAddress.isValidSignatureNow(
+            !params.signerAddress.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
                         _info.name,
@@ -121,23 +124,21 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
             revert InvalidSignature();
         }
 
-        _checkReferralCode(referralCode);
-
         _info.payingToken = _info.payingToken == address(0)
-            ? _nftFactoryParameters.defaultPaymentCurrency
+            ? params.defaultPaymentCurrency
             : _info.payingToken;
 
-        NFT nftInstance = new NFT(
-            NftParameters({
-                transferValidator: _nftFactoryParameters.transferValidator,
-                factory: address(this),
-                info: _info,
-                creator: msg.sender,
-                referralCode: referralCode
-            })
+        nftAddress = address(
+            new NFT(
+                NftParameters({
+                    transferValidator: params.transferValidator,
+                    factory: address(this),
+                    info: _info,
+                    creator: msg.sender,
+                    referralCode: referralCode
+                })
+            )
         );
-
-        nftAddress = address(nftInstance);
 
         NftInstanceInfo memory info = NftInstanceInfo({
             name: _info.name,
