@@ -2,6 +2,7 @@
 pragma solidity 0.8.27;
 
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+
 import {Releases, SharesAdded} from "./Structures.sol";
 
 /// @notice Thrown when a zero address is provided where it's not allowed.
@@ -111,6 +112,7 @@ contract RoyaltiesReceiver {
         for (uint256 i = 0; i < 2; ) {
             if (msg.sender == payees[i]) {
                 isPayeeCaller = true;
+                break;
             }
             unchecked {
                 ++i;
