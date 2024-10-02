@@ -28,7 +28,7 @@ contract ERC721Mock is BaseERC721 {
             factory: msg.sender,
             info: _info,
             creator: msg.sender,
-            refferalCode: bytes32(0)
+            referralCode: bytes32(0)
         });
 
     /**
