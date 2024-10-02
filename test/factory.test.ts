@@ -514,7 +514,7 @@ describe('NFTFactory', () => {
 				} as InstanceInfoStruct,
 					hashedCode);
 
-			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.second));
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.secondTimePercentage));
 
 			nftName = "Name3";
 			nftSymbol = "S3";
@@ -548,7 +548,7 @@ describe('NFTFactory', () => {
 				} as InstanceInfoStruct,
 					hashedCode);
 
-			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.third));
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.thirdTimePercentage));
 
 			nftName = "Name4";
 			nftSymbol = "S4";
@@ -582,7 +582,7 @@ describe('NFTFactory', () => {
 				} as InstanceInfoStruct,
 					hashedCode);
 
-			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.byDefault));
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.percentageByDefault));
 
 			nftName = "Name5";
 			nftSymbol = "S5";
@@ -616,7 +616,7 @@ describe('NFTFactory', () => {
 				} as InstanceInfoStruct,
 					hashedCode);
 
-			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.byDefault));
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.percentageByDefault));
 
 			nftName = "Name6";
 			nftSymbol = "S6";
@@ -650,7 +650,7 @@ describe('NFTFactory', () => {
 				} as InstanceInfoStruct,
 					hashedCode);
 
-			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.byDefault));
+			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(getPercentage(amount, referralPercentages.percentageByDefault));
 		});
 	});
 
