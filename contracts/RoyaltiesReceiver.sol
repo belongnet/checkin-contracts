@@ -2,7 +2,6 @@
 pragma solidity 0.8.27;
 
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-
 import {Releases, SharesAdded} from "./Structures.sol";
 
 /// @notice Thrown when a zero address is provided where it's not allowed.
@@ -20,17 +19,18 @@ error AccountHasSharesAlready();
 /// @notice Thrown when a division by zero is attempted.
 error DivisionByZero();
 
+/// @notice Thrown when a third payee already exists.
 error ThirdPayeeExists();
 
+/// @notice Thrown when only payees can add a third payee.
 error ThirdPayeeCanBeAddedOnlyByPayees();
 
 /**
  * @title RoyaltiesReceiver
  * @notice A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
- * @dev Handles payment distribution based on shares assigned to payees.
- * Fork of OZ's PaymentSplitter with some changes. The only change is that common `release()`
- * functions are replaced with `releaseAll()` functions which allow the caller to transfer funds
- * for only both the creator and the platform.
+ * @dev Handles payment distribution based on shares assigned to payees. Fork of OZ's PaymentSplitter with some changes.
+ * The only change is that common `release()` functions are replaced with `releaseAll()` functions,
+ * which allow the caller to transfer funds for both the creator and the platform.
  */
 contract RoyaltiesReceiver {
     using SafeTransferLib for address;
@@ -76,16 +76,14 @@ contract RoyaltiesReceiver {
     mapping(address => Releases) public erc20Releases;
 
     /**
-     * @dev Initializes the contract with a list of payees and their respective shares.
+     * @notice Initializes the contract with a list of payees and their respective shares.
      * @param payees_ The list of payee addresses.
      * @param shares_ The list of shares corresponding to each payee.
      */
     constructor(address[2] memory payees_, uint128[2] memory shares_) payable {
         for (uint256 i = 0; i < 2; ) {
             payees[i] = payees_[i];
-
             _addPayee(payees_[i], shares_[i]);
-
             unchecked {
                 ++i;
             }
@@ -93,12 +91,17 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @dev Logs the receipt of Ether. Called when the contract receives Ether.
+     * @notice Logs the receipt of Ether. Called when the contract receives Ether.
      */
     receive() external payable {
         emit PaymentReceived(msg.sender, msg.value);
     }
 
+    /**
+     * @notice Adds a third payee to the contract, if not already present.
+     * @param payee_ The address of the new payee.
+     * @param shares_ The number of shares assigned to the new payee.
+     */
     function addThirdPayee(address payee_, uint128 shares_) external {
         require(payees[2] == address(0), ThirdPayeeExists());
 
@@ -134,7 +137,7 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @notice Releases all pending ERC20 payments for a given token to the payees.
+     * @notice Releases all pending ERC20 token payments for a given token to the payees.
      * @param token The address of the ERC20 token to be released.
      */
     function releaseAll(address token) external {
@@ -143,7 +146,6 @@ contract RoyaltiesReceiver {
 
         for (uint256 i = 0; i < arraySize; ) {
             _releaseERC20(token, _payees[i]);
-
             unchecked {
                 ++i;
             }
