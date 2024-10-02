@@ -39,14 +39,6 @@ error ZeroAddressPassed()
 
 Error thrown when a zero address is passed where it's not allowed.
 
-## IncorrectInstanceId
-
-```solidity
-error IncorrectInstanceId()
-```
-
-Error thrown when an incorrect instance ID is provided.
-
 ## NFTFactory
 
 A factory contract to create new NFT instances with specific parameters.

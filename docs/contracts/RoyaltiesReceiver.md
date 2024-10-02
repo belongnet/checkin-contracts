@@ -16,22 +16,6 @@ error ZeroSharesPasted()
 
 Thrown when zero shares are provided for a payee.
 
-## ArraysLengthMismatch
-
-```solidity
-error ArraysLengthMismatch()
-```
-
-Thrown when the lengths of payees and shares arrays do not match.
-
-## Only2Payees
-
-```solidity
-error Only2Payees()
-```
-
-Thrown when more than two payees are provided.
-
 ## AccountNotDuePayment
 
 ```solidity
@@ -55,20 +39,6 @@ error DivisionByZero()
 ```
 
 Thrown when a division by zero is attempted.
-
-## IncorrectPayeeIndex
-
-```solidity
-error IncorrectPayeeIndex(uint256 incorrectIndex)
-```
-
-Thrown when an incorrect payee index is provided.
-
-### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| incorrectIndex | uint256 | The incorrect index value provided. |
 
 ## RoyaltiesReceiver
 

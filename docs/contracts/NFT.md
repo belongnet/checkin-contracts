@@ -14,14 +14,6 @@ Error thrown when insufficient ETH is sent for a minting transaction.
 | ---- | ---- | ----------- |
 | ETHsent | uint256 | The amount of ETH sent. |
 
-## NotTransferable
-
-```solidity
-error NotTransferable()
-```
-
-Error thrown when a non-transferable token is attempted to be transferred.
-
 ## InvalidSignature
 
 ```solidity
@@ -59,14 +51,6 @@ Error thrown when the paying token changes unexpectedly.
 | ---- | ---- | ----------- |
 | expectedPayingToken | address | The expected paying token. |
 | currentPayingToken | address | The actual current paying token. |
-
-## IncorrectArraysLength
-
-```solidity
-error IncorrectArraysLength()
-```
-
-Error thrown when the lengths of the provided arrays do not match.
 
 ## WrongArraySize
 
