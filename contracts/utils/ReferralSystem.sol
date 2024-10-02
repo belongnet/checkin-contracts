@@ -19,6 +19,8 @@ error ReferralCodeOwnerNotExist(bytes32 hashedCode);
 /// @notice Error thrown when a user tries to add themselves as their own referrer.
 error CannotReferSelf();
 
+error ReferralUserToCodeError(address referralUser, bytes32 code);
+
 /**
  * @title Referral System Contract
  * @notice Provides referral system functionality, including creating referral codes, setting users, and managing referral percentages.
@@ -129,10 +131,10 @@ abstract contract ReferralSystem {
     function _setReferralPercentages(
         ReferralPercentages memory percentages
     ) internal {
-        usedToPercentage[1] = percentages.initial;
-        usedToPercentage[2] = percentages.second;
-        usedToPercentage[3] = percentages.third;
-        usedToPercentage[4] = percentages.byDefault;
+        usedToPercentage[1] = percentages.initialPercentage;
+        usedToPercentage[2] = percentages.secondTimePercentage;
+        usedToPercentage[3] = percentages.thirdTimePercentage;
+        usedToPercentage[4] = percentages.percentageByDefault;
 
         emit PercentagesSet(percentages);
     }
@@ -165,9 +167,10 @@ abstract contract ReferralSystem {
         bytes32 code,
         uint256 amount
     ) external view returns (uint256) {
-        return
-            (amount * usedToPercentage[usedCode[referralUser][code]]) /
-            SCALING_FACTOR;
+        uint256 used = usedCode[referralUser][code];
+        require(used > 0, ReferralUserToCodeError(referralUser, code));
+
+        return (amount * usedToPercentage[used]) / SCALING_FACTOR;
     }
 
     /**
