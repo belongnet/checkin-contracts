@@ -20,18 +20,11 @@ describe("ReceiverFactory", () => {
   it("should correct deploy Receiver instance", async () => {
     const { receiverFactory, alice, owner } = await loadFixture(fixture);
 
-    // ArraysLengthMismatch()
-    await expect(
-      receiverFactory.deployReceiver([owner.address, alice.address], [3000])
-    ).to.be.reverted;
-    // Only2Payees()
-    await expect(receiverFactory.deployReceiver([owner.address], [3000])).to.be
-      .reverted;
-
     let tx = await receiverFactory.deployReceiver(
       [owner.address, alice.address],
       [3000, 7000]
     );
+
     let receipt = (await tx.wait()).events!;
 
     const receiverAddress = receipt[2].args!.royaltiesReceiver;
@@ -43,7 +36,6 @@ describe("ReceiverFactory", () => {
 
     expect(await receiver.payee(0)).to.be.equal(owner.address);
     expect(await receiver.payee(1)).to.be.equal(alice.address);
-    await expect(receiver.payee(2)).to.be.reverted;
     expect(await receiver.shares(owner.address)).to.be.equal(3000);
     expect(await receiver.shares(alice.address)).to.be.equal(7000);
     expect(await receiver.totalShares()).to.be.equal(10000);

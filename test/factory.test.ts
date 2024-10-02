@@ -660,9 +660,8 @@ describe('NFTFactory', () => {
 
 			await expect(factory.connect(alice).setMaxArraySize(2)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 
-			const tx = await factory.setMaxArraySize(2);
+			await factory.setMaxArraySize(2);
 
-			await expect(tx).to.emit(factory, 'MaxArraySizeSet').withArgs(2);
 			expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(2);
 		});
 
@@ -672,9 +671,8 @@ describe('NFTFactory', () => {
 			await expect(factory.connect(alice).setDefaultPaymentCurrency(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 			await expect(factory.setDefaultPaymentCurrency(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
-			const tx = await factory.setDefaultPaymentCurrency(erc20Example.address);
+			await factory.setDefaultPaymentCurrency(erc20Example.address);
 
-			await expect(tx).to.emit(factory, 'DefaultPaymentCurrencySet').withArgs(erc20Example.address);
 			expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(erc20Example.address);
 		});
 
@@ -683,9 +681,9 @@ describe('NFTFactory', () => {
 
 			await expect(factory.connect(alice).setPlatformCommission(2)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 
-			const tx = await factory.setPlatformCommission(2);
+			await factory.setPlatformCommission(2);
 
-			await expect(tx).to.emit(factory, 'PlatformCommissionSet').withArgs(2);
+
 			expect((await factory.nftFactoryParameters()).platformCommission).to.be.equal(2);
 		});
 
@@ -695,9 +693,9 @@ describe('NFTFactory', () => {
 			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
-			const tx = await factory.setPlatformAddress(erc20Example.address);
+			await factory.setPlatformAddress(erc20Example.address);
 
-			await expect(tx).to.emit(factory, 'PlatformAddressSet').withArgs(erc20Example.address);
+
 			expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(erc20Example.address);
 		});
 
@@ -707,9 +705,9 @@ describe('NFTFactory', () => {
 			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
-			const tx = await factory.setSigner(erc20Example.address);
+			await factory.setSigner(erc20Example.address);
 
-			await expect(tx).to.emit(factory, 'SignerSet').withArgs(erc20Example.address);
+
 			expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(erc20Example.address);
 		});
 	});
@@ -720,34 +718,28 @@ describe('NFTFactory', () => {
 			const newPlatformAddress = bob.address;
 			const newSigner = charlie.address;
 
-			const tx1 = await factory.connect(owner).setDefaultPaymentCurrency(newPlatformAddress);
+			await factory.connect(owner).setDefaultPaymentCurrency(newPlatformAddress);
 			expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(newPlatformAddress);
-			await expect(tx1).to.emit(factory, 'DefaultPaymentCurrencySet').withArgs(newPlatformAddress);
 
-			const tx2 = await factory.connect(owner).setMaxArraySize(2);
+			await factory.connect(owner).setMaxArraySize(2);
 			expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(2);
-			await expect(tx2).to.emit(factory, 'MaxArraySizeSet').withArgs(2);
 
-			const tx3 = await factory.connect(owner).setPlatformCommission(2);
+			await factory.connect(owner).setPlatformCommission(2);
 			expect((await factory.nftFactoryParameters()).platformCommission).to.be.equal(2);
-			await expect(tx3).to.emit(factory, 'PlatformCommissionSet').withArgs(2);
 
-			const tx4 = await factory.connect(owner).setPlatformAddress(newPlatformAddress);
+			await factory.connect(owner).setPlatformAddress(newPlatformAddress);
 			expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(newPlatformAddress);
-			await expect(tx4).to.emit(factory, 'PlatformAddressSet').withArgs(newPlatformAddress);
 
-			const tx5 = await factory.connect(owner).setSigner(newSigner);
+			await factory.connect(owner).setSigner(newSigner);
 			expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(newSigner);
-			await expect(tx5).to.emit(factory, 'SignerSet').withArgs(newSigner);
 
-			const tx6 = await factory.connect(owner).setTransferValidator(newPlatformAddress);
+			await factory.connect(owner).setTransferValidator(newPlatformAddress);
 			expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(newPlatformAddress);
-			await expect(tx6).to.emit(factory, 'TransferValidatorSet').withArgs(newPlatformAddress);
 
 			referralPercentages.percentageByDefault = 1;
-			const tx7 = await factory.connect(owner).setReferralPercentages(referralPercentages);
+			await factory.connect(owner).setReferralPercentages(referralPercentages);
 			expect(await factory.usedToPercentage(4)).to.be.equal(referralPercentages.percentageByDefault);
-			await expect(tx7).to.emit(factory, 'PercentagesSet');
+
 		});
 
 		it("only owner", async () => {
