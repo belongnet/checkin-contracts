@@ -94,25 +94,27 @@ abstract contract ReferralSystem {
             return;
         }
 
-        require(
-            referralUser != referrals[hashedCode].creator,
-            CannotReferSelf()
-        );
+        ReferralCode memory referral = referrals[hashedCode];
 
-        address[] memory users = referrals[hashedCode].referralUsers;
+        require(referralUser != referral.creator, CannotReferSelf());
 
-        if (usedCode[referralUser][hashedCode] < 3) {
+        uint256 used = usedCode[referralUser][hashedCode];
+        if (used < 3) {
             ++usedCode[referralUser][hashedCode];
-        } else if (usedCode[referralUser][hashedCode] == 3) {
+        } else if (used == 3) {
             usedCode[referralUser][hashedCode] = 4;
         }
 
         // Check if the user is already in the array
         bool inArray;
-        for (uint256 i = 0; i < users.length; ++i) {
-            if (users[i] == referralUser) {
+        for (uint256 i = 0; i < referral.referralUsers.length; ) {
+            if (referral.referralUsers[i] == referralUser) {
                 // User already added; no need to add again
                 inArray = true;
+            }
+
+            unchecked {
+                ++i;
             }
         }
 
@@ -135,8 +137,6 @@ abstract contract ReferralSystem {
         usedToPercentage[2] = percentages.secondTimePercentage;
         usedToPercentage[3] = percentages.thirdTimePercentage;
         usedToPercentage[4] = percentages.percentageByDefault;
-
-        emit PercentagesSet(percentages);
     }
 
     /**

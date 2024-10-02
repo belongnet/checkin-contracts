@@ -15,8 +15,8 @@ contract ReceiverFactory {
     event ReceiverCreated(
         address indexed creator,
         RoyaltiesReceiver royaltiesReceiver,
-        address[] payees,
-        uint256[] shares
+        address[2] payees,
+        uint128[2] shares
     );
 
     /**
@@ -34,8 +34,8 @@ contract ReceiverFactory {
      * @return royaltiesReceiver The address of the newly deployed RoyaltiesReceiver contract
      */
     function deployReceiver(
-        address[] calldata payees,
-        uint256[] calldata shares
+        address[2] calldata payees,
+        uint128[2] calldata shares
     ) external returns (RoyaltiesReceiver royaltiesReceiver) {
         royaltiesReceiver = new RoyaltiesReceiver(payees, shares);
 

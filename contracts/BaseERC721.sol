@@ -99,8 +99,8 @@ abstract contract BaseERC721 is
      */
     function setPayingToken(
         address _payingToken,
-        uint256 _mintPrice,
-        uint256 _whitelistMintPrice
+        uint128 _mintPrice,
+        uint128 _whitelistMintPrice
     ) external onlyOwner {
         if (_payingToken == address(0)) {
             revert ZeroAddressPassed();

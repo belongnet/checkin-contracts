@@ -86,7 +86,7 @@ contract RoyaltiesReceiver {
      * @param payees_ The list of payee addresses.
      * @param shares_ The list of shares corresponding to each payee.
      */
-    constructor(address[] memory payees_, uint256[] memory shares_) payable {
+    constructor(address[2] memory payees_, uint128[2] memory shares_) payable {
         if (payees_.length != shares_.length) {
             revert ArraysLengthMismatch();
         }
