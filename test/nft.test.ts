@@ -1195,7 +1195,10 @@ describe('NFT', () => {
 						value: ethers.utils.parseEther("0.03"),
 					}
 				);
+
+			await expect(nft_eth.tokenURI(100)).to.be.revertedWithCustomError(nft_eth, 'TokenIdNotExists');
 			expect(await nft_eth.tokenURI(0)).to.be.deep.equal(NFT_721_BASE_URI);
+
 		});
 	});
 

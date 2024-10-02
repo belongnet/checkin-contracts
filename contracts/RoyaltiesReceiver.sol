@@ -11,12 +11,6 @@ error ZeroAddressPassed();
 /// @notice Thrown when zero shares are provided for a payee.
 error ZeroSharesPasted();
 
-/// @notice Thrown when the lengths of payees and shares arrays do not match.
-error ArraysLengthMismatch();
-
-/// @notice Thrown when more than two payees are provided.
-error Only2Payees();
-
 /// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment();
 
@@ -25,10 +19,6 @@ error AccountHasSharesAlready();
 
 /// @notice Thrown when a division by zero is attempted.
 error DivisionByZero();
-
-/// @notice Thrown when an incorrect payee index is provided.
-/// @param incorrectIndex The incorrect index value provided.
-error IncorrectPayeeIndex(uint256 incorrectIndex);
 
 /**
  * @title RoyaltiesReceiver
@@ -87,10 +77,6 @@ contract RoyaltiesReceiver {
      * @param shares_ The list of shares corresponding to each payee.
      */
     constructor(address[2] memory payees_, uint128[2] memory shares_) payable {
-        if (payees_.length != shares_.length) {
-            revert ArraysLengthMismatch();
-        }
-
         for (uint256 i = 0; i < ARRAY_SIZE; ) {
             _addPayee(payees_[i], shares_[i]);
 
@@ -202,13 +188,7 @@ contract RoyaltiesReceiver {
      * @return The address of the payee.
      */
     function payee(uint256 index) external view returns (address) {
-        address[ARRAY_SIZE] memory _payees = payees;
-
-        if (_payees.length <= index) {
-            revert IncorrectPayeeIndex(index);
-        }
-
-        return _payees[index];
+        return payees[index];
     }
 
     /**

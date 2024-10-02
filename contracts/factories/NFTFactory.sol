@@ -27,9 +27,6 @@ error NFTAlreadyExists();
 /// @notice Error thrown when a zero address is passed where it's not allowed.
 error ZeroAddressPassed();
 
-/// @notice Error thrown when an incorrect instance ID is provided.
-error IncorrectInstanceId();
-
 /**
  * @title NFT Factory Contract
  * @notice A factory contract to create new NFT instances with specific parameters.

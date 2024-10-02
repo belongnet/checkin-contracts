@@ -480,6 +480,7 @@ describe('NFTFactory', () => {
 			expect((await factory.getReferralUsers(hashedCode))[0]).to.eq(bob.address);
 
 			const amount = 10000;
+			await expect(factory.getReferralRate(bob.address, hashedCodeFalse, amount)).to.be.revertedWithCustomError(factory, 'ReferralUserToCodeError').withArgs(bob.address, hashedCodeFalse);
 			expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(amount / 2);
 
 			nftName = "Name2";

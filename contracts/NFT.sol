@@ -16,9 +16,6 @@ import {StaticPriceParameters, DynamicPriceParameters} from "./Structures.sol";
 /// @param ETHsent The amount of ETH sent.
 error IncorrectETHAmountSent(uint256 ETHsent);
 
-/// @notice Error thrown when a non-transferable token is attempted to be transferred.
-error NotTransferable();
-
 /// @notice Error thrown when an invalid signature is provided for minting.
 error InvalidSignature();
 
@@ -31,9 +28,6 @@ error PriceChanged(uint256 expectedMintPrice, uint256 currentPrice);
 /// @param expectedPayingToken The expected paying token.
 /// @param currentPayingToken The actual current paying token.
 error TokenChanged(address expectedPayingToken, address currentPayingToken);
-
-/// @notice Error thrown when the lengths of the provided arrays do not match.
-error IncorrectArraysLength();
 
 /// @notice Error thrown when an array exceeds the maximum allowed size.
 error WrongArraySize();
