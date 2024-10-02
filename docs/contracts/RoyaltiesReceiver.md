@@ -139,7 +139,7 @@ Maximum array size used.
 address[3] payees
 ```
 
-List of payee addresses.
+List of payee addresses. Returns the address of the payee at the given index.
 
 ### sharesAdded
 
@@ -262,7 +262,7 @@ Returns the number of shares held by a specific payee.
 ### totalReleased
 
 ```solidity
-function totalReleased() public view returns (uint256)
+function totalReleased() external view returns (uint256)
 ```
 
 Returns the total amount of native Ether already released to payees.
@@ -276,7 +276,7 @@ Returns the total amount of native Ether already released to payees.
 ### totalReleased
 
 ```solidity
-function totalReleased(address token) public view returns (uint256)
+function totalReleased(address token) external view returns (uint256)
 ```
 
 Returns the total amount of a specific ERC20 token already released to payees.
@@ -296,7 +296,7 @@ Returns the total amount of a specific ERC20 token already released to payees.
 ### released
 
 ```solidity
-function released(address account) public view returns (uint256)
+function released(address account) external view returns (uint256)
 ```
 
 Returns the amount of native Ether already released to a specific payee.
@@ -316,7 +316,7 @@ Returns the amount of native Ether already released to a specific payee.
 ### released
 
 ```solidity
-function released(address token, address account) public view returns (uint256)
+function released(address token, address account) external view returns (uint256)
 ```
 
 Returns the amount of a specific ERC20 token already released to a specific payee.

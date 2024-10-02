@@ -39,10 +39,10 @@ error CannotReferSelf()
 
 Error thrown when a user tries to add themselves as their own referrer.
 
-## ReferralUserToCodeError
+## ReferralCodeNotUsedByUser
 
 ```solidity
-error ReferralUserToCodeError(address referralUser, bytes32 code)
+error ReferralCodeNotUsedByUser(address referralUser, bytes32 code)
 ```
 
 ## ReferralSystem

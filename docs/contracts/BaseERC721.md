@@ -24,10 +24,10 @@ error TotalSupplyLimitReached()
 
 Error thrown when the total supply limit is reached.
 
-## TokenIdNotExists
+## TokenIdDoesNotExist
 
 ```solidity
-error TokenIdNotExists()
+error TokenIdDoesNotExist()
 ```
 
 Error thrown when the token id is not exist.
