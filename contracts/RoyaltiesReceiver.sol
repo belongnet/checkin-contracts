@@ -3,6 +3,8 @@ pragma solidity 0.8.27;
 
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
+import {Releases, SharesAdded} from "./Structures.sol";
+
 /// @notice Thrown when a zero address is provided where it's not allowed.
 error ZeroAddressPassed();
 
@@ -27,18 +29,6 @@ error DivisionByZero();
 /// @notice Thrown when an incorrect payee index is provided.
 /// @param incorrectIndex The incorrect index value provided.
 error IncorrectPayeeIndex(uint256 incorrectIndex);
-
-/// @notice Struct for tracking total released amounts and account-specific released amounts.
-struct Releases {
-    uint256 totalReleased;
-    mapping(address => uint256) released;
-}
-
-/// @notice Struct for managing total shares and individual account shares.
-struct SharesAdded {
-    uint256 totalShares;
-    mapping(address => uint256) shares;
-}
 
 /**
  * @title RoyaltiesReceiver
