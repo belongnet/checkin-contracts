@@ -3,10 +3,12 @@ pragma solidity 0.8.27;
 
 import {ReferralPercentages, ReferralCode} from "../Structures.sol";
 
+// ========== Errors ==========
+
 /// @notice Error thrown when a referral code already exists for the creator.
-/// @param referralcreator The address of the creator who already has a referral code.
+/// @param referralCreator The address of the creator who already has a referral code.
 /// @param hashedCode The existing referral code.
-error ReferralCodeExists(address referralcreator, bytes32 hashedCode);
+error ReferralCodeExists(address referralCreator, bytes32 hashedCode);
 
 /// @notice Error thrown when the referral user already exists for a given code.
 error ReferralCodeUserExists(address referralUser);
@@ -63,8 +65,8 @@ abstract contract ReferralSystem {
      * @dev The referral code is a hash of the caller's address.
      * @return hashedCode The created referral code.
      */
-    function createReferralCode() public returns (bytes32 hashedCode) {
-        hashedCode = keccak256(abi.encodePacked(msg.sender));
+    function createReferralCode() external returns (bytes32 hashedCode) {
+        hashedCode = keccak256(abi.encodePacked(msg.sender, block.chainid));
 
         require(
             referrals[hashedCode].creator == address(0),
@@ -95,13 +97,26 @@ abstract contract ReferralSystem {
             CannotReferSelf()
         );
 
+        address[] memory users = referrals[hashedCode].referralUsers;
+
         if (usedCode[referralUser][hashedCode] < 3) {
             ++usedCode[referralUser][hashedCode];
-        } else {
+        } else if (usedCode[referralUser][hashedCode] == 3) {
             usedCode[referralUser][hashedCode] = 4;
         }
 
-        referrals[hashedCode].referralUsers.push(referralUser);
+        // Check if the user is already in the array
+        bool inArray;
+        for (uint256 i = 0; i < users.length; ++i) {
+            if (users[i] == referralUser) {
+                // User already added; no need to add again
+                inArray = true;
+            }
+        }
+
+        if (!inArray) {
+            referrals[hashedCode].referralUsers.push(referralUser);
+        }
 
         emit ReferralCodeUsed(hashedCode, referralUser);
     }
