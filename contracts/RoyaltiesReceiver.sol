@@ -66,11 +66,11 @@ contract RoyaltiesReceiver {
     /// @param amount The amount of Ether received.
     event PaymentReceived(address indexed from, uint256 amount);
 
-    /// @notice Maximum number of payees allowed.
-    uint256 public constant MAX_PAYEES_LENGTH = 2;
+    /// @notice Maximum array size used.
+    uint256 public constant ARRAY_SIZE = 2;
 
     /// @notice List of payee addresses.
-    address[] public payees;
+    address[ARRAY_SIZE] public payees;
 
     /// @notice Struct storing payee shares and total shares.
     SharesAdded public sharesAdded;
@@ -91,17 +91,15 @@ contract RoyaltiesReceiver {
             revert ArraysLengthMismatch();
         }
 
-        if (payees_.length != MAX_PAYEES_LENGTH) {
-            revert Only2Payees();
-        }
-
-        for (uint256 i = 0; i < MAX_PAYEES_LENGTH; ) {
+        for (uint256 i = 0; i < ARRAY_SIZE; ) {
             _addPayee(payees_[i], shares_[i]);
 
             unchecked {
                 ++i;
             }
         }
+
+        payees = payees_;
     }
 
     /**
@@ -115,9 +113,9 @@ contract RoyaltiesReceiver {
      * @notice Releases all pending native Ether payments to the payees.
      */
     function releaseAll() external {
-        address[] memory _payees = payees;
+        address[ARRAY_SIZE] memory _payees = payees;
 
-        for (uint256 i = 0; i < _payees.length; ) {
+        for (uint256 i = 0; i < ARRAY_SIZE; ) {
             _releaseNative(_payees[i]);
 
             unchecked {
@@ -131,9 +129,9 @@ contract RoyaltiesReceiver {
      * @param token The address of the ERC20 token to be released.
      */
     function releaseAll(address token) external {
-        address[] memory _payees = payees;
+        address[ARRAY_SIZE] memory _payees = payees;
 
-        for (uint256 i = 0; i < _payees.length; ) {
+        for (uint256 i = 0; i < ARRAY_SIZE; ) {
             _releaseERC20(token, _payees[i]);
 
             unchecked {
@@ -204,7 +202,7 @@ contract RoyaltiesReceiver {
      * @return The address of the payee.
      */
     function payee(uint256 index) external view returns (address) {
-        address[] memory _payees = payees;
+        address[ARRAY_SIZE] memory _payees = payees;
 
         if (_payees.length <= index) {
             revert IncorrectPayeeIndex(index);
@@ -280,7 +278,6 @@ contract RoyaltiesReceiver {
             revert AccountHasSharesAlready();
         }
 
-        payees.push(account);
         sharesAdded.shares[account] = shares_;
         sharesAdded.totalShares += shares_;
         emit PayeeAdded(account, shares_);
