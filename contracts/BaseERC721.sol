@@ -151,6 +151,10 @@ abstract contract BaseERC721 is
     function tokenURI(
         uint256 _tokenId
     ) public view override returns (string memory) {
+        if (!_exists(_tokenId)) {
+            revert TokenIdNotExists();
+        }
+
         return metadataUri[_tokenId];
     }
 
@@ -161,14 +165,6 @@ abstract contract BaseERC721 is
      */
     function getReceipt(uint256 tokenId) external view returns (uint96) {
         return _getExtraData(tokenId);
-    }
-
-    /**
-     * @notice Returns the address of the factory contract.
-     * @return The factory contract address.
-     */
-    function factory() external view returns (address) {
-        return parameters.factory;
     }
 
     /// @notice Returns the name of the token collection.
@@ -189,86 +185,6 @@ abstract contract BaseERC721 is
      */
     function contractURI() external view returns (string memory) {
         return parameters.info.contractURI;
-    }
-
-    /**
-     * @notice Returns the paying token for the collection.
-     * @return The paying token address.
-     */
-    function payingToken() external view returns (address) {
-        return parameters.info.payingToken;
-    }
-
-    /**
-     * @notice Returns the fee receiver address for the collection.
-     * @return The fee receiver address.
-     */
-    function feeReceiver() external view returns (address) {
-        return parameters.info.feeReceiver;
-    }
-
-    /**
-     * @notice Returns the total royalty percentage for the collection.
-     * @return The total royalty percentage.
-     */
-    function totalRoyalty() external view returns (uint256) {
-        return parameters.info.feeNumerator;
-    }
-
-    /**
-     * @notice Returns whether the collection is transferable.
-     * @return True if the collection is transferable, false otherwise.
-     */
-    function transferable() external view returns (bool) {
-        return parameters.info.transferable;
-    }
-
-    /**
-     * @notice Returns the maximum total supply for the collection.
-     * @return The maximum total supply.
-     */
-    function maxTotalSupply() external view returns (uint256) {
-        return parameters.info.maxTotalSupply;
-    }
-
-    /**
-     * @notice Returns the current mint price for the collection.
-     * @return The current mint price.
-     */
-    function mintPrice() external view returns (uint256) {
-        return parameters.info.mintPrice;
-    }
-
-    /**
-     * @notice Returns the current whitelist mint price for the collection.
-     * @return The current whitelist mint price.
-     */
-    function whitelistMintPrice() external view returns (uint256) {
-        return parameters.info.whitelistMintPrice;
-    }
-
-    /**
-     * @notice Returns the expiration timestamp for the collection.
-     * @return The collection expiration timestamp.
-     */
-    function collectionExpire() external view returns (uint256) {
-        return parameters.info.collectionExpire;
-    }
-
-    /**
-     * @notice Returns the creator of the collection.
-     * @return The creator's address.
-     */
-    function creator() external view returns (address) {
-        return parameters.creator;
-    }
-
-    /**
-     * @notice Returns the referral code of the creator.
-     * @return The referral code of the creator.
-     */
-    function referralCodeCreator() external view returns (bytes32) {
-        return parameters.refferalCode;
     }
 
     /**
