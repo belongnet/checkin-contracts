@@ -20,6 +20,10 @@ error AccountHasSharesAlready();
 /// @notice Thrown when a division by zero is attempted.
 error DivisionByZero();
 
+error ThirdPayeeExists();
+
+error ThirdPayeeCanBeAddedOnlyByPayees();
+
 /**
  * @title RoyaltiesReceiver
  * @notice A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
@@ -57,7 +61,7 @@ contract RoyaltiesReceiver {
     event PaymentReceived(address indexed from, uint256 amount);
 
     /// @notice Maximum array size used.
-    uint256 public constant ARRAY_SIZE = 2;
+    uint256 public constant ARRAY_SIZE = 3;
 
     /// @notice List of payee addresses.
     address[ARRAY_SIZE] public payees;
@@ -77,15 +81,15 @@ contract RoyaltiesReceiver {
      * @param shares_ The list of shares corresponding to each payee.
      */
     constructor(address[2] memory payees_, uint128[2] memory shares_) payable {
-        for (uint256 i = 0; i < ARRAY_SIZE; ) {
+        for (uint256 i = 0; i < 2; ) {
+            payees[i] = payees_[i];
+
             _addPayee(payees_[i], shares_[i]);
 
             unchecked {
                 ++i;
             }
         }
-
-        payees = payees_;
     }
 
     /**
@@ -95,15 +99,34 @@ contract RoyaltiesReceiver {
         emit PaymentReceived(msg.sender, msg.value);
     }
 
+    function addThirdPayee(address payee_, uint128 shares_) external {
+        require(payees[2] == address(0), ThirdPayeeExists());
+
+        bool isPayeeCaller;
+        for (uint256 i = 0; i < 2; ) {
+            if (msg.sender == payees[i]) {
+                isPayeeCaller = true;
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
+        require(isPayeeCaller, ThirdPayeeCanBeAddedOnlyByPayees());
+
+        payees[2] = payee_;
+        _addPayee(payee_, shares_);
+    }
+
     /**
      * @notice Releases all pending native Ether payments to the payees.
      */
     function releaseAll() external {
         address[ARRAY_SIZE] memory _payees = payees;
+        uint256 arraySize = _payees[2] == address(0) ? 2 : 3;
 
-        for (uint256 i = 0; i < ARRAY_SIZE; ) {
+        for (uint256 i = 0; i < arraySize; ) {
             _releaseNative(_payees[i]);
-
             unchecked {
                 ++i;
             }
@@ -116,8 +139,9 @@ contract RoyaltiesReceiver {
      */
     function releaseAll(address token) external {
         address[ARRAY_SIZE] memory _payees = payees;
+        uint256 arraySize = _payees[2] == address(0) ? 2 : 3;
 
-        for (uint256 i = 0; i < ARRAY_SIZE; ) {
+        for (uint256 i = 0; i < arraySize; ) {
             _releaseERC20(token, _payees[i]);
 
             unchecked {
