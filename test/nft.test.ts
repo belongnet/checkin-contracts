@@ -8,7 +8,7 @@ import EthCrypto from "eth-crypto";
 import { NftFactoryParametersStruct, ReferralPercentagesStruct } from '../typechain-types/contracts/factories/NFTFactory';
 import { DynamicPriceParametersStruct, StaticPriceParametersStruct } from '../typechain-types/contracts/NFT';
 
-describe('NFT', () => {
+describe.only('NFT', () => {
 	const PLATFORM_COMISSION = "100";
 	const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 	const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -59,6 +59,7 @@ describe('NFT', () => {
 
 		const hashedCode = EthCrypto.hash.keccak256([
 			{ type: "address", value: bob.address },
+			{ type: "uint256", value: chainId },
 		]);
 
 		await factory.connect(bob).createReferralCode();
@@ -118,7 +119,7 @@ describe('NFT', () => {
 		await factory.connect(alice).produce(instanceInfoETH, hashedCode);
 		await factory.connect(alice).produce(instanceInfoToken, hashedCode);
 
-		const Nft = await ethers.getContractFactory("NFT",);
+		const Nft = await ethers.getContractFactory("NFT");
 		const nft_eth: NFT = await ethers.getContractAt("NFT", (await factory.getNftInstanceInfo(
 			ethers.utils.solidityKeccak256(
 				['string', 'string'],
@@ -130,8 +131,6 @@ describe('NFT', () => {
 				['string', 'string'],
 				[nftName + '2', nftSymbol + '2']
 			))).nftAddress);
-
-
 
 		return { factory, nft_eth, nft_erc20, Nft, validator, erc20Example, owner, alice, bob, charlie, signer, hashedCode };
 	}
@@ -149,17 +148,17 @@ describe('NFT', () => {
 			expect(infoReturned.whitelistMintPrice).to.be.equal(instanceInfoETH.whitelistMintPrice);
 			expect(infoReturned.transferable).to.be.equal(instanceInfoETH.transferable);
 
-			expect(await nft_eth.factory()).to.be.equal(factory.address);
+			expect((await nft_eth.parameters()).factory).to.be.equal(factory.address);
 			expect(await nft_eth.name()).to.be.equal(instanceInfoETH.name);
 			expect(await nft_eth.symbol()).to.be.equal(instanceInfoETH.symbol);
-			expect(await nft_eth.payingToken()).to.be.equal(instanceInfoETH.payingToken);
-			expect(await nft_eth.mintPrice()).to.be.equal(instanceInfoETH.mintPrice);
-			expect(await nft_eth.whitelistMintPrice()).to.be.equal(instanceInfoETH.whitelistMintPrice);
-			expect(await nft_eth.transferable()).to.be.equal(instanceInfoETH.transferable);
-			expect(await nft_eth.maxTotalSupply()).to.be.equal(instanceInfoETH.maxTotalSupply);
-			expect(await nft_eth.totalRoyalty()).to.be.equal(instanceInfoETH.feeNumerator);
-			expect(await nft_eth.creator()).to.be.equal(alice.address);
-			expect(await nft_eth.collectionExpire()).to.be.equal(instanceInfoETH.collectionExpire);
+			expect((await nft_eth.parameters()).info.payingToken).to.be.equal(instanceInfoETH.payingToken);
+			expect((await nft_eth.parameters()).info.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
+			expect((await nft_eth.parameters()).info.whitelistMintPrice).to.be.equal(instanceInfoETH.whitelistMintPrice);
+			expect((await nft_eth.parameters()).info.transferable).to.be.equal(instanceInfoETH.transferable);
+			expect((await nft_eth.parameters()).info.maxTotalSupply).to.be.equal(instanceInfoETH.maxTotalSupply);
+			expect((await nft_eth.parameters()).info.feeNumerator).to.be.equal(instanceInfoETH.feeNumerator);
+			expect((await nft_eth.parameters()).creator).to.be.equal(alice.address);
+			expect((await nft_eth.parameters()).info.collectionExpire).to.be.equal(instanceInfoETH.collectionExpire);
 			expect(await nft_eth.contractURI()).to.be.equal(instanceInfoETH.contractURI);
 
 			[, , infoReturned,] = await nft_erc20.parameters();
@@ -940,7 +939,7 @@ describe('NFT', () => {
 						signature: "0x00",
 					} as InstanceInfoStruct,
 					creator: alice.address,
-					refferalCode: ethers.constants.HashZero,
+					referralCode: ethers.constants.HashZero,
 				} as NftParametersStruct,
 			);
 			await nft.deployed();
@@ -1004,7 +1003,7 @@ describe('NFT', () => {
 						signature: "0x00",
 					} as InstanceInfoStruct,
 					creator: bob.address,
-					refferalCode: ethers.constants.HashZero,
+					referralCode: ethers.constants.HashZero,
 				} as NftParametersStruct,
 			);
 			await nft.deployed();

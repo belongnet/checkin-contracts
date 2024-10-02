@@ -378,6 +378,7 @@ describe('NFTFactory', () => {
 
 			const hashedCode = EthCrypto.hash.keccak256([
 				{ type: "address", value: alice.address },
+				{ type: "uint256", value: chainId },
 			]);
 
 			const tx = await factory.connect(alice).createReferralCode();
@@ -393,10 +394,12 @@ describe('NFTFactory', () => {
 
 			const hashedCode = EthCrypto.hash.keccak256([
 				{ type: "address", value: alice.address },
+				{ type: "uint256", value: chainId },
 			]);
 
 			const hashedCodeFalse = EthCrypto.hash.keccak256([
 				{ type: "address", value: bob.address },
+				{ type: "uint256", value: chainId },
 			]);
 
 			await factory.connect(alice).createReferralCode();
@@ -453,7 +456,7 @@ describe('NFTFactory', () => {
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
 				} as InstanceInfoStruct,
-					hashedCode)).to.be.revertedWithCustomError(factory, 'CanNotAddAsReferrerOurself');
+					hashedCode)).to.be.revertedWithCustomError(factory, 'CannotReferSelf');
 
 			const tx = await factory
 				.connect(bob)
