@@ -1,16 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
+/// @notice TODO
 struct ReferralCode {
+    /// @notice TODO
     address creator;
+    /// @notice TODO
     address[] referralUsers;
 }
 
+/// @notice TODO
 struct ReferralPercentages {
-    uint256 initial;
-    uint256 second;
-    uint256 third;
-    uint256 byDefault;
+    /// @notice TODO
+    uint256 initialPercentage;
+    /// @notice TODO
+    uint256 secondTimePercentage;
+    /// @notice TODO
+    uint256 thirdTimePercentage;
+    /// @notice TODO
+    uint256 percentageByDefault;
 }
 
 /**
@@ -29,6 +37,7 @@ struct NftFactoryParameters {
     uint256 platformCommission;
     /// @notice The maximum size of an array allowed in batch operations.
     uint256 maxArraySize;
+    /// @notice TODO
     address transferValidator;
 }
 
@@ -38,6 +47,7 @@ struct NftFactoryParameters {
  * @dev This struct is used to pass parameters between contracts during the creation of a new NFT collection.
  */
 struct NftParameters {
+    /// @notice TODO
     address transferValidator;
     /// @notice The address of the factory contract where the NFT collection is created.
     address factory;
@@ -45,7 +55,8 @@ struct NftParameters {
     InstanceInfo info;
     /// @notice The address of the creator of the NFT collection.
     address creator;
-    bytes32 refferalCode;
+    /// @notice TODO
+    bytes32 referralCode;
 }
 
 /**
@@ -92,6 +103,7 @@ struct NftInstanceInfo {
     string symbol;
     /// @notice The address of the creator of the NFT collection.
     address creator;
+    /// @notice The address of the NFT contract instance.
     address nftAddress;
 }
 
@@ -129,4 +141,16 @@ struct DynamicPriceParameters {
     string tokenUri;
     /// @notice The signature for verifying the minting request.
     bytes signature;
+}
+
+/// @notice Struct for tracking total released amounts and account-specific released amounts.
+struct Releases {
+    uint256 totalReleased;
+    mapping(address => uint256) released;
+}
+
+/// @notice Struct for managing total shares and individual account shares.
+struct SharesAdded {
+    uint256 totalShares;
+    mapping(address => uint256) shares;
 }
