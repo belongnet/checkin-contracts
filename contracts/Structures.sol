@@ -12,13 +12,13 @@ struct ReferralCode {
 /// @notice TODO
 struct ReferralPercentages {
     /// @notice TODO
-    uint256 initialPercentage;
+    uint16 initialPercentage;
     /// @notice TODO
-    uint256 secondTimePercentage;
+    uint16 secondTimePercentage;
     /// @notice TODO
-    uint256 thirdTimePercentage;
+    uint16 thirdTimePercentage;
     /// @notice TODO
-    uint256 percentageByDefault;
+    uint16 percentageByDefault;
 }
 
 /**

@@ -46,12 +46,12 @@ abstract contract ReferralSystem {
     // ========== Constants ==========
 
     /// @notice The scaling factor for referral percentages.
-    uint256 public constant SCALING_FACTOR = 10000;
+    uint16 public constant SCALING_FACTOR = 10000;
 
     // ========== State Variables ==========
 
     /// @notice Maps the number of times a referral code was used to the corresponding percentage.
-    mapping(uint256 timesUsed => uint256 percentage) public usedToPercentage;
+    mapping(uint256 timesUsed => uint16 percentage) public usedToPercentage;
 
     /// @notice Maps referral codes to their respective details (creator and users).
     mapping(bytes32 code => ReferralCode referralCode) public referrals;
