@@ -23,7 +23,7 @@ describe('NFT', () => {
 	let instanceInfoETH: InstanceInfoStruct, instanceInfoToken: InstanceInfoStruct, nftInfo: NftFactoryParametersStruct, referralPercentages: ReferralPercentagesStruct;
 
 	async function fixture() {
-		const [owner, alice, bob, charlie] = await ethers.getSigners();
+		const [owner, alice, bob, charlie, pete] = await ethers.getSigners();
 		const signer = EthCrypto.createIdentity();
 
 		const Validator: ContractFactory = await ethers.getContractFactory("MockTransferValidator");
@@ -132,7 +132,7 @@ describe('NFT', () => {
 				[nftName + '2', nftSymbol + '2']
 			))).nftAddress);
 
-		return { factory, nft_eth, nft_erc20, Nft, validator, erc20Example, owner, alice, bob, charlie, signer, hashedCode };
+		return { factory, nft_eth, nft_erc20, Nft, validator, erc20Example, owner, alice, bob, charlie, pete, signer, hashedCode };
 	}
 
 	describe('Deployment', () => {
@@ -1301,9 +1301,8 @@ describe('NFT', () => {
 			);
 		});
 
-		it("Should correct distribute royalties", async () => {
+		it("Should correct distribute royalties 2 payees", async () => {
 			const { alice, signer, nft_eth, erc20Example, factory, owner, bob, charlie, hashedCode } = await loadFixture(fixture);
-
 
 			const RoyaltiesReceiver =
 				await ethers.getContractFactory("RoyaltiesReceiver");
@@ -1427,6 +1426,161 @@ describe('NFT', () => {
 			);
 			expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(
 				ethers.utils.parseEther("1").div(BigNumber.from("6"))
+			);
+		});
+
+		it("Should correct distribute royalties 3 payees", async () => {
+			const { alice, signer, nft_eth, erc20Example, factory, owner, bob, charlie, pete, hashedCode } = await loadFixture(fixture);
+
+			const RoyaltiesReceiver =
+				await ethers.getContractFactory("RoyaltiesReceiver");
+			const receiver = await RoyaltiesReceiver.deploy(
+				[(await factory.nftFactoryParameters()).platformAddress, alice.address],
+				[1, 5]
+			);
+			await receiver.deployed();
+
+			await expect(receiver.connect(pete).addThirdPayee(pete.address, 1)).to.be.revertedWithCustomError(receiver, 'ThirdPayeeCanBeAddedOnlyByPayees');
+
+			await receiver.addThirdPayee(pete.address, 1);
+
+			await expect(receiver.addThirdPayee(pete.address, 1)).to.be.revertedWithCustomError(receiver, 'ThirdPayeeExists');
+
+			expect(await nft_eth.owner()).to.be.equal(alice.address);
+
+			const NFT_721_BASE_URI = "test.com/";
+
+			let message = EthCrypto.hash.keccak256([
+				{ type: "address", value: charlie.address },
+				{ type: "uint256", value: 0 },
+				{ type: "string", value: NFT_721_BASE_URI },
+				{ type: "bool", value: false },
+				{ type: "uint256", value: chainId },
+			]);
+
+			let signature = EthCrypto.sign(signer.privateKey, message);
+
+			let startBalanceOwner = await owner.getBalance();
+			let startBalanceAlice = await alice.getBalance();
+			let startBalanceBob = await bob.getBalance();
+
+			await nft_eth
+				.connect(charlie)
+				.mintStaticPrice(
+					{
+						receiver: charlie.address,
+						tokenId: 0,
+						tokenUri: NFT_721_BASE_URI,
+						whitelisted: false,
+						signature,
+					} as StaticPriceParametersStruct,
+					ETH_ADDRESS,
+					ethers.utils.parseEther("0.03"),
+					{
+						value: ethers.utils.parseEther("0.03"),
+					}
+				);
+
+			let endBalanceOwner = await owner.getBalance();
+			let endBalanceAlice = await alice.getBalance();
+			let endBalanceBob = await bob.getBalance();
+
+			const fullFees = ethers.utils.parseEther("0.03").div(BigNumber.from("100"));
+			const feesToRefferalCreator = await factory.getReferralRate(alice.address, hashedCode, fullFees);
+			const feesToPlatform = fullFees.sub(feesToRefferalCreator);
+
+			expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(
+				feesToPlatform
+			);
+			expect(endBalanceBob.sub(startBalanceBob)).to.be.equal(
+				feesToRefferalCreator
+			);
+			expect(endBalanceAlice.sub(startBalanceAlice)).to.be.equal(
+				ethers.utils
+					.parseEther("0.03")
+					.mul(BigNumber.from("99"))
+					.div(BigNumber.from("100"))
+			);
+
+			// NFT was sold for ETH
+
+			let tx = {
+				from: owner.address,
+				to: receiver.address,
+				value: ethers.utils.parseEther("1"),
+				gasLimit: 1000000,
+			};
+
+			const platformAddress = (await factory.nftFactoryParameters()).platformAddress;
+
+			await owner.sendTransaction(tx);
+
+			let creatorBalanceBefore = await alice.getBalance();
+			let platformBalanceBefore = await owner.getBalance();
+			let peteBalanceBefore = await pete.getBalance();
+
+			await receiver.connect(bob)["releaseAll()"]();
+
+			expect(await receiver['totalReleased()']()).to.eq(BigNumber.from("999999999999999999"))
+			expect(await receiver['released(address)'](alice.address)).to.eq(ethers.utils
+				.parseEther("1")
+				.mul(BigNumber.from("5"))
+				.div(BigNumber.from("7")));
+			expect(await receiver['released(address)'](owner.address)).to.eq(ethers.utils.parseEther("1").div(BigNumber.from("7")));
+			expect(await receiver['released(address)'](pete.address)).to.eq(ethers.utils.parseEther("1").div(BigNumber.from("7")));
+
+
+			let creatorBalanceAfter = await alice.getBalance();
+			let platformBalanceAfter = await owner.getBalance();
+			let peteBalanceAfter = await pete.getBalance();
+
+			expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(
+				ethers.utils
+					.parseEther("1")
+					.mul(BigNumber.from("5"))
+					.div(BigNumber.from("7"))
+			);
+			expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(
+				ethers.utils.parseEther("1").div(BigNumber.from("7"))
+			);
+			expect(peteBalanceAfter.sub(peteBalanceBefore)).to.be.equal(
+				ethers.utils.parseEther("1").div(BigNumber.from("7"))
+			);
+
+			// NFT was sold for ERC20
+
+			creatorBalanceBefore = await erc20Example.balanceOf(alice.address);
+			platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
+			peteBalanceBefore = await erc20Example.balanceOf(pete.address);
+
+			await erc20Example
+				.connect(owner).mint(receiver.address, ethers.utils.parseEther("1"));
+
+			await receiver.connect(bob)["releaseAll(address)"](erc20Example.address);
+
+			expect(await receiver['totalReleased(address)'](erc20Example.address)).to.eq(BigNumber.from("999999999999999999"))
+			expect(await receiver['released(address,address)'](erc20Example.address, alice.address)).to.eq(ethers.utils
+				.parseEther("1")
+				.mul(BigNumber.from("5"))
+				.div(BigNumber.from("7")))
+			expect(await receiver['released(address,address)'](erc20Example.address, owner.address)).to.eq(ethers.utils.parseEther("1").div(BigNumber.from("7")))
+			expect(await receiver['released(address,address)'](erc20Example.address, pete.address)).to.eq(ethers.utils.parseEther("1").div(BigNumber.from("7")))
+
+			creatorBalanceAfter = await erc20Example.balanceOf(alice.address);
+			platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
+			peteBalanceAfter = await erc20Example.balanceOf(pete.address);
+
+			expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(
+				ethers.utils
+					.parseEther("1")
+					.mul(BigNumber.from("5"))
+					.div(BigNumber.from("7"))
+			);
+			expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(
+				ethers.utils.parseEther("1").div(BigNumber.from("7"))
+			);
+			expect(peteBalanceAfter.sub(peteBalanceBefore)).to.be.equal(
+				ethers.utils.parseEther("1").div(BigNumber.from("7"))
 			);
 		});
 	});
