@@ -155,7 +155,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
                 factory: address(this),
                 info: _info,
                 creator: msg.sender,
-                refferalCode: referralCode
+                referralCode: referralCode
             })
         );
 

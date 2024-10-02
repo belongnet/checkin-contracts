@@ -247,15 +247,15 @@ contract NFT is BaseERC721 {
         NftParameters memory _parameters = parameters;
         NFTFactory _factory = NFTFactory(_parameters.factory);
 
-        bytes32 refferalCode = _parameters.refferalCode;
-        address refferalCreator = _factory.getReferralCreator(refferalCode);
+        bytes32 referralCode = _parameters.referralCode;
+        address refferalCreator = _factory.getReferralCreator(referralCode);
 
         uint256 feesToPlatform = fees;
         uint256 referralFees;
-        if (refferalCode != bytes32(0)) {
+        if (referralCode != bytes32(0)) {
             referralFees = _factory.getReferralRate(
                 _parameters.creator,
-                refferalCode,
+                referralCode,
                 fees
             );
             feesToPlatform -= referralFees;

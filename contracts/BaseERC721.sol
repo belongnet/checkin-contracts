@@ -24,6 +24,9 @@ error NotTransferable();
 /// @notice Error thrown when the total supply limit is reached.
 error TotalSupplyLimitReached();
 
+/// @notice Error thrown when the token id is not exist.
+error TokenIdNotExists();
+
 /**
  * @title BaseERC721 Contract
  * @notice A base contract for ERC721 tokens that supports royalties, transfer validation, and metadata management.

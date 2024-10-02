@@ -15,7 +15,7 @@ error ReferralCodeUserExists(address referralUser);
 error ReferralCodeOwnerNotExist(bytes32 hashedCode);
 
 /// @notice Error thrown when a user tries to add themselves as their own referrer.
-error CanNotAddAsReferrerOurself();
+error CannotReferSelf();
 
 /**
  * @title Referral System Contract
@@ -92,7 +92,7 @@ abstract contract ReferralSystem {
 
         require(
             referralUser != referrals[hashedCode].creator,
-            CanNotAddAsReferrerOurself()
+            CannotReferSelf()
         );
 
         if (usedCode[referralUser][hashedCode] < 3) {
