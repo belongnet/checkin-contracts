@@ -44,30 +44,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
     /// @param info The information about the created NFT instance.
     event NFTCreated(bytes32 _hash, NftInstanceInfo info);
 
-    /// @notice Event emitted when the signer address is set.
-    /// @param newSigner The new signer address.
-    event SignerSet(address newSigner);
-
-    /// @notice Event emitted when the platform commission is set.
-    /// @param newCommission The new platform commission in basis points.
-    event PlatformCommissionSet(uint256 newCommission);
-
-    /// @notice Event emitted when the platform address is set.
-    /// @param newPlatformAddress The new platform address.
-    event PlatformAddressSet(address newPlatformAddress);
-
-    /// @notice Event emitted when the transfer validator is set.
-    /// @param newValidator The new transfer validator contract.
-    event TransferValidatorSet(address newValidator);
-
-    /// @notice Event emitted when the default payment currency is set.
-    /// @param defaultPaymentCurrency The new default payment currency.
-    event DefaultPaymentCurrencySet(address defaultPaymentCurrency);
-
-    /// @notice Event emitted when the maximum array size is set.
-    /// @param arraySize The new maximum array size.
-    event MaxArraySizeSet(uint256 arraySize);
-
     // ========== State Variables ==========
 
     /// @notice A struct that contains the NFT factory parameters.
@@ -186,7 +162,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         address _paymentCurrency
     ) external onlyOwner zeroAddressCheck(_paymentCurrency) {
         _nftFactoryParameters.defaultPaymentCurrency = _paymentCurrency;
-        emit DefaultPaymentCurrencySet(_paymentCurrency);
     }
 
     /**
@@ -196,7 +171,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
      */
     function setMaxArraySize(uint256 _arraySize) external onlyOwner {
         _nftFactoryParameters.maxArraySize = _arraySize;
-        emit MaxArraySizeSet(_arraySize);
     }
 
     /**
@@ -208,7 +182,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         uint256 _platformCommission
     ) external onlyOwner {
         _nftFactoryParameters.platformCommission = _platformCommission;
-        emit PlatformCommissionSet(_platformCommission);
     }
 
     /**
@@ -220,7 +193,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         address _platformAddress
     ) external onlyOwner zeroAddressCheck(_platformAddress) {
         _nftFactoryParameters.platformAddress = _platformAddress;
-        emit PlatformAddressSet(_platformAddress);
     }
 
     /**
@@ -232,7 +204,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         address _signer
     ) external onlyOwner zeroAddressCheck(_signer) {
         _nftFactoryParameters.signerAddress = _signer;
-        emit SignerSet(_signer);
     }
 
     /**
@@ -244,7 +215,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         address validator
     ) external onlyOwner zeroAddressCheck(validator) {
         _nftFactoryParameters.transferValidator = validator;
-        emit TransferValidatorSet(validator);
     }
 
     /// @notice Sets the referral percentages.

@@ -39,18 +39,6 @@ abstract contract BaseERC721 is
     CreatorToken,
     AutoValidatorTransferApprove
 {
-    // ========== Events ==========
-
-    /// @notice Emitted when the paying token and prices are updated.
-    /// @param newToken The address of the new paying token.
-    /// @param newPrice The new mint price.
-    /// @param newWLPrice The new whitelist mint price.
-    event PayingTokenChanged(
-        address newToken,
-        uint256 newPrice,
-        uint256 newWLPrice
-    );
-
     // ========== State Variables ==========
 
     /// @notice The current total supply of tokens.
@@ -121,8 +109,6 @@ abstract contract BaseERC721 is
         parameters.info.payingToken = _payingToken;
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
-
-        emit PayingTokenChanged(_payingToken, _mintPrice, _whitelistMintPrice);
     }
 
     /**
