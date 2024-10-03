@@ -179,7 +179,7 @@ contract NFT is BaseERC721 {
         StaticPriceParameters calldata params,
         address expectedPayingToken,
         uint256 expectedMintPrice
-    ) public payable {
+    ) external payable {
         _validateStaticPriceSignature(params);
 
         InstanceInfo memory info = parameters.info;
@@ -212,7 +212,7 @@ contract NFT is BaseERC721 {
     function mintDynamicPrice(
         DynamicPriceParameters calldata params,
         address expectedPayingToken
-    ) public payable {
+    ) external payable {
         _validateDynamicPriceSignature(params);
 
         (uint256 amount, uint256 fees, uint256 amountToCreator) = _checkPrice(

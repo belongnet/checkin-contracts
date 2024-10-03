@@ -18,6 +18,9 @@ import {NftParameters} from "./Structures.sol";
 /// @notice Thrown when a zero address is provided where it's not allowed.
 error ZeroAddressPassed();
 
+/// @notice Thrown when a zero amount is provided where it's not allowed.
+error InvalidMintPrice();
+
 /// @notice Thrown when an unauthorized transfer attempt is made.
 error NotTransferable();
 
@@ -52,6 +55,9 @@ abstract contract BaseERC721 is
     );
 
     // ========== State Variables ==========
+
+    /// @notice Check https://eips.ethereum.org/EIPS/eip-4906
+    bytes4 private constant _INTERFACE_ID_ERC4906 = 0x49064906;
 
     /// @notice The current total supply of tokens.
     uint256 public totalSupply;
@@ -116,6 +122,10 @@ abstract contract BaseERC721 is
     ) external onlyOwner {
         if (_payingToken == address(0)) {
             revert ZeroAddressPassed();
+        }
+
+        if (_mintPrice == 0) {
+            revert InvalidMintPrice();
         }
 
         parameters.info.payingToken = _payingToken;
@@ -243,7 +253,7 @@ abstract contract BaseERC721 is
         return
             interfaceId == type(ICreatorToken).interfaceId ||
             interfaceId == type(ILegacyCreatorToken).interfaceId ||
-            interfaceId == 0x49064906 || // ERC4906
+            interfaceId == _INTERFACE_ID_ERC4906 ||
             super.supportsInterface(interfaceId);
     }
 }

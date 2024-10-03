@@ -9,7 +9,7 @@ import {Releases, SharesAdded} from "./Structures.sol";
 error ZeroAddressPassed();
 
 /// @notice Thrown when zero shares are provided for a payee.
-error ZeroSharesPasted();
+error ZeroSharesPassed();
 
 /// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment();
@@ -83,7 +83,7 @@ contract RoyaltiesReceiver {
      * @param payees_ The list of payee addresses.
      * @param shares_ The list of shares corresponding to each payee.
      */
-    constructor(address[2] memory payees_, uint128[2] memory shares_) payable {
+    constructor(address[2] memory payees_, uint256[2] memory shares_) payable {
         for (uint256 i = 0; i < 2; ) {
             payees[i] = payees_[i];
             _addPayee(payees_[i], shares_[i]);
@@ -105,7 +105,7 @@ contract RoyaltiesReceiver {
      * @param payee_ The address of the new payee.
      * @param shares_ The number of shares assigned to the new payee.
      */
-    function addThirdPayee(address payee_, uint128 shares_) external {
+    function addThirdPayee(address payee_, uint256 shares_) external {
         require(payees[2] == address(0), ThirdPayeeExists());
 
         bool isPayeeCaller;
@@ -160,7 +160,7 @@ contract RoyaltiesReceiver {
      * @notice Returns the total number of shares assigned to all payees.
      * @return The total shares.
      */
-    function totalShares() public view returns (uint256) {
+    function totalShares() external view returns (uint256) {
         return sharesAdded.totalShares;
     }
 
@@ -272,7 +272,7 @@ contract RoyaltiesReceiver {
         }
 
         if (shares_ == 0) {
-            revert ZeroSharesPasted();
+            revert ZeroSharesPassed();
         }
 
         if (sharesAdded.shares[account] != 0) {
