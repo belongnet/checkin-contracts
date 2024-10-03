@@ -656,115 +656,39 @@ describe('NFTFactory', () => {
 	});
 
 	describe('Works properly', () => {
-		it("Can set max array size", async () => {
+		it("Can set params", async () => {
 			const { factory, alice } = await loadFixture(fixture);
 
-			await expect(factory.connect(alice).setMaxArraySize(2)).to.be.revertedWithCustomError(factory, 'Unauthorized');
+			await expect(factory.connect(alice).setFactoryParameters(alice.address, alice.address, alice.address, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'Unauthorized');
+			await expect(factory.setFactoryParameters(ZERO_ADDRESS, alice.address, alice.address, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
+			await expect(factory.setFactoryParameters(alice.address, ZERO_ADDRESS, alice.address, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
+			await expect(factory.setFactoryParameters(alice.address, alice.address, ZERO_ADDRESS, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
-			await factory.setMaxArraySize(2);
+			await expect(factory.connect(alice).setPlatformParameters(alice.address, 2)).to.be.revertedWithCustomError(factory, 'Unauthorized');
+			await expect(factory.setPlatformParameters(ZERO_ADDRESS, 2)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 
+			referralPercentages.initialPercentage = 1;
+
+			const tx = await factory.setFactoryParameters(alice.address, alice.address, alice.address, 2, referralPercentages);
+			await expect(tx).to.emit(factory, 'FactoryParametersSet').withArgs(alice.address, alice.address, alice.address, 2);
+			await expect(tx).to.emit(factory, 'PercentagesSet');
+			expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(alice.address);
+			expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(alice.address);
+			expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(alice.address);
 			expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(2);
-		});
+			expect((await factory.usedToPercentage(1))).to.be.equal(referralPercentages.initialPercentage);
+			expect((await factory.usedToPercentage(2))).to.be.equal(referralPercentages.secondTimePercentage);
+			expect((await factory.usedToPercentage(3))).to.be.equal(referralPercentages.thirdTimePercentage);
+			expect((await factory.usedToPercentage(4))).to.be.equal(referralPercentages.percentageByDefault);
 
-		it("Can set default currency", async () => {
-			const { factory, erc20Example, alice } = await loadFixture(fixture);
-
-			await expect(factory.connect(alice).setDefaultPaymentCurrency(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-			await expect(factory.setDefaultPaymentCurrency(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
-
-			await factory.setDefaultPaymentCurrency(erc20Example.address);
-
-			expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(erc20Example.address);
-		});
-
-		it("Can set platform comision", async () => {
-			const { factory, alice } = await loadFixture(fixture);
-
-			await expect(factory.connect(alice).setPlatformCommission(2)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-
-			await factory.setPlatformCommission(2);
-
-
+			const tx2 = await factory.setPlatformParameters(alice.address, 2);
+			await expect(tx2).to.emit(factory, 'PlatformParametersSet').withArgs(alice.address, 2);
+			expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(alice.address);
 			expect((await factory.nftFactoryParameters()).platformCommission).to.be.equal(2);
-		});
-
-		it("Can set platform address", async () => {
-			const { factory, erc20Example, alice } = await loadFixture(fixture);
-
-			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
-
-			await factory.setPlatformAddress(erc20Example.address);
-
-
-			expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(erc20Example.address);
-		});
-
-		it("Can set signer", async () => {
-			const { factory, erc20Example, alice } = await loadFixture(fixture);
-
-			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
-
-			await factory.setSigner(erc20Example.address);
-
-
-			expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(erc20Example.address);
 		});
 	});
 
 	describe('Errors', () => {
-		it("should correct set parameters", async () => {
-			const { factory, owner, bob, charlie, } = await loadFixture(fixture);
-			const newPlatformAddress = bob.address;
-			const newSigner = charlie.address;
-
-			await factory.connect(owner).setDefaultPaymentCurrency(newPlatformAddress);
-			expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(newPlatformAddress);
-
-			await factory.connect(owner).setMaxArraySize(2);
-			expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(2);
-
-			await factory.connect(owner).setPlatformCommission(2);
-			expect((await factory.nftFactoryParameters()).platformCommission).to.be.equal(2);
-
-			await factory.connect(owner).setPlatformAddress(newPlatformAddress);
-			expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(newPlatformAddress);
-
-			await factory.connect(owner).setSigner(newSigner);
-			expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(newSigner);
-
-			await factory.connect(owner).setTransferValidator(newPlatformAddress);
-			expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(newPlatformAddress);
-
-			referralPercentages.percentageByDefault = 1;
-			await factory.connect(owner).setReferralPercentages(referralPercentages);
-			expect(await factory.usedToPercentage(4)).to.be.equal(referralPercentages.percentageByDefault);
-
-		});
-
-		it("only owner", async () => {
-			const { factory, alice } = await loadFixture(fixture);
-
-			await expect(factory.connect(alice).setPlatformCommission(1)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-			await expect(factory.connect(alice).setSigner(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-			await expect(factory.connect(alice).setPlatformAddress(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-			await expect(factory.connect(alice).setTransferValidator(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-			await expect(factory.connect(alice).setMaxArraySize(2)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-			await expect(factory.connect(alice).setTransferValidator(alice.address)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-			await expect(factory.connect(alice).setReferralPercentages(referralPercentages)).to.be.revertedWithCustomError(factory, 'Unauthorized');
-		});
-
-		it("zero params check", async () => {
-			const { factory, } = await loadFixture(fixture);
-
-			await expect(factory.setSigner(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
-			await expect(factory.setPlatformAddress(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
-			await expect(factory.setTransferValidator(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
-			await expect(factory.setTransferValidator(ZERO_ADDRESS)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
-		});
-
-
 		it("produce() params check", async () => {
 			const { factory, owner, alice, signer } = await loadFixture(fixture);
 
