@@ -28,10 +28,10 @@ const config: HardhatUserConfig = {
       },
     ],
   },
-  starknet: {
-    dockerizedVersion: "0.10.3",
-    network: "alpha-goerli"
-  },
+  // starknet: {
+  //   dockerizedVersion: "0.10.3",
+  //   network: "alpha-goerli"
+  // },
   networks: {
     hardhat: {
       allowUnlimitedContractSize: false,
@@ -52,6 +52,7 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       mainnet: process.env.ETHERSCAN_API_KEY! || '',
+      sepolia: process.env.ETHERSCAN_API_KEY! || '',
       blast: process.env.BLASTSCAN_API_KEY! || '',
       blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
       skale_calypso_testnet: "abc", // Is not required by blockscout. Can be any non-empty string

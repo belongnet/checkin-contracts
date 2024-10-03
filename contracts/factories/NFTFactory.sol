@@ -27,6 +27,9 @@ error NFTAlreadyExists();
 /// @notice Error thrown when a zero address is passed where it's not allowed.
 error ZeroAddressPassed();
 
+/// @notice Error thrown when a zero amount is passed where it's not allowed.
+error ZeroAmountPassed();
+
 /**
  * @title NFT Factory Contract
  * @notice A factory contract to create new NFT instances with specific parameters.
@@ -192,6 +195,8 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         zeroAddressCheck(_paymentCurrency)
         zeroAddressCheck(_validator)
     {
+        require(_arraySize > 0, ZeroAmountPassed());
+
         _nftFactoryParameters.signerAddress = _signer;
 
         _nftFactoryParameters.defaultPaymentCurrency = _paymentCurrency;

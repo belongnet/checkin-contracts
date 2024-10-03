@@ -663,6 +663,7 @@ describe('NFTFactory', () => {
 			await expect(factory.setFactoryParameters(ZERO_ADDRESS, alice.address, alice.address, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 			await expect(factory.setFactoryParameters(alice.address, ZERO_ADDRESS, alice.address, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 			await expect(factory.setFactoryParameters(alice.address, alice.address, ZERO_ADDRESS, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
+			await expect(factory.setFactoryParameters(alice.address, alice.address, alice.address, 0, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAmountPassed');
 
 			await expect(factory.connect(alice).setPlatformParameters(alice.address, 2)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 			await expect(factory.setPlatformParameters(ZERO_ADDRESS, 2)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
