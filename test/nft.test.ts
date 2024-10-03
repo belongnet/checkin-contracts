@@ -712,6 +712,10 @@ describe('NFT', () => {
 				nft_eth.connect(alice).setPayingToken(ZERO_ADDRESS, newPrice, newWLPrice)
 			).to.be.revertedWithCustomError(nft_eth, "ZeroAddressPassed");
 
+			await expect(
+				nft_eth.connect(alice).setPayingToken(newPayingToken, 0, newWLPrice)
+			).to.be.revertedWithCustomError(nft_eth, "InvalidMintPrice");
+
 			await nft_eth
 				.connect(alice)
 				.setPayingToken(newPayingToken, newPrice, newWLPrice);

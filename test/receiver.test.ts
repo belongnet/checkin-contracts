@@ -40,7 +40,7 @@ describe("RoyaltiesReceiver", () => {
 
 		await expect(
 			RoyaltiesReceiver.deploy([owner.address, alice.address], [0, 7000])
-		).to.be.revertedWithCustomError(RoyaltiesReceiver, 'ZeroSharesPasted');
+		).to.be.revertedWithCustomError(RoyaltiesReceiver, 'ZeroSharesPassed');
 
 		await expect(
 			RoyaltiesReceiver.deploy(
