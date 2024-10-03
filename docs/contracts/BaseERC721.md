@@ -8,6 +8,14 @@ error ZeroAddressPassed()
 
 Thrown when a zero address is provided where it's not allowed.
 
+## InvalidMintPrice
+
+```solidity
+error InvalidMintPrice()
+```
+
+Thrown when a zero amount is provided where it's not allowed.
+
 ## NotTransferable
 
 ```solidity

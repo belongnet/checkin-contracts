@@ -9,7 +9,7 @@ _This contract deploys new instances of RoyaltiesReceiver and assigns payees and
 ### ReceiverCreated
 
 ```solidity
-event ReceiverCreated(address creator, contract RoyaltiesReceiver royaltiesReceiver, address[2] payees, uint128[2] shares)
+event ReceiverCreated(address creator, contract RoyaltiesReceiver royaltiesReceiver, address[2] payees, uint256[2] shares)
 ```
 
 Emitted when a new RoyaltiesReceiver contract is created
@@ -21,12 +21,12 @@ Emitted when a new RoyaltiesReceiver contract is created
 | creator | address | The address that deployed the new receiver |
 | royaltiesReceiver | contract RoyaltiesReceiver | The address of the newly created RoyaltiesReceiver contract |
 | payees | address[2] | The list of payees in the RoyaltiesReceiver |
-| shares | uint128[2] | The list of shares corresponding to each payee |
+| shares | uint256[2] | The list of shares corresponding to each payee |
 
 ### deployReceiver
 
 ```solidity
-function deployReceiver(address[2] payees, uint128[2] shares) external returns (contract RoyaltiesReceiver royaltiesReceiver)
+function deployReceiver(address[2] payees, uint256[2] shares) external returns (contract RoyaltiesReceiver royaltiesReceiver)
 ```
 
 Deploys a new RoyaltiesReceiver contract
@@ -44,7 +44,7 @@ Requirements:
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | payees | address[2] | The array of addresses to receive royalties |
-| shares | uint128[2] | The array of shares corresponding to each payee |
+| shares | uint256[2] | The array of shares corresponding to each payee |
 
 #### Return Values
 

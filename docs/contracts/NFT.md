@@ -144,7 +144,7 @@ _Requires signatures from trusted addresses and validates against whitelist stat
 ### mintStaticPrice
 
 ```solidity
-function mintStaticPrice(struct StaticPriceParameters params, address expectedPayingToken, uint256 expectedMintPrice) public payable
+function mintStaticPrice(struct StaticPriceParameters params, address expectedPayingToken, uint256 expectedMintPrice) external payable
 ```
 
 Mints a new NFT with a static price to a specified address.
@@ -162,7 +162,7 @@ _Requires a signature from a trusted address and validates against whitelist sta
 ### mintDynamicPrice
 
 ```solidity
-function mintDynamicPrice(struct DynamicPriceParameters params, address expectedPayingToken) public payable
+function mintDynamicPrice(struct DynamicPriceParameters params, address expectedPayingToken) external payable
 ```
 
 Mints a new NFT with a dynamic price to a specified address.

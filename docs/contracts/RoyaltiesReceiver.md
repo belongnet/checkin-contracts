@@ -8,10 +8,10 @@ error ZeroAddressPassed()
 
 Thrown when a zero address is provided where it's not allowed.
 
-## ZeroSharesPasted
+## ZeroSharesPassed
 
 ```solidity
-error ZeroSharesPasted()
+error ZeroSharesPassed()
 ```
 
 Thrown when zero shares are provided for a payee.
@@ -168,7 +168,7 @@ Mapping of ERC20 token addresses to their respective release tracking structs.
 ### constructor
 
 ```solidity
-constructor(address[2] payees_, uint128[2] shares_) public payable
+constructor(address[2] payees_, uint256[2] shares_) public payable
 ```
 
 Initializes the contract with a list of payees and their respective shares.
@@ -178,7 +178,7 @@ Initializes the contract with a list of payees and their respective shares.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | payees_ | address[2] | The list of payee addresses. |
-| shares_ | uint128[2] | The list of shares corresponding to each payee. |
+| shares_ | uint256[2] | The list of shares corresponding to each payee. |
 
 ### receive
 
@@ -191,7 +191,7 @@ Logs the receipt of Ether. Called when the contract receives Ether.
 ### addThirdPayee
 
 ```solidity
-function addThirdPayee(address payee_, uint128 shares_) external
+function addThirdPayee(address payee_, uint256 shares_) external
 ```
 
 Adds a third payee to the contract, if not already present.
@@ -201,7 +201,7 @@ Adds a third payee to the contract, if not already present.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | payee_ | address | The address of the new payee. |
-| shares_ | uint128 | The number of shares assigned to the new payee. |
+| shares_ | uint256 | The number of shares assigned to the new payee. |
 
 ### releaseAll
 
@@ -228,7 +228,7 @@ Releases all pending ERC20 token payments for a given token to the payees.
 ### totalShares
 
 ```solidity
-function totalShares() public view returns (uint256)
+function totalShares() external view returns (uint256)
 ```
 
 Returns the total number of shares assigned to all payees.
