@@ -334,26 +334,6 @@ Returns the amount of a specific ERC20 token already released to a specific paye
 | ---- | ---- | ----------- |
 | [0] | uint256 | The amount of tokens released to the payee. |
 
-### payee
-
-```solidity
-function payee(uint256 index) external view returns (address)
-```
-
-Returns the address of the payee at the given index.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| index | uint256 | The index of the payee. |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | address | The address of the payee. |
-
 ### _releaseNative
 
 ```solidity

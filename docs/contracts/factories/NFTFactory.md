@@ -60,6 +60,38 @@ Event emitted when a new NFT is created.
 | _hash | bytes32 | The keccak256 hash of the NFT's name and symbol. |
 | info | struct NftInstanceInfo | The information about the created NFT instance. |
 
+### PlatformParametersSet
+
+```solidity
+event PlatformParametersSet(address newPlatformAddress, uint256 newCommission)
+```
+
+Event emitted when the platform address and commission is set.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| newPlatformAddress | address | The new platform address. |
+| newCommission | uint256 | The new platform commission in basis points. |
+
+### FactoryParametersSet
+
+```solidity
+event FactoryParametersSet(address newSigner, address defaultPaymentCurrency, address newValidator, uint256 arraySize)
+```
+
+Event emitted when the new factory parameters set.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| newSigner | address | The new signer address. |
+| defaultPaymentCurrency | address | The new default payment currency. |
+| newValidator | address | The new transfer validator contract. |
+| arraySize | uint256 | The new maximum array size. |
+
 ### getNftInstanceInfo
 
 ```solidity
@@ -120,77 +152,13 @@ _Creates a new instance of the NFT and adds the information to the storage contr
 | ---- | ---- | ----------- |
 | nftAddress | address | The address of the created NFT instance. |
 
-### setDefaultPaymentCurrency
+### setFactoryParameters
 
 ```solidity
-function setDefaultPaymentCurrency(address _paymentCurrency) external
+function setFactoryParameters(address _signer, address _paymentCurrency, address _validator, uint256 _arraySize, struct ReferralPercentages percentages) external
 ```
 
-Sets the default payment currency address.
-
-_Can only be called by the owner._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _paymentCurrency | address | The new default payment currency address. |
-
-### setMaxArraySize
-
-```solidity
-function setMaxArraySize(uint256 _arraySize) external
-```
-
-Sets a new maximum array size.
-
-_Can only be called by the owner._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _arraySize | uint256 | The new maximum array size. |
-
-### setPlatformCommission
-
-```solidity
-function setPlatformCommission(uint256 _platformCommission) external
-```
-
-Sets a new platform commission.
-
-_Can only be called by the owner._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _platformCommission | uint256 | The new platform commission in basis points. |
-
-### setPlatformAddress
-
-```solidity
-function setPlatformAddress(address _platformAddress) external
-```
-
-Sets a new platform address.
-
-_Can only be called by the owner._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _platformAddress | address | The new platform address. |
-
-### setSigner
-
-```solidity
-function setSigner(address _signer) external
-```
-
-Sets a new signer address.
+Sets new factory parameters.
 
 _Can only be called by the owner._
 
@@ -199,14 +167,18 @@ _Can only be called by the owner._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _signer | address | The new signer address. |
+| _paymentCurrency | address | The new default payment currency address. |
+| _validator | address | The new transfer validator contract. |
+| _arraySize | uint256 | The new maximum array size. |
+| percentages | struct ReferralPercentages |  |
 
-### setTransferValidator
+### setPlatformParameters
 
 ```solidity
-function setTransferValidator(address validator) external
+function setPlatformParameters(address _platformAddress, uint256 _platformCommission) external
 ```
 
-Sets a new transfer validator contract.
+Sets a new platform address and commission.
 
 _Can only be called by the owner._
 
@@ -214,23 +186,8 @@ _Can only be called by the owner._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| validator | address | The new transfer validator contract. |
-
-### setReferralPercentages
-
-```solidity
-function setReferralPercentages(struct ReferralPercentages percentages) external
-```
-
-Sets the referral percentages.
-
-_Can only be called by the owner._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| percentages | struct ReferralPercentages | The new referral percentages. |
+| _platformAddress | address | The new platform address. |
+| _platformCommission | uint256 | The new platform commission in basis points. |
 
 ### nftFactoryParameters
 

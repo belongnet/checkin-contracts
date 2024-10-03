@@ -38,10 +38,10 @@ A base contract for ERC721 tokens that supports royalties, transfer validation, 
 
 _This contract extends the Solady ERC721, ERC2981, Ownable contracts, and includes transfer validation features._
 
-### PayingTokenChanged
+### PaymentInfoChanged
 
 ```solidity
-event PayingTokenChanged(address newToken, uint256 newPrice, uint256 newWLPrice)
+event PaymentInfoChanged(address newToken, uint256 newPrice, uint256 newWLPrice)
 ```
 
 Emitted when the paying token and prices are updated.
