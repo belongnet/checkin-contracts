@@ -117,25 +117,6 @@ The contract validates signatures to ensure authorized minting and handles payme
 
   ![RoyaltiesReceiver](./pics/ReceiverFactory_schema.png)
 
-- BaseERC721
-
-![BaseERC721](./pics/BaseERC721.png)
-
-- NFT
-
-![NFT](./pics/NFT.png)
-
-- NFTFactory
-
-![NFTFactory](./pics/NFTFactory.png)
-
-- Receiver
-
-![ReceiverFactory](./pics/RoyaltiesReceiver.png)
-
-- RoyaltiesReceiver
-  ![ReceiverFactory](./pics/ReceiverFactory.png)
-
 ### 2.2. Contract Information
 
 [This section contains detailed information (their purpose, assets, functions, and events) about the contracts used in the project.](./docs/contracts)
