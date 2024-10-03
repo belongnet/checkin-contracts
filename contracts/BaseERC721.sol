@@ -45,7 +45,7 @@ abstract contract BaseERC721 is
     /// @param newToken The address of the new paying token.
     /// @param newPrice The new mint price.
     /// @param newWLPrice The new whitelist mint price.
-    event PayingTokenChanged(
+    event PaymentInfoChanged(
         address newToken,
         uint256 newPrice,
         uint256 newWLPrice
@@ -122,7 +122,7 @@ abstract contract BaseERC721 is
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
 
-        emit PayingTokenChanged(_payingToken, _mintPrice, _whitelistMintPrice);
+        emit PaymentInfoChanged(_payingToken, _mintPrice, _whitelistMintPrice);
     }
 
     /**

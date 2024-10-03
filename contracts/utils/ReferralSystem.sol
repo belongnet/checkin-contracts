@@ -136,12 +136,14 @@ abstract contract ReferralSystem {
      * @param percentages A struct containing the referral percentages for initial, second, third, and default use.
      */
     function _setReferralPercentages(
-        ReferralPercentages memory percentages
+        ReferralPercentages calldata percentages
     ) internal {
         usedToPercentage[1] = percentages.initialPercentage;
         usedToPercentage[2] = percentages.secondTimePercentage;
         usedToPercentage[3] = percentages.thirdTimePercentage;
         usedToPercentage[4] = percentages.percentageByDefault;
+
+        emit PercentagesSet(percentages);
     }
 
     /**

@@ -47,7 +47,7 @@ contract NFT is BaseERC721 {
     /// @param sender The address that made the payment.
     /// @param paymentCurrency The currency used for the payment.
     /// @param value The amount of the payment.
-    event Paid(address sender, address paymentCurrency, uint256 value);
+    event Paid(address indexed sender, address paymentCurrency, uint256 value);
 
     // ========== State Variables ==========
 

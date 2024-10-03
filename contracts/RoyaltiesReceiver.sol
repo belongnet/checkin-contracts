@@ -213,15 +213,6 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @notice Returns the address of the payee at the given index.
-     * @param index The index of the payee.
-     * @return The address of the payee.
-     */
-    function payee(uint256 index) external view returns (address) {
-        return payees[index];
-    }
-
-    /**
      * @dev Releases pending native Ether to a payee.
      * @param account The address of the payee.
      */

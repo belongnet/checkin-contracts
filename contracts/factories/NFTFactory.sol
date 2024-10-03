@@ -40,7 +40,27 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
     /// @notice Event emitted when a new NFT is created.
     /// @param _hash The keccak256 hash of the NFT's name and symbol.
     /// @param info The information about the created NFT instance.
-    event NFTCreated(bytes32 _hash, NftInstanceInfo info);
+    event NFTCreated(bytes32 indexed _hash, NftInstanceInfo info);
+
+    /// @notice Event emitted when the platform address and commission is set.
+    /// @param newPlatformAddress The new platform address.
+    /// @param newCommission The new platform commission in basis points.
+    event PlatformParametersSet(
+        address newPlatformAddress,
+        uint256 newCommission
+    );
+
+    /// @notice Event emitted when the new factory parameters set.
+    /// @param newSigner The new signer address.
+    /// @param defaultPaymentCurrency The new default payment currency.
+    /// @param newValidator The new transfer validator contract.
+    /// @param arraySize The new maximum array size.
+    event FactoryParametersSet(
+        address newSigner,
+        address defaultPaymentCurrency,
+        address newValidator,
+        uint256 arraySize
+    );
 
     // ========== State Variables ==========
 
@@ -152,76 +172,58 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
     }
 
     /**
-     * @notice Sets the default payment currency address.
-     * @dev Can only be called by the owner.
-     * @param _paymentCurrency The new default payment currency address.
-     */
-    function setDefaultPaymentCurrency(
-        address _paymentCurrency
-    ) external onlyOwner zeroAddressCheck(_paymentCurrency) {
-        _nftFactoryParameters.defaultPaymentCurrency = _paymentCurrency;
-    }
-
-    /**
-     * @notice Sets a new maximum array size.
-     * @dev Can only be called by the owner.
-     * @param _arraySize The new maximum array size.
-     */
-    function setMaxArraySize(uint256 _arraySize) external onlyOwner {
-        _nftFactoryParameters.maxArraySize = _arraySize;
-    }
-
-    /**
-     * @notice Sets a new platform commission.
-     * @dev Can only be called by the owner.
-     * @param _platformCommission The new platform commission in basis points.
-     */
-    function setPlatformCommission(
-        uint256 _platformCommission
-    ) external onlyOwner {
-        _nftFactoryParameters.platformCommission = _platformCommission;
-    }
-
-    /**
-     * @notice Sets a new platform address.
-     * @dev Can only be called by the owner.
-     * @param _platformAddress The new platform address.
-     */
-    function setPlatformAddress(
-        address _platformAddress
-    ) external onlyOwner zeroAddressCheck(_platformAddress) {
-        _nftFactoryParameters.platformAddress = _platformAddress;
-    }
-
-    /**
-     * @notice Sets a new signer address.
+     * @notice Sets new factory parameters.
      * @dev Can only be called by the owner.
      * @param _signer The new signer address.
+     * @param _paymentCurrency The new default payment currency address.
+     * @param _validator The new transfer validator contract.
+     * @param _arraySize The new maximum array size.
      */
-    function setSigner(
-        address _signer
-    ) external onlyOwner zeroAddressCheck(_signer) {
+    function setFactoryParameters(
+        address _signer,
+        address _paymentCurrency,
+        address _validator,
+        uint256 _arraySize,
+        ReferralPercentages calldata percentages
+    )
+        external
+        onlyOwner
+        zeroAddressCheck(_signer)
+        zeroAddressCheck(_paymentCurrency)
+        zeroAddressCheck(_validator)
+    {
         _nftFactoryParameters.signerAddress = _signer;
+
+        _nftFactoryParameters.defaultPaymentCurrency = _paymentCurrency;
+
+        _nftFactoryParameters.transferValidator = _validator;
+
+        _nftFactoryParameters.maxArraySize = _arraySize;
+
+        _setReferralPercentages(percentages);
+
+        emit FactoryParametersSet(
+            _signer,
+            _paymentCurrency,
+            _validator,
+            _arraySize
+        );
     }
 
     /**
-     * @notice Sets a new transfer validator contract.
+     * @notice Sets a new platform address and commission.
      * @dev Can only be called by the owner.
-     * @param validator The new transfer validator contract.
+     * @param _platformCommission The new platform commission in basis points.
+     * @param _platformAddress The new platform address.
      */
-    function setTransferValidator(
-        address validator
-    ) external onlyOwner zeroAddressCheck(validator) {
-        _nftFactoryParameters.transferValidator = validator;
-    }
+    function setPlatformParameters(
+        address _platformAddress,
+        uint256 _platformCommission
+    ) external onlyOwner zeroAddressCheck(_platformAddress) {
+        _nftFactoryParameters.platformAddress = _platformAddress;
+        _nftFactoryParameters.platformCommission = _platformCommission;
 
-    /// @notice Sets the referral percentages.
-    /// @dev Can only be called by the owner.
-    /// @param percentages The new referral percentages.
-    function setReferralPercentages(
-        ReferralPercentages memory percentages
-    ) external onlyOwner {
-        _setReferralPercentages(percentages);
+        emit PlatformParametersSet(_platformAddress, _platformCommission);
     }
 
     /// @notice Returns the current NFT factory parameters.
