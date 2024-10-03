@@ -117,23 +117,39 @@ The contract validates signatures to ensure authorized minting and handles payme
 
   ![RoyaltiesReceiver](./pics/ReceiverFactory_schema.png)
 
-### 2.2. Contract Information
+### 2.2. Contracts
 
 [This section contains detailed information (their purpose, assets, functions, and events) about the contracts used in the project.](./docs/contracts)
 
-#### 2.2.1. NFT.sol
+#### 2.2.1. NFT
+
+- NFT contract
 
 [Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.](./docs/contracts/NFT.md)
 
-#### 2.2.2. NFTFactory.sol
+- BaseERC721 contract
+
+[A base contract for ERC721 tokens that supports royalties, transfer validation, and metadata management.](./docs/contracts/BaseERC721.md)
+
+- CreatorToken contract
+
+[Contract that enables the use of a transfer validator to validate token transfers.](./docs/contracts/utils/CreatorToken.md)
+
+- AutoValidatorTransferApprove contract
+
+[Base contract mix-in that provides functionality to automatically approve a 721-C transfer validator implementation for transfers.](./docs/contracts/utils/AutoValidatorTransferApprove.md)
+
+#### 2.2.2. NFTFactory
+
+- NFTFactory contract
 
 [A factory contract to create new NFT instances with specific parameters.](./docs/contracts/factories/NFTFactory.md)
 
-#### 2.2.3. ReferralSystem.sol
+- ReferralSystem contract
 
-[A factory contract to create new NFT instances with specific parameters.](./docs/contracts/factories/NFTFactory.md)
+[Provides referral system functionality, including creating referral codes, setting users, and managing referral percentages.](./docs/contracts/utils/ReferralSystem.md)
 
-#### 2.2.4. RoyaltiesReceiver.sol
+#### 2.2.4. RoyaltiesReceiver
 
 [A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.](./docs/contracts/RoyaltiesReceiver.md)
 
@@ -145,9 +161,21 @@ creator_shares = 10000 - platform_shares
 where x - creators’s BPs (input on FE)
 p - platform fee BPs (default is 100)
 
-#### 2.2.5. ReceiverFactory.sol
+#### 2.2.5. ReceiverFactory
 
 [A factory contract for creating instances of the RoyaltiesReceiver contract.](./docs/contracts/factories/ReceiverFactory.md)
+
+### 2.3. Intefaces
+
+[This section contains detailed information (their purpose and functions) about the interfaces used in the project.](./docs/contracts/interfaces/)
+
+#### 2.3.1. ICreatorToken Interface
+
+[Interface for managing transfer validators for tokens](./docs/contracts/interfaces/ICreatorToken.md)
+
+#### 2.3.2. ITransferValidator721 Interface
+
+[Interface for validating NFT transfers for ERC721 tokens](./docs/contracts/interfaces/ITransferValidator721.md)
 
 ## 3. Additional Explanations
 
