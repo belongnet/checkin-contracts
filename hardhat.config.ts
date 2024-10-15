@@ -44,6 +44,7 @@ const config: HardhatUserConfig = {
     sepolia: createRPClink(ChainIds.sepolia, accounts, process.env.INFURA_ID_PROJECT),
     blast_sepolia: createRPClink(ChainIds.blast_sepolia, accounts),
     skale_calypso_testnet: createRPClink(ChainIds.skale_calypso_testnet, accounts),
+    amoy: createRPClink(ChainIds.amoy, accounts),
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
@@ -55,6 +56,7 @@ const config: HardhatUserConfig = {
       sepolia: process.env.ETHERSCAN_API_KEY! || '',
       blast: process.env.BLASTSCAN_API_KEY! || '',
       blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
+      amoy: process.env.POLYSCAN_API_KEY || '',
       skale_calypso_testnet: "abc", // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
@@ -82,6 +84,16 @@ const config: HardhatUserConfig = {
             "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/api",
           browserURL:
             "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/",
+        },
+      },
+      {
+        network: "amoy",
+        chainId: 80002,
+        urls: {
+          apiURL:
+            "https://api-amoy.polygonscan.com/api",
+          browserURL:
+            "https://amoy.polygonscan.com",
         },
       },
     ],

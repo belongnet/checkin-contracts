@@ -4,6 +4,7 @@ export enum ChainIds {
 	mainnet = 1,
 	bsc = 56,
 	matic = 137,
+	amoy = 80002,
 	blast = 81457,
 	skale = 2046399126,
 	sepolia = 11155111,
@@ -43,6 +44,9 @@ export function createRPClink(chainid: ChainIds, accounts: string[], apiKey?: st
 			break;
 		case ChainIds.sepolia:
 			url = `https://sepolia.infura.io/v3/${apiKey}`;
+			break;
+		case ChainIds.amoy:
+			url = `https://polygon-amoy.drpc.org`;
 			break;
 		case ChainIds.blast_sepolia:
 			url = `https://sepolia.blast.io`;

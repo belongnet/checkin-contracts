@@ -1,23 +1,17 @@
 import { verifyContract } from "../helpers/verify";
 import { InstanceInfoStruct, NftParametersStruct } from "../../typechain-types/contracts/nft-with-royalties/NFT";
+import { ethers } from "hardhat";
 
-const Storage_Address = "0x55f5662efffb06418DB2b36e98cd53B86BC7D466"; // SKALE_CALYPSO: "0x21e633FAE68838d3B517EBE72f4d01b18dC2b815";
-const NFTFactory_Address = "0xf3134745A7d92c7995611E20F54C3044D3d9c937"; // SKALE_CALYPSO: "0xf36BE8463c25e9AA235185dfbe344Fc486Ba7889";
-const ReceiverFactory_Address = "0xc1f8923ccee489A68Af11A104B1F74c7adcf0e9f"; // SKALE_CALYPSO: "0x1ee86eA9De1954a04e0DeF1E101CD99D050bDa99";
-const TransferValidator_Address = "0xb7a26DC03a9BB0d31b8770e4Fb88027AD705Ba06"; // SKALE_CALYPSO: "0x60157fe5101bcD5168653841Df6Ee0a7BB49B5F8";
+// AMOY
+const NFTFactory_Address = "0x100FEb2D822CBb32C4e8f047D43615AC8851Ed79"; //"0x4F6dD6D2218F1b1675F6314e3e3fDF6BB8d24D26";
+const ReceiverFactory_Address = "0x9e3743dEC51b82BD83d7fF7557650BF1C75ee096"; //"0xfb2668b47f93b168ef99EA95d28bd31dB723ad79";
+const TransferValidator_Address = "0x935AaAE808d09C2BDf6840bB85dB9eC7c82fBA7c"; //"0xDD001eb79ce6aa03d79C3C510CFb8CB16C89d8A7";
 
-const nft_address = "0x4877B0d16da2bC4e4b6D646a57baBb49B19535Bc";
-const creator_address = '0x192De36d0A4a23FE101a38a3722557113a8e7F77';
+const receiver_address = "0x01ea4029de725502907de311d84324572641a794";
+const nft_address = '0x5f8e6669a0cd06b9797b4ea285f9fc6b5cb58115';
 
 async function verify() {
   console.log("Verification: ");
-
-  try {
-    verifyContract(Storage_Address);
-    console.log("Storage verification successful.");
-  } catch (error) {
-    console.error("Storage verification failed:", error);
-  }
 
   try {
     verifyContract(NFTFactory_Address);
@@ -40,33 +34,45 @@ async function verify() {
     console.error("ReceiverFactory verification failed:", error);
   }
 
-  const info: InstanceInfoStruct = {
-    name: "Skale Gas",
-    symbol: "skale-gas",
-    contractURI: "https://foster-images.s3.us-east-1.amazonaws.com/up/assets/nft/skale-gas/skale-gas.json",
-    payingToken: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    mintPrice: 10000000000000000n,
-    whitelistMintPrice: 0,
-    transferable: true,
-    maxTotalSupply: 9999,
-    feeNumerator: 200,
-    feeReceiver: '0x192De36d0A4a23FE101a38a3722557113a8e7F77',
-    collectionExpire: 0,
-    signature: '0x61e25d5c181e6c8cdcf6ac4d8637b602e37fe9cbcc8ea7bd2b3c0148eecdd5c948600acc259a23f51bbad2fe9c166e3cc925c36c29c1b89f023e12fc132ab5c71c'
-  }
+  // const info: InstanceInfoStruct = {
+  //   name: "Blast New Smart",
+  //   symbol: "blast-new-smart",
+  //   contractURI: "https://foster-images.s3.us-east-1.amazonaws.com/up/assets/nft/blast-new-smart/blast-new-smart.json",
+  //   payingToken: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+  //   mintPrice: 10000000000000000n,
+  //   whitelistMintPrice: 10000000000000000n,
+  //   transferable: true,
+  //   maxTotalSupply: 9999,
+  //   feeNumerator: 1000,
+  //   feeReceiver: receiver_address,
+  //   collectionExpire: 1730330820,
+  //   signature: '0x8a77ebcde14ae25b6eeb640139ef1865e7d8b8be95d2b1b7d7e9d1f427da22a21fd852ff63ff6c20260ba5393c92c7e2905696fab0ffe972a64b74b8541d7a861b'
+  // }
 
-  const params: NftParametersStruct = {
-    storageContract: Storage_Address,
-    info,
-    creator: creator_address
-  }
+  // const params: NftParametersStruct = {
+  //   transferValidator: TransferValidator_Address,
+  //   factory: NFTFactory_Address,
+  //   info,
+  //   creator: '0x192De36d0A4a23FE101a38a3722557113a8e7F77',
+  //   referralCode: ethers.constants.HashZero,
+  // }
 
-  try {
-    verifyContract(nft_address, [params, TransferValidator_Address]);
-    console.log("ReceiverFactory verification successful.");
-  } catch (error) {
-    console.error("ReceiverFactory verification failed:", error);
-  }
+  // try {
+  //   verifyContract(nft_address, [params]);
+  //   console.log("NFT verification successful.");
+  // } catch (error) {
+  //   console.error("NFT verification failed:", error);
+  // }
+
+  // const payees = ['0x8eE651E9791e4Fe615796303F48856C1Cf73C885', '0x192De36d0A4a23FE101a38a3722557113a8e7F77'];
+  // const shares = [2000, 8000];
+
+  // try {
+  //   verifyContract(receiver_address, [payees, shares]);
+  //   console.log("Receiver verification successful.");
+  // } catch (error) {
+  //   console.error("Receiververification failed:", error);
+  // }
 
   console.log("Done.");
 }
