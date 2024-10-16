@@ -55,49 +55,49 @@ const config: HardhatUserConfig = {
       mainnet: process.env.ETHERSCAN_API_KEY! || '',
       sepolia: process.env.ETHERSCAN_API_KEY! || '',
       blast: process.env.BLASTSCAN_API_KEY! || '',
-      blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
-      amoy: process.env.POLYSCAN_API_KEY || '',
-      skale_calypso_testnet: "abc", // Is not required by blockscout. Can be any non-empty string
-    },
-    customChains: [
-      {
-        network: "blast",
-        chainId: 81457,
-        urls: {
-          apiURL: "https://api.blastscan.io/api",
-          browserURL: "https://blastscan.io/",
-        },
-      },
-      {
-        network: "blast_sepolia",
-        chainId: 168587773,
-        urls: {
-          apiURL: "https://api-sepolia.blastscan.io/api",
-          browserURL: "https://sepolia.blastscan.io/",
-        },
-      },
-      {
-        network: "skale_calypso_testnet",
-        chainId: 974399131,
-        urls: {
-          apiURL:
-            "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/api",
-          browserURL:
-            "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/",
-        },
-      },
-      {
-        network: "amoy",
-        chainId: 80002,
-        urls: {
-          apiURL:
-            "https://api-amoy.polygonscan.com/api",
-          browserURL:
-            "https://amoy.polygonscan.com",
-        },
-      },
-    ],
+      blast_sepolia: process.env.BLASTSCAN_API _KEY! || '',
+    amoy: process.env.POLYSCAN_API_KEY || '',
+    skale_calypso_testnet: "abc", // Is not required by blockscout. Can be any non-empty string
   },
+  customChains: [
+    {
+      network: "blast",
+      chainId: 81457,
+      urls: {
+        apiURL: "https://api.blastscan.io/api",
+        browserURL: "https://blastscan.io/",
+      },
+    },
+    {
+      network: "blast_sepolia",
+      chainId: 168587773,
+      urls: {
+        apiURL: "https://api-sepolia.blastscan.io/api",
+        browserURL: "https://sepolia.blastscan.io/",
+      },
+    },
+    {
+      network: "skale_calypso_testnet",
+      chainId: 974399131,
+      urls: {
+        apiURL:
+          "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/api",
+        browserURL:
+          "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/",
+      },
+    },
+    {
+      network: "amoy",
+      chainId: 80002,
+      urls: {
+        apiURL:
+          "https://api-amoy.polygonscan.com/api",
+        browserURL:
+          "https://amoy.polygonscan.com",
+      },
+    },
+  ],
+},
   paths: {
     sources: "contracts",
   },
