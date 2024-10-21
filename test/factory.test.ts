@@ -2,7 +2,7 @@
 import { ethers, upgrades } from 'hardhat';
 import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, BigNumberish, ContractFactory } from "ethers";
-import { Erc20Example, MockTransferValidator, NFTFactory } from "../typechain-types";
+import { WETHMock, MockTransferValidator, NFTFactory } from "../typechain-types";
 import { expect } from "chai";
 import { InstanceInfoStruct } from "../typechain-types/contracts/NFT";
 import EthCrypto from "eth-crypto";
@@ -20,11 +20,11 @@ describe('NFTFactory', () => {
 		const [owner, alice, bob, charlie] = await ethers.getSigners();
 		const signer = EthCrypto.createIdentity();
 
-		const Erc20Example: ContractFactory = await ethers.getContractFactory("Erc20Example");
-		const erc20Example: Erc20Example = await Erc20Example.deploy() as Erc20Example;
+		const Erc20Example: ContractFactory = await ethers.getContractFactory("WETHMock");
+		const erc20Example: WETHMock = await Erc20Example.deploy() as WETHMock;
 		await erc20Example.deployed();
 
-		const Validator: ContractFactory = await ethers.getContractFactory("MockTransferValidator");
+		const Validator: ContractFactory = await ethers.getContractFactory("MockTransferValidatorV2");
 		const validator: MockTransferValidator = await Validator.deploy(true) as MockTransferValidator;
 		await validator.deployed();
 
@@ -662,7 +662,6 @@ describe('NFTFactory', () => {
 			await expect(factory.connect(alice).setFactoryParameters(alice.address, alice.address, alice.address, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'Unauthorized');
 			await expect(factory.setFactoryParameters(ZERO_ADDRESS, alice.address, alice.address, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 			await expect(factory.setFactoryParameters(alice.address, ZERO_ADDRESS, alice.address, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
-			await expect(factory.setFactoryParameters(alice.address, alice.address, ZERO_ADDRESS, 2, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAddressPassed');
 			await expect(factory.setFactoryParameters(alice.address, alice.address, alice.address, 0, referralPercentages)).to.be.revertedWithCustomError(factory, 'ZeroAmountPassed');
 
 			await expect(factory.connect(alice).setPlatformParameters(alice.address, 2)).to.be.revertedWithCustomError(factory, 'Unauthorized');

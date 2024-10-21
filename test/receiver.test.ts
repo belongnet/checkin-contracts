@@ -2,7 +2,7 @@ import { ethers } from 'hardhat';
 import { loadFixture, } from "@nomicfoundation/hardhat-network-helpers";
 import { ContractFactory } from "ethers";
 import { expect } from "chai";
-import { Erc20Example, RoyaltiesReceiver } from "../typechain-types";
+import { WETHMock, RoyaltiesReceiver } from "../typechain-types";
 
 describe("RoyaltiesReceiver", () => {
 	const PLATFORM_COMISSION = "100";
@@ -21,8 +21,8 @@ describe("RoyaltiesReceiver", () => {
 		) as RoyaltiesReceiver;
 		await receiver.deployed();
 
-		const Erc20Example: ContractFactory = await ethers.getContractFactory("Erc20Example");
-		const erc20Example: Erc20Example = await Erc20Example.deploy() as Erc20Example;
+		const Erc20Example: ContractFactory = await ethers.getContractFactory("WETHMock");
+		const erc20Example: WETHMock = await Erc20Example.deploy() as WETHMock;
 		await erc20Example.deployed()
 
 		return { receiver, erc20Example, owner, alice, bob, charlie, RoyaltiesReceiver };
