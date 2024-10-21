@@ -193,16 +193,12 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         onlyOwner
         zeroAddressCheck(_signer)
         zeroAddressCheck(_paymentCurrency)
-        zeroAddressCheck(_validator)
     {
         require(_arraySize > 0, ZeroAmountPassed());
 
         _nftFactoryParameters.signerAddress = _signer;
-
         _nftFactoryParameters.defaultPaymentCurrency = _paymentCurrency;
-
         _nftFactoryParameters.transferValidator = _validator;
-
         _nftFactoryParameters.maxArraySize = _arraySize;
 
         _setReferralPercentages(percentages);
