@@ -51,7 +51,7 @@ abstract contract ReferralSystem {
     // ========== State Variables ==========
 
     /// @notice Maps the number of times a referral code was used to the corresponding percentage.
-    mapping(uint256 timesUsed => uint16 percentage) public usedToPercentage;
+    uint16[5] public usedToPercentage;
 
     /// @notice Maps referral codes to their respective details (creator and users).
     mapping(bytes32 code => ReferralCode referralCode) public referrals;
@@ -102,13 +102,6 @@ abstract contract ReferralSystem {
         );
         require(referralUser != referral.creator, CannotReferSelf());
 
-        uint256 used = usedCode[referralUser][hashedCode];
-        if (used < 3) {
-            ++usedCode[referralUser][hashedCode];
-        } else if (used == 3) {
-            usedCode[referralUser][hashedCode] = 4;
-        }
-
         // Check if the user is already in the array
         bool inArray;
         for (uint256 i = 0; i < referral.referralUsers.length; ) {
@@ -125,6 +118,10 @@ abstract contract ReferralSystem {
 
         if (!inArray) {
             referrals[hashedCode].referralUsers.push(referralUser);
+        }
+
+        if (usedCode[referralUser][hashedCode] < 4) {
+            ++usedCode[referralUser][hashedCode];
         }
 
         emit ReferralCodeUsed(hashedCode, referralUser);

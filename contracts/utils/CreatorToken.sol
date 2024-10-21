@@ -3,10 +3,6 @@ pragma solidity 0.8.27;
 
 import {ITransferValidator721} from "../interfaces/ITransferValidator721.sol";
 
-/// @notice Thrown when trying to set a transfer validator to the same address.
-/// @dev This error prevents setting a validator that is already active.
-error SetTransferValidatorError();
-
 /// @notice Thrown when attempting to set a zero address as the transfer validator.
 /// @dev This error prevents setting an invalid address.
 error ZeroAddressPassed();
@@ -18,18 +14,16 @@ error ZeroAddressPassed();
  */
 abstract contract CreatorToken {
     /// @notice Emitted when the transfer validator is updated.
-    /// @param oldValidator The old transfer validator address.
     /// @param newValidator The new transfer validator address.
-    event TransferValidatorUpdated(
-        ITransferValidator721 oldValidator,
-        ITransferValidator721 newValidator
-    );
+    event TransferValidatorUpdated(address newValidator);
 
     /// @notice Emitted when the collection's token type cannot be set by the transfer validator.
-    event CannotSetTokenTypeOfCollection();
+    event TokenTypeOfCollectionSet(bool isSet);
+
+    uint16 internal constant ERC721_TOKEN_TYPE = 721;
 
     /// @dev The current transfer validator. The null address indicates no validator is set.
-    ITransferValidator721 internal _transferValidator;
+    address internal _transferValidator;
 
     /**
      * @notice Returns the currently active transfer validator.
@@ -41,7 +35,7 @@ abstract contract CreatorToken {
         view
         returns (ITransferValidator721)
     {
-        return _transferValidator;
+        return ITransferValidator721(_transferValidator);
     }
 
     /**
@@ -65,32 +59,23 @@ abstract contract CreatorToken {
      * @param _newValidator The address of the new transfer validator contract.
      */
     function _setTransferValidator(address _newValidator) internal {
-        ITransferValidator721 newValidator = ITransferValidator721(
-            _newValidator
-        );
-        ITransferValidator721 oldValidator = _transferValidator;
-
-        if (oldValidator == newValidator) {
-            revert SetTransferValidatorError();
-        }
-
-        _transferValidator = newValidator;
+        _transferValidator = _newValidator;
 
         // Attempt to set the token type for the collection, if the new validator is not a null address.
-        if (address(newValidator) != address(0)) {
-            if (address(newValidator).code.length > 0) {
-                try
-                    newValidator.setTokenTypeOfCollection(
-                        address(this),
-                        uint16(721)
-                    )
-                {} catch {
-                    emit CannotSetTokenTypeOfCollection();
-                }
+        if (_newValidator != address(0) && _newValidator.code.length > 0) {
+            try
+                ITransferValidator721(_newValidator).setTokenTypeOfCollection(
+                    address(this),
+                    ERC721_TOKEN_TYPE
+                )
+            {
+                emit TokenTypeOfCollectionSet(true);
+            } catch {
+                emit TokenTypeOfCollectionSet(false);
             }
         }
 
-        emit TransferValidatorUpdated(oldValidator, newValidator);
+        emit TransferValidatorUpdated(_newValidator);
     }
 
     /**
@@ -108,13 +93,18 @@ abstract contract CreatorToken {
         uint256 tokenId
     ) internal {
         // Call the transfer validator if one is set.
-        address transferValidator = address(_transferValidator);
+        address transferValidator = _transferValidator;
         if (transferValidator != address(0)) {
             if (msg.sender == transferValidator) {
                 return;
             }
 
-            _transferValidator.validateTransfer(caller, from, to, tokenId);
+            ITransferValidator721(transferValidator).validateTransfer(
+                caller,
+                from,
+                to,
+                tokenId
+            );
         }
     }
 }
