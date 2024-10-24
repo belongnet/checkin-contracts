@@ -1,85 +1,98 @@
 // SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts for Cairo ^0.15.0
+// Compatible with OpenZeppelin Contracts for Cairo ^0.17.0
 
 #[starknet::contract]
-mod NFT {
+mod ERC721 {
+    use core::{
+        num::traits::Zero,
+        starknet::event::EventEmitter
+    };
+    use starknet::{
+        ContractAddress,
+        get_caller_address,
+        storage::{
+            StoragePointerReadAccess, 
+            StoragePointerWriteAccess, 
+            Map,
+            StorageMapReadAccess,
+            StorageMapWriteAccess,
+        }
+    };
     use openzeppelin::{
         access::ownable::OwnableComponent,
         introspection::src5::SRC5Component,
+        security::pausable::PausableComponent,
         token::{
-            erc721::{
-                ERC721Component,
-                ERC721HooksEmptyImpl,
+            erc20::interface::{
+                IERC20Dispatcher,
+                IERC20DispatcherTrait
             },
-            common::erc2981::ERC2981Component
-        }
+            erc721::ERC721Component,
+            common::erc2981::{
+                ERC2981Component,
+                DefaultConfig
+            }
+        } 
     };
-    use starknet::ContractAddress;
-    use ecdsa::check_ecdsa_signature;
-    use keccak_u256s_be_inputs::keccak;
+
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
-    component!(path: SRC5Component, storage: src5, event: SRC5Event);
-    component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
     component!(path: ERC2981Component, storage: erc2981, event: ERC2981Event);
+    component!(path: SRC5Component, storage: src5, event: SRC5Event);
+    component!(path: PausableComponent, storage: pausable, event: PausableEvent);
+    component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
     #[abi(embed_v0)]
     impl ERC721MixinImpl = ERC721Component::ERC721MixinImpl<ContractState>;
     #[abi(embed_v0)]
-    impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
-    impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
-    #[abi(embed_v0)]
     impl ERC2981Impl = ERC2981Component::ERC2981Impl<ContractState>;
-    impl ERC2981InternalImpl = ERC2981Component::InternalImpl<ContractState>;
+    #[abi(embed_v0)]
+    impl PausableImpl = PausableComponent::PausableImpl<ContractState>;
+    #[abi(embed_v0)]
+    impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
 
-    const ETH_ADDRESS_FELT: felt252 = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    const ETH_ADDRESS: ContractAddress = ContractAddress::new(ETH_ADDRESS_FELT);
+    impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
+    impl ERC2981InternalImpl = ERC2981Component::InternalImpl<ContractState>;
+    impl PausableInternalImpl = PausableComponent::InternalImpl<ContractState>;
+    impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
 
     #[storage]
     struct Storage {
         #[substorage(v0)]
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
+        erc2981: ERC2981Component::Storage,
+        #[substorage(v0)]
         src5: SRC5Component::Storage,
+        #[substorage(v0)]  
+        pausable: PausableComponent::Storage,
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
-        #[substorage(v0)]
-        erc2981: ERC2981Component::Storage,
-        
-        total_supply: u256, 
-        metadata_uri: Dict<u256, ByteArray>, // mapping(uint256 => string)
 
+        nft_node: ParametersNode, 
         nft_parameters: NftParameters,
     }
 
-    #[derive(Copy, Drop)]
-    struct InstanceInfo {
-        name: ByteArray,                // The name of the collection
-        symbol: ByteArray,              // The symbol of the collection
-        contract_uri: ByteArray,        // Contract URI of a new collection
-        paying_token: ContractAddress,  // Address of ERC20 paying token or ETH-like address (0xEeeee...)
-        mint_price: u256,               // Mint price of a token from a new collection
-        whitelist_mint_price: u256,     // Mint price for whitelisted users
-        transferable: felt252,          // 1 for true, 0 for false (if tokens will be transferable or not)
-        max_total_supply: u256,         // The max total supply of a new collection
-        fee_numerator: u128,             // Royalty fraction for platform + creator
-        fee_receiver: ContractAddress,  // The royalties receiver address
-        collection_expires: u256,       // Collection expiration period (timestamp)
-        signature: Span<felt252>,       // BE's signature
-    }
-
-    #[derive(Copy, Drop)]
+    #[derive(Drop, Serde, starknet::Store)]
     struct NftParameters {
-        storage_contract: ContractAddress,  // Address of the storage contract
-        info: InstanceInfo,                 // The instance info struct
-        creator: ContractAddress,           // Creator's address
+        creator: ContractAddress,       // Creator's address
+        payment_token: ContractAddress,  
+        // Address of ERC20 paying token (
+        //     STRK - 0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
+        //     ETH - 0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7
+        // )
+        mint_price: u256,               // Mint price of a token from a new collection
+        whitelisted_mint_price: u256,     // Mint price for whitelisted users
+        max_total_supply: u256,         // The max total supply of a new collection
+        collection_expires: u256,       // Collection expiration period (timestamp),
+        referral_code: ByteArray
     }
 
-    #[derive(Drop, PartialEq, starknet::Event)]
-    pub struct PayingTokenChanged {
-        paying_token: ContractAddress,
-        mint_price: u256,
-        whitelist_mint_price: u256,
+    #[starknet::storage_node]
+    struct ParametersNode {
+        total_supply: u256,
+        metadata_uri: Map<u256, ByteArray>,
+        whitelisted: Map<ContractAddress, felt252>,
     }
 
     #[event]
@@ -88,240 +101,264 @@ mod NFT {
         #[flat]
         ERC721Event: ERC721Component::Event,
         #[flat]
-        SRC5Event: SRC5Component::Event,
-        #[flat]
-        OwnableEvent: OwnableComponent::Event,
-        #[flat]
         ERC2981Event: ERC2981Component::Event,
         #[flat]
-        PayingTokenChanged: PayingTokenChanged,
+        SRC5Event: SRC5Component::Event,
+        #[flat]
+        PausableEvent: PausableComponent::Event,
+        #[flat] 
+        OwnableEvent: OwnableComponent::Event,
+        PaymentInfoChangedEvent: PaymentInfoChanged,
+        PaidEvent: Paid
+    }
+
+    #[derive(Drop, PartialEq, starknet::Event)]
+    pub struct PaymentInfoChanged {
+        #[key]
+        pub payment_token: ContractAddress,
+        #[key]
+        pub mint_price: u256,
+        #[key]
+        pub whitelisted_mint_price: u256
+    }
+
+    #[derive(Drop, PartialEq, starknet::Event)]
+    pub struct Paid {
+        #[key]
+        pub user: ContractAddress,
+        #[key]
+        pub payment_token: ContractAddress,
+        #[key]
+        pub amount: u256
+    }
+
+    pub mod Errors {
+        pub const ZERO_ADDRESS: felt252 = 'Zero address passed';
+        pub const ZERO_AMOUNT: felt252 = 'Zero amount passed';
+        pub const TOTAL_SUPPLY_LIMIT: felt252 = 'Total supply limit reached';
+        pub const WHITELISTED_ALREADY: felt252 = 'Address is already whitelisted';
+        pub const EXPECTED_TOKEN_ERROR: felt252 = 'Token not equals to existent';
+        pub const EXPECTED_PRICE_ERROR: felt252 = 'Price not equals to existent';
     }
 
     #[constructor]
-    fn constructor(ref self: ContractState, owner: ContractAddress, nft_parameters: NftParameters) {
-        zero_address_check(nft_parameters.info.paying_token);
-        zero_address_check(nft_parameters.info.fee_receiver);
-        zero_address_check(nft_parameters.storage_contract);
-        zero_address_check(nft_parameters.creator);
+    fn constructor(
+        ref self: ContractState, 
+        name: ByteArray, 
+        symbol: ByteArray, 
+        base_uri: ByteArray,
+        nft_params: NftParameters,
+        default_receiver: ContractAddress,
+        default_royalty_fraction: u128,
+    ) {
+        let owner = nft_params.creator;
+        self.nft_parameters.write(nft_params);
 
-        self.total_supply = u256::zero();
-        self.nft_parameters = nft_parameters;
+        self.erc721.initializer(name, symbol, base_uri);
+        self.ownable.initializer(owner);
+        self.erc2981.initializer(default_receiver, default_royalty_fraction);
+    }
 
-        self.erc721.initializer(nft_parameters.info.name, nft_parameters.info.symbol, nft_parameters.info.contract_uri);
-        self.ownable.initializer(nft_parameters.creator);
-        self.erc2981.initializer(nft_parameters.info.fee_receiver, nft_parameters.info.fee_numerator); // 10000 = 100% royalties
+    impl ERC721HooksImpl of ERC721Component::ERC721HooksTrait<ContractState> {
+        fn before_update(
+            ref self: ERC721Component::ComponentState<ContractState>,
+            to: ContractAddress,
+            token_id: u256,
+            auth: ContractAddress,
+        ) {
+            let contract_state = self.get_contract();
+            let from = contract_state.owner_of(token_id);
+
+            if to.is_non_zero() && from.is_non_zero() {
+                contract_state.pausable.assert_not_paused();
+            }
+        }
     }
 
     #[generate_trait]
     #[abi(per_item)]
     impl ExternalImpl of ExternalTrait {
         #[external(v0)]
-        fn safe_mint(
+        fn pause(ref self: ContractState) {
+            self._pause();
+        }
+
+        #[external(v0)]
+        fn unpause(ref self: ContractState) {
+            self._unpause();
+        }
+
+        #[external(v0)]
+        fn mint( 
             ref self: ContractState,
             recipient: ContractAddress,
             token_uri: ByteArray,
-            whitelisted: felt252, // 1 = true, 0 - false,
-            signature_r: felt252, 
-            signature_s: felt252,
+            expected_payment_token: ContractAddress,
+            expected_mint_price: u256,
             data: Span<felt252>,
+        ) {
+            self._check_price(recipient, expected_payment_token, expected_mint_price);
+            self._base_mint(recipient, token_uri, data);
+        }
+
+        #[external(v0)] 
+        fn set_payment_info(
+            ref self: ContractState,
+            payment_token: ContractAddress,
+            mint_price: u256,
+            whitelisted_mint_price: u256,
+        ) {
+            self._set_payment_info(payment_token, mint_price, whitelisted_mint_price);
+        }
+
+        #[external(v0)] 
+        fn setPaymentInfo(
+            ref self: ContractState,
+            payingToken: ContractAddress,
+            mintPrice: u256,
+            whitelistedMintPrice: u256,
+        ) {
+            self._set_payment_info(payingToken, mintPrice, whitelistedMintPrice);
+        }
+
+        #[external(v0)]
+        fn add_whitelisted(ref self: ContractState, whitelisted: ContractAddress) {
+            self._add_whitelisted(whitelisted);
+        }
+
+        #[external(v0)]
+        fn addWhitelisted(ref self: ContractState, whitelisted: ContractAddress) {
+            self._add_whitelisted(whitelisted);
+        }
+
+        #[external(v0)]
+        fn metadata_uri(
+            self: @ContractState,
+            token_id: u256,
+        ) -> ByteArray {
+            return self._metadata_uri(token_id);
+        }
+
+        #[external(v0)]
+        fn metadataUri(
+            self: @ContractState,
+            tokenId: u256,
+        ) -> ByteArray {
+            return self._metadata_uri(tokenId);
+        }
+    }
+
+    
+    #[generate_trait]
+    impl InternalImpl of InternalTrait {
+        fn _pause(ref self: ContractState) {
+            self.ownable.assert_only_owner();
+            self.pausable.pause();
+        }
+
+        fn _unpause(ref self: ContractState) {
+            self.ownable.assert_only_owner();
+            self.pausable.unpause();
+        }
+
+        fn _pay(
+            ref self: ContractState, 
+            amount: u256, 
+            fees: u256, 
+            to_creator: u256,
+        ) {
+            let user = get_caller_address();
+
+            let fees_to_platform = fees;
+            let referral_fees = fees; // TODO: Mocked
+            
+            let payment_token = self.nft_parameters.payment_token.read();
+            let token = IERC20Dispatcher { contract_address: payment_token };
+
+            // if !fees_to_platform.is_zero() {
+            //     token.transfer_from(user, self.nft_parameters.creator.read(), fees_to_platform); // TODO: change user to platform
+            // }
+
+            // if !referral_fees.is_zero() {
+            //     token.transfer_from(user, self.nft_parameters.creator.read(), referral_fees); // TODO: change user to referral
+            // }
+
+            token.transfer_from(user, self.nft_parameters.creator.read(), amount);
+
+            self.emit(Paid { user, payment_token, amount });
+        }
+
+        fn _base_mint( 
+            ref self: ContractState,
+            recipient: ContractAddress,
+            token_uri: ByteArray,
+            data: Span<felt252>
+        ) {
+            let token_id =  self.nft_node.total_supply.read();
+
+            assert(token_id + 1 > self.nft_parameters.max_total_supply.read(), Errors::TOTAL_SUPPLY_LIMIT);
+
+            self.nft_node.total_supply.write(token_id + 1);
+            self.nft_node.metadata_uri.write(token_id, token_uri);
+
+            self.erc721.safe_mint(recipient, token_id, data);
+        }
+
+        fn _set_payment_info(
+            ref self: ContractState,
+            payment_token: ContractAddress,
+            mint_price: u256,
+            whitelisted_mint_price: u256,
         ) {
             self.ownable.assert_only_owner();
-            // Zero address check
-            zero_address_check(recipient);
+            assert(payment_token.is_zero(), Errors::ZERO_ADDRESS);
+            assert(mint_price.is_zero(), Errors::ZERO_AMOUNT);
+            
+            self.nft_parameters.payment_token.write(payment_token);
+            self.nft_parameters.mint_price.write(mint_price);
+            self.nft_parameters.whitelisted_mint_price.write(whitelisted_mint_price);
 
-            let token_id = self.total_supply;
-            let parameters = self.nft_parameters;
+            self.emit(PaymentInfoChanged { payment_token, mint_price, whitelisted_mint_price });
+        }
 
-            // Signature verification
-            let receiver_u256 = convert_address_to_u256(recipient);
-            let whitelisted_u256 = convert_bool_to_u256(whitelisted);
-            let token_uri_u256 = convert_bytearray_to_u256(token_uri);
+        fn _add_whitelisted(ref self: ContractState, whitelisted: ContractAddress) {
+            self.ownable.assert_only_owner();
+            assert(whitelisted.is_zero(), Errors::ZERO_ADDRESS);
+            assert(self._whitelisted(whitelisted), Errors::WHITELISTED_ALREADY);
 
-            let mut inputs = Array::<u256>::new();
-            inputs.append(receiver_u256);
-            inputs.append(token_id);
-            inputs.append(token_uri_u256);
-            inputs.append(whitelisted_u256);
-            inputs.append(block_chainid());
+            self.nft_node.whitelisted.write(whitelisted, 1);
+        }
 
-            let message = keccak_u256s_be_inputs(inputs.span());
-            let expected_signer = self.storage_contract.factory().signer();
+        fn _check_price(
+            self: @ContractState,
+            account: ContractAddress,
+            payment_token: ContractAddress,
+            price: u256,
+        ) {
+            assert(payment_token != self.nft_parameters.payment_token.read(), Errors::EXPECTED_TOKEN_ERROR);
 
-            if !check_ecdsa_signature(message, expected_signer, signature_r, signature_s) {
-                panic!("InvalidSignature");
-            }
-
-            if (token_id + u256::from(1) > parameters.info.max_total_supply) {
-                panic!("TotalSupplyLimitReached");
-            }
-
-            let price = if whitelisted == felt252::one() {
-                parameters.info.whitelist_mint_price
+            let mint_price = if self._whitelisted(account) {
+                self.nft_parameters.whitelisted_mint_price.read()
             } else {
-                parameters.info.mint_price
+                self.nft_parameters.mint_price.read()
             };
 
-            let isEth = parameters.paying_token == ETH_ADDRESS;
-
-            let amount = if isEth {
-                if msg_value() != price {
-                    panic!("NotEnoughETHSent");
-                }
-            } else {
-                price
-            };
-
-            let comission = self.storage_contract.factory().platform_comission();
-            let fee = amount * comission / self.fee_denominator();
-            let amount_to_creator = amount - fee;
-
-            let plaform = self.storage_contract.factory().platform_address();
-
-            if isEth {
-                if fee > u256::zero() {
-                    plaform.safe_transfer_eth(fee);
-                }
-
-                parameters.creator.safe_transfer_eth(amount_to_creator);
-            } else {
-                if fee > u256::zero() {
-                    parameters.info.paying_token.safe_transfer_from(msg_sender(), platform_address, fee);
-                }
-
-                parameters.info.paying_token.safe_transfer_from(msg_sender(), platform_address, amount_to_creator);
-            }
-
-            // Increment the total supply
-            self.total_supply = self.total_supply + u256::from(1);
-
-            // Mint the token
-            self.erc721.safe_mint(recipient, token_id, data);
-
-            // Set the metadata URI for this token ID
-            self.metadata_uri.write(token_id, metadata_uri);
+            assert(price != mint_price, Errors::EXPECTED_PRICE_ERROR);
+            //TODO: for multiple return (price, fees, etc) try use structs
         }
 
-        #[external(v0)]
-        fn safeMint(
-            ref self: ContractState,
-            recipient: ContractAddress,
-            tokenId: u256,
-            data: Span<felt252>,
-            metadata_uri: ByteArray
-        ) {
-            self.safe_mint(recipient, tokenId, data, metadata_uri);
-        }
-
-        // Function to set royalties for a specific token
-        #[external(v0)]
-        fn set_token_royalty(
-            ref self: ContractState,
+        fn _metadata_uri(
+            self: @ContractState,
             token_id: u256,
-            recipient: ContractAddress,
-            percentage: u64, // e.g., 1000 for 10%
-        ) {
-            self.erc2981.set_token_royalty(token_id, recipient, percentage);
+        ) -> ByteArray {
+            return self.nft_node.metadata_uri.read(token_id);
         }
 
-        // Sets paying token
-        #[external(v0)]
-        fn set_paying_token(
-            ref self: ContractState,
-            paying_token: ContractAddress,
-            mint_price: u256,
-            whitelist_mint_price: u256
-        ) {
-            self.nft_parameters.info.paying_token = paying_token;
-            self.nft_parameters.info.mint_price = mint_price;
-            self.nft_parameters.info.whitelist_mint_price = whitelist_mint_price;
-
-            emit!(
-                PayingTokenChanged {
-                    paying_token: paying_token,
-                    mint_price: mint_price,
-                    whitelist_mint_price: whitelist_mint_price,
-                },
-            );
+        fn _whitelisted(
+            self: @ContractState,
+            account: ContractAddress,
+        ) -> bool {
+            return self.nft_node.whitelisted.read(account) == 1;
         }
-
-        // Function to retrieve royalty info
-        #[external(v0)]
-        fn royalty_info(
-            ref self: ContractState,
-            token_id: u256,
-            sale_price: u256,
-        ) -> (ContractAddress, u256) {
-            self.erc2981.royalty_info(token_id, sale_price)
-        }
-
-        // Function to retrieve metadata URI for a token
-        #[external(v0)]
-        fn token_uri(ref self: ContractState, token_id: u256) -> ByteArray {
-            self._require_owned(token_id);
-            self.metadata_uri.read(token_id)
-        }
-
-        // Function to get the total supply
-        #[external(v0)]
-        fn get_total_supply(ref self: ContractState) -> u256 {
-            self.total_supply
-        }
-    }
-
-    impl ERC721InternalImpl of ERC721Component::InternalImpl<ContractState> {
-        fn _update(
-            ref self: ContractState,
-            to: ContractAddress,
-            token_id: u256,
-            auth: ContractAddress
-        ) -> ContractAddress {
-            // Call the parent ERC721 _update function
-            let from = super::_update(to, token_id, auth);
-
-            // Check if this is not a mint or burn (i.e., from and to are both non-zero addresses)
-            if from != ContractAddress::default() && to != ContractAddress::default() {
-                // Check if tokens are transferable (1 means transferable, 0 means non-transferable)
-                if self.nft_parameters.info.transferable == felt252::zero() {
-                    // If not transferable, revert the transaction with an error
-                    panic!("NotTransferable");
-                }
-            }
-
-            // Return the `from` address after the update
-            return from;
-        }
-    }
-
-    // Zero address check function
-    fn zero_address_check(address: ContractAddress) {
-        if address == ContractAddress::default() {
-            panic!("ZeroAddressPasted");
-        }
-    }
-
-    fn convert_address_to_u256(address: ContractAddress) -> u256 {
-        // Convert the ContractAddress to a u256 value.
-        // In this case, treat the address as a felt252, and convert it into a u256.
-        u256 { low: address.to_felt(), high: 0 }
-    }   
-
-    fn convert_bool_to_u256(value: felt252) -> u256 {
-        // Convert a boolean-like value (1 for true, 0 for false) to u256.
-        u256 { low: value, high: 0 }
-    }
-
-    fn convert_bytearray_to_u256(bytearray: ByteArray) -> u256 {
-        let mut res_low: u128 = 0;
-        let mut res_high: u128 = 0;
-
-        for(i, byte) in bytearray.into_iter().enumerate() {
-            if i < 16 {
-                res_low = res_low | ((byte as u128) << (i * 8));
-            } else {
-                res_high = res_high | ((byte as u128) << ((i - 16) * 8);
-            }
-        }
-
-        u256 { low: res_low, high: res_high }
     }
 }
