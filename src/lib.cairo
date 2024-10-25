@@ -1,1 +1,2 @@
-mod nft;
+    mod nft;
+    mod nftfactory;
