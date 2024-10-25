@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts for Cairo ^0.17.0
 
+mod Errors {
+    pub const ZERO_ADDRESS: felt252 = 'Zero address passed';
+    pub const ZERO_AMOUNT: felt252 = 'Zero amount passed';
+    pub const TOTAL_SUPPLY_LIMIT: felt252 = 'Total supply limit reached';
+    pub const WHITELISTED_ALREADY: felt252 = 'Address is already whitelisted';
+    pub const EXPECTED_TOKEN_ERROR: felt252 = 'Token not equals to existent';
+    pub const EXPECTED_PRICE_ERROR: felt252 = 'Price not equals to existent';
+}
+
 #[starknet::contract]
 mod ERC721 {
     use core::{
@@ -34,7 +43,6 @@ mod ERC721 {
             }
         } 
     };
-
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: ERC2981Component, storage: erc2981, event: ERC2981Event);
@@ -130,15 +138,6 @@ mod ERC721 {
         pub payment_token: ContractAddress,
         #[key]
         pub amount: u256
-    }
-
-    pub mod Errors {
-        pub const ZERO_ADDRESS: felt252 = 'Zero address passed';
-        pub const ZERO_AMOUNT: felt252 = 'Zero amount passed';
-        pub const TOTAL_SUPPLY_LIMIT: felt252 = 'Total supply limit reached';
-        pub const WHITELISTED_ALREADY: felt252 = 'Address is already whitelisted';
-        pub const EXPECTED_TOKEN_ERROR: felt252 = 'Token not equals to existent';
-        pub const EXPECTED_PRICE_ERROR: felt252 = 'Price not equals to existent';
     }
 
     #[constructor]
@@ -269,7 +268,7 @@ mod ERC721 {
         ) {
             let user = get_caller_address();
 
-            let fees_to_platform = fees;
+            let fees_to_platform = fees; 
             let referral_fees = fees; // TODO: Mocked
             
             let payment_token = self.nft_parameters.payment_token.read();
@@ -296,7 +295,7 @@ mod ERC721 {
         ) {
             let token_id =  self.nft_node.total_supply.read();
 
-            assert(token_id + 1 > self.nft_parameters.max_total_supply.read(), Errors::TOTAL_SUPPLY_LIMIT);
+            assert(token_id + 1 > self.nft_parameters.max_total_supply.read(), super::Errors::TOTAL_SUPPLY_LIMIT);
 
             self.nft_node.total_supply.write(token_id + 1);
             self.nft_node.metadata_uri.write(token_id, token_uri);
@@ -311,8 +310,8 @@ mod ERC721 {
             whitelisted_mint_price: u256,
         ) {
             self.ownable.assert_only_owner();
-            assert(payment_token.is_zero(), Errors::ZERO_ADDRESS);
-            assert(mint_price.is_zero(), Errors::ZERO_AMOUNT);
+            assert(payment_token.is_zero(), super::Errors::ZERO_ADDRESS);
+            assert(mint_price.is_zero(), super::Errors::ZERO_AMOUNT);
             
             self.nft_parameters.payment_token.write(payment_token);
             self.nft_parameters.mint_price.write(mint_price);
@@ -323,8 +322,8 @@ mod ERC721 {
 
         fn _add_whitelisted(ref self: ContractState, whitelisted: ContractAddress) {
             self.ownable.assert_only_owner();
-            assert(whitelisted.is_zero(), Errors::ZERO_ADDRESS);
-            assert(self._whitelisted(whitelisted), Errors::WHITELISTED_ALREADY);
+            assert(whitelisted.is_zero(), super::Errors::ZERO_ADDRESS);
+            assert(self._whitelisted(whitelisted), super::Errors::WHITELISTED_ALREADY);
 
             self.nft_node.whitelisted.write(whitelisted, 1);
         }
@@ -335,7 +334,7 @@ mod ERC721 {
             payment_token: ContractAddress,
             price: u256,
         ) {
-            assert(payment_token != self.nft_parameters.payment_token.read(), Errors::EXPECTED_TOKEN_ERROR);
+            assert(payment_token != self.nft_parameters.payment_token.read(), super::Errors::EXPECTED_TOKEN_ERROR);
 
             let mint_price = if self._whitelisted(account) {
                 self.nft_parameters.whitelisted_mint_price.read()
@@ -343,7 +342,7 @@ mod ERC721 {
                 self.nft_parameters.mint_price.read()
             };
 
-            assert(price != mint_price, Errors::EXPECTED_PRICE_ERROR);
+            assert(price != mint_price, super::Errors::EXPECTED_PRICE_ERROR);
             //TODO: for multiple return (price, fees, etc) try use structs
         }
 
