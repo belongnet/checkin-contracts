@@ -8,10 +8,14 @@ mod Errors {
     pub const WHITELISTED_ALREADY: felt252 = 'Address is already whitelisted';
     pub const EXPECTED_TOKEN_ERROR: felt252 = 'Token not equals to existent';
     pub const EXPECTED_PRICE_ERROR: felt252 = 'Price not equals to existent';
+    pub const NOT_TRANSFERRABLE: felt252 = 'Not transferrable';
+    pub const ONLY_FACTORY: felt252 = 'Only Factory can call';
+    pub const INITIALIZE_ONLY_ONCE: felt252 = 'Itialize only once';
 }
 
 #[starknet::contract]
-mod ERC721 {
+mod NFT {
+    use crate::nft::interface::INFTInitializer;
     use core::{
         num::traits::Zero,
         starknet::event::EventEmitter
@@ -30,7 +34,6 @@ mod ERC721 {
     use openzeppelin::{
         access::ownable::OwnableComponent,
         introspection::src5::SRC5Component,
-        security::pausable::PausableComponent,
         token::{
             erc20::interface::{
                 IERC20Dispatcher,
@@ -47,7 +50,6 @@ mod ERC721 {
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: ERC2981Component, storage: erc2981, event: ERC2981Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
-    component!(path: PausableComponent, storage: pausable, event: PausableEvent);
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
     #[abi(embed_v0)]
@@ -55,13 +57,10 @@ mod ERC721 {
     #[abi(embed_v0)]
     impl ERC2981Impl = ERC2981Component::ERC2981Impl<ContractState>;
     #[abi(embed_v0)]
-    impl PausableImpl = PausableComponent::PausableImpl<ContractState>;
-    #[abi(embed_v0)]
     impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
 
     impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
     impl ERC2981InternalImpl = ERC2981Component::InternalImpl<ContractState>;
-    impl PausableInternalImpl = PausableComponent::InternalImpl<ContractState>;
     impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
 
     #[storage]
@@ -72,18 +71,17 @@ mod ERC721 {
         erc2981: ERC2981Component::Storage,
         #[substorage(v0)]
         src5: SRC5Component::Storage,
-        #[substorage(v0)]  
-        pausable: PausableComponent::Storage,
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
 
+        creator: ContractAddress,
+        factory: ContractAddress,
         nft_node: ParametersNode, 
         nft_parameters: NftParameters,
     }
 
     #[derive(Drop, Serde, starknet::Store)]
     struct NftParameters {
-        creator: ContractAddress,       // Creator's address
         payment_token: ContractAddress,  
         // Address of ERC20 paying token (
         //     STRK - 0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
@@ -92,8 +90,10 @@ mod ERC721 {
         mint_price: u256,               // Mint price of a token from a new collection
         whitelisted_mint_price: u256,     // Mint price for whitelisted users
         max_total_supply: u256,         // The max total supply of a new collection
-        collection_expires: u256,       // Collection expiration period (timestamp),
-        referral_code: ByteArray
+        collection_expires: u256,       // Collection expiration period (timestamp)
+        transferrable: bool,
+        referral_code: ByteArray,
+        signature: ByteArray,
     }
 
     #[starknet::storage_node]
@@ -112,8 +112,6 @@ mod ERC721 {
         ERC2981Event: ERC2981Component::Event,
         #[flat]
         SRC5Event: SRC5Component::Event,
-        #[flat]
-        PausableEvent: PausableComponent::Event,
         #[flat] 
         OwnableEvent: OwnableComponent::Event,
         PaymentInfoChangedEvent: PaymentInfoChanged,
@@ -143,49 +141,50 @@ mod ERC721 {
     #[constructor]
     fn constructor(
         ref self: ContractState, 
+        creator: ContractAddress,
+        factory: ContractAddress,
         name: ByteArray, 
-        symbol: ByteArray, 
-        base_uri: ByteArray,
-        nft_params: NftParameters,
-        default_receiver: ContractAddress,
-        default_royalty_fraction: u128,
+        symbol: ByteArray,
+        fee_receiver: ContractAddress,
+        royalty_fraction: u128,
     ) {
-        let owner = nft_params.creator;
-        self.nft_parameters.write(nft_params);
+        self.creator.write(creator);
+        self.factory.write(factory);
 
-        self.erc721.initializer(name, symbol, base_uri);
-        self.ownable.initializer(owner);
-        self.erc2981.initializer(default_receiver, default_royalty_fraction);
+        self.erc721.initializer(name, symbol, "");
+        self.ownable.initializer(creator);
+        self.erc2981.initializer(fee_receiver, royalty_fraction);
     }
 
-    impl ERC721HooksImpl of ERC721Component::ERC721HooksTrait<ContractState> {
-        fn before_update(
-            ref self: ERC721Component::ComponentState<ContractState>,
-            to: ContractAddress,
-            token_id: u256,
-            auth: ContractAddress,
+    #[abi(embed_v0)]
+    impl InitializerImpl of INFTInitializer<ContractState> {
+        fn initialize(
+            ref self: ContractState,
+            payment_token: ContractAddress,  
+            mint_price: u256,
+            whitelisted_mint_price: u256,
+            max_total_supply: u256,
+            collection_expires: u256,
+            transferrable: bool,
+            referral_code: ByteArray,
+            signature: ByteArray,
         ) {
-            let contract_state = self.get_contract();
-            let from = contract_state.owner_of(token_id);
-
-            if to.is_non_zero() && from.is_non_zero() {
-                contract_state.pausable.assert_not_paused();
-            }
+            self._initialize(
+                payment_token,
+                mint_price,
+                whitelisted_mint_price,
+                max_total_supply,
+                collection_expires,
+                transferrable,
+                referral_code,
+                signature
+            );
         }
     }
 
     #[generate_trait]
     #[abi(per_item)]
     impl ExternalImpl of ExternalTrait {
-        #[external(v0)]
-        fn pause(ref self: ContractState) {
-            self._pause();
-        }
-
-        #[external(v0)]
-        fn unpause(ref self: ContractState) {
-            self._unpause();
-        }
 
         #[external(v0)]
         fn mint( 
@@ -210,23 +209,8 @@ mod ERC721 {
             self._set_payment_info(payment_token, mint_price, whitelisted_mint_price);
         }
 
-        #[external(v0)] 
-        fn setPaymentInfo(
-            ref self: ContractState,
-            payingToken: ContractAddress,
-            mintPrice: u256,
-            whitelistedMintPrice: u256,
-        ) {
-            self._set_payment_info(payingToken, mintPrice, whitelistedMintPrice);
-        }
-
         #[external(v0)]
         fn add_whitelisted(ref self: ContractState, whitelisted: ContractAddress) {
-            self._add_whitelisted(whitelisted);
-        }
-
-        #[external(v0)]
-        fn addWhitelisted(ref self: ContractState, whitelisted: ContractAddress) {
             self._add_whitelisted(whitelisted);
         }
 
@@ -247,17 +231,50 @@ mod ERC721 {
         }
     }
 
-    
+    impl ERC721HooksImpl of ERC721Component::ERC721HooksTrait<ContractState> {
+        fn before_update(
+            ref self: ERC721Component::ComponentState<ContractState>,
+            to: ContractAddress,
+            token_id: u256,
+            auth: ContractAddress,
+        ) {
+            let contract_state = self.get_contract();
+            let from = contract_state.owner_of(token_id);
+
+            if to.is_non_zero() && from.is_non_zero() {
+                assert(!contract_state.nft_parameters.transferrable.read(), super::Errors::NOT_TRANSFERRABLE);
+            }
+        }
+    }
+
     #[generate_trait]
     impl InternalImpl of InternalTrait {
-        fn _pause(ref self: ContractState) {
-            self.ownable.assert_only_owner();
-            self.pausable.pause();
-        }
+        fn _initialize(
+            ref self: ContractState,
+            payment_token: ContractAddress,  
+            mint_price: u256,
+            whitelisted_mint_price: u256,
+            max_total_supply: u256,
+            collection_expires: u256,
+            transferrable: bool,
+            referral_code: ByteArray,
+            signature: ByteArray,
+        ) {
+            assert(get_caller_address() != self.factory.read(), super::Errors::ONLY_FACTORY);
+            assert(self.nft_parameters.mint_price.read().is_non_zero(), super::Errors::INITIALIZE_ONLY_ONCE);
 
-        fn _unpause(ref self: ContractState) {
-            self.ownable.assert_only_owner();
-            self.pausable.unpause();
+            let parameters = NftParameters {
+                payment_token,
+                mint_price,
+                whitelisted_mint_price,
+                max_total_supply,
+                collection_expires,
+                transferrable,
+                referral_code,
+                signature
+            };
+
+            self.nft_parameters.write(parameters);
         }
 
         fn _pay(
@@ -282,7 +299,7 @@ mod ERC721 {
             //     token.transfer_from(user, self.nft_parameters.creator.read(), referral_fees); // TODO: change user to referral
             // }
 
-            token.transfer_from(user, self.nft_parameters.creator.read(), amount);
+            token.transfer_from(user, self.creator.read(), amount);
 
             self.emit(Paid { user, payment_token, amount });
         }
