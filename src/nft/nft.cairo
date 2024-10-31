@@ -92,8 +92,8 @@ mod NFT {
         max_total_supply: u256,         // The max total supply of a new collection
         collection_expires: u256,       // Collection expiration period (timestamp)
         transferrable: bool,
-        referral_code: ByteArray,
-        signature: ByteArray,
+        referral_code: felt252,
+        signature: felt252,
     }
 
     #[starknet::storage_node]
@@ -166,8 +166,8 @@ mod NFT {
             max_total_supply: u256,
             collection_expires: u256,
             transferrable: bool,
-            referral_code: ByteArray,
-            signature: ByteArray,
+            referral_code: felt252,
+            signature: felt252,
         ) {
             self._initialize(
                 payment_token,
@@ -199,18 +199,20 @@ mod NFT {
             self._base_mint(recipient, token_uri, data);
         }
 
-        #[external(v0)] 
+        #[external(v0)]
         fn set_payment_info(
             ref self: ContractState,
             payment_token: ContractAddress,
             mint_price: u256,
             whitelisted_mint_price: u256,
         ) {
+            self.ownable.assert_only_owner();
             self._set_payment_info(payment_token, mint_price, whitelisted_mint_price);
         }
 
         #[external(v0)]
         fn add_whitelisted(ref self: ContractState, whitelisted: ContractAddress) {
+            self.ownable.assert_only_owner();
             self._add_whitelisted(whitelisted);
         }
 
@@ -257,8 +259,8 @@ mod NFT {
             max_total_supply: u256,
             collection_expires: u256,
             transferrable: bool,
-            referral_code: ByteArray,
-            signature: ByteArray,
+            referral_code: felt252,
+            signature: felt252,
         ) {
             assert(get_caller_address() != self.factory.read(), super::Errors::ONLY_FACTORY);
             assert(self.nft_parameters.mint_price.read().is_non_zero(), super::Errors::INITIALIZE_ONLY_ONCE);
@@ -301,7 +303,7 @@ mod NFT {
 
             token.transfer_from(user, self.creator.read(), amount);
 
-            self.emit(Paid { user, payment_token, amount });
+            self.emit(Event::PaidEvent(Paid { user, payment_token, amount }));
         }
 
         fn _base_mint( 
@@ -326,7 +328,6 @@ mod NFT {
             mint_price: u256,
             whitelisted_mint_price: u256,
         ) {
-            self.ownable.assert_only_owner();
             assert(payment_token.is_zero(), super::Errors::ZERO_ADDRESS);
             assert(mint_price.is_zero(), super::Errors::ZERO_AMOUNT);
             
@@ -334,11 +335,10 @@ mod NFT {
             self.nft_parameters.mint_price.write(mint_price);
             self.nft_parameters.whitelisted_mint_price.write(whitelisted_mint_price);
 
-            self.emit(PaymentInfoChanged { payment_token, mint_price, whitelisted_mint_price });
+            self.emit(Event::PaymentInfoChangedEvent(PaymentInfoChanged { payment_token, mint_price, whitelisted_mint_price }));
         }
 
         fn _add_whitelisted(ref self: ContractState, whitelisted: ContractAddress) {
-            self.ownable.assert_only_owner();
             assert(whitelisted.is_zero(), super::Errors::ZERO_ADDRESS);
             assert(self._whitelisted(whitelisted), super::Errors::WHITELISTED_ALREADY);
 

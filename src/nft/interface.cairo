@@ -10,7 +10,7 @@ pub trait INFTInitializer<TState> {
         max_total_supply: u256,
         collection_expires: u256,
         transferrable: bool,
-        referral_code: ByteArray,
-        signature: ByteArray,
+        referral_code: felt252,
+        signature: felt252,
     ); 
 }
