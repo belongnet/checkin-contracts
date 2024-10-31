@@ -16,13 +16,11 @@ mod Errors {
 #[starknet::contract]
 mod NFT {
     use crate::nft::interface::INFTInitializer;
-    use core::{
-        num::traits::Zero,
-        starknet::event::EventEmitter
-    };
+    use core::num::traits::Zero;
     use starknet::{
         ContractAddress,
         get_caller_address,
+        event::EventEmitter,
         storage::{
             StoragePointerReadAccess, 
             StoragePointerWriteAccess, 
@@ -92,8 +90,7 @@ mod NFT {
         max_total_supply: u256,         // The max total supply of a new collection
         collection_expires: u256,       // Collection expiration period (timestamp)
         transferrable: bool,
-        referral_code: felt252,
-        signature: felt252,
+        referral_code: felt252
     }
 
     #[starknet::storage_node]
@@ -167,7 +164,6 @@ mod NFT {
             collection_expires: u256,
             transferrable: bool,
             referral_code: felt252,
-            signature: felt252,
         ) {
             self._initialize(
                 payment_token,
@@ -176,8 +172,7 @@ mod NFT {
                 max_total_supply,
                 collection_expires,
                 transferrable,
-                referral_code,
-                signature
+                referral_code
             );
         }
     }
@@ -185,7 +180,6 @@ mod NFT {
     #[generate_trait]
     #[abi(per_item)]
     impl ExternalImpl of ExternalTrait {
-
         #[external(v0)]
         fn mint( 
             ref self: ContractState,
@@ -260,7 +254,6 @@ mod NFT {
             collection_expires: u256,
             transferrable: bool,
             referral_code: felt252,
-            signature: felt252,
         ) {
             assert(get_caller_address() != self.factory.read(), super::Errors::ONLY_FACTORY);
             assert(self.nft_parameters.mint_price.read().is_non_zero(), super::Errors::INITIALIZE_ONLY_ONCE);
@@ -272,8 +265,7 @@ mod NFT {
                 max_total_supply,
                 collection_expires,
                 transferrable,
-                referral_code,
-                signature
+                referral_code
             };
 
             self.nft_parameters.write(parameters);
