@@ -12,19 +12,18 @@ mod Errors {
     pub const REFFERAL_CODE_NOT_EXISTS: felt252 = 'Referral code is not exists';
     pub const CAN_NOT_REFER_SELF: felt252 = 'Can not refer to self';
     pub const REFFERAL_CODE_NOT_USED_BY_USER: felt252 = 'User code did not used code';
+    pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
 }
 
 #[starknet::contract]
 mod NFTFactory {
-    use crate::nft::interface::{
-        INFTInitializerDispatcher,
-        INFTInitializerDispatcherTrait
-    };
+    use crate::nft::interface::{INFTInitializerDispatcher, INFTInitializerDispatcherTrait};
     use core::{
+        ecdsa::check_ecdsa_signature,
         traits::Into,
         num::traits::Zero,
-        starknet::event::EventEmitter,
-        pedersen::pedersen
+        pedersen::{pedersen, PedersenTrait},
+        hash::{HashStateTrait, HashStateExTrait}
     };
     use starknet::{
         ContractAddress,
@@ -33,6 +32,7 @@ mod NFTFactory {
         get_caller_address,
         get_contract_address,
         syscalls::deploy_syscall,
+        event::EventEmitter,
         storage::{
             StoragePointerReadAccess, 
             StoragePointerWriteAccess, 
@@ -47,10 +47,7 @@ mod NFTFactory {
     };
     use openzeppelin::{
         access::ownable::OwnableComponent,
-        upgrades::{
-            UpgradeableComponent,
-            interface::IUpgradeable
-        }
+        upgrades::{UpgradeableComponent, interface::IUpgradeable}
     };
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
@@ -81,6 +78,20 @@ mod NFTFactory {
     }
 
     #[derive(Drop, Serde, starknet::Store)]
+    struct FactoryParameters {
+        signer_public_key: felt252,
+        default_payment_currency: ContractAddress,
+        platform_address: ContractAddress,
+        platform_commission: u256,
+    }
+
+    #[starknet::storage_node]
+    struct ReferralsParametersNode {
+        referral_creator: ContractAddress,
+        referral_users: Vec<ContractAddress>,
+    }
+
+    #[derive(Drop, Serde, starknet::Store)]
     struct NftMetadata {
         name: felt252,
         symbol: felt252,
@@ -105,21 +116,12 @@ mod NFTFactory {
         whitelisted_mint_price: u256,     // Mint price for whitelisted users
         collection_expires: u256,       // Collection expiration period (timestamp)
         referral_code: felt252,
-        signature: felt252,
     }
 
     #[derive(Drop, Serde, starknet::Store)]
-    struct FactoryParameters {
-        signer_address: ContractAddress,
-        default_payment_currency: ContractAddress,
-        platform_address: ContractAddress,
-        platform_commission: u256,
-    }
-
-    #[starknet::storage_node]
-    struct ReferralsParametersNode {
-        referral_creator: ContractAddress,
-        referral_users: Vec<ContractAddress>,
+    struct SignatureRS {
+        r: felt252,
+        s: felt252,
     }
 
     #[event]
@@ -245,7 +247,7 @@ mod NFTFactory {
 
     #[generate_trait]
     impl InternalImpl of InternalTrait {
-        fn _produce(ref self: ContractState, instance_info: InstanceInfo) -> ContractAddress {
+        fn _produce(ref self: ContractState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress {
             assert(instance_info.nft_metadata.name.is_zero(), super::Errors::EMPTY_NAME);
             assert(instance_info.nft_metadata.symbol.is_zero(), super::Errors::EMPTY_SYMBOL);
 
@@ -255,7 +257,9 @@ mod NFTFactory {
             let hash = pedersen(name, symbol);
             assert(self.nft_info.read(hash).nft_address.is_non_zero(), super::Errors::NFT_EXISTS);
 
-            // TODO: add signature checkers
+            let pedersen_hash = PedersenTrait::new(0).update_with(instance_info).finalize();
+            let validate = check_ecdsa_signature(pedersen_hash, self.factory_parameters.signer_public_key.read(), signature.r, signature.s);
+            assert(validate, super::Errors::VALIDATION_ERROR);
 
             let payment_token = if instance_info.payment_token.is_zero() {
                 self.factory_parameters.default_payment_currency.read()
@@ -284,8 +288,7 @@ mod NFTFactory {
                 instance_info.max_total_supply,
                 instance_info.collection_expires,
                 instance_info.transferrable,
-                instance_info.referral_code,
-                instance_info.signature,
+                instance_info.referral_code
             );
 
             self.nft_info.write(
@@ -374,7 +377,7 @@ mod NFTFactory {
         }
 
         fn _set_factory_parameters(ref self: ContractState, factory_parameters: FactoryParameters) {
-            assert(factory_parameters.signer_address.is_zero(), super::Errors::ZERO_ADDRESS);
+            assert(factory_parameters.signer_public_key.is_zero(), super::Errors::ZERO_ADDRESS);
             assert(factory_parameters.platform_address.is_zero(), super::Errors::ZERO_ADDRESS);
             assert(factory_parameters.platform_commission.is_zero(), super::Errors::ZERO_AMOUNT);
             self.factory_parameters.write(factory_parameters);
