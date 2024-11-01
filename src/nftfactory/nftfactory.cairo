@@ -207,7 +207,7 @@ mod NFTFactory {
             creator
         }
 
-        fn referral_users(self: @ContractState, referral_code: felt252) -> Array<ContractAddress> {
+        fn referral_users(self: @ContractState, referral_code: felt252) -> Span<ContractAddress> {
             self._check_referral_code(referral_code);
 
             let mut users = array![];
@@ -216,7 +216,7 @@ mod NFTFactory {
                 users.append(self.referrals.entry(referral_code).referral_users.at(i).read());
             };
 
-            users
+            users.span()
         }
 
         fn referral_rate(self: @ContractState, referral_user: ContractAddress, referral_code: felt252, amount: u256) -> u256 {
@@ -259,7 +259,7 @@ mod NFTFactory {
         }
 
         #[external(v0)]
-        fn set_referral_percentages(ref self: ContractState, percentages: Array<u16>) {
+        fn set_referral_percentages(ref self: ContractState, percentages: Span<u16>) {
             self.ownable.assert_only_owner();
             self._set_referral_percentages(percentages);
         }
@@ -298,7 +298,7 @@ mod NFTFactory {
             };
 
             // Constructor arguments
-            let mut constructor_calldata: Array::<felt252> = array![
+            let constructor_calldata: Array<felt252> = array![
                 get_caller_address().into(),
                 get_contract_address().into(),
                 name, 
@@ -417,7 +417,7 @@ mod NFTFactory {
             self.factory_parameters.write(factory_parameters);
         }
 
-        fn _set_referral_percentages(ref self: ContractState, percentages: Array<u16>) {
+        fn _set_referral_percentages(ref self: ContractState, percentages: Span<u16>) {
             for i in 0..percentages.len() {
                 self.used_to_percentage.append().write(*percentages.at(i));
             };

@@ -12,5 +12,5 @@ pub trait INFTFactoryInfo<TState> {
 
     fn referral_creator(self: @TState, referral_code: felt252) -> ContractAddress;
 
-    fn referral_users(self: @TState, referral_code: felt252) -> Array<ContractAddress>;
+    fn referral_users(self: @TState, referral_code: felt252) -> Span<ContractAddress>;
 }
