@@ -17,7 +17,8 @@ mod Errors {
 
 #[starknet::contract]
 mod NFTFactory {
-    use crate::nft::interface::{INFTInitializerDispatcher, INFTInitializerDispatcherTrait};
+    use crate::nftfactory::interface::INFTFactoryReadData;
+    use crate::nft::interface::{INFTInitializerDispatcher, INFTInitializerDispatcherTrait, NftParameters};
     use core::{
         ecdsa::check_ecdsa_signature,
         traits::Into,
@@ -180,6 +181,21 @@ mod NFTFactory {
         }
     }
 
+    #[abi(embed_v0)]
+    impl ReadDataImpl of INFTFactoryReadData<ContractState> {
+        fn platform_params(self: @ContractState) -> (u256, ContractAddress) {
+            return self._platform_params();
+        }
+
+        fn referral_creator(self: @ContractState, referral_code: felt252) -> ContractAddress {
+            return self._referral_creator(referral_code);
+        }
+
+        fn referral_rate(self: @ContractState, referral_user: ContractAddress, referral_code: felt252, amount: u256) -> u256 {
+            return self._referral_rate(referral_user, referral_code, amount);
+        }
+    }
+
     #[generate_trait]
     #[abi(per_item)]
     impl ExternalImpl of ExternalTrait {
@@ -230,18 +246,8 @@ mod NFTFactory {
         }
 
         #[external(v0)]
-        fn referral_creator(self: @ContractState, referral_code: felt252) -> ContractAddress {
-            return self._referral_creator(referral_code);
-        }
-
-        #[external(v0)]
         fn referral_users(self: @ContractState, referral_code: felt252) -> Array<ContractAddress> {
             return self._referral_users(referral_code);
-        }
-
-        #[external(v0)]
-        fn referral_rate(self: @ContractState, referral_user: ContractAddress, referral_code: felt252, amount: u256) -> u256 {
-            return self._referral_rate(referral_user, referral_code, amount);
         }
     }
 
@@ -281,14 +287,18 @@ mod NFTFactory {
                 self.nft_class_hash.read(), 0, constructor_calldata.span(), false
             ).unwrap_syscall();
 
-            INFTInitializerDispatcher { contract_address: deployed_address }.initialize(
+            let parameters = NftParameters {
                 payment_token,
-                instance_info.mint_price,
-                instance_info.whitelisted_mint_price,
-                instance_info.max_total_supply,
-                instance_info.collection_expires,
-                instance_info.transferrable,
-                instance_info.referral_code
+                mint_price: instance_info.mint_price,
+                whitelisted_mint_price: instance_info.whitelisted_mint_price,
+                max_total_supply: instance_info.max_total_supply,
+                collection_expires: instance_info.collection_expires,
+                transferrable: instance_info.transferrable,
+                referral_code: instance_info.referral_code
+            };
+
+            INFTInitializerDispatcher { contract_address: deployed_address }.initialize(
+                parameters
             );
 
             self.nft_info.write(
@@ -391,6 +401,10 @@ mod NFTFactory {
 
         fn _factory_parameters(self: @ContractState) -> FactoryParameters {
             return self.factory_parameters.read();
+        }
+
+        fn _platform_params(self: @ContractState) -> (u256, ContractAddress) {
+            return (self.factory_parameters.platform_commission.read(), self.factory_parameters.platform_address.read());
         }
 
         fn _nft_info(self: @ContractState, nft_metadata: NftMetadata) -> NftInfo {
