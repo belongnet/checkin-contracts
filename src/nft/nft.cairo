@@ -15,7 +15,8 @@ mod Errors {
 
 #[starknet::contract]
 mod NFT {
-    use crate::nft::interface::INFTInitializer;
+    use crate::nft::interface::{INFTInitializer, NftParameters};
+    use crate::nftfactory::interface::{INFTFactoryReadDataDispatcher, INFTFactoryReadDataDispatcherTrait};
     use core::num::traits::Zero;
     use starknet::{
         ContractAddress,
@@ -74,23 +75,9 @@ mod NFT {
 
         creator: ContractAddress,
         factory: ContractAddress,
+
         nft_node: ParametersNode, 
         nft_parameters: NftParameters,
-    }
-
-    #[derive(Drop, Serde, starknet::Store)]
-    struct NftParameters {
-        payment_token: ContractAddress,  
-        // Address of ERC20 paying token (
-        //     STRK - 0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-        //     ETH - 0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7
-        // )
-        mint_price: u256,               // Mint price of a token from a new collection
-        whitelisted_mint_price: u256,     // Mint price for whitelisted users
-        max_total_supply: u256,         // The max total supply of a new collection
-        collection_expires: u256,       // Collection expiration period (timestamp)
-        transferrable: bool,
-        referral_code: felt252
     }
 
     #[starknet::storage_node]
@@ -98,6 +85,15 @@ mod NFT {
         total_supply: u256,
         metadata_uri: Map<u256, ByteArray>,
         whitelisted: Map<ContractAddress, felt252>,
+    }
+
+    #[derive(Drop, Serde, starknet::Store)]
+    struct DynamicPriceParameters {
+        receiver: ContractAddress,
+        token_id: u256,
+        price: u256,
+        token_uri: felt252,
+        signature: felt252,
     }
 
     #[event]
@@ -157,22 +153,10 @@ mod NFT {
     impl InitializerImpl of INFTInitializer<ContractState> {
         fn initialize(
             ref self: ContractState,
-            payment_token: ContractAddress,  
-            mint_price: u256,
-            whitelisted_mint_price: u256,
-            max_total_supply: u256,
-            collection_expires: u256,
-            transferrable: bool,
-            referral_code: felt252,
+            nft_parameters: NftParameters,
         ) {
             self._initialize(
-                payment_token,
-                mint_price,
-                whitelisted_mint_price,
-                max_total_supply,
-                collection_expires,
-                transferrable,
-                referral_code
+                nft_parameters
             );
         }
     }
@@ -180,18 +164,18 @@ mod NFT {
     #[generate_trait]
     #[abi(per_item)]
     impl ExternalImpl of ExternalTrait {
-        #[external(v0)]
-        fn mint( 
-            ref self: ContractState,
-            recipient: ContractAddress,
-            token_uri: ByteArray,
-            expected_payment_token: ContractAddress,
-            expected_mint_price: u256,
-            data: Span<felt252>,
-        ) {
-            self._check_price(recipient, expected_payment_token, expected_mint_price);
-            self._base_mint(recipient, token_uri, data);
-        }
+        // #[external(v0)]
+        // fn mint( 
+        //     ref self: ContractState,
+        //     recipient: ContractAddress,
+        //     token_uri: ByteArray,
+        //     expected_payment_token: ContractAddress,
+        //     expected_mint_price: u256,
+        //     data: Span<felt252>,
+        // ) {
+        //     self._check_price(recipient, expected_payment_token, expected_mint_price);
+        //     self._base_mint(recipient, token_uri, data);
+        // }
 
         #[external(v0)]
         fn set_payment_info(
@@ -247,55 +231,53 @@ mod NFT {
     impl InternalImpl of InternalTrait {
         fn _initialize(
             ref self: ContractState,
-            payment_token: ContractAddress,  
-            mint_price: u256,
-            whitelisted_mint_price: u256,
-            max_total_supply: u256,
-            collection_expires: u256,
-            transferrable: bool,
-            referral_code: felt252,
+            nft_parameters: NftParameters,
         ) {
             assert(get_caller_address() != self.factory.read(), super::Errors::ONLY_FACTORY);
             assert(self.nft_parameters.mint_price.read().is_non_zero(), super::Errors::INITIALIZE_ONLY_ONCE);
 
-            let parameters = NftParameters {
-                payment_token,
-                mint_price,
-                whitelisted_mint_price,
-                max_total_supply,
-                collection_expires,
-                transferrable,
-                referral_code
-            };
+            self.nft_parameters.write(nft_parameters);
+        }
 
-            self.nft_parameters.write(parameters);
+        fn _mint_dynamic_price(ref self: ContractState, dynamic_params: DynamicPriceParameters, expected_paying_token: ContractAddress) {
+            //TODO: validate sig
+
+            let (fees, amount_to_creator) = self._check_price(dynamic_params.price, expected_paying_token);
+
+            // self._base_mint(dynamic_params.receiver, dynamic_params.token_uri, !array[0].span());
         }
 
         fn _pay(
             ref self: ContractState, 
             amount: u256, 
             fees: u256, 
-            to_creator: u256,
+            amount_to_creator: u256,
         ) {
+            let mut fees_to_platform = fees; 
+            let mut referral_fees = 0;
+            let referral_code = self.nft_parameters.referral_code.read();
+            let creator = self.creator.read();
+
+            let factory = INFTFactoryReadDataDispatcher { contract_address: self.factory.read() };
+            if referral_code.is_non_zero() {
+                referral_fees = factory.referral_rate(creator, referral_code, fees);
+                fees_to_platform = fees_to_platform - referral_fees;
+            }
+
+            let (_, platform) = factory.platform_params();
+
             let user = get_caller_address();
+            let token = IERC20Dispatcher { contract_address: self.nft_parameters.payment_token.read() };
+            if fees_to_platform.is_non_zero() {
+                token.transfer_from(user, platform, fees_to_platform);
+            }
+            if referral_fees.is_non_zero() {
+                token.transfer_from(user, factory.referral_creator(referral_code), referral_fees);
+            }
 
-            let fees_to_platform = fees; 
-            let referral_fees = fees; // TODO: Mocked
+            token.transfer_from(user, creator, amount_to_creator);
             
-            let payment_token = self.nft_parameters.payment_token.read();
-            let token = IERC20Dispatcher { contract_address: payment_token };
-
-            // if !fees_to_platform.is_zero() {
-            //     token.transfer_from(user, self.nft_parameters.creator.read(), fees_to_platform); // TODO: change user to platform
-            // }
-
-            // if !referral_fees.is_zero() {
-            //     token.transfer_from(user, self.nft_parameters.creator.read(), referral_fees); // TODO: change user to referral
-            // }
-
-            token.transfer_from(user, self.creator.read(), amount);
-
-            self.emit(Event::PaidEvent(Paid { user, payment_token, amount }));
+            self.emit(Event::PaidEvent(Paid { user, payment_token: token.contract_address, amount }));
         }
 
         fn _base_mint( 
@@ -339,20 +321,27 @@ mod NFT {
 
         fn _check_price(
             self: @ContractState,
-            account: ContractAddress,
-            payment_token: ContractAddress,
             price: u256,
-        ) {
+            payment_token: ContractAddress,
+        ) -> (u256, u256) {
+            // price is the same so no need to return it
             assert(payment_token != self.nft_parameters.payment_token.read(), super::Errors::EXPECTED_TOKEN_ERROR);
 
-            let mint_price = if self._whitelisted(account) {
-                self.nft_parameters.whitelisted_mint_price.read()
-            } else {
-                self.nft_parameters.mint_price.read()
-            };
+            let (platform_commission, _) = INFTFactoryReadDataDispatcher { contract_address: self.factory.read() }.platform_params();
 
-            assert(price != mint_price, super::Errors::EXPECTED_PRICE_ERROR);
-            //TODO: for multiple return (price, fees, etc) try use structs
+            let fees = (price * platform_commission) / DefaultConfig::FEE_DENOMINATOR.into();
+
+            let amount_to_creator = price - fees;
+
+            return (fees, amount_to_creator);
+
+            //TODO: move to mint()
+            // let mint_price = if self._whitelisted(account) {
+            //     self.nft_parameters.whitelisted_mint_price.read()
+            // } else {
+            //     self.nft_parameters.mint_price.read()
+            // };
+            // assert(price != mint_price, super::Errors::EXPECTED_PRICE_ERROR);
         }
 
         fn _metadata_uri(
