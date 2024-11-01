@@ -4,4 +4,5 @@ mod nft {
 }
 mod nftfactory {
     mod nftfactory;
+    pub mod interface;
 }
