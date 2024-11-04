@@ -12,16 +12,18 @@ mod Errors {
     pub const ONLY_FACTORY: felt252 = 'Only Factory can call';
     pub const INITIALIZE_ONLY_ONCE: felt252 = 'Itialize only once';
     pub const WRONG_ARRAY_SIZE: felt252 = 'Wrong array size';
+    pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
 }
 
 #[starknet::contract]
 mod NFT {
     use crate::nft::interface::{INFTInitializer, NftParameters};
     use crate::nftfactory::interface::{INFTFactoryInfoDispatcher, INFTFactoryInfoDispatcherTrait};
-    use core::num::traits::Zero;
+    use core::{num::traits::Zero, ecdsa::check_ecdsa_signature, hash::HashStateTrait, pedersen::{PedersenTrait}};
     use starknet::{
         ContractAddress,
         get_caller_address,
+        get_tx_info,
         event::EventEmitter,
         storage::{
             StoragePointerReadAccess, 
@@ -88,22 +90,28 @@ mod NFT {
         whitelisted: Map<ContractAddress, bool>,
     }
 
-    #[derive(Drop, Serde, starknet::Store)]
+    #[derive(Copy, Drop, Serde, starknet::Store)]
     struct DynamicPriceParameters {
         receiver: ContractAddress,
         token_id: u256,
         price: u256,
         token_uri: felt252,
-        signature: felt252,
+        signature: SignatureRS,
     }
 
-    #[derive(Drop, Serde, starknet::Store)]
+    #[derive(Copy, Drop, Serde, starknet::Store)]
     struct StaticPriceParameters {
         receiver: ContractAddress,
         token_id: u256,
         whitelisted: bool,
         token_uri: felt252,
-        signature: felt252,
+        signature: SignatureRS,
+    }
+
+    #[derive(Copy, Drop, Serde, starknet::Store)]
+    struct SignatureRS {
+        r: felt252,
+        s: felt252,
     }
 
     #[event]
@@ -255,7 +263,10 @@ mod NFT {
 
             let mut amount_to_pay = 0;
             for i in 0..array_size {
-                //TODO: validate sig
+                let pedersen_hash = self._get_dynamic_params_hash(*dynamic_params.at(i));
+                let validate = check_ecdsa_signature(pedersen_hash, INFTFactoryInfoDispatcher { contract_address: self.factory.read() }.signer_public_key(), *dynamic_params.at(i).signature.r, *dynamic_params.at(i).signature.s);
+                assert(validate, super::Errors::VALIDATION_ERROR);
+
                 amount_to_pay += *dynamic_params.at(i).price;
 
                 self._base_mint(
@@ -281,7 +292,9 @@ mod NFT {
 
             let mut amount_to_pay = 0;
             for i in 0..array_size {
-                //TODO: validate sig
+                let pedersen_hash = self._get_static_params_hash(*static_params.at(i));
+                let validate = check_ecdsa_signature(pedersen_hash, INFTFactoryInfoDispatcher { contract_address: self.factory.read() }.signer_public_key(), *static_params.at(i).signature.r, *static_params.at(i).signature.s);
+                assert(validate, super::Errors::VALIDATION_ERROR);
 
                 let mint_price = if *static_params.at(i).whitelisted {
                     self.nft_parameters.whitelisted_mint_price.read()
@@ -306,7 +319,9 @@ mod NFT {
         }
 
         fn _mint_dynamic_price(ref self: ContractState, dynamic_params: DynamicPriceParameters, expected_paying_token: ContractAddress) {
-            //TODO: validate sig
+            let pedersen_hash = self._get_dynamic_params_hash(dynamic_params);
+            let validate = check_ecdsa_signature(pedersen_hash, INFTFactoryInfoDispatcher { contract_address: self.factory.read() }.signer_public_key(), dynamic_params.signature.r, dynamic_params.signature.s);
+            assert(validate, super::Errors::VALIDATION_ERROR);
 
             let (fees, amount_to_creator) = self._check_price(dynamic_params.price, expected_paying_token);
 
@@ -321,7 +336,9 @@ mod NFT {
             expected_paying_token: ContractAddress,
             expected_mint_price: u256
         ) {
-            //TODO: validate sig
+            let pedersen_hash = self._get_static_params_hash(static_params);
+            let validate = check_ecdsa_signature(pedersen_hash, INFTFactoryInfoDispatcher { contract_address: self.factory.read() }.signer_public_key(), static_params.signature.r, static_params.signature.s);
+            assert(validate, super::Errors::VALIDATION_ERROR);
 
             let mint_price = if static_params.whitelisted {
                 self.nft_parameters.whitelisted_mint_price.read()
@@ -436,6 +453,46 @@ mod NFT {
             account: ContractAddress,
         ) -> bool {
             return self.nft_node.whitelisted.read(account);
+        }
+
+        fn _get_dynamic_params_hash(self: @ContractState, dynamic_params: DynamicPriceParameters) -> felt252 {
+            let token_id: felt252 = dynamic_params.token_id.try_into().unwrap();
+            let price: felt252 = dynamic_params.price.try_into().unwrap();
+            let params: Span<felt252> = array![
+                dynamic_params.receiver.into(),
+                token_id,
+                dynamic_params.token_uri.into(),
+                price,
+            ].span();
+
+            let hash = self._get_hash(params);
+            hash
+        }
+
+        fn _get_static_params_hash(self: @ContractState, static_params: StaticPriceParameters) -> felt252 {
+            let token_id: felt252 = static_params.token_id.try_into().unwrap();
+            let params: Span<felt252> = array![
+                static_params.receiver.into(),
+                token_id,
+                static_params.token_uri.into(),
+                static_params.whitelisted.into(),
+            ].span();
+
+            let hash = self._get_hash(params);
+            hash
+        }
+
+        fn _get_hash(self: @ContractState, params: Span<felt252>) -> felt252 {
+            let mut pedersen_hash = PedersenTrait::new(*params[0]);
+
+            for i in 1..params.len() {
+                pedersen_hash = pedersen_hash.update(*params[i]);
+            };
+
+            pedersen_hash = pedersen_hash.update(get_tx_info().unbox().chain_id);
+
+            let hash = pedersen_hash.finalize();
+            hash
         }
     }
 }
