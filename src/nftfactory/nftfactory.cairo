@@ -101,6 +101,7 @@ mod NFTFactory {
     #[derive(Copy, Drop, Serde, starknet::Store)]
     struct InstanceInfo {
         nft_metadata: NftMetadata,
+        contract_uri: felt252,
         payment_token: ContractAddress,
         fee_receiver: ContractAddress,
         royalty_fraction: felt252,
@@ -229,19 +230,7 @@ mod NFTFactory {
     #[generate_trait]
     #[abi(per_item)]
     impl ExternalImpl of ExternalTrait {
-        // fn create_counter_at(ref self: ContractState, init_value: u128) -> ContractAddress {
-        //     // Constructor arguments
-        //     let mut constructor_calldata: Array::<felt252> = array![init_value.into()];
-
-        //     // Contract deployment
-        //     let (deployed_address, _) = deploy_syscall(
-        //         self.nft_class_hash.read(), 0, constructor_calldata.span(), false
-        //     )
-        //         .unwrap_syscall();
-
-        //     deployed_address
-        // }
-
+        #[external(v0)]
         fn produce(ref self: ContractState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress {
             let deployed_address = self._produce(instance_info, signature);
             deployed_address
@@ -283,10 +272,15 @@ mod NFTFactory {
             assert(instance_info.nft_metadata.symbol.is_non_zero(), super::Errors::EMPTY_SYMBOL);
 
             let hash = pedersen(instance_info.nft_metadata.name, instance_info.nft_metadata.symbol);
-            assert(self.nft_info.read(hash).nft_address.is_zero(), super::Errors::NFT_EXISTS);
+            assert(self.nft_info.entry(hash).nft_address.read().is_zero(), super::Errors::NFT_EXISTS);
 
             let pedersen_hash = self._get_instance_info_hash(instance_info);
-            let validate = check_ecdsa_signature(pedersen_hash, self.factory_parameters.signer_public_key.read(), signature.r, signature.s);
+            let validate = check_ecdsa_signature(
+                pedersen_hash,
+                self.factory_parameters.signer_public_key.read(),
+                signature.r,
+                signature.s
+            );
             assert(validate, super::Errors::VALIDATION_ERROR);
 
             let payment_token = if instance_info.payment_token.is_zero() {
@@ -310,6 +304,7 @@ mod NFTFactory {
 
             let parameters = NftParameters {
                 payment_token,
+                contract_uri: instance_info.contract_uri,
                 mint_price: instance_info.mint_price,
                 whitelisted_mint_price: instance_info.whitelisted_mint_price,
                 max_total_supply: instance_info.max_total_supply,
@@ -348,7 +343,9 @@ mod NFTFactory {
         }
 
         fn _create_referral_code(ref self: ContractState) -> felt252 {
-            let referral_code = pedersen(get_caller_address().into(), get_contract_address().into());
+            let mut referral_code = pedersen(get_caller_address().into(), get_contract_address().into());
+            referral_code = pedersen(referral_code, get_tx_info().unbox().chain_id);
+
             assert(self.referrals.entry(referral_code).referral_creator.read().is_zero(), super::Errors::REFFERAL_CODE_EXISTS);
             
             self.referrals.entry(referral_code).referral_creator.write(get_caller_address());
@@ -431,15 +428,19 @@ mod NFTFactory {
         }
 
         fn _check_referral_code(self: @ContractState, referral_code: felt252) {
-            assert(self.referrals.entry(referral_code).referral_creator.read().is_non_zero(), super::Errors::REFFERAL_CODE_NOT_EXISTS);
+            assert(
+                self.referrals.entry(referral_code).referral_creator.read().is_non_zero(),
+                super::Errors::REFFERAL_CODE_NOT_EXISTS
+            );
         }
 
         fn _get_instance_info_hash(self: @ContractState, instance_info: InstanceInfo) -> felt252 {
             let mut pedersen_hash = PedersenTrait::new(instance_info.nft_metadata.name.into());
 
             pedersen_hash = pedersen_hash.update(instance_info.nft_metadata.symbol.into());
-            pedersen_hash = pedersen_hash.update(instance_info.fee_receiver.into());
+            pedersen_hash = pedersen_hash.update(instance_info.contract_uri);
             pedersen_hash = pedersen_hash.update(instance_info.royalty_fraction.into());
+            pedersen_hash = pedersen_hash.update(instance_info.fee_receiver.into());
             pedersen_hash = pedersen_hash.update(get_tx_info().unbox().chain_id);
 
             return pedersen_hash.finalize();
