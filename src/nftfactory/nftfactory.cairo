@@ -312,7 +312,7 @@ mod NFTFactory {
                 transferrable: instance_info.transferrable,
                 referral_code: instance_info.referral_code,
             };
-
+            // TODO: add receiver deploymet
             INFTInitializerDispatcher { contract_address: deployed_address }.initialize(
                 parameters
             );
