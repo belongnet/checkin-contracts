@@ -14,7 +14,7 @@ library AddressHelper {
     function checkDynamicPriceParameters(
         address signer,
         DynamicPriceParameters calldata params
-    ) internal {
+    ) internal view {
         require(
             signer.isValidSignatureNow(
                 keccak256(
@@ -35,7 +35,7 @@ library AddressHelper {
     function checkStaticPriceParameters(
         address signer,
         StaticPriceParameters calldata params
-    ) internal {
+    ) internal view {
         require(
             signer.isValidSignatureNow(
                 keccak256(
