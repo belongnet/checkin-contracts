@@ -81,14 +81,12 @@ describe('NFTFactory', () => {
 			const contractURI = "contractURI/123";
 			const price = ethers.utils.parseEther("0.05");
 			const feeNumerator = 500;
-			const feeReceiver = owner.address;
 
 			const message = EthCrypto.hash.keccak256([
 				{ type: "string", value: nftName },
 				{ type: "string", value: nftSymbol },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: feeNumerator },
-				{ type: "address", value: owner.address },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -106,7 +104,6 @@ describe('NFTFactory', () => {
 				transferable: true,
 				maxTotalSupply: BigNumber.from("1000"),
 				feeNumerator,
-				feeReceiver,
 				collectionExpire: BigNumber.from("86400"),
 				signature: signature
 			};
@@ -118,7 +115,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: feeNumerator },
-				{ type: "address", value: owner.address },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -139,7 +135,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: "" },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: feeNumerator },
-				{ type: "address", value: owner.address },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -160,8 +155,7 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: feeNumerator },
-				{ type: "address", value: ZERO_ADDRESS },
-				{ type: "uint256", value: chainId },
+				{ type: "uint256", value: chainId + 1 },
 			]);
 
 			const badSignature = EthCrypto.sign(signer.privateKey, badMessage);
@@ -191,7 +185,7 @@ describe('NFTFactory', () => {
 			console.log("instanceAddress = ", nftAddress);
 
 			const nft = await ethers.getContractAt("NFT", nftAddress);
-			const [transferValidator, factoryAddress, creator, referralCode, infoReturned] = await nft.parameters();
+			const [transferValidator, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft.parameters();
 
 			expect(transferValidator).to.be.equal(validator.address);
 			expect(factoryAddress).to.be.equal(factory.address);
@@ -222,7 +216,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol1 },
 				{ type: "string", value: contractURI1 },
 				{ type: "uint96", value: 500 },
-				{ type: "address", value: owner.address },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -242,7 +235,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: BigNumber.from("500"),
-					feeReceiver: owner.address,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature1,
 				} as InstanceInfoStruct,
@@ -253,7 +245,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol2 },
 				{ type: "string", value: contractURI2 },
 				{ type: "uint96", value: 500 },
-				{ type: "address", value: owner.address },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -273,7 +264,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: BigNumber.from("500"),
-					feeReceiver: owner.address,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature2,
 				} as InstanceInfoStruct,
@@ -284,7 +274,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol3 },
 				{ type: "string", value: contractURI3 },
 				{ type: "uint96", value: 500 },
-				{ type: "address", value: owner.address },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -304,7 +293,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: BigNumber.from("500"),
-					feeReceiver: owner.address,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature3,
 				} as InstanceInfoStruct,
@@ -350,7 +338,7 @@ describe('NFTFactory', () => {
 			console.log("instanceAddress3 = ", instanceInfo3.nftAddress);
 
 			const nft1 = await ethers.getContractAt("NFT", instanceInfo1.nftAddress);
-			let [transferValidator, factoryAddress, creator, referralCode, infoReturned] = await nft1.parameters();
+			let [transferValidator, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft1.parameters();
 			expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
 			expect(factoryAddress).to.be.equal(factory.address);
 			expect(infoReturned.mintPrice).to.be.equal(price1);
@@ -358,7 +346,7 @@ describe('NFTFactory', () => {
 			expect(creator).to.be.equal(alice.address);
 
 			const nft2 = await ethers.getContractAt("NFT", instanceInfo2.nftAddress);
-			[transferValidator, factoryAddress, creator, referralCode, infoReturned] = await nft2.parameters();
+			[transferValidator, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft2.parameters();
 			expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
 			expect(factoryAddress).to.be.equal(factory.address);
 			expect(infoReturned.mintPrice).to.be.equal(price2);
@@ -366,7 +354,7 @@ describe('NFTFactory', () => {
 			expect(creator).to.be.equal(bob.address);
 
 			const nft3 = await ethers.getContractAt("NFT", instanceInfo3.nftAddress);
-			[transferValidator, factoryAddress, creator, referralCode, infoReturned] = await nft3.parameters();
+			[transferValidator, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft3.parameters();
 			expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
 			expect(factoryAddress).to.be.equal(factory.address);
 			expect(infoReturned.mintPrice).to.be.equal(price3);
@@ -415,14 +403,12 @@ describe('NFTFactory', () => {
 			const contractURI = "contractURI/123";
 			const price = ethers.utils.parseEther("0.01");
 			const feeNumerator = 500;
-			const feeReceiver = owner.address;
 
 			let message = EthCrypto.hash.keccak256([
 				{ type: "string", value: nftName },
 				{ type: "string", value: nftSymbol },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: feeNumerator },
-				{ type: "address", value: feeReceiver },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -442,7 +428,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: feeNumerator,
-					feeReceiver: feeReceiver,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
 				} as InstanceInfoStruct,
@@ -462,7 +447,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: feeNumerator,
-					feeReceiver: feeReceiver,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
 				} as InstanceInfoStruct,
@@ -482,7 +466,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: feeNumerator,
-					feeReceiver: feeReceiver,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
 				} as InstanceInfoStruct,
@@ -503,7 +486,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: feeNumerator },
-				{ type: "address", value: feeReceiver },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -523,7 +505,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: feeNumerator,
-					feeReceiver: feeReceiver,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
 				} as InstanceInfoStruct,
@@ -539,7 +520,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: feeNumerator },
-				{ type: "address", value: feeReceiver },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -559,7 +539,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: feeNumerator,
-					feeReceiver: feeReceiver,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
 				} as InstanceInfoStruct,
@@ -575,7 +554,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: feeNumerator },
-				{ type: "address", value: feeReceiver },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -595,7 +573,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: feeNumerator,
-					feeReceiver: feeReceiver,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
 				} as InstanceInfoStruct,
@@ -611,7 +588,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: feeNumerator },
-				{ type: "address", value: feeReceiver },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -631,7 +607,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: feeNumerator,
-					feeReceiver: feeReceiver,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
 				} as InstanceInfoStruct,
@@ -647,7 +622,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: feeNumerator },
-				{ type: "address", value: feeReceiver },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -667,7 +641,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: feeNumerator,
-					feeReceiver: feeReceiver,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
 				} as InstanceInfoStruct,
@@ -708,7 +681,6 @@ describe('NFTFactory', () => {
 				{ type: "string", value: nftSymbol },
 				{ type: "string", value: contractURI },
 				{ type: "uint96", value: 500 },
-				{ type: "address", value: owner.address },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -728,7 +700,6 @@ describe('NFTFactory', () => {
 					transferable: true,
 					maxTotalSupply: BigNumber.from("1000"),
 					feeNumerator: BigNumber.from("500"),
-					feeReceiver: owner.address,
 					collectionExpire: BigNumber.from("86400"),
 					signature: signature,
 				} as InstanceInfoStruct,
@@ -749,7 +720,6 @@ describe('NFTFactory', () => {
 						transferable: true,
 						maxTotalSupply: BigNumber.from("1000"),
 						feeNumerator: BigNumber.from("500"),
-						feeReceiver: owner.address,
 						collectionExpire: BigNumber.from("86400"),
 						signature: signature,
 					} as InstanceInfoStruct,

@@ -8,7 +8,7 @@ import EthCrypto from "eth-crypto";
 import { NftFactoryParametersStruct } from '../typechain-types/contracts/factories/NFTFactory';
 import { DynamicPriceParametersStruct, StaticPriceParametersStruct } from '../typechain-types/contracts/NFT';
 
-describe('NFT', () => {
+describe.only('NFT', () => {
 	const PLATFORM_COMISSION = "100";
 	const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 	const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -65,7 +65,6 @@ describe('NFT', () => {
 			{ type: "string", value: nftSymbol },
 			{ type: "string", value: contractURI },
 			{ type: "uint96", value: 600 },
-			{ type: "address", value: owner.address },
 			{ type: "uint256", value: chainId },
 		]);
 
@@ -76,7 +75,6 @@ describe('NFT', () => {
 			{ type: "string", value: nftSymbol + "2" },
 			{ type: "string", value: contractURI },
 			{ type: "uint96", value: 600 },
-			{ type: "address", value: owner.address },
 			{ type: "uint256", value: chainId },
 		]);
 
@@ -94,7 +92,6 @@ describe('NFT', () => {
 			transferable: true,
 			maxTotalSupply: 10,
 			feeNumerator: BigNumber.from("600"),
-			feeReceiver: owner.address,
 			collectionExpire: BigNumber.from("86400"),
 			signature,
 		};
@@ -111,7 +108,6 @@ describe('NFT', () => {
 			transferable: true,
 			maxTotalSupply: 10,
 			feeNumerator: BigNumber.from("600"),
-			feeReceiver: owner.address,
 			collectionExpire: BigNumber.from("86400"),
 			signature: signature2,
 		};
@@ -139,7 +135,7 @@ describe('NFT', () => {
 		it("Should be deployed correctly", async () => {
 			const { factory, validator, nft_eth, nft_erc20, alice } = await loadFixture(fixture);
 
-			let [, , , , infoReturned] = await nft_eth.parameters();
+			let [, , , feeReceiver, , infoReturned] = await nft_eth.parameters();
 			expect(infoReturned.metadata.name).to.be.equal(instanceInfoETH.metadata.name);
 			expect(infoReturned.metadata.symbol).to.be.equal(instanceInfoETH.metadata.symbol);
 			expect(infoReturned.contractURI).to.be.equal(instanceInfoETH.contractURI);
@@ -163,10 +159,10 @@ describe('NFT', () => {
 			expect(await nft_eth.getTransferValidator()).to.be.equal(validator.address);
 
 
-			[, , , , infoReturned] = await nft_erc20.parameters();
+			[, , , feeReceiver, , infoReturned] = await nft_erc20.parameters();
 			expect(infoReturned.maxTotalSupply).to.be.equal(instanceInfoToken.maxTotalSupply);
 			expect(infoReturned.feeNumerator).to.be.equal(instanceInfoToken.feeNumerator);
-			expect(infoReturned.feeReceiver).to.be.equal(instanceInfoToken.feeReceiver);
+			expect(feeReceiver).to.be.equal(instanceInfoToken.feeReceiver);
 			expect(infoReturned.collectionExpire).to.be.equal(instanceInfoToken.collectionExpire);
 			expect(infoReturned.signature).to.be.equal(instanceInfoToken.signature);
 			expect(infoReturned.payingToken).to.be.equal(instanceInfoToken.payingToken);
@@ -851,7 +847,7 @@ describe('NFT', () => {
 				.connect(alice)
 				.setNftParameters(newPayingToken, newPrice, newWLPrice, true);
 
-			const [, , , , infoReturned] = await nft_eth.parameters();
+			const [, , , , , infoReturned] = await nft_eth.parameters();
 
 			expect(infoReturned.payingToken).to.be.equal(newPayingToken);
 			expect(infoReturned.mintPrice).to.be.equal(newPrice);
@@ -1094,7 +1090,6 @@ describe('NFT', () => {
 						transferable: false,
 						maxTotalSupply: BigNumber.from("1000"),
 						feeNumerator: BigNumber.from("600"),
-						feeReceiver: owner.address,
 						collectionExpire: BigNumber.from("86400"),
 						signature: "0x00",
 					} as InstanceInfoStruct,
@@ -1162,7 +1157,6 @@ describe('NFT', () => {
 						transferable: true,
 						maxTotalSupply: BigNumber.from("1000"),
 						feeNumerator: BigNumber.from("600"),
-						feeReceiver: owner.address,
 						collectionExpire: BigNumber.from("86400"),
 						signature: "0x00",
 					} as InstanceInfoStruct,
