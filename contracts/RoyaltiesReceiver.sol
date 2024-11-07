@@ -3,7 +3,9 @@ pragma solidity 0.8.27;
 
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
-import {Releases, SharesAdded} from "./Structures.sol";
+import {NFTFactory} from "./factories/NFTFactory.sol";
+
+import {Releases} from "./Structures.sol";
 
 /// @notice Thrown when a zero address is provided where it's not allowed.
 error ZeroAddressPassed();
@@ -26,6 +28,7 @@ error AccountHasSharesAlready();
  */
 contract RoyaltiesReceiver {
     using SafeTransferLib for address;
+
     /// @notice Emitted when a new payee is added to the contract.
     /// @param account The address of the new payee.
     /// @param shares The number of shares assigned to the payee.
@@ -53,14 +56,22 @@ contract RoyaltiesReceiver {
 
     /// @notice Maximum array size used.
     uint256 public constant ARRAY_SIZE = 3;
+    /// @notice Total shares amount.
+    uint256 public constant TOTAL_SHARES = 10000;
+    /// @notice Amount goes to creator.
+    uint16 constant AMOUNT_TO_CREATOR = 8000;
+    /// @notice Amount goes to platform.
+    uint16 constant AMOUNT_TO_PLATFORM = 2000;
 
     /**
      * @notice List of payee addresses. Returns the address of the payee at the given index.
      */
     address[ARRAY_SIZE] public payees;
 
-    /// @notice Struct storing payee shares and total shares.
-    SharesAdded public sharesAdded;
+    /**
+     * @notice Returns the number of shares held by a specific payee.
+     */
+    mapping(address => uint256) shares;
 
     /// @notice Struct for tracking native Ether releases.
     Releases public nativeReleases;
@@ -70,22 +81,32 @@ contract RoyaltiesReceiver {
 
     /**
      * @notice Initializes the contract with a list of payees and their respective shares.
+     * @param referralCode The referral code associated with this NFT instance.
      * @param payees_ The list of payee addresses.
-     * @param shares_ The list of shares corresponding to each payee.
      */
-    constructor(address[] memory payees_, uint16[] memory shares_) payable {
-        for (uint256 i = 0; i < 2; ) {
-            payees[i] = payees_[i];
-            _addPayee(payees_[i], shares_[i]);
+    constructor(bytes32 referralCode, address[ARRAY_SIZE] memory payees_) {
+        bool isReferral = payees_[2] != address(0);
+
+        uint16 amountToPlatform = AMOUNT_TO_PLATFORM;
+        uint16 amountToReferral;
+        if (isReferral) {
+            amountToReferral = uint16(
+                NFTFactory(msg.sender).getReferralRate(
+                    payees_[0],
+                    referralCode,
+                    amountToPlatform
+                )
+            );
             unchecked {
-                ++i;
+                amountToPlatform -= amountToReferral;
             }
         }
 
-        if (payees_.length == 3) {
-            payees[2] = payees_[2];
-            _addPayee(payees_[2], shares_[2]);
-        }
+        payees = payees_;
+
+        shares[payees_[0]] = AMOUNT_TO_CREATOR;
+        shares[payees_[1]] = amountToPlatform;
+        shares[payees_[2]] = amountToReferral;
     }
 
     /**
@@ -100,7 +121,7 @@ contract RoyaltiesReceiver {
      */
     function releaseAll() external {
         address[ARRAY_SIZE] memory _payees = payees;
-        uint256 arraySize = _payees[2] == address(0) ? 2 : 3;
+        uint8 arraySize = _payees[2] != address(0) ? 3 : 2;
 
         for (uint256 i = 0; i < arraySize; ) {
             _releaseNative(_payees[i]);
@@ -116,7 +137,7 @@ contract RoyaltiesReceiver {
      */
     function releaseAll(address token) external {
         address[ARRAY_SIZE] memory _payees = payees;
-        uint256 arraySize = _payees[2] == address(0) ? 2 : 3;
+        uint256 arraySize = _payees[2] != address(0) ? 3 : 2;
 
         for (uint256 i = 0; i < arraySize; ) {
             _releaseERC20(token, _payees[i]);
@@ -124,23 +145,6 @@ contract RoyaltiesReceiver {
                 ++i;
             }
         }
-    }
-
-    /**
-     * @notice Returns the total number of shares assigned to all payees.
-     * @return The total shares.
-     */
-    function totalShares() external view returns (uint256) {
-        return sharesAdded.totalShares;
-    }
-
-    /**
-     * @notice Returns the number of shares held by a specific payee.
-     * @param account The address of the payee.
-     * @return The number of shares held by the payee.
-     */
-    function shares(address account) external view returns (uint256) {
-        return sharesAdded.shares[account];
     }
 
     /**
@@ -237,20 +241,6 @@ contract RoyaltiesReceiver {
      * @param shares_ The number of shares assigned to the payee.
      */
     function _addPayee(address account, uint256 shares_) private {
-        if (account == address(0)) {
-            revert ZeroAddressPassed();
-        }
-
-        if (shares_ == 0) {
-            revert ZeroSharesPassed();
-        }
-
-        if (sharesAdded.shares[account] != 0) {
-            revert AccountHasSharesAlready();
-        }
-
-        sharesAdded.shares[account] = shares_;
-        sharesAdded.totalShares += shares_;
         emit PayeeAdded(account, shares_);
     }
 
@@ -266,10 +256,7 @@ contract RoyaltiesReceiver {
         uint256 totalReceived,
         uint256 alreadyReleased
     ) private view returns (uint256) {
-        uint256 _totalShares = sharesAdded.totalShares;
-
-        uint256 payment = (totalReceived * sharesAdded.shares[account]) /
-            _totalShares;
+        uint256 payment = (totalReceived * shares[account]) / TOTAL_SHARES;
 
         if (payment <= alreadyReleased) {
             return 0;
