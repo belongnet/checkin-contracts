@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
+/// @notice Error thrown when the signature provided is invalid.
+error InvalidSignature();
+
 /// @notice Struct for managing a referral code and its users.
 struct ReferralCode {
     /// @notice The creator of the referral code.
@@ -39,12 +42,12 @@ struct NftParameters {
     address transferValidator;
     /// @notice The address of the factory contract where the NFT collection is created.
     address factory;
-    /// @notice The detailed information about the NFT collection, including its properties and configuration.
-    InstanceInfo info;
     /// @notice The address of the creator of the NFT collection.
     address creator;
     /// @notice The referral code associated with the NFT collection.
     bytes32 referralCode;
+    /// @notice The detailed information about the NFT collection, including its properties and configuration.
+    InstanceInfo info;
 }
 
 /**
@@ -53,12 +56,6 @@ struct NftParameters {
  * @dev This struct is used to store key metadata and configuration information for each NFT collection.
  */
 struct InstanceInfo {
-    /// @notice The name of the NFT collection.
-    string name;
-    /// @notice The symbol representing the NFT collection.
-    string symbol;
-    /// @notice The contract URI for the NFT collection, used for metadata.
-    string contractURI;
     /// @notice The address of the ERC20 token used for payments, or ETH (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) for Ether.
     address payingToken;
     /// @notice The address that will receive the royalties from secondary sales.
@@ -75,8 +72,18 @@ struct InstanceInfo {
     uint256 whitelistMintPrice;
     /// @notice The expiration time (as a timestamp) for the collection.
     uint256 collectionExpire;
+    NftMetadata metadata;
+    /// @notice The contract URI for the NFT collection, used for metadata.
+    string contractURI;
     /// @notice A signature provided by the backend to validate the creation of the collection.
     bytes signature;
+}
+
+struct NftMetadata {
+    /// @notice The name of the NFT collection.
+    string name;
+    /// @notice The symbol representing the NFT collection.
+    string symbol;
 }
 
 /**
@@ -85,14 +92,11 @@ struct InstanceInfo {
  * @dev This struct is used for lightweight storage of NFT collection metadata.
  */
 struct NftInstanceInfo {
-    /// @notice The name of the NFT collection.
-    string name;
-    /// @notice The symbol representing the NFT collection.
-    string symbol;
     /// @notice The address of the creator of the NFT collection.
     address creator;
     /// @notice The address of the NFT contract instance.
     address nftAddress;
+    NftMetadata metadata;
 }
 
 /**
