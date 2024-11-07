@@ -9,21 +9,14 @@ import {ReferralSystem} from "../utils/ReferralSystem.sol";
 
 import {NFT} from "../NFT.sol";
 
-import {NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo} from "../Structures.sol";
+import {RoyaltiesReceiver} from "../RoyaltiesReceiver.sol";
+
+import {NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo, InvalidSignature} from "../Structures.sol";
 
 // ========== Errors ==========
 
-/// @notice Error thrown when the signature provided is invalid.
-error InvalidSignature();
-
 /// @notice Error thrown when an NFT with the same name and symbol already exists.
 error NFTAlreadyExists();
-
-/// @notice Error thrown when a zero address is passed where it's not allowed.
-error ZeroAddressPassed();
-
-/// @notice Error thrown when a zero amount is passed where it's not allowed.
-error ZeroAmountPassed();
 
 /**
  * @title NFT Factory Contract
@@ -57,15 +50,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
     mapping(bytes32 => NftInstanceInfo) public getNftInstanceInfo;
 
     // ========== Modifiers ==========
-
-    /// @notice Modifier to check if the passed address is not zero.
-    /// @param _address The address to check.
-    modifier zeroAddressCheck(address _address) {
-        if (_address == address(0)) {
-            revert ZeroAddressPassed();
-        }
-        _;
-    }
 
     // ========== Functions ==========
 
@@ -102,8 +86,8 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
             !params.signerAddress.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
-                        _info.name,
-                        _info.symbol,
+                        _info.metadata.name,
+                        _info.metadata.symbol,
                         _info.contractURI,
                         _info.feeNumerator,
                         _info.feeReceiver,
@@ -116,7 +100,9 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
             revert InvalidSignature();
         }
 
-        bytes32 _hash = keccak256(abi.encodePacked(_info.name, _info.symbol));
+        bytes32 _hash = keccak256(
+            abi.encodePacked(_info.metadata.name, _info.metadata.symbol)
+        );
 
         require(
             getNftInstanceInfo[_hash].nftAddress == address(0),
@@ -126,6 +112,11 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         _info.payingToken = _info.payingToken == address(0)
             ? params.defaultPaymentCurrency
             : _info.payingToken;
+
+        RoyaltiesReceiver receiver = new RoyaltiesReceiver(
+            [msg.sender, params.platformAddress],
+            [8000, 2000]
+        );
 
         nftAddress = address(
             new NFT(
@@ -140,10 +131,9 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         );
 
         NftInstanceInfo memory info = NftInstanceInfo({
-            name: _info.name,
-            symbol: _info.symbol,
             creator: msg.sender,
-            nftAddress: nftAddress
+            nftAddress: nftAddress,
+            metadata: _info.metadata
         });
 
         getNftInstanceInfo[_hash] = info;
@@ -155,24 +145,15 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
 
     /**
      * @notice Sets new factory parameters.
-     * @dev Can only be called by the owner.
+     * @dev Can only be called by the owner (BE).
      * @param nftFactoryParameters_ The NFT factory parameters to be set.
      * @param percentages An array containing the referral percentages for initial, second, third, and default use.
      */
     function setFactoryParameters(
         NftFactoryParameters calldata nftFactoryParameters_,
         uint16[5] calldata percentages
-    )
-        external
-        onlyOwner
-        zeroAddressCheck(nftFactoryParameters_.signerAddress)
-        zeroAddressCheck(nftFactoryParameters_.defaultPaymentCurrency)
-        zeroAddressCheck(nftFactoryParameters_.platformAddress)
-    {
-        require(nftFactoryParameters_.maxArraySize > 0, ZeroAmountPassed());
-
+    ) external onlyOwner {
         _nftFactoryParameters = nftFactoryParameters_;
-
         _setReferralPercentages(percentages);
 
         emit FactoryParametersSet(nftFactoryParameters_, percentages);

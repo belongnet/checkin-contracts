@@ -10,14 +10,9 @@ import {ReferralCode} from "../Structures.sol";
 /// @param hashedCode The existing referral code.
 error ReferralCodeExists(address referralCreator, bytes32 hashedCode);
 
-/// @notice Error thrown when the referral user already exists for a given code.
-error ReferralCodeUserExists(address referralUser);
-
-/// @notice Error thrown when a referral code is used that does not have an owner.
-error ReferralCodeOwnerNotExist(bytes32 hashedCode);
-
-/// @notice Error thrown when a user tries to add themselves as their own referrer.
-error CannotReferSelf();
+/// @notice Error thrown when a user tries to add themselves as their own referrer, or
+/// thrown when a referral code is used that does not have an owner.
+error ReferralCodeOwnerError();
 
 error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
 
@@ -54,7 +49,7 @@ abstract contract ReferralSystem {
     uint16[5] public usedToPercentage;
 
     /// @notice Maps referral codes to their respective details (creator and users).
-    mapping(bytes32 code => ReferralCode referralCode) public referrals;
+    mapping(bytes32 code => ReferralCode referralCode) private referrals;
 
     /// @notice Maps referral users to their respective used codes and counts the number of times the code was used.
     mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed))
@@ -99,10 +94,9 @@ abstract contract ReferralSystem {
         ReferralCode memory referral = referrals[hashedCode];
 
         require(
-            referral.creator != address(0),
-            ReferralCodeOwnerNotExist(hashedCode)
+            referral.creator != address(0) && referralUser != referral.creator,
+            ReferralCodeOwnerError()
         );
-        require(referralUser != referral.creator, CannotReferSelf());
 
         // Check if the user is already in the array
         bool inArray;
@@ -123,7 +117,9 @@ abstract contract ReferralSystem {
         }
 
         if (usedCode[referralUser][hashedCode] < 4) {
-            ++usedCode[referralUser][hashedCode];
+            unchecked {
+                ++usedCode[referralUser][hashedCode];
+            }
         }
 
         emit ReferralCodeUsed(hashedCode, referralUser);
