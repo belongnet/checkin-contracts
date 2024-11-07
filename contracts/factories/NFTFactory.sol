@@ -49,8 +49,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
     /// @notice A mapping from keccak256(name, symbol) to the NFT instance address.
     mapping(bytes32 => NftInstanceInfo) public getNftInstanceInfo;
 
-    // ========== Modifiers ==========
-
     // ========== Functions ==========
 
     /**
@@ -69,7 +67,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
     }
 
     /**
-     * @notice Produces a new NFT instance.
+     * @notice Produces a new NFT i nstance.
      * @dev Creates a new instance of the NFT and adds the information to the storage contract.
      * @param _info Struct containing the details of the new NFT instance.
      * @param referralCode The referral code associated with this NFT instance.
@@ -90,7 +88,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
                         _info.metadata.symbol,
                         _info.contractURI,
                         _info.feeNumerator,
-                        _info.feeReceiver,
                         block.chainid
                     )
                 ),
@@ -113,10 +110,19 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
             ? params.defaultPaymentCurrency
             : _info.payingToken;
 
-        RoyaltiesReceiver receiver = new RoyaltiesReceiver(
-            [msg.sender, params.platformAddress],
-            [8000, 2000]
-        );
+        address receiver;
+
+        _setReferralUser(referralCode, msg.sender);
+        if (_info.feeNumerator > 0) {
+            address referral = getReferralCreator(referralCode);
+
+            receiver = address(
+                new RoyaltiesReceiver(
+                    referralCode,
+                    [msg.sender, params.platformAddress, referral]
+                )
+            );
+        }
 
         nftAddress = address(
             new NFT(
@@ -125,6 +131,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
                     factory: address(this),
                     info: _info,
                     creator: msg.sender,
+                    feeReceiver: receiver,
                     referralCode: referralCode
                 })
             )
@@ -137,8 +144,6 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         });
 
         getNftInstanceInfo[_hash] = info;
-
-        _setReferralUser(referralCode, msg.sender);
 
         emit NFTCreated(_hash, info);
     }

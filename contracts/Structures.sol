@@ -44,6 +44,8 @@ struct NftParameters {
     address factory;
     /// @notice The address of the creator of the NFT collection.
     address creator;
+    /// @notice The address that will receive the royalties from secondary sales.
+    address feeReceiver;
     /// @notice The referral code associated with the NFT collection.
     bytes32 referralCode;
     /// @notice The detailed information about the NFT collection, including its properties and configuration.
@@ -58,8 +60,6 @@ struct NftParameters {
 struct InstanceInfo {
     /// @notice The address of the ERC20 token used for payments, or ETH (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) for Ether.
     address payingToken;
-    /// @notice The address that will receive the royalties from secondary sales.
-    address feeReceiver;
     /// @notice The royalty fraction for platform and creator royalties, expressed as a numerator.
     uint96 feeNumerator;
     /// @notice A boolean flag indicating whether the tokens in the collection are transferable.
@@ -141,12 +141,4 @@ struct Releases {
     uint256 totalReleased;
     /// @notice A mapping to track the released amount per payee account.
     mapping(address => uint256) released;
-}
-
-/// @notice Struct for managing total shares and individual account shares.
-struct SharesAdded {
-    /// @notice The total number of shares allocated across all payees.
-    uint256 totalShares;
-    /// @notice A mapping to track the shares allocated to each payee.
-    mapping(address => uint256) shares;
 }

@@ -49,7 +49,7 @@ abstract contract ReferralSystem {
     uint16[5] public usedToPercentage;
 
     /// @notice Maps referral codes to their respective details (creator and users).
-    mapping(bytes32 code => ReferralCode referralCode) private referrals;
+    mapping(bytes32 code => ReferralCode referralCode) internal referrals;
 
     /// @notice Maps referral users to their respective used codes and counts the number of times the code was used.
     mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed))
@@ -154,10 +154,9 @@ abstract contract ReferralSystem {
         bytes32 code,
         uint256 amount
     ) external view returns (uint256) {
-        uint256 used = usedCode[referralUser][code];
+        (uint256 used, uint256 rate) = _getRate(referralUser, code, amount);
         require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
-
-        return (amount * usedToPercentage[used]) / SCALING_FACTOR;
+        return rate;
     }
 
     /**
@@ -165,7 +164,7 @@ abstract contract ReferralSystem {
      * @param code The referral code to get the creator for.
      * @return The address of the creator associated with the referral code.
      */
-    function getReferralCreator(bytes32 code) external view returns (address) {
+    function getReferralCreator(bytes32 code) public view returns (address) {
         return referrals[code].creator;
     }
 
@@ -178,6 +177,15 @@ abstract contract ReferralSystem {
         bytes32 code
     ) external view returns (address[] memory) {
         return referrals[code].referralUsers;
+    }
+
+    function _getRate(
+        address referralUser,
+        bytes32 code,
+        uint256 amount
+    ) internal view returns (uint256 used, uint256 rate) {
+        used = usedCode[referralUser][code];
+        rate = (amount * usedToPercentage[used]) / SCALING_FACTOR;
     }
 
     // ========== Reserved Storage Space ==========
