@@ -5,7 +5,7 @@ import { WETHMock, MockTransferValidator, NFTFactory } from "../typechain-types"
 import { expect } from "chai";
 import { InstanceInfoStruct, NFT, NftParametersStruct } from "../typechain-types/contracts/NFT";
 import EthCrypto from "eth-crypto";
-import { NftFactoryParametersStruct, ReferralPercentagesStruct } from '../typechain-types/contracts/factories/NFTFactory';
+import { NftFactoryParametersStruct } from '../typechain-types/contracts/factories/NFTFactory';
 import { DynamicPriceParametersStruct, StaticPriceParametersStruct } from '../typechain-types/contracts/NFT';
 
 describe('NFT', () => {
@@ -20,7 +20,7 @@ describe('NFT', () => {
 	const eth_price = ethers.utils.parseEther("0.03");
 	const token_price = 10000;
 
-	let instanceInfoETH: InstanceInfoStruct, instanceInfoToken: InstanceInfoStruct, nftInfo: NftFactoryParametersStruct, referralPercentages: ReferralPercentagesStruct;
+	let instanceInfoETH: InstanceInfoStruct, instanceInfoToken: InstanceInfoStruct, nftInfo: NftFactoryParametersStruct, referralPercentages: number[];
 
 	async function fixture() {
 		const [owner, alice, bob, charlie, pete] = await ethers.getSigners();
@@ -43,22 +43,18 @@ describe('NFT', () => {
 			maxArraySize: 10
 		} as NftFactoryParametersStruct;
 
-		referralPercentages = {
-			initialPercentage: 5000,
-			secondTimePercentage: 3000,
-			thirdTimePercentage: 1500,
-			percentageByDefault: 500
-		};
+		referralPercentages = [0, 5000, 3000, 1500, 500];
 
-		const NFTFactory: ContractFactory = await ethers.getContractFactory("NFTFactory", owner);
+		const NFTFactory: ContractFactory = await ethers.getContractFactory("NFTFactory");
 		const factory: NFTFactory = await upgrades.deployProxy(NFTFactory, [
-			referralPercentages,
 			nftInfo,
+			referralPercentages,
 		]) as NFTFactory;
 		await factory.deployed();
 
 		const hashedCode = EthCrypto.hash.keccak256([
 			{ type: "address", value: bob.address },
+			{ type: "address", value: factory.address },
 			{ type: "uint256", value: chainId },
 		]);
 
@@ -87,8 +83,10 @@ describe('NFT', () => {
 		const signature2 = EthCrypto.sign(signer.privateKey, message2);
 
 		instanceInfoETH = {
-			name: nftName,
-			symbol: nftSymbol,
+			metadata: {
+				name: nftName,
+				symbol: nftSymbol,
+			},
 			contractURI,
 			payingToken: ETH_ADDRESS,
 			mintPrice: eth_price,
@@ -102,8 +100,10 @@ describe('NFT', () => {
 		};
 
 		instanceInfoToken = {
-			name: nftName + '2',
-			symbol: nftSymbol + '2',
+			metadata: {
+				name: nftName + '2',
+				symbol: nftSymbol + '2',
+			},
 			contractURI,
 			payingToken: erc20Example.address,
 			mintPrice: token_price,
@@ -139,9 +139,9 @@ describe('NFT', () => {
 		it("Should be deployed correctly", async () => {
 			const { factory, validator, nft_eth, nft_erc20, alice } = await loadFixture(fixture);
 
-			let [, , infoReturned,] = await nft_eth.parameters();
-			expect(infoReturned.name).to.be.equal(instanceInfoETH.name);
-			expect(infoReturned.symbol).to.be.equal(instanceInfoETH.symbol);
+			let [, , , , infoReturned] = await nft_eth.parameters();
+			expect(infoReturned.metadata.name).to.be.equal(instanceInfoETH.metadata.name);
+			expect(infoReturned.metadata.symbol).to.be.equal(instanceInfoETH.metadata.symbol);
 			expect(infoReturned.contractURI).to.be.equal(instanceInfoETH.contractURI);
 			expect(infoReturned.payingToken).to.be.equal(instanceInfoETH.payingToken);
 			expect(infoReturned.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
@@ -149,8 +149,8 @@ describe('NFT', () => {
 			expect(infoReturned.transferable).to.be.equal(instanceInfoETH.transferable);
 
 			expect((await nft_eth.parameters()).factory).to.be.equal(factory.address);
-			expect(await nft_eth.name()).to.be.equal(instanceInfoETH.name);
-			expect(await nft_eth.symbol()).to.be.equal(instanceInfoETH.symbol);
+			expect(await nft_eth.name()).to.be.equal(instanceInfoETH.metadata.name);
+			expect(await nft_eth.symbol()).to.be.equal(instanceInfoETH.metadata.symbol);
 			expect((await nft_eth.parameters()).info.payingToken).to.be.equal(instanceInfoETH.payingToken);
 			expect((await nft_eth.parameters()).info.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
 			expect((await nft_eth.parameters()).info.whitelistMintPrice).to.be.equal(instanceInfoETH.whitelistMintPrice);
@@ -163,7 +163,7 @@ describe('NFT', () => {
 			expect(await nft_eth.getTransferValidator()).to.be.equal(validator.address);
 
 
-			[, , infoReturned,] = await nft_erc20.parameters();
+			[, , , , infoReturned] = await nft_erc20.parameters();
 			expect(infoReturned.maxTotalSupply).to.be.equal(instanceInfoToken.maxTotalSupply);
 			expect(infoReturned.feeNumerator).to.be.equal(instanceInfoToken.feeNumerator);
 			expect(infoReturned.feeReceiver).to.be.equal(instanceInfoToken.feeReceiver);
@@ -194,14 +194,14 @@ describe('NFT', () => {
 
 			const nft_eth_alice = nft_eth.connect(alice);
 
-			await nft_eth_alice.setAutomaticApprovalOfTransfersFromValidator(true);
+			await nft_eth_alice.setNftParameters((await nft_eth.parameters()).info.payingToken, (await nft_eth.parameters()).info.mintPrice, (await nft_eth.parameters()).info.whitelistMintPrice, true);
 
 			await nft_eth_alice.setApprovalForAll(validator.address, false);
 
 			expect(await nft_eth_alice.isApprovedForAll(alice.address, validator.address)).to.be.true;
 			expect(await nft_eth_alice.isApprovedForAll(validator.address, alice.address)).to.be.false;
 
-			await nft_eth_alice.setAutomaticApprovalOfTransfersFromValidator(false);
+			await nft_eth_alice.setNftParameters((await nft_eth.parameters()).info.payingToken, (await nft_eth.parameters()).info.mintPrice, (await nft_eth.parameters()).info.whitelistMintPrice, false);
 			expect(await nft_eth_alice.isApprovedForAll(alice.address, validator.address)).to.be.false;
 
 			await nft_eth_alice.setApprovalForAll(validator.address, true);
@@ -213,21 +213,20 @@ describe('NFT', () => {
 			const { NFTFactory, alice, bob, signer } = await loadFixture(fixture);
 
 			const factory: NFTFactory = await upgrades.deployProxy(NFTFactory, [
-				referralPercentages,
 				nftInfo,
+				referralPercentages,
 			]) as NFTFactory;
 			await factory.deployed();
 
+			nftInfo.transferValidator = bob.address;
 			await factory.setFactoryParameters(
-				(await factory.nftFactoryParameters()).signerAddress,
-				(await factory.nftFactoryParameters()).defaultPaymentCurrency,
-				bob.address,
-				(await factory.nftFactoryParameters()).maxArraySize,
+				nftInfo,
 				referralPercentages
 			)
 
 			const hashedCode = EthCrypto.hash.keccak256([
 				{ type: "address", value: bob.address },
+				{ type: "address", value: factory.address },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -256,13 +255,15 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: bob.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: bob.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -277,21 +278,20 @@ describe('NFT', () => {
 			const { NFTFactory, alice, bob, signer } = await loadFixture(fixture);
 
 			const factory: NFTFactory = await upgrades.deployProxy(NFTFactory, [
-				referralPercentages,
 				nftInfo,
+				referralPercentages,
 			]) as NFTFactory;
 			await factory.deployed();
 
+			nftInfo.transferValidator = ZERO_ADDRESS;
 			await factory.setFactoryParameters(
-				(await factory.nftFactoryParameters()).signerAddress,
-				(await factory.nftFactoryParameters()).defaultPaymentCurrency,
-				ZERO_ADDRESS,
-				(await factory.nftFactoryParameters()).maxArraySize,
+				nftInfo,
 				referralPercentages
 			)
 
 			const hashedCode = EthCrypto.hash.keccak256([
 				{ type: "address", value: bob.address },
+				{ type: "address", value: factory.address },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -320,13 +320,15 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: bob.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: bob.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -342,7 +344,7 @@ describe('NFT', () => {
 		it("only owner", async () => {
 			const { nft_eth, owner, } = await loadFixture(fixture);
 
-			await expect(nft_eth.connect(owner).setAutomaticApprovalOfTransfersFromValidator(false)).to.be.revertedWithCustomError(nft_eth, 'Unauthorized');
+			await expect(nft_eth.connect(owner).setNftParameters((await nft_eth.parameters()).info.payingToken, (await nft_eth.parameters()).info.mintPrice, (await nft_eth.parameters()).info.whitelistMintPrice, false)).to.be.revertedWithCustomError(nft_eth, 'Unauthorized');
 		});
 	});
 
@@ -365,51 +367,57 @@ describe('NFT', () => {
 			await expect(
 				nft_eth
 					.connect(alice).mintStaticPrice(
-						{
-							receiver: alice.address,
-							tokenId: 0,
-							tokenUri: NFT_721_BASE_URI,
-							whitelisted: false,
-							signature,
-						} as StaticPriceParametersStruct,
+						[
+							{
+								receiver: alice.address,
+								tokenId: 0,
+								tokenUri: NFT_721_BASE_URI,
+								whitelisted: false,
+								signature,
+							} as StaticPriceParametersStruct,
+						],
 						ETH_ADDRESS,
 						ethers.utils.parseEther("0.02"),
 						{
 							value: ethers.utils.parseEther("0.02"),
 						}
 					)
-			).to.be.revertedWithCustomError(nft_eth, `PriceChanged`).withArgs(ethers.utils.parseEther("0.02"), eth_price);
+			).to.be.revertedWithCustomError(nft_eth, `IncorrectETHAmountSent`).withArgs(ethers.utils.parseEther("0.02"));
 
 			await expect(
 				nft_eth
 					.connect(alice)
 					.mintStaticPrice(
-						{
-							receiver: alice.address,
-							tokenId: 0,
-							tokenUri: NFT_721_BASE_URI,
-							whitelisted: false,
-							signature,
-						} as StaticPriceParametersStruct,
+						[
+							{
+								receiver: alice.address,
+								tokenId: 0,
+								tokenUri: NFT_721_BASE_URI,
+								whitelisted: false,
+								signature,
+							} as StaticPriceParametersStruct,
+						],
 						alice.address,
 						ethers.utils.parseEther("0.03"),
 						{
 							value: ethers.utils.parseEther("0.03"),
 						}
 					)
-			).to.be.revertedWithCustomError(nft_eth, `TokenChanged`).withArgs(alice.address, ETH_ADDRESS);
+			).to.be.revertedWithCustomError(nft_eth, `TokenChanged`).withArgs(ETH_ADDRESS);
 
 			await expect(
 				nft_eth
 					.connect(alice)
 					.mintStaticPrice(
-						{
-							receiver: alice.address,
-							tokenId: 0,
-							tokenUri: NFT_721_BASE_URI,
-							whitelisted: false,
-							signature,
-						} as StaticPriceParametersStruct,
+						[
+							{
+								receiver: alice.address,
+								tokenId: 0,
+								tokenUri: NFT_721_BASE_URI,
+								whitelisted: false,
+								signature,
+							} as StaticPriceParametersStruct,
+						],
 						ETH_ADDRESS,
 						ethers.utils.parseEther("0.03"),
 						{
@@ -418,17 +426,18 @@ describe('NFT', () => {
 					)
 			).to.be.revertedWithCustomError(nft_eth, `IncorrectETHAmountSent`).withArgs(ethers.utils.parseEther("0.02"));
 
-
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -458,13 +467,15 @@ describe('NFT', () => {
 				await nft_eth
 					.connect(alice)
 					.mintStaticPrice(
-						{
-							receiver: alice.address,
-							tokenId: i,
-							tokenUri: NFT_721_BASE_URI,
-							whitelisted: false,
-							signature,
-						} as StaticPriceParametersStruct,
+						[
+							{
+								receiver: alice.address,
+								tokenId: i,
+								tokenUri: NFT_721_BASE_URI,
+								whitelisted: false,
+								signature,
+							} as StaticPriceParametersStruct,
+						],
 						ETH_ADDRESS,
 						ethers.utils.parseEther("0.03"),
 						{
@@ -488,13 +499,15 @@ describe('NFT', () => {
 				nft_eth
 					.connect(alice)
 					.mintStaticPrice(
-						{
-							receiver: alice.address,
-							tokenId: 11,
-							tokenUri: NFT_721_BASE_URI,
-							whitelisted: false,
-							signature,
-						} as StaticPriceParametersStruct,
+						[
+							{
+								receiver: alice.address,
+								tokenId: 11,
+								tokenUri: NFT_721_BASE_URI,
+								whitelisted: false,
+								signature,
+							} as StaticPriceParametersStruct,
+						],
 						ETH_ADDRESS,
 						ethers.utils.parseEther("0.03"),
 						{
@@ -529,10 +542,20 @@ describe('NFT', () => {
 
 			let signature2 = EthCrypto.sign(signer.privateKey, message2);
 
-			await factory.setFactoryParameters(signer.address, ETH_ADDRESS, validator.address, 1, referralPercentages);
+			await factory.setFactoryParameters(
+				{
+					transferValidator: validator.address,
+					platformAddress: owner.address,
+					signerAddress: signer.address,
+					platformCommission: PLATFORM_COMISSION,
+					defaultPaymentCurrency: ETH_ADDRESS,
+					maxArraySize: 1
+				} as NftFactoryParametersStruct,
+				referralPercentages
+			)
 			await expect(nft_eth
 				.connect(alice)
-				.mintStaticPriceBatch(
+				.mintStaticPrice(
 					[
 						{
 							receiver: alice.address,
@@ -555,11 +578,15 @@ describe('NFT', () => {
 						value: ethers.utils.parseEther("0.03"),
 					}
 				)).to.be.revertedWithCustomError(nft_eth, 'WrongArraySize');
-			await factory.setFactoryParameters(signer.address, ETH_ADDRESS, validator.address, 20, referralPercentages);
+			nftInfo.maxArraySize = 20;
+			await factory.setFactoryParameters(
+				nftInfo,
+				referralPercentages
+			)
 
 			await expect(nft_eth
 				.connect(alice)
-				.mintStaticPriceBatch(
+				.mintStaticPrice(
 					[
 						{
 							receiver: alice.address,
@@ -574,11 +601,11 @@ describe('NFT', () => {
 					{
 						value: ethers.utils.parseEther("0.03"),
 					}
-				)).to.be.revertedWithCustomError(nft_eth, 'PriceChanged').withArgs(ethers.utils.parseEther("0.04"), ethers.utils.parseEther("0.03"));
+				)).to.be.revertedWithCustomError(nft_eth, 'PriceChanged').withArgs(ethers.utils.parseEther("0.04"));
 
 			await nft_eth
 				.connect(alice)
-				.mintStaticPriceBatch(
+				.mintStaticPrice(
 					[
 						{
 							receiver: alice.address,
@@ -627,7 +654,7 @@ describe('NFT', () => {
 
 			await nft_eth
 				.connect(alice)
-				.mintStaticPriceBatch(
+				.mintStaticPrice(
 					staticParams,
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03").mul(9),
@@ -655,13 +682,15 @@ describe('NFT', () => {
 			await expect(nft_eth
 				.connect(alice).mintDynamicPrice
 				(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						price: ethers.utils.parseEther("0.01"),
-						tokenUri: NFT_721_BASE_URI,
-						signature,
-					} as DynamicPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							price: ethers.utils.parseEther("0.01"),
+							tokenUri: NFT_721_BASE_URI,
+							signature,
+						} as DynamicPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					{
 						value: ethers.utils.parseEther("0.01"),
@@ -672,13 +701,15 @@ describe('NFT', () => {
 				nft_eth
 					.connect(alice).mintDynamicPrice
 					(
-						{
-							receiver: alice.address,
-							tokenId: 0,
-							price: ethers.utils.parseEther("0.02"),
-							tokenUri: NFT_721_BASE_URI,
-							signature,
-						} as DynamicPriceParametersStruct,
+						[
+							{
+								receiver: alice.address,
+								tokenId: 0,
+								price: ethers.utils.parseEther("0.02"),
+								tokenUri: NFT_721_BASE_URI,
+								signature,
+							} as DynamicPriceParametersStruct,
+						],
 						ETH_ADDRESS,
 						{
 							value: ethers.utils.parseEther("0.02"),
@@ -701,10 +732,20 @@ describe('NFT', () => {
 
 			let signature = EthCrypto.sign(signer.privateKey, message);
 
-			await factory.setFactoryParameters(signer.address, ETH_ADDRESS, validator.address, 1, referralPercentages);
+			await factory.setFactoryParameters(
+				{
+					transferValidator: validator.address,
+					platformAddress: owner.address,
+					signerAddress: signer.address,
+					platformCommission: PLATFORM_COMISSION,
+					defaultPaymentCurrency: ETH_ADDRESS,
+					maxArraySize: 1
+				} as NftFactoryParametersStruct,
+				referralPercentages
+			)
 			await expect(nft_eth
 				.connect(alice)
-				.mintDynamicPriceBatch(
+				.mintDynamicPrice(
 					[
 						{
 							receiver: alice.address,
@@ -726,11 +767,21 @@ describe('NFT', () => {
 						value: ethers.utils.parseEther("0.02"),
 					}
 				)).to.be.revertedWithCustomError(nft_eth, "WrongArraySize");
-			await factory.setFactoryParameters(signer.address, ETH_ADDRESS, validator.address, 20, referralPercentages);
+			await factory.setFactoryParameters(
+				{
+					transferValidator: validator.address,
+					platformAddress: owner.address,
+					signerAddress: signer.address,
+					platformCommission: PLATFORM_COMISSION,
+					defaultPaymentCurrency: ETH_ADDRESS,
+					maxArraySize: 20
+				} as NftFactoryParametersStruct,
+				referralPercentages
+			)
 
 			await nft_eth
 				.connect(alice)
-				.mintDynamicPriceBatch(
+				.mintDynamicPrice(
 					[{
 						receiver: alice.address,
 						tokenId: 0,
@@ -776,7 +827,7 @@ describe('NFT', () => {
 
 			await nft_eth
 				.connect(alice)
-				.mintDynamicPriceBatch(
+				.mintDynamicPrice(
 					dynamicParams,
 					ETH_ADDRESS,
 					{
@@ -793,22 +844,14 @@ describe('NFT', () => {
 			const newPayingToken = bob.address;
 
 			await expect(
-				nft_eth.connect(owner).setPayingToken(newPayingToken, newPrice, newWLPrice)
+				nft_eth.connect(owner).setNftParameters(newPayingToken, newPrice, newWLPrice, true)
 			).to.be.revertedWithCustomError(nft_eth, "Unauthorized");
-
-			await expect(
-				nft_eth.connect(alice).setPayingToken(ZERO_ADDRESS, newPrice, newWLPrice)
-			).to.be.revertedWithCustomError(nft_eth, "ZeroAddressPassed");
-
-			await expect(
-				nft_eth.connect(alice).setPayingToken(newPayingToken, 0, newWLPrice)
-			).to.be.revertedWithCustomError(nft_eth, "InvalidMintPrice");
 
 			await nft_eth
 				.connect(alice)
-				.setPayingToken(newPayingToken, newPrice, newWLPrice);
+				.setNftParameters(newPayingToken, newPrice, newWLPrice, true);
 
-			const [, , infoReturned,] = await nft_eth.parameters();
+			const [, , , , infoReturned] = await nft_eth.parameters();
 
 			expect(infoReturned.payingToken).to.be.equal(newPayingToken);
 			expect(infoReturned.mintPrice).to.be.equal(newPrice);
@@ -839,13 +882,15 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					erc20Example.address,
 					token_price
 				);
@@ -855,7 +900,11 @@ describe('NFT', () => {
 		it("Should mint correctly with erc20 token without fee", async () => {
 			const { factory, nft_erc20, alice, erc20Example, signer, owner } = await loadFixture(fixture);
 
-			await factory.connect(owner).setPlatformParameters(owner.address, 0);
+			nftInfo.platformCommission = 0;
+			await factory.setFactoryParameters(
+				nftInfo,
+				referralPercentages
+			);
 
 			const NFT_721_BASE_URI = "test.com/";
 
@@ -877,13 +926,15 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					erc20Example.address,
 					token_price
 				);
@@ -896,7 +947,11 @@ describe('NFT', () => {
 		it("Should transfer if transferrable", async () => {
 			const { factory, nft_erc20, alice, erc20Example, signer, owner, bob } = await loadFixture(fixture);
 
-			await factory.connect(owner).setPlatformParameters(owner.address, 0);
+			nftInfo.platformCommission = 0;
+			await factory.setFactoryParameters(
+				nftInfo,
+				referralPercentages
+			);
 
 			const NFT_721_BASE_URI = "test.com/";
 
@@ -918,13 +973,15 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					erc20Example.address,
 					token_price
 				);
@@ -937,7 +994,11 @@ describe('NFT', () => {
 		it("Should transfer if transferrable", async () => {
 			const { factory, nft_erc20, alice, erc20Example, signer, owner, bob } = await loadFixture(fixture);
 
-			await factory.connect(owner).setPlatformParameters(owner.address, 0);
+			nftInfo.platformCommission = 0;
+			await factory.setFactoryParameters(
+				nftInfo,
+				referralPercentages
+			);
 
 			const NFT_721_BASE_URI = "test.com/";
 
@@ -959,13 +1020,15 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					erc20Example.address,
 					token_price
 				);
@@ -987,13 +1050,15 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 1,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature: signature2,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 1,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature: signature2,
+						} as StaticPriceParametersStruct,
+					],
 					erc20Example.address,
 					token_price
 				);
@@ -1005,7 +1070,11 @@ describe('NFT', () => {
 		it("Shouldn't transfer if not transferrable", async () => {
 			const { factory, validator, Nft, alice, erc20Example, signer, owner, bob } = await loadFixture(fixture);
 
-			await factory.connect(owner).setPlatformParameters(owner.address, 0);
+			nftInfo.platformCommission = 0;
+			await factory.setFactoryParameters(
+				nftInfo,
+				referralPercentages
+			);
 
 			const NFT_721_BASE_URI = "test.com/";
 
@@ -1014,8 +1083,10 @@ describe('NFT', () => {
 					transferValidator: validator.address,
 					factory: factory.address,
 					info: {
-						name: "InstanceName",
-						symbol: "INNME",
+						metadata: {
+							name: "InstanceName",
+							symbol: "INNME",
+						},
 						contractURI: "ipfs://tbd",
 						payingToken: erc20Example.address,
 						mintPrice: 100,
@@ -1051,13 +1122,15 @@ describe('NFT', () => {
 			await nft
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					erc20Example.address,
 					100
 				);
@@ -1078,8 +1151,10 @@ describe('NFT', () => {
 					transferValidator: validator.address,
 					factory: factory.address,
 					info: {
-						name: "InstanceName",
-						symbol: "INNME",
+						metadata: {
+							name: "InstanceName",
+							symbol: "INNME",
+						},
 						contractURI: "ipfs://tbd",
 						payingToken: erc20Example.address,
 						mintPrice: ethers.utils.parseEther("100"),
@@ -1118,13 +1193,15 @@ describe('NFT', () => {
 			await nft
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: true,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: true,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					erc20Example.address,
 					ethers.utils.parseEther("50"),
 				);
@@ -1160,13 +1237,15 @@ describe('NFT', () => {
 
 			await expect(
 				nft_eth.connect(alice).mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 1,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature: bad_signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 1,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature: bad_signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{ value: ethers.utils.parseEther("0.03"), }
@@ -1191,32 +1270,36 @@ describe('NFT', () => {
 
 			await expect(
 				nft_eth.connect(alice).mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.02"),
 					{ value: ethers.utils.parseEther("0.02"), }
 				)
-			).to.be.revertedWithCustomError(nft_eth, "PriceChanged").withArgs(ethers.utils.parseEther("0.02"), eth_price);
+			).to.be.revertedWithCustomError(nft_eth, "IncorrectETHAmountSent").withArgs(ethers.utils.parseEther("0.02"));
 
 			await expect(
 				nft_eth.connect(alice).mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.02"),
 				)
-			).to.be.revertedWithCustomError(nft_eth, "PriceChanged").withArgs(ethers.utils.parseEther("0.02"), eth_price);
+			).to.be.revertedWithCustomError(nft_eth, "IncorrectETHAmountSent").withArgs(0);
 		});
 
 		it("Should fail with 0 acc balance erc20", async () => {
@@ -1238,13 +1321,15 @@ describe('NFT', () => {
 
 			await expect(
 				nft_erc20.connect(alice).mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 1,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 1,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					erc20Example.address,
 					token_price
 				)
@@ -1271,13 +1356,15 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -1300,7 +1387,11 @@ describe('NFT', () => {
 				.connect(alice)
 				.approve(nft_erc20.address, ethers.constants.MaxUint256);
 
-			await factory.connect(owner).setPlatformParameters(owner.address, 0);
+			nftInfo.platformCommission = 0;
+			await factory.setFactoryParameters(
+				nftInfo,
+				referralPercentages
+			);
 
 			const NFT_721_BASE_URI = "test.com/";
 
@@ -1319,13 +1410,15 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					erc20Example.address,
 					token_price
 				);
@@ -1360,13 +1453,15 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(charlie)
 				.mintStaticPrice(
-					{
-						receiver: charlie.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: charlie.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					erc20Example.address,
 					token_price
 				);
@@ -1389,7 +1484,11 @@ describe('NFT', () => {
 		it("Should withdraw all funds when contract has 0 comission", async () => {
 			const { alice, nft_eth, signer, factory, owner } = await loadFixture(fixture);
 
-			await factory.connect(owner).setPlatformParameters(owner.address, 0);
+			nftInfo.platformCommission = 0;
+			await factory.setFactoryParameters(
+				nftInfo,
+				referralPercentages
+			);
 
 			const NFT_721_BASE_URI = "test.com/";
 
@@ -1408,13 +1507,15 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
-					{
-						receiver: alice.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: alice.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -1447,13 +1548,15 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(charlie)
 				.mintStaticPrice(
-					{
-						receiver: charlie.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: charlie.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -1508,13 +1611,15 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(charlie)
 				.mintStaticPrice(
-					{
-						receiver: charlie.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: charlie.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
@@ -1642,13 +1747,15 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(charlie)
 				.mintStaticPrice(
-					{
-						receiver: charlie.address,
-						tokenId: 0,
-						tokenUri: NFT_721_BASE_URI,
-						whitelisted: false,
-						signature,
-					} as StaticPriceParametersStruct,
+					[
+						{
+							receiver: charlie.address,
+							tokenId: 0,
+							tokenUri: NFT_721_BASE_URI,
+							whitelisted: false,
+							signature,
+						} as StaticPriceParametersStruct,
+					],
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03"),
 					{
