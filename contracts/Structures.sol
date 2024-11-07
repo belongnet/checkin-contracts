@@ -9,18 +9,6 @@ struct ReferralCode {
     address[] referralUsers;
 }
 
-/// @notice Struct for managing referral percentages for different usages.
-struct ReferralPercentages {
-    /// @notice The percentage applied the first time the referral code is used.
-    uint16 initialPercentage;
-    /// @notice The percentage applied the second time the referral code is used.
-    uint16 secondTimePercentage;
-    /// @notice The percentage applied the third time the referral code is used.
-    uint16 thirdTimePercentage;
-    /// @notice The default percentage applied after the third usage of the referral code.
-    uint16 percentageByDefault;
-}
-
 /**
  * @title NftFactoryParameters
  * @notice A struct that contains parameters related to the NFT factory, such as platform and commission details.

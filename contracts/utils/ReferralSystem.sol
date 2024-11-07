@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-import {ReferralPercentages, ReferralCode} from "../Structures.sol";
+import {ReferralCode} from "../Structures.sol";
 
 // ========== Errors ==========
 
@@ -31,7 +31,7 @@ abstract contract ReferralSystem {
 
     /// @notice Emitted when referral percentages are set.
     /// @param percentages The new referral percentages.
-    event PercentagesSet(ReferralPercentages percentages);
+    event PercentagesSet(uint16[5] percentages);
 
     /// @notice Emitted when a new referral code is created.
     /// @param createdBy The address that created the referral code.
@@ -68,7 +68,9 @@ abstract contract ReferralSystem {
      * @return hashedCode The created referral code.
      */
     function createReferralCode() external returns (bytes32 hashedCode) {
-        hashedCode = keccak256(abi.encodePacked(msg.sender, block.chainid));
+        hashedCode = keccak256(
+            abi.encodePacked(msg.sender, address(this), block.chainid)
+        );
 
         require(
             referrals[hashedCode].creator == address(0),
@@ -130,15 +132,16 @@ abstract contract ReferralSystem {
     /**
      * @notice Sets the referral percentages based on the number of times a code is used.
      * @dev Internal function to set referral percentages.
-     * @param percentages A struct containing the referral percentages for initial, second, third, and default use.
+     * @param percentages An array containing the referral percentages for initial, second, third, and default use.
      */
-    function _setReferralPercentages(
-        ReferralPercentages calldata percentages
-    ) internal {
-        usedToPercentage[1] = percentages.initialPercentage;
-        usedToPercentage[2] = percentages.secondTimePercentage;
-        usedToPercentage[3] = percentages.thirdTimePercentage;
-        usedToPercentage[4] = percentages.percentageByDefault;
+    function _setReferralPercentages(uint16[5] calldata percentages) internal {
+        for (uint256 i = 0; i < percentages.length; ) {
+            usedToPercentage[i] = percentages[i];
+
+            unchecked {
+                ++i;
+            }
+        }
 
         emit PercentagesSet(percentages);
     }
