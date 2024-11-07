@@ -98,7 +98,10 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
     constructor(NftParameters memory _params) {
         parameters = _params;
 
-        _setDefaultRoyalty(_params.info.feeReceiver, _params.info.feeNumerator);
+        if (_params.info.feeNumerator > 0) {
+            _setDefaultRoyalty(_params.feeReceiver, _params.info.feeNumerator);
+        }
+
         _setTransferValidator(_params.transferValidator);
 
         _initializeOwner(_params.creator);
