@@ -17,15 +17,6 @@ error AccountNotDuePayment();
 /// @notice Thrown when an account already has shares.
 error AccountHasSharesAlready();
 
-/// @notice Thrown when a division by zero is attempted.
-error DivisionByZero();
-
-/// @notice Thrown when a third payee already exists.
-error ThirdPayeeExists();
-
-/// @notice Thrown when only payees can add a third payee.
-error ThirdPayeeCanBeAddedOnlyByPayees();
-
 /**
  * @title RoyaltiesReceiver
  * @notice A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
@@ -35,7 +26,6 @@ error ThirdPayeeCanBeAddedOnlyByPayees();
  */
 contract RoyaltiesReceiver {
     using SafeTransferLib for address;
-
     /// @notice Emitted when a new payee is added to the contract.
     /// @param account The address of the new payee.
     /// @param shares The number of shares assigned to the payee.
@@ -83,13 +73,18 @@ contract RoyaltiesReceiver {
      * @param payees_ The list of payee addresses.
      * @param shares_ The list of shares corresponding to each payee.
      */
-    constructor(address[2] memory payees_, uint256[2] memory shares_) payable {
+    constructor(address[] memory payees_, uint16[] memory shares_) payable {
         for (uint256 i = 0; i < 2; ) {
             payees[i] = payees_[i];
             _addPayee(payees_[i], shares_[i]);
             unchecked {
                 ++i;
             }
+        }
+
+        if (payees_.length == 3) {
+            payees[2] = payees_[2];
+            _addPayee(payees_[2], shares_[2]);
         }
     }
 
@@ -98,31 +93,6 @@ contract RoyaltiesReceiver {
      */
     receive() external payable {
         emit PaymentReceived(msg.sender, msg.value);
-    }
-
-    /**
-     * @notice Adds a third payee to the contract, if not already present.
-     * @param payee_ The address of the new payee.
-     * @param shares_ The number of shares assigned to the new payee.
-     */
-    function addThirdPayee(address payee_, uint256 shares_) external {
-        require(payees[2] == address(0), ThirdPayeeExists());
-
-        bool isPayeeCaller;
-        for (uint256 i = 0; i < 2; ) {
-            if (msg.sender == payees[i]) {
-                isPayeeCaller = true;
-                break;
-            }
-            unchecked {
-                ++i;
-            }
-        }
-
-        require(isPayeeCaller, ThirdPayeeCanBeAddedOnlyByPayees());
-
-        payees[2] = payee_;
-        _addPayee(payee_, shares_);
     }
 
     /**
@@ -297,9 +267,6 @@ contract RoyaltiesReceiver {
         uint256 alreadyReleased
     ) private view returns (uint256) {
         uint256 _totalShares = sharesAdded.totalShares;
-        if (_totalShares == 0) {
-            revert DivisionByZero();
-        }
 
         uint256 payment = (totalReceived * sharesAdded.shares[account]) /
             _totalShares;

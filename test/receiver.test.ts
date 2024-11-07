@@ -59,5 +59,15 @@ describe("RoyaltiesReceiver", () => {
 				receiver.connect(owner)["releaseAll(address)"](erc20Example.address)
 			).to.be.revertedWithCustomError(receiver, 'AccountNotDuePayment');
 		});
+
+		it("should correct deploy Receiver instance", async () => {
+			const { receiver, alice, owner } = await loadFixture(fixture);
+
+			expect(await receiver.payees(0)).to.be.equal(owner.address);
+			expect(await receiver.payees(1)).to.be.equal(alice.address);
+			expect(await receiver.shares(owner.address)).to.be.equal(3000);
+			expect(await receiver.shares(alice.address)).to.be.equal(7000);
+			expect(await receiver.totalShares()).to.be.equal(10000);
+		});
 	});
 });
