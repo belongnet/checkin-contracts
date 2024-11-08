@@ -34,8 +34,8 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
     event NFTCreated(bytes32 indexed _hash, NftInstanceInfo info);
 
     /// @notice Event emitted when the new factory parameters set.
-    /// @param percentages The referral percentages for the system.
     /// @param nftFactoryParameters The NFT factory parameters to be set.
+    /// @param percentages The referral percentages for the system.
     event FactoryParametersSet(
         NftFactoryParameters nftFactoryParameters,
         uint16[5] percentages
@@ -53,8 +53,8 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
 
     /**
      * @notice Initializes the contract with NFT factory parameters and referral percentages.
-     * @param percentages The referral percentages for the system.
      * @param nftFactoryParameters_ The NFT factory parameters to be set.
+     * @param percentages The referral percentages for the system.
      */
     function initialize(
         NftFactoryParameters calldata nftFactoryParameters_,
