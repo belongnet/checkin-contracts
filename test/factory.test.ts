@@ -213,7 +213,7 @@ describe('NFTFactory', () => {
 		});
 
 		it("should correctly deploy several NFT nfts", async () => {
-			const { factory, owner, alice, bob, charlie, signer } = await loadFixture(fixture);
+			const { factory, alice, bob, charlie, signer } = await loadFixture(fixture);
 
 			const nftName1 = "Name 1";
 			const nftName2 = "Name 2";
@@ -240,28 +240,29 @@ describe('NFTFactory', () => {
 
 			await factory
 				.connect(alice)
-				.produce({
-					metadata: {
-						name: nftName1,
-						symbol: nftSymbol1
-					},
-					contractURI: contractURI1,
-					payingToken: ZERO_ADDRESS,
-					mintPrice: price1,
-					whitelistMintPrice: price1,
-					transferable: true,
-					maxTotalSupply: BigNumber.from("1000"),
-					feeNumerator: BigNumber.from("500"),
-					collectionExpire: BigNumber.from("86400"),
-					signature: signature1,
-				} as InstanceInfoStruct,
+				.produce(
+					{
+						metadata: {
+							name: nftName1,
+							symbol: nftSymbol1
+						},
+						contractURI: contractURI1,
+						payingToken: ZERO_ADDRESS,
+						mintPrice: price1,
+						whitelistMintPrice: price1,
+						transferable: true,
+						maxTotalSupply: BigNumber.from("1000"),
+						feeNumerator: BigNumber.from("500"),
+						collectionExpire: BigNumber.from("86400"),
+						signature: signature1,
+					} as InstanceInfoStruct,
 					ethers.constants.HashZero);
 
 			const message2 = EthCrypto.hash.keccak256([
 				{ type: "string", value: nftName2 },
 				{ type: "string", value: nftSymbol2 },
 				{ type: "string", value: contractURI2 },
-				{ type: "uint96", value: 500 },
+				{ type: "uint96", value: 0 },
 				{ type: "uint256", value: chainId },
 			]);
 
@@ -269,21 +270,22 @@ describe('NFTFactory', () => {
 
 			await factory
 				.connect(bob)
-				.produce({
-					metadata: {
-						name: nftName2,
-						symbol: nftSymbol2
-					},
-					contractURI: contractURI2,
-					payingToken: ETH_ADDRESS,
-					mintPrice: price2,
-					whitelistMintPrice: price2,
-					transferable: true,
-					maxTotalSupply: BigNumber.from("1000"),
-					feeNumerator: BigNumber.from("500"),
-					collectionExpire: BigNumber.from("86400"),
-					signature: signature2,
-				} as InstanceInfoStruct,
+				.produce(
+					{
+						metadata: {
+							name: nftName2,
+							symbol: nftSymbol2
+						},
+						contractURI: contractURI2,
+						payingToken: ETH_ADDRESS,
+						mintPrice: price2,
+						whitelistMintPrice: price2,
+						transferable: true,
+						maxTotalSupply: BigNumber.from("1000"),
+						feeNumerator: 0,
+						collectionExpire: BigNumber.from("86400"),
+						signature: signature2,
+					} as InstanceInfoStruct,
 					ethers.constants.HashZero);
 
 			const message3 = EthCrypto.hash.keccak256([
@@ -298,21 +300,22 @@ describe('NFTFactory', () => {
 
 			await factory
 				.connect(charlie)
-				.produce({
-					metadata: {
-						name: nftName3,
-						symbol: nftSymbol3
-					},
-					contractURI: contractURI3,
-					payingToken: ETH_ADDRESS,
-					mintPrice: price3,
-					whitelistMintPrice: price3,
-					transferable: true,
-					maxTotalSupply: BigNumber.from("1000"),
-					feeNumerator: BigNumber.from("500"),
-					collectionExpire: BigNumber.from("86400"),
-					signature: signature3,
-				} as InstanceInfoStruct,
+				.produce(
+					{
+						metadata: {
+							name: nftName3,
+							symbol: nftSymbol3
+						},
+						contractURI: contractURI3,
+						payingToken: ETH_ADDRESS,
+						mintPrice: price3,
+						whitelistMintPrice: price3,
+						transferable: true,
+						maxTotalSupply: BigNumber.from("1000"),
+						feeNumerator: BigNumber.from("500"),
+						collectionExpire: BigNumber.from("86400"),
+						signature: signature3,
+					} as InstanceInfoStruct,
 					ethers.constants.HashZero);
 
 			const hash1 = EthCrypto.hash.keccak256([
@@ -355,28 +358,31 @@ describe('NFTFactory', () => {
 			console.log("instanceAddress3 = ", instanceInfo3.nftAddress);
 
 			const nft1 = await ethers.getContractAt("NFT", instanceInfo1.nftAddress);
-			let [transferValidator, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft1.parameters();
+			let [, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft1.parameters();
 			expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
 			expect(factoryAddress).to.be.equal(factory.address);
 			expect(infoReturned.mintPrice).to.be.equal(price1);
 			expect(infoReturned.contractURI).to.be.equal(contractURI1);
 			expect(creator).to.be.equal(alice.address);
+			expect(feeReceiver).not.to.be.equal(ZERO_ADDRESS);
 
 			const nft2 = await ethers.getContractAt("NFT", instanceInfo2.nftAddress);
-			[transferValidator, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft2.parameters();
+			[, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft2.parameters();
 			expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
 			expect(factoryAddress).to.be.equal(factory.address);
 			expect(infoReturned.mintPrice).to.be.equal(price2);
 			expect(infoReturned.contractURI).to.be.equal(contractURI2);
 			expect(creator).to.be.equal(bob.address);
+			expect(feeReceiver).to.be.equal(ZERO_ADDRESS);
 
 			const nft3 = await ethers.getContractAt("NFT", instanceInfo3.nftAddress);
-			[transferValidator, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft3.parameters();
+			[, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft3.parameters();
 			expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
 			expect(factoryAddress).to.be.equal(factory.address);
 			expect(infoReturned.mintPrice).to.be.equal(price3);
 			expect(infoReturned.contractURI).to.be.equal(contractURI3);
 			expect(creator).to.be.equal(charlie.address);
+			expect(feeReceiver).not.to.be.equal(ZERO_ADDRESS);
 		});
 	});
 
