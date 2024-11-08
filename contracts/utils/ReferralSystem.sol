@@ -14,6 +14,9 @@ error ReferralCodeExists(address referralCreator, bytes32 hashedCode);
 /// thrown when a referral code is used that does not have an owner.
 error ReferralCodeOwnerError();
 
+/// @notice Error thrown when a user attempts to get a referral rate for a code they haven't used.
+/// @param referralUser The address of the user who did not use the code.
+/// @param code The referral code the user has not used.
 error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
 
 /**

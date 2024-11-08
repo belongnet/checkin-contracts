@@ -7,17 +7,8 @@ import {NFTFactory} from "./factories/NFTFactory.sol";
 
 import {Releases} from "./Structures.sol";
 
-/// @notice Thrown when a zero address is provided where it's not allowed.
-error ZeroAddressPassed();
-
-/// @notice Thrown when zero shares are provided for a payee.
-error ZeroSharesPassed();
-
 /// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment(address account);
-
-/// @notice Thrown when an account already has shares.
-error AccountHasSharesAlready();
 
 /**
  * @title RoyaltiesReceiver
@@ -181,6 +172,11 @@ contract RoyaltiesReceiver {
         return erc20Releases[token].released[account];
     }
 
+    /**
+     * @dev Internal function to release the pending payment for a payee.
+     * @param token The ERC20 token address, or address(0) for native Ether.
+     * @param account The payee's address receiving the payment.
+     */
     function _release(address token, address account) internal {
         bool isNativeRelease = token == address(0);
 

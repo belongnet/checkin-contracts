@@ -29,9 +29,6 @@ error TokenChanged(address currentPayingToken);
 /// @notice Error thrown when an array exceeds the maximum allowed size.
 error WrongArraySize();
 
-/// @notice Thrown when a zero amount is provided where it's not allowed.
-error InvalidMintPrice();
-
 /// @notice Thrown when an unauthorized transfer attempt is made.
 error NotTransferable();
 
