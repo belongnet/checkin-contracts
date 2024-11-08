@@ -1,60 +1,12 @@
 # Solidity API
 
-## ZeroAddressPassed
-
-```solidity
-error ZeroAddressPassed()
-```
-
-Thrown when a zero address is provided where it's not allowed.
-
-## ZeroSharesPassed
-
-```solidity
-error ZeroSharesPassed()
-```
-
-Thrown when zero shares are provided for a payee.
-
 ## AccountNotDuePayment
 
 ```solidity
-error AccountNotDuePayment()
+error AccountNotDuePayment(address account)
 ```
 
 Thrown when an account is not due for payment.
-
-## AccountHasSharesAlready
-
-```solidity
-error AccountHasSharesAlready()
-```
-
-Thrown when an account already has shares.
-
-## DivisionByZero
-
-```solidity
-error DivisionByZero()
-```
-
-Thrown when a division by zero is attempted.
-
-## ThirdPayeeExists
-
-```solidity
-error ThirdPayeeExists()
-```
-
-Thrown when a third payee already exists.
-
-## ThirdPayeeCanBeAddedOnlyByPayees
-
-```solidity
-error ThirdPayeeCanBeAddedOnlyByPayees()
-```
-
-Thrown when only payees can add a third payee.
 
 ## RoyaltiesReceiver
 
@@ -82,7 +34,7 @@ Emitted when a new payee is added to the contract.
 ### PaymentReleased
 
 ```solidity
-event PaymentReleased(address to, uint256 amount)
+event PaymentReleased(address token, address to, uint256 amount)
 ```
 
 Emitted when a payment in native Ether is released.
@@ -91,24 +43,9 @@ Emitted when a payment in native Ether is released.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
+| token | address | The address of the ERC20 token if address(0) then native currency. |
 | to | address | The address receiving the payment. |
 | amount | uint256 | The amount of Ether released. |
-
-### ERC20PaymentReleased
-
-```solidity
-event ERC20PaymentReleased(address token, address to, uint256 amount)
-```
-
-Emitted when a payment in ERC20 tokens is released.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| token | address | The address of the ERC20 token. |
-| to | address | The address receiving the payment. |
-| amount | uint256 | The amount of tokens released. |
 
 ### PaymentReceived
 
@@ -125,13 +62,13 @@ Emitted when the contract receives native Ether.
 | from | address | The address sending the Ether. |
 | amount | uint256 | The amount of Ether received. |
 
-### ARRAY_SIZE
+### TOTAL_SHARES
 
 ```solidity
-uint256 ARRAY_SIZE
+uint256 TOTAL_SHARES
 ```
 
-Maximum array size used.
+Total shares amount.
 
 ### payees
 
@@ -141,34 +78,18 @@ address[3] payees
 
 List of payee addresses. Returns the address of the payee at the given index.
 
-### sharesAdded
+### shares
 
 ```solidity
-struct SharesAdded sharesAdded
+mapping(address => uint256) shares
 ```
 
-Struct storing payee shares and total shares.
-
-### nativeReleases
-
-```solidity
-struct Releases nativeReleases
-```
-
-Struct for tracking native Ether releases.
-
-### erc20Releases
-
-```solidity
-mapping(address => struct Releases) erc20Releases
-```
-
-Mapping of ERC20 token addresses to their respective release tracking structs.
+Returns the number of shares held by a specific payee.
 
 ### constructor
 
 ```solidity
-constructor(address[2] payees_, uint256[2] shares_) public payable
+constructor(bytes32 referralCode, address[3] payees_) public
 ```
 
 Initializes the contract with a list of payees and their respective shares.
@@ -177,8 +98,8 @@ Initializes the contract with a list of payees and their respective shares.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| payees_ | address[2] | The list of payee addresses. |
-| shares_ | uint256[2] | The list of shares corresponding to each payee. |
+| referralCode | bytes32 | The referral code associated with this NFT instance. |
+| payees_ | address[3] | The list of payee addresses. |
 
 ### receive
 
@@ -187,21 +108,6 @@ receive() external payable
 ```
 
 Logs the receipt of Ether. Called when the contract receives Ether.
-
-### addThirdPayee
-
-```solidity
-function addThirdPayee(address payee_, uint256 shares_) external
-```
-
-Adds a third payee to the contract, if not already present.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| payee_ | address | The address of the new payee. |
-| shares_ | uint256 | The number of shares assigned to the new payee. |
 
 ### releaseAll
 
@@ -224,40 +130,6 @@ Releases all pending ERC20 token payments for a given token to the payees.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | token | address | The address of the ERC20 token to be released. |
-
-### totalShares
-
-```solidity
-function totalShares() external view returns (uint256)
-```
-
-Returns the total number of shares assigned to all payees.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The total shares. |
-
-### shares
-
-```solidity
-function shares(address account) external view returns (uint256)
-```
-
-Returns the number of shares held by a specific payee.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| account | address | The address of the payee. |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The number of shares held by the payee. |
 
 ### totalReleased
 
@@ -334,32 +206,18 @@ Returns the amount of a specific ERC20 token already released to a specific paye
 | ---- | ---- | ----------- |
 | [0] | uint256 | The amount of tokens released to the payee. |
 
-### _releaseNative
+### _release
 
 ```solidity
-function _releaseNative(address account) internal
+function _release(address token, address account) internal
 ```
 
-_Releases pending native Ether to a payee._
+_Internal function to release the pending payment for a payee._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| account | address | The address of the payee. |
-
-### _releaseERC20
-
-```solidity
-function _releaseERC20(address token, address account) internal
-```
-
-_Releases pending ERC20 tokens to a payee._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| token | address | The address of the ERC20 token. |
-| account | address | The address of the payee. |
+| token | address | The ERC20 token address, or address(0) for native Ether. |
+| account | address | The payee's address receiving the payment. |
 

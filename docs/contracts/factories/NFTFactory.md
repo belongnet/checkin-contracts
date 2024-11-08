@@ -1,28 +1,5 @@
 # Solidity API
 
-## InvalidSignature
-
-```solidity
-error InvalidSignature()
-```
-
-Error thrown when the signature provided is invalid.
-
-## EmptyNameSymbolPassed
-
-```solidity
-error EmptyNameSymbolPassed(string name, string symbol)
-```
-
-Error thrown when an empty name or symbol is provided for an NFT.
-
-### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| name | string | The name that was passed (empty). |
-| symbol | string | The symbol that was passed (empty). |
-
 ## NFTAlreadyExists
 
 ```solidity
@@ -30,14 +7,6 @@ error NFTAlreadyExists()
 ```
 
 Error thrown when an NFT with the same name and symbol already exists.
-
-## ZeroAddressPassed
-
-```solidity
-error ZeroAddressPassed()
-```
-
-Error thrown when a zero address is passed where it's not allowed.
 
 ## NFTFactory
 
@@ -60,25 +29,10 @@ Event emitted when a new NFT is created.
 | _hash | bytes32 | The keccak256 hash of the NFT's name and symbol. |
 | info | struct NftInstanceInfo | The information about the created NFT instance. |
 
-### PlatformParametersSet
-
-```solidity
-event PlatformParametersSet(address newPlatformAddress, uint256 newCommission)
-```
-
-Event emitted when the platform address and commission is set.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| newPlatformAddress | address | The new platform address. |
-| newCommission | uint256 | The new platform commission in basis points. |
-
 ### FactoryParametersSet
 
 ```solidity
-event FactoryParametersSet(address newSigner, address defaultPaymentCurrency, address newValidator, uint256 arraySize)
+event FactoryParametersSet(struct NftFactoryParameters nftFactoryParameters, uint16[5] percentages)
 ```
 
 Event emitted when the new factory parameters set.
@@ -87,10 +41,8 @@ Event emitted when the new factory parameters set.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| newSigner | address | The new signer address. |
-| defaultPaymentCurrency | address | The new default payment currency. |
-| newValidator | address | The new transfer validator contract. |
-| arraySize | uint256 | The new maximum array size. |
+| nftFactoryParameters | struct NftFactoryParameters | The NFT factory parameters to be set. |
+| percentages | uint16[5] | The referral percentages for the system. |
 
 ### getNftInstanceInfo
 
@@ -100,24 +52,10 @@ mapping(bytes32 => struct NftInstanceInfo) getNftInstanceInfo
 
 A mapping from keccak256(name, symbol) to the NFT instance address.
 
-### zeroAddressCheck
-
-```solidity
-modifier zeroAddressCheck(address _address)
-```
-
-Modifier to check if the passed address is not zero.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _address | address | The address to check. |
-
 ### initialize
 
 ```solidity
-function initialize(struct ReferralPercentages percentages, struct NftFactoryParameters nftFactoryParameters_) external
+function initialize(struct NftFactoryParameters nftFactoryParameters_, uint16[5] percentages) external
 ```
 
 Initializes the contract with NFT factory parameters and referral percentages.
@@ -126,8 +64,8 @@ Initializes the contract with NFT factory parameters and referral percentages.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| percentages | struct ReferralPercentages | The referral percentages for the system. |
 | nftFactoryParameters_ | struct NftFactoryParameters | The NFT factory parameters to be set. |
+| percentages | uint16[5] | The referral percentages for the system. |
 
 ### produce
 
@@ -135,7 +73,7 @@ Initializes the contract with NFT factory parameters and referral percentages.
 function produce(struct InstanceInfo _info, bytes32 referralCode) external returns (address nftAddress)
 ```
 
-Produces a new NFT instance.
+Produces a new NFT i nstance.
 
 _Creates a new instance of the NFT and adds the information to the storage contract._
 
@@ -155,39 +93,19 @@ _Creates a new instance of the NFT and adds the information to the storage contr
 ### setFactoryParameters
 
 ```solidity
-function setFactoryParameters(address _signer, address _paymentCurrency, address _validator, uint256 _arraySize, struct ReferralPercentages percentages) external
+function setFactoryParameters(struct NftFactoryParameters nftFactoryParameters_, uint16[5] percentages) external
 ```
 
 Sets new factory parameters.
 
-_Can only be called by the owner._
+_Can only be called by the owner (BE)._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _signer | address | The new signer address. |
-| _paymentCurrency | address | The new default payment currency address. |
-| _validator | address | The new transfer validator contract. |
-| _arraySize | uint256 | The new maximum array size. |
-| percentages | struct ReferralPercentages |  |
-
-### setPlatformParameters
-
-```solidity
-function setPlatformParameters(address _platformAddress, uint256 _platformCommission) external
-```
-
-Sets a new platform address and commission.
-
-_Can only be called by the owner._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _platformAddress | address | The new platform address. |
-| _platformCommission | uint256 | The new platform commission in basis points. |
+| nftFactoryParameters_ | struct NftFactoryParameters | The NFT factory parameters to be set. |
+| percentages | uint16[5] | An array containing the referral percentages for initial, second, third, and default use. |
 
 ### nftFactoryParameters
 
