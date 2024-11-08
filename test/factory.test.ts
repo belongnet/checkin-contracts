@@ -2,7 +2,7 @@
 import { ethers, upgrades } from 'hardhat';
 import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, BigNumberish, ContractFactory } from "ethers";
-import { WETHMock, MockTransferValidator, NFTFactory } from "../typechain-types";
+import { WETHMock, MockTransferValidator, NFTFactory, RoyaltiesReceiver } from "../typechain-types";
 import { expect } from "chai";
 import { InstanceInfoStruct } from "../typechain-types/contracts/NFT";
 import EthCrypto from "eth-crypto";
@@ -73,7 +73,7 @@ describe('NFTFactory', () => {
 	});
 
 	describe('Deploy NFT', () => {
-		it("should correct deploy NFT instance", async () => {
+		it.only("should correct deploy NFT instance", async () => {
 			const { factory, validator, owner, alice, signer } = await loadFixture(fixture);
 
 			const nftName = "Name 1";
@@ -193,6 +193,23 @@ describe('NFTFactory', () => {
 			expect(infoReturned.mintPrice).to.be.equal(info.mintPrice);
 			expect(infoReturned.contractURI).to.be.equal(info.contractURI);
 			expect(creator).to.be.equal(alice.address);
+
+			const RoyaltiesReceiver: RoyaltiesReceiver = await ethers.getContractAt("RoyaltiesReceiver", feeReceiver);
+
+			let payees: string[] = [];
+			let shares: BigNumber[] = [];
+
+			for (let i = 0; i < 3; ++i) {
+				payees[i] = (await RoyaltiesReceiver.payees(i));
+				shares[i] = (await RoyaltiesReceiver.shares(payees[i]));
+			}
+
+			expect(payees[0]).to.eq(alice.address);
+			expect(payees[1]).to.eq((await factory.nftFactoryParameters()).platformAddress);
+			expect(payees[2]).to.eq(ZERO_ADDRESS);
+			expect(shares[0]).to.eq(8000);
+			expect(shares[1]).to.eq(2000);
+			expect(shares[2]).to.eq(0);
 		});
 
 		it("should correctly deploy several NFT nfts", async () => {
