@@ -14,7 +14,7 @@ error ZeroAddressPassed();
 error ZeroSharesPassed();
 
 /// @notice Thrown when an account is not due for payment.
-error AccountNotDuePayment();
+error AccountNotDuePayment(address account);
 
 /// @notice Thrown when an account already has shares.
 error AccountHasSharesAlready();
@@ -35,15 +35,10 @@ contract RoyaltiesReceiver {
     event PayeeAdded(address indexed account, uint256 shares);
 
     /// @notice Emitted when a payment in native Ether is released.
+    /// @param token The address of the ERC20 token if address(0) then native currency.
     /// @param to The address receiving the payment.
     /// @param amount The amount of Ether released.
-    event PaymentReleased(address indexed to, uint256 amount);
-
-    /// @notice Emitted when a payment in ERC20 tokens is released.
-    /// @param token The address of the ERC20 token.
-    /// @param to The address receiving the payment.
-    /// @param amount The amount of tokens released.
-    event ERC20PaymentReleased(
+    event PaymentReleased(
         address indexed token,
         address indexed to,
         uint256 amount
@@ -74,10 +69,10 @@ contract RoyaltiesReceiver {
     mapping(address => uint256) public shares;
 
     /// @notice Struct for tracking native Ether releases.
-    Releases public nativeReleases;
+    Releases private nativeReleases;
 
     /// @notice Mapping of ERC20 token addresses to their respective release tracking structs.
-    mapping(address => Releases) public erc20Releases;
+    mapping(address => Releases) private erc20Releases;
 
     /**
      * @notice Initializes the contract with a list of payees and their respective shares.
@@ -124,7 +119,7 @@ contract RoyaltiesReceiver {
         uint8 arraySize = _payees[2] != address(0) ? 3 : 2;
 
         for (uint256 i = 0; i < arraySize; ) {
-            _releaseNative(_payees[i]);
+            _release(address(0), _payees[i]);
             unchecked {
                 ++i;
             }
@@ -140,7 +135,7 @@ contract RoyaltiesReceiver {
         uint256 arraySize = _payees[2] != address(0) ? 3 : 2;
 
         for (uint256 i = 0; i < arraySize; ) {
-            _releaseERC20(token, _payees[i]);
+            _release(token, _payees[i]);
             unchecked {
                 ++i;
             }
@@ -186,62 +181,35 @@ contract RoyaltiesReceiver {
         return erc20Releases[token].released[account];
     }
 
-    /**
-     * @dev Releases pending native Ether to a payee.
-     * @param account The address of the payee.
-     */
-    function _releaseNative(address account) internal {
-        uint256 toRelease = _pendingPayment(
-            account,
-            address(this).balance + nativeReleases.totalReleased,
-            nativeReleases.released[account]
-        );
+    function _release(address token, address account) internal {
+        bool isNativeRelease = token == address(0);
 
-        if (toRelease == 0) {
-            revert AccountNotDuePayment();
+        uint256 toRelease = isNativeRelease
+            ? _pendingPayment(
+                account,
+                address(this).balance + nativeReleases.totalReleased,
+                nativeReleases.released[account]
+            )
+            : _pendingPayment(
+                account,
+                token.balanceOf(address(this)) +
+                    erc20Releases[token].totalReleased,
+                erc20Releases[token].released[account]
+            );
+
+        if (token == address(0)) {
+            nativeReleases.released[account] += toRelease;
+            nativeReleases.totalReleased += toRelease;
+
+            account.safeTransferETH(toRelease);
+        } else {
+            erc20Releases[token].released[account] += toRelease;
+            erc20Releases[token].totalReleased += toRelease;
+
+            token.safeTransfer(account, toRelease);
         }
 
-        nativeReleases.released[account] += toRelease;
-        nativeReleases.totalReleased += toRelease;
-
-        account.safeTransferETH(toRelease);
-
-        emit PaymentReleased(account, toRelease);
-    }
-
-    /**
-     * @dev Releases pending ERC20 tokens to a payee.
-     * @param token The address of the ERC20 token.
-     * @param account The address of the payee.
-     */
-    function _releaseERC20(address token, address account) internal {
-        Releases storage _erc20Releases = erc20Releases[token];
-
-        uint256 toRelease = _pendingPayment(
-            account,
-            token.balanceOf(address(this)) + _erc20Releases.totalReleased,
-            _erc20Releases.released[account]
-        );
-
-        if (toRelease == 0) {
-            revert AccountNotDuePayment();
-        }
-
-        _erc20Releases.released[account] += toRelease;
-        _erc20Releases.totalReleased += toRelease;
-
-        token.safeTransfer(account, toRelease);
-
-        emit ERC20PaymentReleased(token, account, toRelease);
-    }
-
-    /**
-     * @dev Adds a new payee to the contract with a given number of shares.
-     * @param account The address of the payee.
-     * @param shares_ The number of shares assigned to the payee.
-     */
-    function _addPayee(address account, uint256 shares_) private {
-        emit PayeeAdded(account, shares_);
+        emit PaymentReleased(token, account, toRelease);
     }
 
     /**
@@ -259,8 +227,9 @@ contract RoyaltiesReceiver {
         uint256 payment = (totalReceived * shares[account]) / TOTAL_SHARES;
 
         if (payment <= alreadyReleased) {
-            return 0;
+            revert AccountNotDuePayment(account);
         }
+
         return payment - alreadyReleased;
     }
 }
