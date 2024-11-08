@@ -1,7 +1,7 @@
 import { ethers, upgrades } from 'hardhat';
 import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, ContractFactory } from "ethers";
-import { WETHMock, MockTransferValidator, NFTFactory } from "../typechain-types";
+import { WETHMock, MockTransferValidator, NFTFactory, RoyaltiesReceiver } from "../typechain-types";
 import { expect } from "chai";
 import { InstanceInfoStruct, NFT, NftParametersStruct } from "../typechain-types/contracts/NFT";
 import EthCrypto from "eth-crypto";
@@ -122,18 +122,30 @@ describe.only('NFT', () => {
 				[nftName, nftSymbol]
 			))).nftAddress);
 
+		const receiver_eth: RoyaltiesReceiver = await ethers.getContractAt("RoyaltiesReceiver", (await factory.getNftInstanceInfo(
+			ethers.utils.solidityKeccak256(
+				['string', 'string'],
+				[nftName, nftSymbol]
+			))).royaltiesReceiver);
+
 		const nft_erc20: NFT = await ethers.getContractAt("NFT", (await factory.getNftInstanceInfo(
 			ethers.utils.solidityKeccak256(
 				['string', 'string'],
 				[nftName + '2', nftSymbol + '2']
 			))).nftAddress);
 
-		return { factory, nft_eth, nft_erc20, Nft, validator, erc20Example, owner, alice, bob, charlie, pete, signer, hashedCode, NFTFactory };
+		const receiver_erc20: RoyaltiesReceiver = await ethers.getContractAt("RoyaltiesReceiver", (await factory.getNftInstanceInfo(
+			ethers.utils.solidityKeccak256(
+				['string', 'string'],
+				[nftName + '2', nftSymbol + '2']
+			))).royaltiesReceiver);
+
+		return { factory, nft_eth, receiver_eth, nft_erc20, receiver_erc20, Nft, validator, erc20Example, owner, alice, bob, charlie, pete, signer, hashedCode, NFTFactory };
 	}
 
 	describe('Deployment', () => {
 		it("Should be deployed correctly", async () => {
-			const { factory, validator, nft_eth, nft_erc20, alice } = await loadFixture(fixture);
+			const { factory, validator, nft_eth, receiver_eth, nft_erc20, receiver_erc20, alice } = await loadFixture(fixture);
 
 			let [, , , feeReceiver, , infoReturned] = await nft_eth.parameters();
 			expect(infoReturned.metadata.name).to.be.equal(instanceInfoETH.metadata.name);
@@ -143,6 +155,7 @@ describe.only('NFT', () => {
 			expect(infoReturned.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
 			expect(infoReturned.whitelistMintPrice).to.be.equal(instanceInfoETH.whitelistMintPrice);
 			expect(infoReturned.transferable).to.be.equal(instanceInfoETH.transferable);
+			expect(feeReceiver).to.be.equal(receiver_eth.address);
 
 			expect((await nft_eth.parameters()).factory).to.be.equal(factory.address);
 			expect(await nft_eth.name()).to.be.equal(instanceInfoETH.metadata.name);
@@ -158,11 +171,10 @@ describe.only('NFT', () => {
 			expect(await nft_eth.contractURI()).to.be.equal(instanceInfoETH.contractURI);
 			expect(await nft_eth.getTransferValidator()).to.be.equal(validator.address);
 
-
 			[, , , feeReceiver, , infoReturned] = await nft_erc20.parameters();
 			expect(infoReturned.maxTotalSupply).to.be.equal(instanceInfoToken.maxTotalSupply);
 			expect(infoReturned.feeNumerator).to.be.equal(instanceInfoToken.feeNumerator);
-			expect(feeReceiver).to.be.equal(instanceInfoToken.feeReceiver);
+			expect(feeReceiver).to.be.equal(receiver_erc20.address);
 			expect(infoReturned.collectionExpire).to.be.equal(instanceInfoToken.collectionExpire);
 			expect(infoReturned.signature).to.be.equal(instanceInfoToken.signature);
 			expect(infoReturned.payingToken).to.be.equal(instanceInfoToken.payingToken);
@@ -346,7 +358,7 @@ describe.only('NFT', () => {
 
 	describe('Mint', () => {
 		it("Should mint correctly static prices", async () => {
-			const { nft_eth, owner, alice, signer } = await loadFixture(fixture);
+			const { nft_eth, receiver_eth, owner, alice, signer } = await loadFixture(fixture);
 
 			const NFT_721_BASE_URI = "test.com/";
 
@@ -448,7 +460,7 @@ describe.only('NFT', () => {
 
 			const [receiver, realResult] = await nft_eth.royaltyInfo(0, salePrice);
 			expect(expectedResult).to.be.equal(realResult);
-			expect(receiver).to.be.equal(owner.address);
+			expect(receiver).to.be.equal(receiver_eth.address);
 
 			for (let i = 1; i < 10; i++) {
 				const message = EthCrypto.hash.keccak256([

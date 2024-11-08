@@ -73,7 +73,7 @@ describe('NFTFactory', () => {
 	});
 
 	describe('Deploy NFT', () => {
-		it.only("should correct deploy NFT instance", async () => {
+		it("should correct deploy NFT instance", async () => {
 			const { factory, validator, owner, alice, signer } = await loadFixture(fixture);
 
 			const nftName = "Name 1";
