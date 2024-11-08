@@ -140,7 +140,8 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         NftInstanceInfo memory info = NftInstanceInfo({
             creator: msg.sender,
             nftAddress: nftAddress,
-            metadata: _info.metadata
+            metadata: _info.metadata,
+            royaltiesReceiver: receiver
         });
 
         getNftInstanceInfo[_hash] = info;

@@ -96,6 +96,8 @@ struct NftInstanceInfo {
     address creator;
     /// @notice The address of the NFT contract instance.
     address nftAddress;
+    /// @notice The address of the Royalties Receiver contract instance.
+    address royaltiesReceiver;
     NftMetadata metadata;
 }
 
