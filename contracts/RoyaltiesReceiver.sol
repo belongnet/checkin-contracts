@@ -55,13 +55,13 @@ contract RoyaltiesReceiver {
     event PaymentReceived(address indexed from, uint256 amount);
 
     /// @notice Maximum array size used.
-    uint256 public constant ARRAY_SIZE = 3;
+    uint256 private constant ARRAY_SIZE = 3;
     /// @notice Total shares amount.
     uint256 public constant TOTAL_SHARES = 10000;
     /// @notice Amount goes to creator.
-    uint16 constant AMOUNT_TO_CREATOR = 8000;
+    uint16 private constant AMOUNT_TO_CREATOR = 8000;
     /// @notice Amount goes to platform.
-    uint16 constant AMOUNT_TO_PLATFORM = 2000;
+    uint16 private constant AMOUNT_TO_PLATFORM = 2000;
 
     /**
      * @notice List of payee addresses. Returns the address of the payee at the given index.
@@ -71,7 +71,7 @@ contract RoyaltiesReceiver {
     /**
      * @notice Returns the number of shares held by a specific payee.
      */
-    mapping(address => uint256) shares;
+    mapping(address => uint256) public shares;
 
     /// @notice Struct for tracking native Ether releases.
     Releases public nativeReleases;
