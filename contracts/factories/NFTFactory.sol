@@ -51,6 +51,11 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
 
     // ========== Functions ==========
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
      * @notice Initializes the contract with NFT factory parameters and referral percentages.
      * @param nftFactoryParameters_ The NFT factory parameters to be set.
