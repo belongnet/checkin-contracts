@@ -52,6 +52,12 @@ mapping(bytes32 => struct NftInstanceInfo) getNftInstanceInfo
 
 A mapping from keccak256(name, symbol) to the NFT instance address.
 
+### constructor
+
+```solidity
+constructor() public
+```
+
 ### initialize
 
 ```solidity

@@ -8,6 +8,14 @@ error AccountNotDuePayment(address account)
 
 Thrown when an account is not due for payment.
 
+## OnlyToPayee
+
+```solidity
+error OnlyToPayee()
+```
+
+Thrown when transfer is not to a payee.
+
 ## RoyaltiesReceiver
 
 A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
@@ -130,6 +138,29 @@ Releases all pending ERC20 token payments for a given token to the payees.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | token | address | The address of the ERC20 token to be released. |
+
+### release
+
+```solidity
+function release(address to) external
+```
+
+Releases pending native Ether payments to the payee.
+
+### release
+
+```solidity
+function release(address token, address to) external
+```
+
+Releases pending ERC20 token payments for a given token to the payee.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| token | address | The address of the ERC20 token to be released. |
+| to | address |  |
 
 ### totalReleased
 
