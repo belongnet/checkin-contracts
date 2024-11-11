@@ -10,6 +10,9 @@ import {Releases} from "./Structures.sol";
 /// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment(address account);
 
+/// @notice Thrown when transfer is not to a payee.
+error OnlyToPayee();
+
 /**
  * @title RoyaltiesReceiver
  * @notice A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
@@ -123,6 +126,23 @@ contract RoyaltiesReceiver {
         for (uint256 i = 0; i < arraySize; ++i) {
             _release(token, _payees[i]);
         }
+    }
+
+    /**
+     * @notice Releases pending native Ether payments to the payee.
+     */
+    function release(address to) external {
+        _onlyToPayee(to);
+        _release(address(0), to);
+    }
+
+    /**
+     * @notice Releases pending ERC20 token payments for a given token to the payee.
+     * @param token The address of the ERC20 token to be released.
+     */
+    function releaseAll(address token, address to) external {
+        _onlyToPayee(to);
+        _release(token, to);
     }
 
     /**
