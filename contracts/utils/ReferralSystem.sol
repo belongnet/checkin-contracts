@@ -103,15 +103,11 @@ abstract contract ReferralSystem {
 
         // Check if the user is already in the array
         bool inArray;
-        for (uint256 i = 0; i < referral.referralUsers.length; ) {
+        for (uint256 i = 0; i < referral.referralUsers.length; ++i) {
             if (referral.referralUsers[i] == referralUser) {
                 // User already added; no need to add again
                 inArray = true;
                 break;
-            }
-
-            unchecked {
-                ++i;
             }
         }
 
@@ -134,12 +130,8 @@ abstract contract ReferralSystem {
      * @param percentages An array containing the referral percentages for initial, second, third, and default use.
      */
     function _setReferralPercentages(uint16[5] calldata percentages) internal {
-        for (uint256 i = 0; i < percentages.length; ) {
+        for (uint256 i = 0; i < percentages.length; ++i) {
             usedToPercentage[i] = percentages[i];
-
-            unchecked {
-                ++i;
-            }
         }
 
         emit PercentagesSet(percentages);

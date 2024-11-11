@@ -157,7 +157,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
         InstanceInfo memory info = parameters.info;
 
         uint256 amountToPay;
-        for (uint256 i = 0; i < paramsArray.length; ) {
+        for (uint256 i = 0; i < paramsArray.length; ++i) {
             NFTFactory(parameters.factory)
                 .nftFactoryParameters()
                 .signerAddress
@@ -177,10 +177,6 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
                 paramsArray[i].receiver,
                 paramsArray[i].tokenUri
             );
-
-            unchecked {
-                ++i;
-            }
         }
 
         require(
@@ -208,7 +204,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
         );
 
         uint256 amountToPay;
-        for (uint256 i = 0; i < paramsArray.length; ) {
+        for (uint256 i = 0; i < paramsArray.length; ++i) {
             NFTFactory(parameters.factory)
                 .nftFactoryParameters()
                 .signerAddress
@@ -223,10 +219,6 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
                 paramsArray[i].receiver,
                 paramsArray[i].tokenUri
             );
-
-            unchecked {
-                ++i;
-            }
         }
 
         _pay(amountToPay, expectedPayingToken);

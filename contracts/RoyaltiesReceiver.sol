@@ -109,11 +109,8 @@ contract RoyaltiesReceiver {
         address[ARRAY_SIZE] memory _payees = payees;
         uint8 arraySize = _payees[2] != address(0) ? 3 : 2;
 
-        for (uint256 i = 0; i < arraySize; ) {
+        for (uint256 i = 0; i < arraySize; ++i) {
             _release(address(0), _payees[i]);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -125,11 +122,8 @@ contract RoyaltiesReceiver {
         address[ARRAY_SIZE] memory _payees = payees;
         uint256 arraySize = _payees[2] != address(0) ? 3 : 2;
 
-        for (uint256 i = 0; i < arraySize; ) {
+        for (uint256 i = 0; i < arraySize; ++i) {
             _release(token, _payees[i]);
-            unchecked {
-                ++i;
-            }
         }
     }
 
