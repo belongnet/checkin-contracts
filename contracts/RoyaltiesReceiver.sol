@@ -106,8 +106,7 @@ contract RoyaltiesReceiver {
      * @notice Releases all pending native Ether payments to the payees.
      */
     function releaseAll() external {
-        address[ARRAY_SIZE] memory _payees = payees;
-        uint8 arraySize = _payees[2] != address(0) ? 3 : 2;
+        (uint256 arraySize, address[ARRAY_SIZE] memory _payees) = _payeesInfo();
 
         for (uint256 i = 0; i < arraySize; ++i) {
             _release(address(0), _payees[i]);
@@ -119,8 +118,7 @@ contract RoyaltiesReceiver {
      * @param token The address of the ERC20 token to be released.
      */
     function releaseAll(address token) external {
-        address[ARRAY_SIZE] memory _payees = payees;
-        uint256 arraySize = _payees[2] != address(0) ? 3 : 2;
+        (uint256 arraySize, address[ARRAY_SIZE] memory _payees) = _payeesInfo();
 
         for (uint256 i = 0; i < arraySize; ++i) {
             _release(token, _payees[i]);
@@ -187,7 +185,7 @@ contract RoyaltiesReceiver {
                 erc20Releases[token].released[account]
             );
 
-        if (token == address(0)) {
+        if (isNativeRelease) {
             nativeReleases.released[account] += toRelease;
             nativeReleases.totalReleased += toRelease;
 
@@ -221,5 +219,30 @@ contract RoyaltiesReceiver {
         }
 
         return payment - alreadyReleased;
+    }
+
+    function _onlyToPayee(address account) private view {
+        (uint256 arraySize, address[ARRAY_SIZE] memory _payees) = _payeesInfo();
+
+        bool isPayee;
+        for (uint256 i = 0; i < arraySize; ++i) {
+            if (account == _payees[i]) {
+                isPayee = true;
+                break;
+            }
+        }
+
+        if (!isPayee) {
+            revert OnlyToPayee();
+        }
+    }
+
+    function _payeesInfo()
+        private
+        view
+        returns (uint256 arraySize, address[ARRAY_SIZE] memory _payees)
+    {
+        _payees = payees;
+        arraySize = _payees[2] != address(0) ? 3 : 2;
     }
 }
