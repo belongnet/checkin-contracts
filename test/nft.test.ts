@@ -1728,6 +1728,76 @@ describe('NFT', () => {
 			expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(
 				ethers.utils.parseEther("0.2")
 			);
+
+			// NFT was sold for ETH 2
+
+			tx = {
+				from: owner.address,
+				to: receiver.address,
+				value: ethers.utils.parseEther("1"),
+				gasLimit: 1000000,
+			};
+
+			await owner.sendTransaction(tx);
+
+			creatorBalanceBefore = await alice.getBalance();
+			platformBalanceBefore = await owner.getBalance();
+
+			await receiver.connect(bob)["release(address)"](alice.address);
+
+			expect(await receiver['totalReleased()']()).to.eq(ethers.utils.parseEther("1.8"));
+			expect(await receiver['released(address)'](alice.address)).to.eq(ethers.utils.parseEther("1.6"));
+			expect(await receiver['released(address)'](owner.address)).to.eq(ethers.utils.parseEther("0.2"));
+
+			creatorBalanceAfter = await alice.getBalance();
+			platformBalanceAfter = await owner.getBalance();
+
+			expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(
+				ethers.utils.parseEther("0.8")
+			);
+			expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(0);
+
+			// NFT was sold for ERC20 2
+
+			creatorBalanceBefore = await erc20Example.balanceOf(alice.address);
+			platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
+
+			await erc20Example
+				.connect(owner).mint(receiver.address, ethers.utils.parseEther("1"));
+
+			await receiver.connect(bob)['release(address,address)'](erc20Example.address, owner.address);
+
+			expect(await receiver['totalReleased(address)'](erc20Example.address)).to.eq(ethers.utils.parseEther("1.2"));
+			expect(await receiver['released(address,address)'](erc20Example.address, alice.address)).to.eq(ethers.utils.parseEther("0.8"));
+			expect(await receiver['released(address,address)'](erc20Example.address, owner.address)).to.eq(ethers.utils.parseEther("0.4"));
+
+			creatorBalanceAfter = await erc20Example.balanceOf(alice.address);
+			platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
+
+			expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(0);
+			expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(
+				ethers.utils.parseEther("0.2")
+			);
+
+			// NFT was sold for ERC20 3
+
+			creatorBalanceBefore = await erc20Example.balanceOf(alice.address);
+			platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
+
+			await expect(receiver.connect(bob)['release(address,address)'](erc20Example.address, charlie.address)).to.be.revertedWithCustomError(
+				receiver, "OnlyToPayee"
+			);
+			await receiver.connect(bob)['release(address,address)'](erc20Example.address, owner.address);
+
+			expect(await receiver['totalReleased(address)'](erc20Example.address)).to.eq(ethers.utils.parseEther("1.2"));
+			expect(await receiver['released(address,address)'](erc20Example.address, alice.address)).to.eq(ethers.utils.parseEther("0.8"));
+			expect(await receiver['released(address,address)'](erc20Example.address, owner.address)).to.eq(ethers.utils.parseEther("0.4"));
+
+			creatorBalanceAfter = await erc20Example.balanceOf(alice.address);
+			platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
+
+			expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(0);
+			expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(0);
 		});
 
 		it("Should correct distribute royalties 3 payees", async () => {

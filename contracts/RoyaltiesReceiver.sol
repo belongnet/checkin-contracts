@@ -140,7 +140,7 @@ contract RoyaltiesReceiver {
      * @notice Releases pending ERC20 token payments for a given token to the payee.
      * @param token The address of the ERC20 token to be released.
      */
-    function releaseAll(address token, address to) external {
+    function release(address token, address to) external {
         _onlyToPayee(to);
         _release(token, to);
     }
@@ -205,6 +205,10 @@ contract RoyaltiesReceiver {
                 erc20Releases[token].released[account]
             );
 
+        if (toRelease == 0) {
+            return;
+        }
+
         if (isNativeRelease) {
             nativeReleases.released[account] += toRelease;
             nativeReleases.totalReleased += toRelease;
@@ -235,7 +239,7 @@ contract RoyaltiesReceiver {
         uint256 payment = (totalReceived * shares[account]) / TOTAL_SHARES;
 
         if (payment <= alreadyReleased) {
-            revert AccountNotDuePayment(account);
+            return 0;
         }
 
         return payment - alreadyReleased;
