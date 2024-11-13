@@ -15,35 +15,29 @@ Error thrown when a referral code already exists for the creator.
 | referralCreator | address | The address of the creator who already has a referral code. |
 | hashedCode | bytes32 | The existing referral code. |
 
-## ReferralCodeUserExists
+## ReferralCodeOwnerError
 
 ```solidity
-error ReferralCodeUserExists(address referralUser)
+error ReferralCodeOwnerError()
 ```
 
-Error thrown when the referral user already exists for a given code.
-
-## ReferralCodeOwnerNotExist
-
-```solidity
-error ReferralCodeOwnerNotExist(bytes32 hashedCode)
-```
-
-Error thrown when a referral code is used that does not have an owner.
-
-## CannotReferSelf
-
-```solidity
-error CannotReferSelf()
-```
-
-Error thrown when a user tries to add themselves as their own referrer.
+Error thrown when a user tries to add themselves as their own referrer, or
+thrown when a referral code is used that does not have an owner.
 
 ## ReferralCodeNotUsedByUser
 
 ```solidity
 error ReferralCodeNotUsedByUser(address referralUser, bytes32 code)
 ```
+
+Error thrown when a user attempts to get a referral rate for a code they haven't used.
+
+### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| referralUser | address | The address of the user who did not use the code. |
+| code | bytes32 | The referral code the user has not used. |
 
 ## ReferralSystem
 
@@ -54,7 +48,7 @@ _This abstract contract allows contracts that inherit it to implement referral c
 ### PercentagesSet
 
 ```solidity
-event PercentagesSet(struct ReferralPercentages percentages)
+event PercentagesSet(uint16[5] percentages)
 ```
 
 Emitted when referral percentages are set.
@@ -63,7 +57,7 @@ Emitted when referral percentages are set.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| percentages | struct ReferralPercentages | The new referral percentages. |
+| percentages | uint16[5] | The new referral percentages. |
 
 ### ReferralCodeCreated
 
@@ -106,7 +100,7 @@ The scaling factor for referral percentages.
 ### usedToPercentage
 
 ```solidity
-mapping(uint256 => uint16) usedToPercentage
+uint16[5] usedToPercentage
 ```
 
 Maps the number of times a referral code was used to the corresponding percentage.
@@ -163,7 +157,7 @@ _Internal function that tracks how many times the user has used the code._
 ### _setReferralPercentages
 
 ```solidity
-function _setReferralPercentages(struct ReferralPercentages percentages) internal
+function _setReferralPercentages(uint16[5] percentages) internal
 ```
 
 Sets the referral percentages based on the number of times a code is used.
@@ -174,7 +168,7 @@ _Internal function to set referral percentages._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| percentages | struct ReferralPercentages | A struct containing the referral percentages for initial, second, third, and default use. |
+| percentages | uint16[5] | An array containing the referral percentages for initial, second, third, and default use. |
 
 ### getReferralRate
 
@@ -201,7 +195,7 @@ Returns the referral rate for a user and code, based on the number of times the 
 ### getReferralCreator
 
 ```solidity
-function getReferralCreator(bytes32 code) external view returns (address)
+function getReferralCreator(bytes32 code) public view returns (address)
 ```
 
 Returns the creator of a given referral code.
@@ -237,4 +231,10 @@ Returns the list of users who used a given referral code.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | address[] | An array of addresses that used the referral code. |
+
+### _getRate
+
+```solidity
+function _getRate(address referralUser, bytes32 code, uint256 amount) internal view returns (uint256 used, uint256 rate)
+```
 

@@ -3,6 +3,7 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import "solidity-docgen"
 import "@shardlabs/starknet-hardhat-plugin";
+import "hardhat-contract-sizer";
 
 import dotenv from "dotenv";
 import { ChainIds, createRPClink } from './utils/chainConfig'
@@ -105,7 +106,7 @@ const config: HardhatUserConfig = {
     outputDir: "./docs/contracts",
     exclude: ['nft-with-royalties/mocks', 'mocks'],
     pages: 'files'
-  }
+  },
 };
 
 export default config;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-import {ReferralPercentages, ReferralCode} from "../Structures.sol";
+import {ReferralCode} from "../Structures.sol";
 
 // ========== Errors ==========
 
@@ -10,15 +10,13 @@ import {ReferralPercentages, ReferralCode} from "../Structures.sol";
 /// @param hashedCode The existing referral code.
 error ReferralCodeExists(address referralCreator, bytes32 hashedCode);
 
-/// @notice Error thrown when the referral user already exists for a given code.
-error ReferralCodeUserExists(address referralUser);
+/// @notice Error thrown when a user tries to add themselves as their own referrer, or
+/// thrown when a referral code is used that does not have an owner.
+error ReferralCodeOwnerError();
 
-/// @notice Error thrown when a referral code is used that does not have an owner.
-error ReferralCodeOwnerNotExist(bytes32 hashedCode);
-
-/// @notice Error thrown when a user tries to add themselves as their own referrer.
-error CannotReferSelf();
-
+/// @notice Error thrown when a user attempts to get a referral rate for a code they haven't used.
+/// @param referralUser The address of the user who did not use the code.
+/// @param code The referral code the user has not used.
 error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
 
 /**
@@ -31,7 +29,7 @@ abstract contract ReferralSystem {
 
     /// @notice Emitted when referral percentages are set.
     /// @param percentages The new referral percentages.
-    event PercentagesSet(ReferralPercentages percentages);
+    event PercentagesSet(uint16[5] percentages);
 
     /// @notice Emitted when a new referral code is created.
     /// @param createdBy The address that created the referral code.
@@ -54,7 +52,7 @@ abstract contract ReferralSystem {
     uint16[5] public usedToPercentage;
 
     /// @notice Maps referral codes to their respective details (creator and users).
-    mapping(bytes32 code => ReferralCode referralCode) public referrals;
+    mapping(bytes32 code => ReferralCode referralCode) internal referrals;
 
     /// @notice Maps referral users to their respective used codes and counts the number of times the code was used.
     mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed))
@@ -68,7 +66,9 @@ abstract contract ReferralSystem {
      * @return hashedCode The created referral code.
      */
     function createReferralCode() external returns (bytes32 hashedCode) {
-        hashedCode = keccak256(abi.encodePacked(msg.sender, block.chainid));
+        hashedCode = keccak256(
+            abi.encodePacked(msg.sender, address(this), block.chainid)
+        );
 
         require(
             referrals[hashedCode].creator == address(0),
@@ -97,22 +97,17 @@ abstract contract ReferralSystem {
         ReferralCode memory referral = referrals[hashedCode];
 
         require(
-            referral.creator != address(0),
-            ReferralCodeOwnerNotExist(hashedCode)
+            referral.creator != address(0) && referralUser != referral.creator,
+            ReferralCodeOwnerError()
         );
-        require(referralUser != referral.creator, CannotReferSelf());
 
         // Check if the user is already in the array
         bool inArray;
-        for (uint256 i = 0; i < referral.referralUsers.length; ) {
+        for (uint256 i = 0; i < referral.referralUsers.length; ++i) {
             if (referral.referralUsers[i] == referralUser) {
                 // User already added; no need to add again
                 inArray = true;
                 break;
-            }
-
-            unchecked {
-                ++i;
             }
         }
 
@@ -121,7 +116,9 @@ abstract contract ReferralSystem {
         }
 
         if (usedCode[referralUser][hashedCode] < 4) {
-            ++usedCode[referralUser][hashedCode];
+            unchecked {
+                ++usedCode[referralUser][hashedCode];
+            }
         }
 
         emit ReferralCodeUsed(hashedCode, referralUser);
@@ -130,15 +127,12 @@ abstract contract ReferralSystem {
     /**
      * @notice Sets the referral percentages based on the number of times a code is used.
      * @dev Internal function to set referral percentages.
-     * @param percentages A struct containing the referral percentages for initial, second, third, and default use.
+     * @param percentages An array containing the referral percentages for initial, second, third, and default use.
      */
-    function _setReferralPercentages(
-        ReferralPercentages calldata percentages
-    ) internal {
-        usedToPercentage[1] = percentages.initialPercentage;
-        usedToPercentage[2] = percentages.secondTimePercentage;
-        usedToPercentage[3] = percentages.thirdTimePercentage;
-        usedToPercentage[4] = percentages.percentageByDefault;
+    function _setReferralPercentages(uint16[5] calldata percentages) internal {
+        for (uint256 i = 0; i < percentages.length; ++i) {
+            usedToPercentage[i] = percentages[i];
+        }
 
         emit PercentagesSet(percentages);
     }
@@ -155,10 +149,9 @@ abstract contract ReferralSystem {
         bytes32 code,
         uint256 amount
     ) external view returns (uint256) {
-        uint256 used = usedCode[referralUser][code];
+        (uint256 used, uint256 rate) = _getRate(referralUser, code, amount);
         require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
-
-        return (amount * usedToPercentage[used]) / SCALING_FACTOR;
+        return rate;
     }
 
     /**
@@ -166,7 +159,7 @@ abstract contract ReferralSystem {
      * @param code The referral code to get the creator for.
      * @return The address of the creator associated with the referral code.
      */
-    function getReferralCreator(bytes32 code) external view returns (address) {
+    function getReferralCreator(bytes32 code) public view returns (address) {
         return referrals[code].creator;
     }
 
@@ -179,6 +172,15 @@ abstract contract ReferralSystem {
         bytes32 code
     ) external view returns (address[] memory) {
         return referrals[code].referralUsers;
+    }
+
+    function _getRate(
+        address referralUser,
+        bytes32 code,
+        uint256 amount
+    ) internal view returns (uint256 used, uint256 rate) {
+        used = usedCode[referralUser][code];
+        rate = (amount * usedToPercentage[used]) / SCALING_FACTOR;
     }
 
     // ========== Reserved Storage Space ==========
