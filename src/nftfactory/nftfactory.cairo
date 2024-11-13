@@ -196,7 +196,7 @@ mod NFTFactory {
             hash
         }
 
-        fn referral_creator(self: @ContractState, referral_code: felt252) -> ContractAddress {
+        fn getReferralCreator(self: @ContractState, referral_code: felt252) -> ContractAddress {
             self._check_referral_code(referral_code);
 
             let creator = self.referrals.entry(referral_code).referral_creator.read();
@@ -204,7 +204,7 @@ mod NFTFactory {
             creator
         }
 
-        fn referral_users(self: @ContractState, referral_code: felt252) -> Span<ContractAddress> {
+        fn getReferralUsers(self: @ContractState, referral_code: felt252) -> Span<ContractAddress> {
             self._check_referral_code(referral_code);
 
             let mut users = array![];
@@ -216,7 +216,7 @@ mod NFTFactory {
             users.span()
         }
 
-        fn referral_rate(self: @ContractState, referral_user: ContractAddress, referral_code: felt252, amount: u256) -> u256 {
+        fn getReferralRate(self: @ContractState, referral_user: ContractAddress, referral_code: felt252, amount: u256) -> u256 {
             let used = self.used_code.entry(referral_user).entry(referral_code).read();
 
             assert(used > 0, super::Errors::REFFERAL_CODE_NOT_USED_BY_USER);
@@ -260,7 +260,7 @@ mod NFTFactory {
         }
 
         #[external(v0)]
-        fn factory_parameters(self: @ContractState) -> FactoryParameters {
+        fn nftFactoryParameters(self: @ContractState) -> FactoryParameters {
             return self._factory_parameters();
         }
     }

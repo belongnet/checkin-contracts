@@ -10,9 +10,9 @@ pub trait INFTFactoryInfo<TState> {
 
     fn referral_code(self: @TState, account: ContractAddress) -> felt252;
 
-    fn referral_rate(self: @TState, referral_user: ContractAddress, referral_code: felt252, amount: u256) -> u256;
+    fn getReferralRate(self: @TState, referral_user: ContractAddress, referral_code: felt252, amount: u256) -> u256;
 
-    fn referral_creator(self: @TState, referral_code: felt252) -> ContractAddress;
+    fn getReferralCreator(self: @TState, referral_code: felt252) -> ContractAddress;
 
-    fn referral_users(self: @TState, referral_code: felt252) -> Span<ContractAddress>;
+    fn getReferralUsers(self: @TState, referral_code: felt252) -> Span<ContractAddress>;
 }
