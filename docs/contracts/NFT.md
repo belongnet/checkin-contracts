@@ -14,18 +14,10 @@ Error thrown when insufficient ETH is sent for a minting transaction.
 | ---- | ---- | ----------- |
 | ETHsent | uint256 | The amount of ETH sent. |
 
-## InvalidSignature
-
-```solidity
-error InvalidSignature()
-```
-
-Error thrown when an invalid signature is provided for minting.
-
 ## PriceChanged
 
 ```solidity
-error PriceChanged(uint256 expectedMintPrice, uint256 currentPrice)
+error PriceChanged(uint256 currentPrice)
 ```
 
 Error thrown when the mint price changes unexpectedly.
@@ -34,13 +26,12 @@ Error thrown when the mint price changes unexpectedly.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| expectedMintPrice | uint256 | The expected mint price. |
 | currentPrice | uint256 | The actual current mint price. |
 
 ## TokenChanged
 
 ```solidity
-error TokenChanged(address expectedPayingToken, address currentPayingToken)
+error TokenChanged(address currentPayingToken)
 ```
 
 Error thrown when the paying token changes unexpectedly.
@@ -49,7 +40,6 @@ Error thrown when the paying token changes unexpectedly.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| expectedPayingToken | address | The expected paying token. |
 | currentPayingToken | address | The actual current paying token. |
 
 ## WrongArraySize
@@ -59,6 +49,30 @@ error WrongArraySize()
 ```
 
 Error thrown when an array exceeds the maximum allowed size.
+
+## NotTransferable
+
+```solidity
+error NotTransferable()
+```
+
+Thrown when an unauthorized transfer attempt is made.
+
+## TotalSupplyLimitReached
+
+```solidity
+error TotalSupplyLimitReached()
+```
+
+Error thrown when the total supply limit is reached.
+
+## TokenIdDoesNotExist
+
+```solidity
+error TokenIdDoesNotExist()
+```
+
+Error thrown when the token id is not exist.
 
 ## NFT
 
@@ -82,6 +96,23 @@ Event emitted when a payment is made to the PricePoint.
 | paymentCurrency | address | The currency used for the payment. |
 | value | uint256 | The amount of the payment. |
 
+### NftParametersChanged
+
+```solidity
+event NftParametersChanged(address newToken, uint256 newPrice, uint256 newWLPrice, bool autoApproved)
+```
+
+Emitted when the paying token and prices are updated.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| newToken | address | The address of the new paying token. |
+| newPrice | uint256 | The new mint price. |
+| newWLPrice | uint256 | The new whitelist mint price. |
+| autoApproved | bool | The new value of the automatic approval flag. |
+
 ### ETH_ADDRESS
 
 ```solidity
@@ -89,6 +120,30 @@ address ETH_ADDRESS
 ```
 
 The constant address representing ETH.
+
+### totalSupply
+
+```solidity
+uint256 totalSupply
+```
+
+The current total supply of tokens.
+
+### metadataUri
+
+```solidity
+mapping(uint256 => string) metadataUri
+```
+
+Mapping of token ID to its metadata URI.
+
+### parameters
+
+```solidity
+struct NftParameters parameters
+```
+
+The struct containing all NFT parameters for the collection.
 
 ### constructor
 
@@ -106,13 +161,32 @@ _Called by the factory when a new instance is deployed._
 | ---- | ---- | ----------- |
 | _params | struct NftParameters | Collection parameters containing information like name, symbol, fees, and more. |
 
-### mintStaticPriceBatch
+### setNftParameters
 
 ```solidity
-function mintStaticPriceBatch(struct StaticPriceParameters[] paramsArray, address expectedPayingToken, uint256 expectedMintPrice) external payable
+function setNftParameters(address _payingToken, uint128 _mintPrice, uint128 _whitelistMintPrice, bool autoApprove) external
 ```
 
-Batch mints new NFTs with static prices to specified addresses.
+Sets a new paying token and mint prices for the collection.
+
+_Can only be called by the contract owner._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _payingToken | address | The new paying token address. |
+| _mintPrice | uint128 | The new mint price. |
+| _whitelistMintPrice | uint128 | The new whitelist mint price. |
+| autoApprove | bool | If true, the transfer validator will be automatically approved for all token holders. |
+
+### mintStaticPrice
+
+```solidity
+function mintStaticPrice(struct StaticPriceParameters[] paramsArray, address expectedPayingToken, uint256 expectedMintPrice) external payable
+```
+
+Mints new NFTs with static prices to specified addresses.
 
 _Requires signatures from trusted addresses and validates against whitelist status._
 
@@ -124,13 +198,13 @@ _Requires signatures from trusted addresses and validates against whitelist stat
 | expectedPayingToken | address | The expected token used for payments. |
 | expectedMintPrice | uint256 | The expected price for the minting operation. |
 
-### mintDynamicPriceBatch
+### mintDynamicPrice
 
 ```solidity
-function mintDynamicPriceBatch(struct DynamicPriceParameters[] paramsArray, address expectedPayingToken) external payable
+function mintDynamicPrice(struct DynamicPriceParameters[] paramsArray, address expectedPayingToken) external payable
 ```
 
-Batch mints new NFTs with dynamic prices to specified addresses.
+Mints new NFTs with dynamic prices to specified addresses.
 
 _Requires signatures from trusted addresses and validates against whitelist status._
 
@@ -141,38 +215,132 @@ _Requires signatures from trusted addresses and validates against whitelist stat
 | paramsArray | struct DynamicPriceParameters[] | An array of parameters for each mint (receiver, tokenId, tokenUri, price). |
 | expectedPayingToken | address | The expected token used for payments. |
 
-### mintStaticPrice
+### tokenURI
 
 ```solidity
-function mintStaticPrice(struct StaticPriceParameters params, address expectedPayingToken, uint256 expectedMintPrice) external payable
+function tokenURI(uint256 _tokenId) public view returns (string)
 ```
 
-Mints a new NFT with a static price to a specified address.
-
-_Requires a signature from a trusted address and validates against whitelist status._
+Returns the metadata URI for a specific token ID.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| params | struct StaticPriceParameters | Minting parameters including receiver, tokenId, tokenUri, and whitelist status. |
-| expectedPayingToken | address | The expected token used for payments. |
-| expectedMintPrice | uint256 | The expected price for the minting operation. |
+| _tokenId | uint256 | The ID of the token. |
 
-### mintDynamicPrice
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | string | The metadata URI associated with the given token ID. |
+
+### name
 
 ```solidity
-function mintDynamicPrice(struct DynamicPriceParameters params, address expectedPayingToken) external payable
+function name() public view returns (string)
 ```
 
-Mints a new NFT with a dynamic price to a specified address.
+Returns the name of the token collection.
 
-_Requires a signature from a trusted address and validates against whitelist status._
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | string | The name of the token. |
+
+### symbol
+
+```solidity
+function symbol() public view returns (string)
+```
+
+Returns the symbol of the token collection.
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | string | The symbol of the token. |
+
+### contractURI
+
+```solidity
+function contractURI() external view returns (string)
+```
+
+Returns the contract URI for the collection.
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | string | The contract URI. |
+
+### isApprovedForAll
+
+```solidity
+function isApprovedForAll(address _owner, address operator) public view returns (bool isApproved)
+```
+
+Checks if an operator is approved to manage all tokens of a given owner.
+
+_Overrides the default behavior to automatically approve the transfer validator if enabled._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| params | struct DynamicPriceParameters | Minting parameters including receiver, tokenId, tokenUri, and price. |
-| expectedPayingToken | address | The expected token used for payments. |
+| _owner | address | The owner of the tokens. |
+| operator | address | The operator trying to manage the tokens. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| isApproved | bool | Whether the operator is approved for all tokens of the owner. |
+
+### supportsInterface
+
+```solidity
+function supportsInterface(bytes4 interfaceId) public view returns (bool)
+```
+
+_Returns true if this contract implements the interface defined by `interfaceId`.
+See: https://eips.ethereum.org/EIPS/eip-165
+This function call must use less than 30000 gas._
+
+### _baseMint
+
+```solidity
+function _baseMint(uint256 tokenId, address to, string tokenUri) internal
+```
+
+Mints a new token and assigns it to a specified address.
+
+_Increases totalSupply, stores metadata URI, and creation timestamp._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| tokenId | uint256 | The ID of the token to be minted. |
+| to | address | The address that will receive the newly minted token. |
+| tokenUri | string | The metadata URI associated with the token. |
+
+### _beforeTokenTransfer
+
+```solidity
+function _beforeTokenTransfer(address from, address to, uint256 id) internal
+```
+
+_Hook that is called before any token transfers, including minting and burning._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| from | address | The address tokens are being transferred from. |
+| to | address | The address tokens are being transferred to. |
+| id | uint256 | The token ID being transferred. |
 

@@ -3,28 +3,15 @@ pragma solidity 0.8.27;
 
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
-import {Releases, SharesAdded} from "./Structures.sol";
+import {NFTFactory} from "./factories/NFTFactory.sol";
 
-/// @notice Thrown when a zero address is provided where it's not allowed.
-error ZeroAddressPassed();
-
-/// @notice Thrown when zero shares are provided for a payee.
-error ZeroSharesPassed();
+import {Releases} from "./Structures.sol";
 
 /// @notice Thrown when an account is not due for payment.
-error AccountNotDuePayment();
+error AccountNotDuePayment(address account);
 
-/// @notice Thrown when an account already has shares.
-error AccountHasSharesAlready();
-
-/// @notice Thrown when a division by zero is attempted.
-error DivisionByZero();
-
-/// @notice Thrown when a third payee already exists.
-error ThirdPayeeExists();
-
-/// @notice Thrown when only payees can add a third payee.
-error ThirdPayeeCanBeAddedOnlyByPayees();
+/// @notice Thrown when transfer is not to a payee.
+error OnlyToPayee();
 
 /**
  * @title RoyaltiesReceiver
@@ -42,15 +29,10 @@ contract RoyaltiesReceiver {
     event PayeeAdded(address indexed account, uint256 shares);
 
     /// @notice Emitted when a payment in native Ether is released.
+    /// @param token The address of the ERC20 token if address(0) then native currency.
     /// @param to The address receiving the payment.
     /// @param amount The amount of Ether released.
-    event PaymentReleased(address indexed to, uint256 amount);
-
-    /// @notice Emitted when a payment in ERC20 tokens is released.
-    /// @param token The address of the ERC20 token.
-    /// @param to The address receiving the payment.
-    /// @param amount The amount of tokens released.
-    event ERC20PaymentReleased(
+    event PaymentReleased(
         address indexed token,
         address indexed to,
         uint256 amount
@@ -62,35 +44,58 @@ contract RoyaltiesReceiver {
     event PaymentReceived(address indexed from, uint256 amount);
 
     /// @notice Maximum array size used.
-    uint256 public constant ARRAY_SIZE = 3;
+    uint256 private constant ARRAY_SIZE = 3;
+    /// @notice Total shares amount.
+    uint256 public constant TOTAL_SHARES = 10000;
+    /// @notice Amount goes to creator.
+    uint16 private constant AMOUNT_TO_CREATOR = 8000;
+    /// @notice Amount goes to platform.
+    uint16 private constant AMOUNT_TO_PLATFORM = 2000;
 
     /**
      * @notice List of payee addresses. Returns the address of the payee at the given index.
      */
     address[ARRAY_SIZE] public payees;
 
-    /// @notice Struct storing payee shares and total shares.
-    SharesAdded public sharesAdded;
+    /**
+     * @notice Returns the number of shares held by a specific payee.
+     */
+    mapping(address => uint256) public shares;
 
     /// @notice Struct for tracking native Ether releases.
-    Releases public nativeReleases;
+    Releases private nativeReleases;
 
     /// @notice Mapping of ERC20 token addresses to their respective release tracking structs.
-    mapping(address => Releases) public erc20Releases;
+    mapping(address => Releases) private erc20Releases;
 
     /**
      * @notice Initializes the contract with a list of payees and their respective shares.
+     * @param referralCode The referral code associated with this NFT instance.
      * @param payees_ The list of payee addresses.
-     * @param shares_ The list of shares corresponding to each payee.
      */
-    constructor(address[2] memory payees_, uint256[2] memory shares_) payable {
-        for (uint256 i = 0; i < 2; ) {
-            payees[i] = payees_[i];
-            _addPayee(payees_[i], shares_[i]);
+    constructor(bytes32 referralCode, address[ARRAY_SIZE] memory payees_) {
+        bool isReferral = payees_[2] != address(0);
+
+        uint16 amountToPlatform = AMOUNT_TO_PLATFORM;
+        uint16 amountToReferral;
+        if (isReferral) {
+            amountToReferral = uint16(
+                NFTFactory(msg.sender).getReferralRate(
+                    payees_[0],
+                    referralCode,
+                    amountToPlatform
+                )
+            );
             unchecked {
-                ++i;
+                amountToPlatform -= amountToReferral;
             }
         }
+
+        payees = payees_;
+
+        shares[payees_[0]] = AMOUNT_TO_CREATOR;
+        shares[payees_[1]] = amountToPlatform;
+        shares[payees_[2]] = amountToReferral;
     }
 
     /**
@@ -101,42 +106,13 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @notice Adds a third payee to the contract, if not already present.
-     * @param payee_ The address of the new payee.
-     * @param shares_ The number of shares assigned to the new payee.
-     */
-    function addThirdPayee(address payee_, uint256 shares_) external {
-        require(payees[2] == address(0), ThirdPayeeExists());
-
-        bool isPayeeCaller;
-        for (uint256 i = 0; i < 2; ) {
-            if (msg.sender == payees[i]) {
-                isPayeeCaller = true;
-                break;
-            }
-            unchecked {
-                ++i;
-            }
-        }
-
-        require(isPayeeCaller, ThirdPayeeCanBeAddedOnlyByPayees());
-
-        payees[2] = payee_;
-        _addPayee(payee_, shares_);
-    }
-
-    /**
      * @notice Releases all pending native Ether payments to the payees.
      */
     function releaseAll() external {
-        address[ARRAY_SIZE] memory _payees = payees;
-        uint256 arraySize = _payees[2] == address(0) ? 2 : 3;
+        (uint256 arraySize, address[ARRAY_SIZE] memory _payees) = _payeesInfo();
 
-        for (uint256 i = 0; i < arraySize; ) {
-            _releaseNative(_payees[i]);
-            unchecked {
-                ++i;
-            }
+        for (uint256 i = 0; i < arraySize; ++i) {
+            _release(address(0), _payees[i]);
         }
     }
 
@@ -145,32 +121,28 @@ contract RoyaltiesReceiver {
      * @param token The address of the ERC20 token to be released.
      */
     function releaseAll(address token) external {
-        address[ARRAY_SIZE] memory _payees = payees;
-        uint256 arraySize = _payees[2] == address(0) ? 2 : 3;
+        (uint256 arraySize, address[ARRAY_SIZE] memory _payees) = _payeesInfo();
 
-        for (uint256 i = 0; i < arraySize; ) {
-            _releaseERC20(token, _payees[i]);
-            unchecked {
-                ++i;
-            }
+        for (uint256 i = 0; i < arraySize; ++i) {
+            _release(token, _payees[i]);
         }
     }
 
     /**
-     * @notice Returns the total number of shares assigned to all payees.
-     * @return The total shares.
+     * @notice Releases pending native Ether payments to the payee.
      */
-    function totalShares() external view returns (uint256) {
-        return sharesAdded.totalShares;
+    function release(address to) external {
+        _onlyToPayee(to);
+        _release(address(0), to);
     }
 
     /**
-     * @notice Returns the number of shares held by a specific payee.
-     * @param account The address of the payee.
-     * @return The number of shares held by the payee.
+     * @notice Releases pending ERC20 token payments for a given token to the payee.
+     * @param token The address of the ERC20 token to be released.
      */
-    function shares(address account) external view returns (uint256) {
-        return sharesAdded.shares[account];
+    function release(address token, address to) external {
+        _onlyToPayee(to);
+        _release(token, to);
     }
 
     /**
@@ -213,75 +185,43 @@ contract RoyaltiesReceiver {
     }
 
     /**
-     * @dev Releases pending native Ether to a payee.
-     * @param account The address of the payee.
+     * @dev Internal function to release the pending payment for a payee.
+     * @param token The ERC20 token address, or address(0) for native Ether.
+     * @param account The payee's address receiving the payment.
      */
-    function _releaseNative(address account) internal {
-        uint256 toRelease = _pendingPayment(
-            account,
-            address(this).balance + nativeReleases.totalReleased,
-            nativeReleases.released[account]
-        );
+    function _release(address token, address account) internal {
+        bool isNativeRelease = token == address(0);
+
+        uint256 toRelease = isNativeRelease
+            ? _pendingPayment(
+                account,
+                address(this).balance + nativeReleases.totalReleased,
+                nativeReleases.released[account]
+            )
+            : _pendingPayment(
+                account,
+                token.balanceOf(address(this)) +
+                    erc20Releases[token].totalReleased,
+                erc20Releases[token].released[account]
+            );
 
         if (toRelease == 0) {
-            revert AccountNotDuePayment();
+            return;
         }
 
-        nativeReleases.released[account] += toRelease;
-        nativeReleases.totalReleased += toRelease;
+        if (isNativeRelease) {
+            nativeReleases.released[account] += toRelease;
+            nativeReleases.totalReleased += toRelease;
 
-        account.safeTransferETH(toRelease);
+            account.safeTransferETH(toRelease);
+        } else {
+            erc20Releases[token].released[account] += toRelease;
+            erc20Releases[token].totalReleased += toRelease;
 
-        emit PaymentReleased(account, toRelease);
-    }
-
-    /**
-     * @dev Releases pending ERC20 tokens to a payee.
-     * @param token The address of the ERC20 token.
-     * @param account The address of the payee.
-     */
-    function _releaseERC20(address token, address account) internal {
-        Releases storage _erc20Releases = erc20Releases[token];
-
-        uint256 toRelease = _pendingPayment(
-            account,
-            token.balanceOf(address(this)) + _erc20Releases.totalReleased,
-            _erc20Releases.released[account]
-        );
-
-        if (toRelease == 0) {
-            revert AccountNotDuePayment();
+            token.safeTransfer(account, toRelease);
         }
 
-        _erc20Releases.released[account] += toRelease;
-        _erc20Releases.totalReleased += toRelease;
-
-        token.safeTransfer(account, toRelease);
-
-        emit ERC20PaymentReleased(token, account, toRelease);
-    }
-
-    /**
-     * @dev Adds a new payee to the contract with a given number of shares.
-     * @param account The address of the payee.
-     * @param shares_ The number of shares assigned to the payee.
-     */
-    function _addPayee(address account, uint256 shares_) private {
-        if (account == address(0)) {
-            revert ZeroAddressPassed();
-        }
-
-        if (shares_ == 0) {
-            revert ZeroSharesPassed();
-        }
-
-        if (sharesAdded.shares[account] != 0) {
-            revert AccountHasSharesAlready();
-        }
-
-        sharesAdded.shares[account] = shares_;
-        sharesAdded.totalShares += shares_;
-        emit PayeeAdded(account, shares_);
+        emit PaymentReleased(token, account, toRelease);
     }
 
     /**
@@ -296,17 +236,37 @@ contract RoyaltiesReceiver {
         uint256 totalReceived,
         uint256 alreadyReleased
     ) private view returns (uint256) {
-        uint256 _totalShares = sharesAdded.totalShares;
-        if (_totalShares == 0) {
-            revert DivisionByZero();
-        }
-
-        uint256 payment = (totalReceived * sharesAdded.shares[account]) /
-            _totalShares;
+        uint256 payment = (totalReceived * shares[account]) / TOTAL_SHARES;
 
         if (payment <= alreadyReleased) {
             return 0;
         }
+
         return payment - alreadyReleased;
+    }
+
+    function _onlyToPayee(address account) private view {
+        (uint256 arraySize, address[ARRAY_SIZE] memory _payees) = _payeesInfo();
+
+        bool isPayee;
+        for (uint256 i = 0; i < arraySize; ++i) {
+            if (account == _payees[i]) {
+                isPayee = true;
+                break;
+            }
+        }
+
+        if (!isPayee) {
+            revert OnlyToPayee();
+        }
+    }
+
+    function _payeesInfo()
+        private
+        view
+        returns (uint256 arraySize, address[ARRAY_SIZE] memory _payees)
+    {
+        _payees = payees;
+        arraySize = _payees[2] != address(0) ? 3 : 2;
     }
 }
