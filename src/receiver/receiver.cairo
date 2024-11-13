@@ -6,6 +6,7 @@ mod Errors {
     pub const SHARES_PAYEES_NOT_EQ: felt252 = 'Shares amount != Payees amount';
     pub const ZERO_AMOUNT: felt252 = 'Zero amount passed';
     pub const ACCOUNT_NOT_DUE_PAYMENT: felt252 = 'Account not due payment';
+    pub const ONLY_PAYEE: felt252 = 'Only payee call';
     
     pub const WHITELISTED_ALREADY: felt252 = 'Address is already whitelisted';
     pub const EXPECTED_TOKEN_ERROR: felt252 = 'Token not equals to existent';
@@ -20,14 +21,12 @@ mod Errors {
 
 #[starknet::contract]
 mod Receiver {
-    use crate::receiver::interface::{IReceiverInitializer};
     use crate::nftfactory::interface::{INFTFactoryInfoDispatcher, INFTFactoryInfoDispatcherTrait};
     use core::num::traits::Zero;
     use starknet::{
         ContractAddress,
         get_caller_address,
         get_contract_address,
-        get_tx_info,
         event::EventEmitter,
         storage::{
             StoragePointerReadAccess, 
@@ -53,7 +52,6 @@ mod Receiver {
     #[storage]
     struct Storage {
         payees: Vec<ContractAddress>,
-        total_shares: u256,
         shares: Map<ContractAddress, u16>,
         total_released: u256,
         released: Map<ContractAddress, u256>
@@ -74,91 +72,129 @@ mod Receiver {
         pub released: u256
     }
 
+    pub const ARRAY_SIZE: u8 = 3;
+    pub const TOTAL_SHARES: u16 = 10000;
+    pub const AMOUNT_TO_CREATOR: u16 = 8000;
+    pub const AMOUNT_TO_PLATFORM: u16 = 2000;
+
     #[constructor]
     fn constructor(
         ref self: ContractState,
-        payees: Span<ContractAddress>,
-        shares: Span<u16>
+        referral_code: felt252,
+        payees: Span<ContractAddress>
     ) {
-        assert(payees.len() <= 3, super::Errors::MAX_PAYEES_EXCEED);
-        assert(shares.len() == payees.len(), super::Errors::SHARES_PAYEES_NOT_EQ);
+        assert(payees.len() <= ARRAY_SIZE.into(), super::Errors::MAX_PAYEES_EXCEED);
 
-        for i in 0..payees.len() {
+        let referral_exist = payees.at(2).is_non_zero();
+
+        let mut array_size: u32 = ARRAY_SIZE.into();
+        if !referral_exist {
+            array_size -= 1
+        }
+
+        let mut amount_to_platform: u256 = AMOUNT_TO_PLATFORM.into();
+        let mut amount_to_referral: u256 = 0;
+
+        if referral_exist {
+            amount_to_referral = INFTFactoryInfoDispatcher { contract_address: get_caller_address() }.getReferralRate(
+                *payees.at(0),
+                referral_code,
+                amount_to_platform
+            );
+            amount_to_platform -= amount_to_referral;
+        }
+
+        for i in 0..array_size {
             self.payees.append().write(*payees.at(i));
-
-            let shares = *shares.at(i);
-            assert(shares.is_non_zero(), super::Errors::ZERO_AMOUNT);
-            self.shares.entry(*payees.at(i)).write(shares);
-
-            let total_shares = self.total_shares.read();
-            self.total_shares.write(total_shares + shares.into());
         };
+
+        self.shares.entry(*payees.at(0)).write(AMOUNT_TO_CREATOR.into());
+        self.shares.entry(*payees.at(1)).write(amount_to_platform.try_into().unwrap());
+        self.shares.entry(*payees.at(2)).write(amount_to_referral.try_into().unwrap());
     }
-
-    // #[abi(embed_v0)]
-    // impl InitializerImpl of IReceiverInitializer<ContractState> {
-    //     // fn add_third_payee(
-    //     //     ref self: ContractState,
-    //     //     payee: ContractAddress,
-    //     //     shares: u16
-    //     // ) {
-    //     //     let payees_len = self.payees.len();
-    //     //     assert(payees_len + 1 == 3, super::Errors::MAX_PAYEES_EXCEED);
-
-    //     //     let is_payee = false;
-    //     //     for i in 0..payees_len {
-    //     //         if get_caller_address() == self.payees.at(i).read() {
-    //     //             is_payee = true;
-    //     //             break;
-    //     //         }
-    //     //     };
-
-    //     //     assert(is_payee, super::Errors::NOT_A_PAYEE_CALL);
-    //     //     self.payees.append().write(payee);
-
-    //     // }
-    // }
 
     #[generate_trait]
     #[abi(per_item)]
     impl ExternalImpl of ExternalTrait {
         //TODO: add getters
         #[external(v0)]
-        fn release_all(ref self: ContractState, payment_token: ContractAddress) {
+        fn releaseAll(ref self: ContractState, payment_token: ContractAddress) {
             self._release_all(payment_token);
+        }
+
+        #[external(v0)]
+        fn release(ref self: ContractState, payment_token: ContractAddress, to: ContractAddress) {
+            self._only_to_payee(to);
+            self._release(payment_token, to);
+        }
+
+        #[external(v0)]
+        fn totalReleased(self: @ContractState) -> u256 {
+            return self._total_released();
+        }
+
+        #[external(v0)]
+        fn released(self: @ContractState, account: ContractAddress) -> u256 {
+            return self._released(account);
+        }
     }
 
     #[generate_trait]
     impl InternalImpl of InternalTrait {
         fn _release_all(ref self: ContractState, payment_token: ContractAddress) {
             for i in 0..self.payees.len() {
-                let payee = self.payees.at(i).read();
-                let token = IERC20Dispatcher { contract_address: payment_token };
-
-                let already_released = self.released.read(payee);
-                let total_released = self.total_released.read();
-                let total_received = (
-                    token.balance_of(get_contract_address()) + total_released
-                );
-
-                let payment: u256 = 
-                    total_received * self.shares.read(payee).into() / self.total_shares.read();
-
-                let to_release = if payment <= already_released {
-                    0
-                } else {
-                    payment - already_released
-                };
-
-                assert(to_release.is_non_zero(), super::Errors::ACCOUNT_NOT_DUE_PAYMENT);
-
-                self.total_released.write(total_released + to_release);
-                self.released.write(payee, to_release);
-
-                token.transfer(payee, to_release);
-
-                self.emit(Event::PaymentReleasedEvent(PaymentReleased { payment_token, payee, released: to_release }));
+                self._release(payment_token, self.payees.at(i).read());
             };
+        }
+
+        fn _release(ref self: ContractState, payment_token: ContractAddress, to: ContractAddress) {
+            let token = IERC20Dispatcher { contract_address: payment_token };
+
+            let already_released = self._released(to);
+            let total_released = self._total_released();
+            let total_received = (
+                token.balance_of(get_contract_address()) + total_released
+            );
+
+            let payment: u256 = 
+                total_received * self.shares.read(to).into() / TOTAL_SHARES.into();
+
+            let to_release = if payment <= already_released {
+                0
+            } else {
+                payment - already_released
+            };
+
+            assert(to_release.is_non_zero(), super::Errors::ACCOUNT_NOT_DUE_PAYMENT);
+
+            self.total_released.write(total_released + to_release);
+            self.released.write(to, to_release);
+
+            token.transfer(to, to_release);
+
+            self.emit(Event::PaymentReleasedEvent(PaymentReleased { payment_token, payee: to, released: to_release }));
+            
+        }
+
+        fn _total_released(self: @ContractState) -> u256 {
+            self.total_released.read()
+        }
+
+        fn _released(self: @ContractState, account: ContractAddress) -> u256 {
+            self.released.read(account)
+        }
+
+        fn _only_to_payee(self: @ContractState, to: ContractAddress) {
+            let mut is_payee = false;
+
+            for i in 0..self.payees.len() {
+                if to == self.payees.at(i).read() {
+                    is_payee = true;
+                    break;
+                }
+            };
+
+            assert(is_payee, super::Errors::ONLY_PAYEE);
         }
     }
 }
