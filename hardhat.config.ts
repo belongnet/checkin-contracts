@@ -2,7 +2,6 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import "solidity-docgen"
-import "@shardlabs/starknet-hardhat-plugin";
 import "hardhat-contract-sizer";
 
 import dotenv from "dotenv";
@@ -29,10 +28,6 @@ const config: HardhatUserConfig = {
       },
     ],
   },
-  // starknet: {
-  //   dockerizedVersion: "0.10.3",
-  //   network: "alpha-goerli"
-  // },
   networks: {
     hardhat: {
       allowUnlimitedContractSize: false,
