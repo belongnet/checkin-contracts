@@ -7,16 +7,6 @@ mod Errors {
     pub const ZERO_AMOUNT: felt252 = 'Zero amount passed';
     pub const ACCOUNT_NOT_DUE_PAYMENT: felt252 = 'Account not due payment';
     pub const ONLY_PAYEE: felt252 = 'Only payee call';
-    
-    pub const WHITELISTED_ALREADY: felt252 = 'Address is already whitelisted';
-    pub const EXPECTED_TOKEN_ERROR: felt252 = 'Token not equals to existent';
-    pub const EXPECTED_PRICE_ERROR: felt252 = 'Price not equals to existent';
-    pub const NOT_TRANSFERRABLE: felt252 = 'Not transferrable';
-    pub const ONLY_FACTORY: felt252 = 'Only Factory can call';
-    pub const INITIALIZE_ONLY_ONCE: felt252 = 'Itialize only once';
-    pub const WRONG_ARRAY_SIZE: felt252 = 'Wrong array size';
-    pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
-    
 }
 
 #[starknet::contract]
