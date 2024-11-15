@@ -4,6 +4,7 @@ mod nft {
 }
 mod receiver {
     mod receiver;
+    pub mod interface;
 }
 mod nftfactory {
     mod nftfactory;

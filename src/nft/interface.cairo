@@ -16,10 +16,59 @@ pub struct NftParameters {
     pub referral_code: felt252
 }
 
+#[derive(Drop, Serde, Copy, starknet::Store)]
+pub struct DynamicPriceParameters {
+    pub receiver: ContractAddress,
+    pub token_id: u256,
+    pub price: u256,
+    pub token_uri: felt252,
+    pub signature: SignatureRS,
+}
+
+#[derive(Drop, Serde, Copy, starknet::Store)]
+pub struct StaticPriceParameters {
+    pub receiver: ContractAddress,
+    pub token_id: u256,
+    pub whitelisted: bool,
+    pub token_uri: felt252,
+    pub signature: SignatureRS,
+}
+
+#[derive(Drop, Serde, Copy, starknet::Store)]
+pub struct SignatureRS {
+    pub r: felt252,
+    pub s: felt252,
+}
+
 #[starknet::interface]
-pub trait INFTInitializer<TState> {
+pub trait INFT<TState> {
     fn initialize(
         ref self: TState,
         nft_parameters: NftParameters,
-    ); 
+    );
+    fn set_payment_info(
+        ref self: TState,
+        payment_token: ContractAddress,
+        mint_price: u256,
+        whitelisted_mint_price: u256,
+    );
+    fn addWhitelisted(ref self: TState, whitelisted: ContractAddress);
+    fn mintDynamicPrice( 
+        ref self: TState,
+        dynamic_params: Span<DynamicPriceParameters>,
+        expected_paying_token: ContractAddress
+    );
+    fn mintStaticPrice(
+        ref self: TState,
+        static_params: Span<StaticPriceParameters>,
+        expected_paying_token: ContractAddress,
+        expected_mint_price: u256
+    );
+    fn metadataUri(
+        self: @TState,
+        tokenId: u256,
+    ) -> felt252;
+    fn contractUri(
+        self: @TState
+    ) -> felt252;
 }
