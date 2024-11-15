@@ -16,7 +16,7 @@ mod Errors {
 }
 
 #[starknet::contract]
-mod NFT {
+pub mod NFT {
     use crate::nft::interface::{INFT, NftParameters, DynamicPriceParameters, StaticPriceParameters};
     use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait};
     use core::{num::traits::Zero, ecdsa::check_ecdsa_signature, hash::HashStateTrait, pedersen::{PedersenTrait}};

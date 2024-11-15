@@ -1,5 +1,5 @@
 mod nft {
-    mod nft;
+    pub mod nft;
     pub mod interface;
 }
 mod receiver {

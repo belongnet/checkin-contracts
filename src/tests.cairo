@@ -1,5 +1,5 @@
-pub mod nft::test_nft;
+pub mod test_nft;
 
-pub mod receiver::test_receiver;
+pub mod test_receiver;
 
-pub mod nftfactory::test_nftfactory;
+pub mod test_nftfactory;
