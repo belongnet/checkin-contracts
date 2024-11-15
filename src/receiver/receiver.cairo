@@ -11,7 +11,8 @@ mod Errors {
 
 #[starknet::contract]
 mod Receiver {
-    use crate::nftfactory::interface::{INFTFactoryInfoDispatcher, INFTFactoryInfoDispatcherTrait};
+    use crate::receiver::interface::{IReceiver};
+    use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait};
     use core::num::traits::Zero;
     use starknet::{
         ContractAddress,
@@ -75,7 +76,7 @@ mod Receiver {
     ) {
         assert(payees.len() <= ARRAY_SIZE.into(), super::Errors::MAX_PAYEES_EXCEED);
 
-        let referral_exist = payees.at(2).is_non_zero();
+        let referral_exist = payees.at(2).is_non_zero() && referral_code.is_non_zero();
 
         let mut array_size: u32 = ARRAY_SIZE.into();
         if !referral_exist {
@@ -86,7 +87,7 @@ mod Receiver {
         let mut amount_to_referral: u256 = 0;
 
         if referral_exist {
-            amount_to_referral = INFTFactoryInfoDispatcher { contract_address: get_caller_address() }.getReferralRate(
+            amount_to_referral = INFTFactoryDispatcher { contract_address: get_caller_address() }.getReferralRate(
                 *payees.at(0),
                 referral_code,
                 amount_to_platform
@@ -103,27 +104,21 @@ mod Receiver {
         self.shares.entry(*payees.at(2)).write(amount_to_referral.try_into().unwrap());
     }
 
-    #[generate_trait]
-    #[abi(per_item)]
-    impl ExternalImpl of ExternalTrait {
-        //TODO: add getters
-        #[external(v0)]
+    #[abi(embed_v0)]
+    impl ReceiverImpl of IReceiver<ContractState> {
         fn releaseAll(ref self: ContractState, payment_token: ContractAddress) {
             self._release_all(payment_token);
         }
 
-        #[external(v0)]
         fn release(ref self: ContractState, payment_token: ContractAddress, to: ContractAddress) {
             self._only_to_payee(to);
             self._release(payment_token, to);
         }
 
-        #[external(v0)]
         fn totalReleased(self: @ContractState) -> u256 {
             return self._total_released();
         }
 
-        #[external(v0)]
         fn released(self: @ContractState, account: ContractAddress) -> u256 {
             return self._released(account);
         }

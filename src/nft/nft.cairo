@@ -17,8 +17,8 @@ mod Errors {
 
 #[starknet::contract]
 mod NFT {
-    use crate::nft::interface::{INFTInitializer, NftParameters};
-    use crate::nftfactory::interface::{INFTFactoryInfoDispatcher, INFTFactoryInfoDispatcherTrait};
+    use crate::nft::interface::{INFT, NftParameters, DynamicPriceParameters, StaticPriceParameters};
+    use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait};
     use core::{num::traits::Zero, ecdsa::check_ecdsa_signature, hash::HashStateTrait, pedersen::{PedersenTrait}};
     use starknet::{
         ContractAddress,
@@ -90,30 +90,6 @@ mod NFT {
         whitelisted: Map<ContractAddress, bool>,
     }
 
-    #[derive(Copy, Drop, Serde, starknet::Store)]
-    struct DynamicPriceParameters {
-        receiver: ContractAddress,
-        token_id: u256,
-        price: u256,
-        token_uri: felt252,
-        signature: SignatureRS,
-    }
-
-    #[derive(Copy, Drop, Serde, starknet::Store)]
-    struct StaticPriceParameters {
-        receiver: ContractAddress,
-        token_id: u256,
-        whitelisted: bool,
-        token_uri: felt252,
-        signature: SignatureRS,
-    }
-
-    #[derive(Copy, Drop, Serde, starknet::Store)]
-    struct SignatureRS {
-        r: felt252,
-        s: felt252,
-    }
-
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
@@ -168,7 +144,7 @@ mod NFT {
     }
 
     #[abi(embed_v0)]
-    impl InitializerImpl of INFTInitializer<ContractState> {
+    impl NFTImpl of INFT<ContractState> {
         fn initialize(
             ref self: ContractState,
             nft_parameters: NftParameters,
@@ -177,12 +153,7 @@ mod NFT {
                 nft_parameters
             );
         }
-    }
 
-    #[generate_trait]
-    #[abi(per_item)]
-    impl ExternalImpl of ExternalTrait {
-        #[external(v0)]
         fn set_payment_info(
             ref self: ContractState,
             payment_token: ContractAddress,
@@ -193,13 +164,13 @@ mod NFT {
             self._set_payment_info(payment_token, mint_price, whitelisted_mint_price);
         }
 
-        #[external(v0)]
+
         fn addWhitelisted(ref self: ContractState, whitelisted: ContractAddress) {
             self.ownable.assert_only_owner();
             self._add_whitelisted(whitelisted);
         }
 
-        #[external(v0)]
+
         fn mintDynamicPrice( 
             ref self: ContractState,
             dynamic_params: Span<DynamicPriceParameters>,
@@ -208,7 +179,7 @@ mod NFT {
             self._mint_dynamic_price_batch(dynamic_params, expected_paying_token);
         }
 
-        #[external(v0)]
+
         fn mintStaticPrice(
             ref self: ContractState,
             static_params: Span<StaticPriceParameters>,
@@ -218,7 +189,7 @@ mod NFT {
             self._mint_static_price_batch(static_params, expected_paying_token, expected_mint_price);
         }
 
-        #[external(v0)]
+
         fn metadataUri(
             self: @ContractState,
             tokenId: u256,
@@ -226,7 +197,7 @@ mod NFT {
             return self._metadata_uri(tokenId);
         }
 
-        #[external(v0)]
+
         fn contractUri(
             self: @ContractState
         ) -> felt252 {
@@ -286,7 +257,7 @@ mod NFT {
         ) {
             let array_size = static_params.len();
             assert(
-                array_size.into() <= INFTFactoryInfoDispatcher { contract_address: self.factory.read() }.max_array_size(),
+                array_size.into() <= INFTFactoryDispatcher { contract_address: self.factory.read() }.max_array_size(),
                 super::Errors::WRONG_ARRAY_SIZE
             );
 
@@ -297,7 +268,7 @@ mod NFT {
                 let pedersen_hash = self._get_static_params_hash(params);
                 let validate = check_ecdsa_signature(
                     pedersen_hash,
-                    INFTFactoryInfoDispatcher { contract_address: self.factory.read() }.signer_public_key(),
+                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signer_public_key(),
                     params.signature.r,
                     params.signature.s
                 );
@@ -332,7 +303,7 @@ mod NFT {
         ) {
             let array_size = dynamic_params.len();
             assert(
-                array_size.into() <= INFTFactoryInfoDispatcher { contract_address: self.factory.read() }.max_array_size(),
+                array_size.into() <= INFTFactoryDispatcher { contract_address: self.factory.read() }.max_array_size(),
                 super::Errors::WRONG_ARRAY_SIZE
             );
 
@@ -343,7 +314,7 @@ mod NFT {
                 let pedersen_hash = self._get_dynamic_params_hash(params);
                 let validate = check_ecdsa_signature(
                     pedersen_hash,
-                    INFTFactoryInfoDispatcher { contract_address: self.factory.read() }.signer_public_key(),
+                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signer_public_key(),
                     params.signature.r,
                     params.signature.s
                 );
@@ -385,7 +356,7 @@ mod NFT {
         ) {
             let referral_code = self.nft_parameters.referral_code.read();
 
-            let factory = INFTFactoryInfoDispatcher { contract_address: self.factory.read() };
+            let factory = INFTFactoryDispatcher { contract_address: self.factory.read() };
             let creator = self.creator.read();
 
             let mut fees_to_platform = fees;
@@ -427,7 +398,7 @@ mod NFT {
             // price is the same so no need to return it
             assert(payment_token == self.nft_parameters.payment_token.read(), super::Errors::EXPECTED_TOKEN_ERROR);
 
-            let (platform_commission, _) = INFTFactoryInfoDispatcher { contract_address: self.factory.read() }.platform_params();
+            let (platform_commission, _) = INFTFactoryDispatcher { contract_address: self.factory.read() }.platform_params();
 
             let fees = (price * platform_commission) / DefaultConfig::FEE_DENOMINATOR.into();
 

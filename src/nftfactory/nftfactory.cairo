@@ -17,11 +17,16 @@ mod Errors {
 
 #[starknet::contract]
 mod NFTFactory {
-    use crate::nftfactory::interface::INFTFactoryInfo;
-    use crate::nft::interface::{INFTInitializerDispatcher, INFTInitializerDispatcherTrait, NftParameters};
-    use core::{ecdsa::check_ecdsa_signature, traits::Into, num::traits::Zero, hash::HashStateTrait, pedersen::{pedersen, PedersenTrait}};
+    use crate::nftfactory::interface::{INFTFactory, FactoryParameters, NftMetadata, NftInfo, InstanceInfo, SignatureRS};
+    use crate::nft::interface::{INFTDispatcher, INFTDispatcherTrait, NftParameters};
+    use core::{ecdsa::check_ecdsa_signature, traits::Into, num::traits::Zero, hash::HashStateTrait, pedersen::
+        {
+            pedersen, PedersenTrait
+        }
+    };
     use starknet::{
         ContractAddress,
+        contract_address_const,
         ClassHash,
         SyscallResultTrait,
         get_caller_address,
@@ -61,6 +66,7 @@ mod NFTFactory {
         
         /// Store the class hash of the contract to deploy
         nft_class_hash: ClassHash,
+        receiver_class_hash: ClassHash,
 
         nft_info: Map<felt252, NftInfo>,
         factory_parameters: FactoryParameters,
@@ -70,53 +76,10 @@ mod NFTFactory {
         used_to_percentage: Vec<u16>
     }
 
-    #[derive(Drop, Serde, starknet::Store)]
-    struct FactoryParameters {
-        signer_public_key: felt252,
-        default_payment_currency: ContractAddress,
-        platform_address: ContractAddress,
-        platform_commission: u256,
-        max_array_size: u256,
-    }
-
     #[starknet::storage_node]
     struct ReferralsParametersNode {
         referral_creator: ContractAddress,
         referral_users: Vec<ContractAddress>,
-    }
-
-    #[derive(Copy, Drop, Serde, starknet::Store)]
-    struct NftMetadata {
-        name: felt252,
-        symbol: felt252,
-    }
-
-    #[derive(Drop, Serde, starknet::Store)]
-    struct NftInfo {
-        nft_metadata: NftMetadata,
-        creator: ContractAddress,
-        nft_address: ContractAddress
-    }
-
-    #[derive(Copy, Drop, Serde, starknet::Store)]
-    struct InstanceInfo {
-        nft_metadata: NftMetadata,
-        contract_uri: felt252,
-        payment_token: ContractAddress,
-        fee_receiver: ContractAddress,
-        royalty_fraction: felt252,
-        transferrable: bool,
-        max_total_supply: u256,         // The max total supply of a new collection
-        mint_price: u256,               // Mint price of a token from a new collection
-        whitelisted_mint_price: u256,     // Mint price for whitelisted users
-        collection_expires: u256,       // Collection expiration period (timestamp)
-        referral_code: felt252,
-    }
-
-    #[derive(Drop, Serde, starknet::Store)]
-    struct SignatureRS {
-        r: felt252,
-        s: felt252,
     }
 
     #[event]
@@ -176,7 +139,40 @@ mod NFTFactory {
     }
 
     #[abi(embed_v0)]
-    impl ReadDataImpl of INFTFactoryInfo<ContractState> {
+    impl NFTFactoryImpl of INFTFactory<ContractState> {
+        fn produce(ref self: ContractState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress {
+            let deployed_address = self._produce(instance_info, signature);
+            deployed_address
+        }
+
+        fn update_nft_class_hash(ref self: ContractState, class_hash: ClassHash) {
+            self.ownable.assert_only_owner();
+            self.nft_class_hash.write(class_hash);
+        }
+
+        fn update_receiver_class_hash(ref self: ContractState, class_hash: ClassHash) {
+            self.ownable.assert_only_owner();
+            self.receiver_class_hash.write(class_hash);
+        }
+
+        fn set_factory_parameters(ref self: ContractState, factory_parameters: FactoryParameters) {
+            self.ownable.assert_only_owner();
+            self._set_factory_parameters(factory_parameters);
+        }
+
+        fn set_referral_percentages(ref self: ContractState, percentages: Span<u16>) {
+            self.ownable.assert_only_owner();
+            self._set_referral_percentages(percentages);
+        }
+
+        fn nft_info(self: @ContractState, nft_metadata: NftMetadata) -> NftInfo {
+            return self._nft_info(nft_metadata);
+        }
+
+        fn nftFactoryParameters(self: @ContractState) -> FactoryParameters {
+            return self.factory_parameters.read();
+        }
+
         fn max_array_size(self: @ContractState) -> u256 {
             return self.factory_parameters.max_array_size.read();
         }
@@ -197,11 +193,8 @@ mod NFTFactory {
         }
 
         fn getReferralCreator(self: @ContractState, referral_code: felt252) -> ContractAddress {
-            self._check_referral_code(referral_code);
-
-            let creator = self.referrals.entry(referral_code).referral_creator.read();
-
-            creator
+            let referalCreator = self._get_referral_creator(referral_code);
+            referalCreator
         }
 
         fn getReferralUsers(self: @ContractState, referral_code: felt252) -> Span<ContractAddress> {
@@ -224,44 +217,6 @@ mod NFTFactory {
             let rate = amount * self.used_to_percentage.at(used.into()).read().into() / SKALING_FACTOR;
 
             rate
-        }
-    }
-
-    #[generate_trait]
-    #[abi(per_item)]
-    impl ExternalImpl of ExternalTrait {
-        #[external(v0)]
-        fn produce(ref self: ContractState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress {
-            let deployed_address = self._produce(instance_info, signature);
-            deployed_address
-        }
-
-        #[external(v0)]
-        fn update_nft_class_hash(ref self: ContractState, class_hash: ClassHash) {
-            self.ownable.assert_only_owner();
-            self._update_nft_class_hash(class_hash);
-        }
-
-        #[external(v0)]
-        fn set_factory_parameters(ref self: ContractState, factory_parameters: FactoryParameters) {
-            self.ownable.assert_only_owner();
-            self._set_factory_parameters(factory_parameters);
-        }
-
-        #[external(v0)]
-        fn set_referral_percentages(ref self: ContractState, percentages: Span<u16>) {
-            self.ownable.assert_only_owner();
-            self._set_referral_percentages(percentages);
-        }
-
-        #[external(v0)]
-        fn nft_info(self: @ContractState, nft_metadata: NftMetadata) -> NftInfo {
-            return self._nft_info(nft_metadata);
-        }
-
-        #[external(v0)]
-        fn nftFactoryParameters(self: @ContractState) -> FactoryParameters {
-            return self._factory_parameters();
         }
     }
 
@@ -415,10 +370,6 @@ mod NFTFactory {
             );
         }
 
-        fn _update_nft_class_hash(ref self: ContractState, nft_class_hash: ClassHash) {
-            self.nft_class_hash.write(nft_class_hash);
-        }
-
         fn _set_factory_parameters(ref self: ContractState, factory_parameters: FactoryParameters) {
             assert(factory_parameters.signer_public_key.is_non_zero(), super::Errors::ZERO_ADDRESS);
             assert(factory_parameters.platform_address.is_non_zero(), super::Errors::ZERO_ADDRESS);
@@ -430,10 +381,6 @@ mod NFTFactory {
             for i in 0..percentages.len() {
                 self.used_to_percentage.append().write(*percentages.at(i));
             };
-        }
-
-        fn _factory_parameters(self: @ContractState) -> FactoryParameters {
-            return self.factory_parameters.read();
         }
 
         fn _nft_info(self: @ContractState, nft_metadata: NftMetadata) -> NftInfo {
@@ -460,6 +407,14 @@ mod NFTFactory {
             pedersen_hash = pedersen_hash.update(get_tx_info().unbox().chain_id);
 
             return pedersen_hash.finalize();
+        }
+
+        fn _get_referral_creator(self: @ContractState, referral_code: felt252) -> ContractAddress {
+            self._check_referral_code(referral_code);
+
+            let creator = self.referrals.entry(referral_code).referral_creator.read();
+
+            creator
         }
     }
 }
