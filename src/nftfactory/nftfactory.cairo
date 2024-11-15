@@ -289,20 +289,7 @@ mod NFTFactory {
                 instance_info.payment_token
             };
 
-            let constructor_calldata: Array<felt252> = array![
-                get_caller_address().into(),
-                get_contract_address().into(),
-                instance_info.nft_metadata.name,
-                instance_info.nft_metadata.symbol,
-                instance_info.fee_receiver.into(),
-                instance_info.royalty_fraction,
-            ];
-
-            let (deployed_address, _) = deploy_syscall(
-                self.nft_class_hash.read(), 0, constructor_calldata.span(), false
-            ).unwrap_syscall();
-
-            let parameters = NftParameters {
+            let nft_parameters = NftParameters {
                 payment_token,
                 contract_uri: instance_info.contract_uri,
                 mint_price: instance_info.mint_price,
@@ -312,9 +299,40 @@ mod NFTFactory {
                 transferrable: instance_info.transferrable,
                 referral_code: instance_info.referral_code,
             };
-            // TODO: add receiver deploymet
-            INFTInitializerDispatcher { contract_address: deployed_address }.initialize(
-                parameters
+
+            // Zero address
+            let mut receiver_address: ContractAddress = contract_address_const::<0>();
+            self._set_referral_user(instance_info.referral_code, get_caller_address());
+            if instance_info.royalty_fraction.is_non_zero() {
+                let referral_creator = self._get_referral_creator(instance_info.referral_code);
+                let receiver_constructor_calldata: Array<felt252> = array![
+                    instance_info.referral_code,
+                    get_caller_address().into(),
+                    self.factory_parameters.platform_address.read().into(),
+                    referral_creator.into()
+                ];
+
+                let (address, _) = deploy_syscall(
+                    self.receiver_class_hash.read(), 0, receiver_constructor_calldata.span(), false
+                ).unwrap_syscall();
+                receiver_address = address;
+            }
+
+            let nft_constructor_calldata: Array<felt252> = array![
+                get_caller_address().into(),
+                get_contract_address().into(),
+                instance_info.nft_metadata.name,
+                instance_info.nft_metadata.symbol,
+                receiver_address.into(),
+                instance_info.royalty_fraction,
+            ];
+
+            let (nft_address, _) = deploy_syscall(
+                self.nft_class_hash.read(), 0, nft_constructor_calldata.span(), false
+            ).unwrap_syscall();
+
+            INFTDispatcher { contract_address: nft_address }.initialize(
+                nft_parameters
             );
 
             self.nft_info.write(
@@ -322,16 +340,14 @@ mod NFTFactory {
                 NftInfo {
                     nft_metadata: instance_info.nft_metadata,
                     creator: get_caller_address(),
-                    nft_address: deployed_address
+                    nft_address: nft_address
                 }
             );
-
-            self._set_referral_user(instance_info.referral_code, get_caller_address());
 
             self.emit(
                 Event::NFTCreatedEvent(
                     NFTCreated { 
-                        deployed_address,
+                        deployed_address: nft_address,
                         creator: get_caller_address(),
                         name: instance_info.nft_metadata.name,
                         symbol: instance_info.nft_metadata.symbol,
@@ -339,7 +355,7 @@ mod NFTFactory {
                 )
             );
 
-            deployed_address
+            nft_address
         }
 
         fn _create_referral_code(ref self: ContractState) -> felt252 {
