@@ -1,329 +1,429 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.27;
 
-import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import {ERC2981Upgradeable} from "@openzeppelin/contracts-upgradeable/token/common/ERC2981Upgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ReentrancyGuard} from "solady/src/utils/ReentrancyGuard.sol";
+import {ERC721} from "solady/src/tokens/ERC721.sol";
+import {ERC2981} from "solady/src/tokens/ERC2981.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {ECDSA} from "solady/src/utils/ECDSA.sol";
-import "operator-filter-registry/src/upgradeable/DefaultOperatorFiltererUpgradeable.sol";
-import {Factory} from "./Factory.sol";
-import {StorageContract} from "./StorageContract.sol";
-import {NftParameters} from "./Structures.sol";
+import {AddressHelper} from "./utils/AddressHelper.sol";
 
-error ZeroAddressPasted();
-error InvalidSignature();
-error TotalSupplyLimitReached();
-error NotEnoughETHSent(uint256 ETHsent);
+import {CreatorToken} from "./utils/CreatorToken.sol";
+import {NFTFactory, NftParameters, InstanceInfo} from "./factories/NFTFactory.sol";
+
+import {StaticPriceParameters, DynamicPriceParameters, NftParameters, InvalidSignature} from "./Structures.sol";
+
+// ========== Errors ==========
+
+/// @notice Error thrown when insufficient ETH is sent for a minting transaction.
+/// @param ETHsent The amount of ETH sent.
+error IncorrectETHAmountSent(uint256 ETHsent);
+
+/// @notice Error thrown when the mint price changes unexpectedly.
+/// @param currentPrice The actual current mint price.
+error PriceChanged(uint256 currentPrice);
+
+/// @notice Error thrown when the paying token changes unexpectedly.
+/// @param currentPayingToken The actual current paying token.
+error TokenChanged(address currentPayingToken);
+
+/// @notice Error thrown when an array exceeds the maximum allowed size.
+error WrongArraySize();
+
+/// @notice Thrown when an unauthorized transfer attempt is made.
 error NotTransferable();
 
-contract NFT is
-    ERC721Upgradeable,
-    OwnableUpgradeable,
-    ReentrancyGuard,
-    ERC2981Upgradeable,
-    DefaultOperatorFiltererUpgradeable
-{
-    using SafeTransferLib for address;
-    using ECDSA for bytes32;
+/// @notice Error thrown when the total supply limit is reached.
+error TotalSupplyLimitReached();
 
-    event PayingTokenChanged(
+/// @notice Error thrown when the token id is not exist.
+error TokenIdDoesNotExist();
+
+/**
+ * @title NFT Contract
+ * @notice Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
+ * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
+ */
+contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
+    using AddressHelper for address;
+    using SafeTransferLib for address;
+
+    // ========== Events ==========
+
+    /// @notice Event emitted when a payment is made to the PricePoint.
+    /// @param sender The address that made the payment.
+    /// @param paymentCurrency The currency used for the payment.
+    /// @param value The amount of the payment.
+    event Paid(address indexed sender, address paymentCurrency, uint256 value);
+
+    /// @notice Emitted when the paying token and prices are updated.
+    /// @param newToken The address of the new paying token.
+    /// @param newPrice The new mint price.
+    /// @param newWLPrice The new whitelist mint price.
+    /// @param autoApproved The new value of the automatic approval flag.
+    event NftParametersChanged(
         address newToken,
         uint256 newPrice,
-        uint256 newWLPrice
+        uint256 newWLPrice,
+        bool autoApproved
     );
 
+    // ========== State Variables ==========
+
+    /// @notice The constant address representing ETH.
+    address public constant ETH_ADDRESS =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    /// @notice The current total supply of tokens.
+    uint256 public totalSupply;
+
+    /// @notice If true, the collection's transfer validator is automatically approved to transfer token holders' tokens.
+    bool private autoApproveTransfersFromValidator;
+
+    /// @notice Mapping of token ID to its metadata URI.
+    mapping(uint256 => string) public metadataUri;
+
+    /// @notice The struct containing all NFT parameters for the collection.
     NftParameters public parameters;
 
-    uint256 public totalSupply; // The current totalSupply
-
-    mapping(uint256 => string) public metadataUri; // token ID -> metadata link
-
-    modifier zeroAddressCheck(address _address) {
-        if (_address == address(0)) {
-            revert ZeroAddressPasted();
-        }
-        _;
-    }
-
-    modifier onlyCreator() {
-        require(msg.sender == parameters.creator, "not creator");
-        _;
-    }
-
-    // constructor() {
-    //     _disableInitializers();
-    // }
+    // ========== Constructor ==========
 
     /**
-     * @dev called by factory when instance deployed
-     * @param _params Collection parameters
+     * @notice Deploys the contract with the given collection parameters and transfer validator.
+     * @dev Called by the factory when a new instance is deployed.
+     * @param _params Collection parameters containing information like name, symbol, fees, and more.
      */
-    function initialize(
-        NftParameters calldata _params
-    )
-        external
-        initializer
-        zeroAddressCheck(_params.info.payingToken)
-        zeroAddressCheck(address(_params.storageContract))
-        zeroAddressCheck(_params.info.feeReceiver)
-        zeroAddressCheck(_params.creator)
-    {
-        __ERC721_init(_params.info.name, _params.info.symbol);
-        __Ownable_init(msg.sender);
-        __ERC2981_init();
-        __DefaultOperatorFilterer_init();
-
+    constructor(NftParameters memory _params) {
         parameters = _params;
 
-        _setDefaultRoyalty(_params.info.feeReceiver, _params.info.totalRoyalty);
+        if (_params.info.feeNumerator > 0) {
+            _setDefaultRoyalty(_params.feeReceiver, _params.info.feeNumerator);
+        }
+
+        _setTransferValidator(_params.transferValidator);
+
+        _initializeOwner(_params.creator);
     }
 
-    /**
-     * @notice Mints new NFT
-     * @dev Requires a signature from the trusted address
-     * @param reciever Address that gets ERC721 token
-     * @param tokenId ID of a ERC721 token to mint
-     * @param tokenUri Metadata URI of the ERC721 token
-     * @param whitelisted A flag if the user whitelisted or not
-     * @param signature Signature of the trusted address
-     */
-    function mint(
-        address reciever,
-        uint256 tokenId,
-        string calldata tokenUri,
-        bool whitelisted,
-        bytes calldata signature
-    ) external payable nonReentrant {
-        if (
-            !_verifySignature(
-                reciever,
-                tokenId,
-                tokenUri,
-                whitelisted,
-                signature
-            )
-        ) {
-            revert InvalidSignature();
-        }
-
-        NftParameters memory _parameters = parameters;
-
-        if (totalSupply + 1 > _parameters.info.maxTotalSupply) {
-            revert TotalSupplyLimitReached();
-        }
-
-        uint256 price = whitelisted
-            ? _parameters.info.whitelistMintPrice
-            : _parameters.info.mintPrice;
-
-        address platformAddress = _parameters
-            .storageContract
-            .factory()
-            .platformAddress();
-        uint8 feeBPs = _parameters
-            .storageContract
-            .factory()
-            .platformCommission();
-
-        uint256 amount;
-        uint256 fee;
-
-        if (
-            _parameters.info.payingToken ==
-            0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
-        ) {
-            amount = msg.value;
-
-            if (amount != price) {
-                revert NotEnoughETHSent(amount);
-            }
-
-            if (feeBPs == 0) {
-                _parameters.creator.safeTransferETH(amount);
-            } else {
-                fee = (amount * uint256(feeBPs)) / _feeDenominator();
-
-                platformAddress.safeTransferETH(fee);
-                _parameters.creator.safeTransferETH(amount - fee);
-            }
-        } else {
-            amount = price;
-
-            if (feeBPs == 0) {
-                _parameters.info.payingToken.safeTransferFrom(
-                    msg.sender,
-                    _parameters.creator,
-                    amount
-                );
-            } else {
-                fee = (amount * uint256(feeBPs)) / _feeDenominator();
-
-                _parameters.info.payingToken.safeTransferFrom(
-                    msg.sender,
-                    platformAddress,
-                    fee
-                );
-                _parameters.info.payingToken.safeTransferFrom(
-                    msg.sender,
-                    _parameters.creator,
-                    amount - fee
-                );
-            }
-        }
-
-        totalSupply++;
-        metadataUri[tokenId] = tokenUri;
-
-        _safeMint(reciever, tokenId);
-    }
+    // ========== Functions ==========
 
     /**
-     * @notice Sets paying token
-     * @param _payingToken New token address
+     * @notice Sets a new paying token and mint prices for the collection.
+     * @dev Can only be called by the contract owner.
+     * @param _payingToken The new paying token address.
+     * @param _mintPrice The new mint price.
+     * @param _whitelistMintPrice The new whitelist mint price.
+     * @param autoApprove If true, the transfer validator will be automatically approved for all token holders.
      */
-    function setPayingToken(
+    function setNftParameters(
         address _payingToken,
-        uint256 _mintPrice,
-        uint256 _whitelistMintPrice
-    ) external onlyCreator zeroAddressCheck(_payingToken) {
+        uint128 _mintPrice,
+        uint128 _whitelistMintPrice,
+        bool autoApprove
+    ) external onlyOwner {
         parameters.info.payingToken = _payingToken;
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
-        emit PayingTokenChanged(_payingToken, _mintPrice, _whitelistMintPrice);
+
+        autoApproveTransfersFromValidator = autoApprove;
+
+        emit NftParametersChanged(
+            _payingToken,
+            _mintPrice,
+            _whitelistMintPrice,
+            autoApprove
+        );
     }
 
     /**
-     * @notice Returns metadata link for specified ID
-     * @param _tokenId Token ID
+     * @notice Mints new NFTs with static prices to specified addresses.
+     * @dev Requires signatures from trusted addresses and validates against whitelist status.
+     * @param paramsArray An array of parameters for each mint (receiver, tokenId, tokenUri, whitelisted).
+     * @param expectedPayingToken The expected token used for payments.
+     * @param expectedMintPrice The expected price for the minting operation.
      */
+    function mintStaticPrice(
+        StaticPriceParameters[] calldata paramsArray,
+        address expectedPayingToken,
+        uint256 expectedMintPrice
+    ) external payable {
+        require(
+            paramsArray.length <=
+                NFTFactory(parameters.factory)
+                    .nftFactoryParameters()
+                    .maxArraySize,
+            WrongArraySize()
+        );
 
+        InstanceInfo memory info = parameters.info;
+
+        uint256 amountToPay;
+        for (uint256 i = 0; i < paramsArray.length; ++i) {
+            NFTFactory(parameters.factory)
+                .nftFactoryParameters()
+                .signerAddress
+                .checkStaticPriceParameters(paramsArray[i]);
+
+            // Determine the mint price based on whitelist status
+            uint256 price = paramsArray[i].whitelisted
+                ? info.whitelistMintPrice
+                : info.mintPrice;
+
+            unchecked {
+                amountToPay += price;
+            }
+
+            _baseMint(
+                paramsArray[i].tokenId,
+                paramsArray[i].receiver,
+                paramsArray[i].tokenUri
+            );
+        }
+
+        require(
+            _pay(amountToPay, expectedPayingToken) == expectedMintPrice,
+            PriceChanged(expectedMintPrice)
+        );
+    }
+
+    /**
+     * @notice Mints new NFTs with dynamic prices to specified addresses.
+     * @dev Requires signatures from trusted addresses and validates against whitelist status.
+     * @param paramsArray An array of parameters for each mint (receiver, tokenId, tokenUri, price).
+     * @param expectedPayingToken The expected token used for payments.
+     */
+    function mintDynamicPrice(
+        DynamicPriceParameters[] calldata paramsArray,
+        address expectedPayingToken
+    ) external payable {
+        require(
+            paramsArray.length <=
+                NFTFactory(parameters.factory)
+                    .nftFactoryParameters()
+                    .maxArraySize,
+            WrongArraySize()
+        );
+
+        uint256 amountToPay;
+        for (uint256 i = 0; i < paramsArray.length; ++i) {
+            NFTFactory(parameters.factory)
+                .nftFactoryParameters()
+                .signerAddress
+                .checkDynamicPriceParameters(paramsArray[i]);
+
+            unchecked {
+                amountToPay += paramsArray[i].price;
+            }
+
+            _baseMint(
+                paramsArray[i].tokenId,
+                paramsArray[i].receiver,
+                paramsArray[i].tokenUri
+            );
+        }
+
+        _pay(amountToPay, expectedPayingToken);
+    }
+
+    /**
+     * @notice Returns the metadata URI for a specific token ID.
+     * @param _tokenId The ID of the token.
+     * @return The metadata URI associated with the given token ID.
+     */
     function tokenURI(
         uint256 _tokenId
     ) public view override returns (string memory) {
+        if (!_exists(_tokenId)) {
+            revert TokenIdDoesNotExist();
+        }
+
         return metadataUri[_tokenId];
     }
 
+    /// @notice Returns the name of the token collection.
+    /// @return The name of the token.
+    function name() public view override returns (string memory) {
+        return parameters.info.metadata.name;
+    }
+
+    /// @notice Returns the symbol of the token collection.
+    /// @return The symbol of the token.
+    function symbol() public view override returns (string memory) {
+        return parameters.info.metadata.symbol;
+    }
+
     /**
-     * @notice Returns if specified interface is supported or no
-     * @param interfaceId Interface ID
+     * @notice Returns the contract URI for the collection.
+     * @return The contract URI.
      */
+    function contractURI() external view returns (string memory) {
+        return parameters.info.contractURI;
+    }
+
+    /**
+     * @notice Checks if an operator is approved to manage all tokens of a given owner.
+     * @dev Overrides the default behavior to automatically approve the transfer validator if enabled.
+     * @param _owner The owner of the tokens.
+     * @param operator The operator trying to manage the tokens.
+     * @return isApproved Whether the operator is approved for all tokens of the owner.
+     */
+    function isApprovedForAll(
+        address _owner,
+        address operator
+    ) public view override returns (bool isApproved) {
+        isApproved = super.isApprovedForAll(_owner, operator);
+
+        if (!isApproved && autoApproveTransfersFromValidator) {
+            isApproved = operator == address(_transferValidator);
+        }
+    }
+
+    /// @dev Returns true if this contract implements the interface defined by `interfaceId`.
+    /// See: https://eips.ethereum.org/EIPS/eip-165
+    /// This function call must use less than 30000 gas.
     function supportsInterface(
         bytes4 interfaceId
-    )
-        public
-        view
-        virtual
-        override(ERC2981Upgradeable, ERC721Upgradeable)
-        returns (bool)
-    {
-        return
-            ERC2981Upgradeable.supportsInterface(interfaceId) ||
-            ERC721Upgradeable.supportsInterface(interfaceId);
-    }
-
-    /**
-     * @notice owner() function overriding for OpenSea
-     */
-    function owner() public view override returns (address) {
-        return parameters.storageContract.factory().platformAddress();
-    }
-
-    /**
-     * @dev Approve or remove `operator` as an operator for the caller.
-     * Operators can call {transferFrom} or {safeTransferFrom} for any token owned by the caller.
-     *
-     * Requirements:
-     *
-     * - The `operator` cannot be the caller.
-     *
-     * Emits an {ApprovalForAll} event.
-     * Overridden with onlyAllowedOperatorApproval modifier to follow OpenSea royalties requirements.
-     */
-    function _setApprovalForAll(
-        address _owner,
-        address operator,
-        bool approved
-    ) internal override onlyAllowedOperatorApproval(operator) {
-        super._setApprovalForAll(_owner, operator, approved);
-    }
-
-    /**
-     * @dev Gives permission to `to` to transfer `tokenId` token to another account.
-     * The approval is cleared when the token is transferred.
-     *
-     * Only a single account can be approved at a time, so approving the zero address clears previous approvals.
-     *
-     * Requirements:
-     *
-     * - The caller must own the token or be an approved operator.
-     * - `tokenId` must exist.
-     *
-     * Emits an {Approval} event.
-     * Overridden with onlyAllowedOperatorApproval modifier to follow OpenSea royalties requirements.
-     */
-    function _approve(
-        address operator,
-        uint256 tokenId,
-        address auth,
-        bool emitEvent
-    ) internal override onlyAllowedOperatorApproval(operator) {
-        super._approve(operator, tokenId, auth, emitEvent);
-    }
-
-    /**
-     * @dev Transfers `tokenId` token from `from` to `to`.
-     *
-     * WARNING: Usage of this method is discouraged, use {safeTransferFrom} whenever possible.
-     *
-     * Requirements:
-     *
-     * - `from` cannot be the zero address.
-     * - `to` cannot be the zero address.
-     * - `tokenId` token must be owned by `from`.
-     * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.
-     *
-     * Emits a {Transfer} event.
-     * Overridden with onlyAllowedOperator modifier to follow OpenSea royalties requirements.
-     */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override onlyAllowedOperator(from) {
-        if (!parameters.info.transferable) {
-            revert NotTransferable();
+    ) public view override(ERC721, ERC2981) returns (bool) {
+        bool result;
+        /// @solidity memory-safe-assembly
+        assembly {
+            let s := shr(224, interfaceId)
+            // ICreatorToken: 0xad0d7f6c, ILegacyCreatorToken: 0xa07d229a.
+            // ERC4906: 0x49064906, check https://eips.ethereum.org/EIPS/eip-4906.
+            result := or(
+                or(eq(s, 0xad0d7f6c), eq(s, 0xa07d229a)),
+                eq(s, 0x49064906)
+            )
         }
 
-        super.transferFrom(from, to, tokenId);
+        return result || super.supportsInterface(interfaceId);
     }
 
     /**
-     * @dev Verifies if the signature belongs to the current signer address
-     * @param receiver The token receiver
-     * @param tokenId The token ID
-     * @param tokenUri The token URI
-     * @param whitelisted If the receiver is whitelisted or no
-     * @param signature The signature to check
+     * @notice Mints a new token and assigns it to a specified address.
+     * @dev Increases totalSupply, stores metadata URI, and creation timestamp.
+     * @param to The address that will receive the newly minted token.
+     * @param tokenUri The metadata URI associated with the token.
+     * @param tokenId The ID of the token to be minted.
      */
-    function _verifySignature(
-        address receiver,
+    function _baseMint(
         uint256 tokenId,
-        string memory tokenUri,
-        bool whitelisted,
-        bytes memory signature
-    ) internal view returns (bool) {
-        return
-            keccak256(
-                abi.encodePacked(
-                    receiver,
-                    tokenId,
-                    tokenUri,
-                    whitelisted,
-                    block.chainid
-                )
-            ).recover(signature) ==
-            parameters.storageContract.factory().signerAddress();
+        address to,
+        string calldata tokenUri
+    ) internal {
+        // Ensure the total supply has not been exceeded
+        require(
+            totalSupply + 1 <= parameters.info.maxTotalSupply,
+            TotalSupplyLimitReached()
+        );
+        // Overflow check required: The rest of the code assumes that totalSupply never overflows
+        unchecked {
+            totalSupply++;
+        }
+
+        metadataUri[tokenId] = tokenUri;
+        _safeMint(to, tokenId);
+    }
+
+    /**
+     * @notice Handles the payment for minting NFTs, including sending fees to the platform and creator.
+     * @dev Payments can be made in ETH or another token.
+     */
+    function _pay(
+        uint256 price,
+        address expectedPayingToken
+    ) private returns (uint256 amount) {
+        NftParameters memory _parameters = parameters;
+
+        require(
+            expectedPayingToken == _parameters.info.payingToken,
+            TokenChanged(_parameters.info.payingToken)
+        );
+
+        amount = expectedPayingToken == ETH_ADDRESS ? msg.value : price;
+
+        require(amount == price, IncorrectETHAmountSent(amount));
+
+        NFTFactory _factory = NFTFactory(_parameters.factory);
+
+        uint256 fees;
+        uint256 amountToCreator;
+        unchecked {
+            fees =
+                (amount * _factory.nftFactoryParameters().platformCommission) /
+                _feeDenominator();
+
+            amountToCreator = amount - fees;
+        }
+
+        bytes32 referralCode = _parameters.referralCode;
+        address refferalCreator = _factory.getReferralCreator(referralCode);
+
+        uint256 feesToPlatform = fees;
+        uint256 referralFees;
+        if (referralCode != bytes32(0)) {
+            referralFees = _factory.getReferralRate(
+                _parameters.creator,
+                referralCode,
+                fees
+            );
+            unchecked {
+                feesToPlatform -= referralFees;
+            }
+        }
+
+        if (expectedPayingToken == ETH_ADDRESS) {
+            if (feesToPlatform > 0) {
+                _factory.nftFactoryParameters().platformAddress.safeTransferETH(
+                    feesToPlatform
+                );
+            }
+            if (referralFees > 0) {
+                refferalCreator.safeTransferETH(referralFees);
+            }
+
+            _parameters.creator.safeTransferETH(amountToCreator);
+        } else {
+            if (feesToPlatform > 0) {
+                expectedPayingToken.safeTransferFrom(
+                    msg.sender,
+                    _factory.nftFactoryParameters().platformAddress,
+                    feesToPlatform
+                );
+            }
+            if (referralFees > 0) {
+                expectedPayingToken.safeTransferFrom(
+                    msg.sender,
+                    refferalCreator,
+                    referralFees
+                );
+            }
+
+            expectedPayingToken.safeTransferFrom(
+                msg.sender,
+                _parameters.creator,
+                amountToCreator
+            );
+        }
+
+        emit Paid(msg.sender, expectedPayingToken, amount);
+    }
+
+    /// @dev Hook that is called before any token transfers, including minting and burning.
+    /// @param from The address tokens are being transferred from.
+    /// @param to The address tokens are being transferred to.
+    /// @param id The token ID being transferred.
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 id
+    ) internal override {
+        super._beforeTokenTransfer(from, to, id);
+
+        // Check if this is not a mint or burn operation, only a transfer.
+        if (from != address(0) && to != address(0)) {
+            require(parameters.info.transferable, NotTransferable());
+
+            _validateTransfer(msg.sender, from, to, id);
+        }
     }
 }

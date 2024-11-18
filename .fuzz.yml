@@ -1,0 +1,58 @@
+analyze:
+  # We need to know where the dependencies live
+  # remappings:
+  #   - '@openzeppelin=./node_modules/@openzeppelin'
+  #   - '@ozUpgradesV3=OpenZeppelin/openzeppelin-contracts-upgradeable@3.3.0'
+
+  # Sometimes you want to enforce a specific solidity version
+  # solc-version: '0.6.12'
+
+fuzz:
+  ide: hardhat
+
+  # Change the chain ID that is used by the fuzzer. Default is 0x1 (1)
+  # chain_id: '0x2a' # (42)
+  # Enable/Disable "cheat codes" in fuzzer (as introduced by dapptools)
+  # enable_cheat_codes: true
+
+  quick_check: False
+
+  smart_mode: True
+
+  # Tell the CLI where to find the compiled contracts and compilation artifacts
+
+  # Can be set manually but is automatic when smart mode is enabled.
+  # build_directory: your_build_dir
+
+  # Tell the CLI where to find the contracts source
+
+  # Can be set manually but is automatic when smart mode is enabled.
+  # sources_directory: your_sources_dir
+
+  # The following address is going to be the main target for the fuzzing campaign
+  # deployed_contract_address: '0x48b8050b4174f7871ce53AaF76BEAcA765037BFf'
+
+  # This parameter tells the fuzzer to also fuzz these contracts
+  # additional_contracts_addresses:
+  #   - '0x0eb775F99A28cb591Fa449ca74eF8E7cEd3A609a'
+  #   - '0x21C62e9c9Fcb6622602eBae83b41abb6b28d7256'
+
+  # Number of CPU cores to run fuzzing
+  number_of_cores: 1
+
+  # When the campaign is created it'll get a name <prefix>_<random_characters>
+  campaign_name_prefix: smart_contracts
+
+  # Set a default project to which your campaigns will be attached to
+  # project: 'my project name'
+
+  # Point to your ganache node which holds the seed 🌱
+  rpc_url: http://127.0.0.1:8545
+
+  # This is the contract that the campaign will show coverage for, map issues to, etc.
+  # It's a list of all the relevant contracts (don't worry about dependencies, we'll get those automatically 🙌)
+  # targets:
+  # entire directory with contracts
+  # - 'contracts/Proxy'
+  # individual files
+  # - 'contracts/Token.sol'
