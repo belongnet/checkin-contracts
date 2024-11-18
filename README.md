@@ -1,5 +1,19 @@
 # Belong.net
 
+## Proxy deploymet
+
+Proxy deployment consists of 4 steps:
+
+- deployment of `Implementation` contract
+- deployment of `Proxy` contract
+- deployment of `ProxyAdmin` contract (the smart contract which will manage all of the proxies deployed from the wallet, it has Ownable modifier, and the Ownership can be transferred)
+- then `ProxyAdmin` address will be stored in config file in the repo, and further deployment of upgrading proxies or deploying new projects will be held by it
+
+Initialization:
+
+- connecting `Implementation` to `Proxy` through `ProxyAdmin`
+- initialization of `Proxy` usign delegate call
+
 ## HardHat Usage
 
 Check [HardHat guide](./docs/guides/HardHat.md).
