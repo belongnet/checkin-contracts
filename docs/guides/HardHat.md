@@ -22,11 +22,15 @@ Mainnet:
 
 - `LEDGER_ADDRESS` : The address of your ledger account you want to deploy from
 
+If you want to deploy on Mainnet you can comment the testnet lines in [hardhat.config.ts](../../hardhat.config.ts) and in vice versa if you don't want to deploy on Mainnet.
+
 BlockScans API keys:
 
 - `ETHERSCAN_API_KEY`: Your Etherscan API key for contract verification
 - `BLASTSCAN_API_KEY`: Your Blastscan API key for contract verification
 - `POLYSCAN_API_KEY`: Your Polygonscan API key for contract verification
+
+For the rest of the networks you don't need to provide any API keys for BlockScans.
 
 NFT deployment configuration:
 
