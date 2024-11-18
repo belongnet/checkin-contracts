@@ -5,6 +5,7 @@ use starknet::{ContractAddress, SyscallResultTrait, syscalls::deploy_syscall, ge
 // Use starknet test utils to fake the contract_address
 use starknet::testing::set_contract_address;
 use openzeppelin::token::erc721::interface::{ERC721ABIDispatcher, ERC721ABIDispatcherTrait};
+use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
 
 // Deploy the contract and return its dispatcher.
 fn deploy(
@@ -15,20 +16,19 @@ fn deploy(
     fee_receiver: ContractAddress,
     royalty_fraction: u128
 ) -> ContractAddress {
+    let contract = declare("NFT").unwrap().contract_class();
+
     // Declare and deploy
-    let (contract_address, _) = deploy_syscall(
-        NFT::TEST_CLASS_HASH.try_into().unwrap(),
-        0,
-        array![
+    let (contract_address, _) = contract.deploy(
+        @array![
             creator.into(),
             factory.into(),
             name,
             symbol,
             fee_receiver.into(),
             royalty_fraction.into()
-            ].span(),
-        false
-    ).unwrap_syscall();
+        ]
+    ).unwrap();
 
     contract_address
 }
@@ -54,7 +54,3 @@ fn test_deploy() {
     assert_eq!(nft.name(), "Name");
     assert_eq!(nft.symbol(), "Symbol");
 }
-
-// pub fn NAME() -> ByteArray {
-//     "NAME"
-// }
