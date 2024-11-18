@@ -1,7 +1,7 @@
 import { ethers, upgrades } from "hardhat";
 import { ContractFactory } from "ethers";
-import { MockTransferValidator, NFTFactory, ReceiverFactory } from "../../typechain-types";
-import { NftFactoryParametersStruct, ReferralPercentagesStruct } from "../../typechain-types/contracts/factories/NFTFactory";
+import { MockTransferValidator, NFTFactory } from "../../typechain-types";
+import { NftFactoryParametersStruct } from "../../typechain-types/contracts/factories/NFTFactory";
 
 let signerAddress = "0x5f2BFF1c2D15BA78A9B8F4817Ea3Eb48b2033aDc"; //"0x29DD1A766E3CD887DCDBD77506e970cC981Ee91b";
 let platformAddress = "0x8eE651E9791e4Fe615796303F48856C1Cf73C885"; //0x29DD1A766E3CD887DCDBD77506e970cC981Ee91b
