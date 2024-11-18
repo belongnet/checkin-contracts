@@ -8,16 +8,6 @@ Check [HardHat guide](./docs/guides/HardHat.md).
 
 Check [Foundry guide](./docs/guides/Foundry.md).
 
-## Remix Usage
-
-- Firstly flatten contract:
-
-```
-forge flatten ./contracts/contract.sol > ./contracts/contract_flattened.sol
-```
-
-Check [Remix guide](./docs/guides/Remix.md).
-
 ## Project Overview
 
 The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. Factory will be deployed via proxy.
