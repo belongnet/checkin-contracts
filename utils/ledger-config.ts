@@ -1,6 +1,6 @@
 import { ChainIds } from './chain-ids'
 
-interface NetworkConfig {
+export interface NetworkConfig {
 	url: string,
 	chainId: ChainIds,
 	ledgerAccounts: string[],
@@ -30,8 +30,14 @@ export function createLedgerConnect(chainid: ChainIds, ledgerAccounts: string[],
 		case ChainIds.blast:
 			url = `https://rpc.envelop.is/blast`;
 			break;
-		case ChainIds.skale:
+		case ChainIds.skale_europa:
 			url = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
+			break;
+		case ChainIds.skale_nebula:
+			url = `https://mainnet.skalenodes.com/v1/green-giddy-denebola`;
+			break;
+		case ChainIds.skale_calypso:
+			url = `https://mainnet.skalenodes.com/v1/honorable-steel-rasalhague`;
 			break;
 		case ChainIds.sepolia:
 			url = `https://sepolia.infura.io/v3/${apiKey}`;

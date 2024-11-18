@@ -8,11 +8,11 @@ dotenv.config();
 
 const signerAddress = process.env.SIGNER_ADDRESS;
 const platformAddress = process.env.PLATFORM_ADDRESS;
-const platformCommission = Number(process.env.PLATFORM_COMMISSION);
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
+const platformCommission = defaultParamsCheck(process.env.PLATFORM_COMMISSION, 200) as number;
 const transferValidator = defaultParamsCheck(process.env.TRANSFER_VALIDATOR, ZERO_ADDRESS) as string;
 const defaultPaymentCurrency = defaultParamsCheck(process.env.PAYMENT_CURRENCY, ETH_ADDRESS) as string;
 const maxArraySize = defaultParamsCheck(process.env.MAX_ARRAY_SIZE, 20) as number;

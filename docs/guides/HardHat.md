@@ -34,10 +34,10 @@ Addresses that should be set:
 
 - `SIGNER_ADDRESS`: Signer's address
 - `PLATFORM_ADDRESS`: Platform's address
-- `PLATFORM_COMMISSION`: Platform's commission, 100% = 10000, ..., 200 = 2%, 50 = 0.5% etc.
 
 Addresses that can be set (not necessary addresses):
 
+- `PLATFORM_COMMISSION`: Platform's commission, 10000 = 100%, ..., 200 = 2%, 50 = 0.5% etc. (default = `200`)
 - `PAYMENT_CURRENCY`: Default payment currency for nft minting (default = `Native currency`)
 - `MAX_ARRAY_SIZE`: The limitation of max array size that can be pasted as parameter into function call (default = `20`)
 - `REFERRAL_PERCENT_FIRST_TIME_USAGE`
@@ -47,7 +47,7 @@ Addresses that can be set (not necessary addresses):
 
 - `TRANSFER_VALIDATOR`: Transfer validator's address required by the OpenSea marketplace (default = `address(0x0)`)
 
-  - Also can be set LimitBreak's default one: `0x0000721C310194CcfC01E523fc93C9cCcFa2A0Ac` then in this SC limitations can be configured:
+  - Also can be set LimitBreak's default one: `0x0000721C310194CcfC01E523fc93C9cCcFa2A0Ac` but only for Ethereum and Polygon Mainnet then in this SC limitations can be configured:
   - Transfer Security Levels
     - Level 0 (Zero): No transfer restrictions.
       - Caller Constraints: None
@@ -102,6 +102,20 @@ Ensure that your Ledger device is plugged in, unlocked, and connected to the Eth
 ```shell
 $ yarn deploy:nft <network_name>
 ```
+
+Supported chains:
+
+- `mainnet` - Ethereum mainnet
+- `bsc` - Binance Smart Chain mainnet
+- `matic` - Polygon mainnet
+- `blast` - Blast mainnet
+- `skale_europa` - Skale Europa Hub mainnet
+- `skale_nebula` - Skale Nebula Hub mainnet
+- `skale_calypso` - Skale Calypso Hub mainnet
+- `sepolia` - Ethereum Sepolia testnet
+- `blast_sepolia` - Blast Sepolia testnet
+- `skale_calypso_testnet` - Skale Calypso Hub testnet
+- `amoy` - Polygon Amoy testnet
 
 This will deploy as usual, however, you will now be prompted on your Ledger device to confirm each transaction before it's sent to the network. You should see a message like the following in your terminal:
 

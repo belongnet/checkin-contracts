@@ -1,6 +1,6 @@
 import { ChainIds } from './chain-ids'
 
-interface NetworkConfig {
+export interface NetworkConfig {
 	url: string,
 	chainId: ChainIds,
 	accounts: string[],
@@ -8,11 +8,11 @@ interface NetworkConfig {
 
 export function createConnect(chainid: ChainIds, accounts: string[], apiKey?: string): NetworkConfig {
 	if (accounts.length == 0) {
-		throw Error('Ledger address not found in environment variables.');
+		throw Error('Account private key is not found in environment variables.');
 	}
 	if (chainid === ChainIds.mainnet || chainid === ChainIds.matic || chainid == ChainIds.sepolia) {
 		if (apiKey == undefined || apiKey == '' || apiKey == null) {
-			throw Error('Proive api for the network');
+			throw Error('Proive api for the network.');
 		}
 	}
 
@@ -30,8 +30,14 @@ export function createConnect(chainid: ChainIds, accounts: string[], apiKey?: st
 		case ChainIds.blast:
 			url = `https://rpc.envelop.is/blast`;
 			break;
-		case ChainIds.skale:
+		case ChainIds.skale_europa:
 			url = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
+			break;
+		case ChainIds.skale_nebula:
+			url = `https://mainnet.skalenodes.com/v1/green-giddy-denebola`;
+			break;
+		case ChainIds.skale_calypso:
+			url = `https://mainnet.skalenodes.com/v1/honorable-steel-rasalhague`;
 			break;
 		case ChainIds.sepolia:
 			url = `https://sepolia.infura.io/v3/${apiKey}`;
