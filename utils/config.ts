@@ -31,7 +31,7 @@ export function createConnect(chainid: ChainIds, accounts: string[], apiKey?: st
 			url = `https://rpc.envelop.is/blast`;
 			break;
 		case ChainIds.skale:
-			url = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
+			url = `https://mainnet.skalenodes.com/v1/green-giddy-denebola`;
 			break;
 		case ChainIds.sepolia:
 			url = `https://sepolia.infura.io/v3/${apiKey}`;
