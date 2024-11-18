@@ -1,24 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
+/// @notice Error thrown when the signature provided is invalid.
+error InvalidSignature();
+
 /// @notice Struct for managing a referral code and its users.
 struct ReferralCode {
     /// @notice The creator of the referral code.
     address creator;
     /// @notice The list of users who have used the referral code.
     address[] referralUsers;
-}
-
-/// @notice Struct for managing referral percentages for different usages.
-struct ReferralPercentages {
-    /// @notice The percentage applied the first time the referral code is used.
-    uint16 initialPercentage;
-    /// @notice The percentage applied the second time the referral code is used.
-    uint16 secondTimePercentage;
-    /// @notice The percentage applied the third time the referral code is used.
-    uint16 thirdTimePercentage;
-    /// @notice The default percentage applied after the third usage of the referral code.
-    uint16 percentageByDefault;
 }
 
 /**
@@ -51,12 +42,14 @@ struct NftParameters {
     address transferValidator;
     /// @notice The address of the factory contract where the NFT collection is created.
     address factory;
-    /// @notice The detailed information about the NFT collection, including its properties and configuration.
-    InstanceInfo info;
     /// @notice The address of the creator of the NFT collection.
     address creator;
+    /// @notice The address that will receive the royalties from secondary sales.
+    address feeReceiver;
     /// @notice The referral code associated with the NFT collection.
     bytes32 referralCode;
+    /// @notice The detailed information about the NFT collection, including its properties and configuration.
+    InstanceInfo info;
 }
 
 /**
@@ -65,16 +58,8 @@ struct NftParameters {
  * @dev This struct is used to store key metadata and configuration information for each NFT collection.
  */
 struct InstanceInfo {
-    /// @notice The name of the NFT collection.
-    string name;
-    /// @notice The symbol representing the NFT collection.
-    string symbol;
-    /// @notice The contract URI for the NFT collection, used for metadata.
-    string contractURI;
     /// @notice The address of the ERC20 token used for payments, or ETH (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) for Ether.
     address payingToken;
-    /// @notice The address that will receive the royalties from secondary sales.
-    address feeReceiver;
     /// @notice The royalty fraction for platform and creator royalties, expressed as a numerator.
     uint96 feeNumerator;
     /// @notice A boolean flag indicating whether the tokens in the collection are transferable.
@@ -87,8 +72,18 @@ struct InstanceInfo {
     uint256 whitelistMintPrice;
     /// @notice The expiration time (as a timestamp) for the collection.
     uint256 collectionExpire;
+    NftMetadata metadata;
+    /// @notice The contract URI for the NFT collection, used for metadata.
+    string contractURI;
     /// @notice A signature provided by the backend to validate the creation of the collection.
     bytes signature;
+}
+
+struct NftMetadata {
+    /// @notice The name of the NFT collection.
+    string name;
+    /// @notice The symbol representing the NFT collection.
+    string symbol;
 }
 
 /**
@@ -97,14 +92,13 @@ struct InstanceInfo {
  * @dev This struct is used for lightweight storage of NFT collection metadata.
  */
 struct NftInstanceInfo {
-    /// @notice The name of the NFT collection.
-    string name;
-    /// @notice The symbol representing the NFT collection.
-    string symbol;
     /// @notice The address of the creator of the NFT collection.
     address creator;
     /// @notice The address of the NFT contract instance.
     address nftAddress;
+    /// @notice The address of the Royalties Receiver contract instance.
+    address royaltiesReceiver;
+    NftMetadata metadata;
 }
 
 /**
@@ -149,12 +143,4 @@ struct Releases {
     uint256 totalReleased;
     /// @notice A mapping to track the released amount per payee account.
     mapping(address => uint256) released;
-}
-
-/// @notice Struct for managing total shares and individual account shares.
-struct SharesAdded {
-    /// @notice The total number of shares allocated across all payees.
-    uint256 totalShares;
-    /// @notice A mapping to track the shares allocated to each payee.
-    mapping(address => uint256) shares;
 }

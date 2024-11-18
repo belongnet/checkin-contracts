@@ -1,5 +1,13 @@
 # Solidity API
 
+## InvalidSignature
+
+```solidity
+error InvalidSignature()
+```
+
+Error thrown when the signature provided is invalid.
+
 ## ReferralCode
 
 Struct for managing a referral code and its users.
@@ -8,19 +16,6 @@ Struct for managing a referral code and its users.
 struct ReferralCode {
   address creator;
   address[] referralUsers;
-}
-```
-
-## ReferralPercentages
-
-Struct for managing referral percentages for different usages.
-
-```solidity
-struct ReferralPercentages {
-  uint16 initialPercentage;
-  uint16 secondTimePercentage;
-  uint16 thirdTimePercentage;
-  uint16 percentageByDefault;
 }
 ```
 
@@ -51,9 +46,10 @@ _This struct is used to pass parameters between contracts during the creation of
 struct NftParameters {
   address transferValidator;
   address factory;
-  struct InstanceInfo info;
   address creator;
+  address feeReceiver;
   bytes32 referralCode;
+  struct InstanceInfo info;
 }
 ```
 
@@ -65,18 +61,25 @@ _This struct is used to store key metadata and configuration information for eac
 
 ```solidity
 struct InstanceInfo {
-  string name;
-  string symbol;
-  string contractURI;
   address payingToken;
-  address feeReceiver;
   uint96 feeNumerator;
   bool transferable;
   uint256 maxTotalSupply;
   uint256 mintPrice;
   uint256 whitelistMintPrice;
   uint256 collectionExpire;
+  struct NftMetadata metadata;
+  string contractURI;
   bytes signature;
+}
+```
+
+## NftMetadata
+
+```solidity
+struct NftMetadata {
+  string name;
+  string symbol;
 }
 ```
 
@@ -88,10 +91,10 @@ _This struct is used for lightweight storage of NFT collection metadata._
 
 ```solidity
 struct NftInstanceInfo {
-  string name;
-  string symbol;
   address creator;
   address nftAddress;
+  address royaltiesReceiver;
+  struct NftMetadata metadata;
 }
 ```
 
@@ -135,17 +138,6 @@ Struct for tracking total released amounts and account-specific released amounts
 struct Releases {
   uint256 totalReleased;
   mapping(address => uint256) released;
-}
-```
-
-## SharesAdded
-
-Struct for managing total shares and individual account shares.
-
-```solidity
-struct SharesAdded {
-  uint256 totalShares;
-  mapping(address => uint256) shares;
 }
 ```
 

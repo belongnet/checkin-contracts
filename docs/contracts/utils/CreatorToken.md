@@ -1,15 +1,5 @@
 # Solidity API
 
-## SetTransferValidatorError
-
-```solidity
-error SetTransferValidatorError()
-```
-
-Thrown when trying to set a transfer validator to the same address.
-
-_This error prevents setting a validator that is already active._
-
 ## ZeroAddressPassed
 
 ```solidity
@@ -29,7 +19,7 @@ _The contract stores a reference to the transfer validator and provides function
 ### TransferValidatorUpdated
 
 ```solidity
-event TransferValidatorUpdated(contract ITransferValidator721 oldValidator, contract ITransferValidator721 newValidator)
+event TransferValidatorUpdated(address newValidator)
 ```
 
 Emitted when the transfer validator is updated.
@@ -38,21 +28,26 @@ Emitted when the transfer validator is updated.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| oldValidator | contract ITransferValidator721 | The old transfer validator address. |
-| newValidator | contract ITransferValidator721 | The new transfer validator address. |
+| newValidator | address | The new transfer validator address. |
 
-### CannotSetTokenTypeOfCollection
+### TokenTypeOfCollectionSet
 
 ```solidity
-event CannotSetTokenTypeOfCollection()
+event TokenTypeOfCollectionSet(bool isSet)
 ```
 
 Emitted when the collection's token type cannot be set by the transfer validator.
 
+### ERC721_TOKEN_TYPE
+
+```solidity
+uint16 ERC721_TOKEN_TYPE
+```
+
 ### _transferValidator
 
 ```solidity
-contract ITransferValidator721 _transferValidator
+address _transferValidator
 ```
 
 _The current transfer validator. The null address indicates no validator is set._

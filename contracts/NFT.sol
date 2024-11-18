@@ -5,12 +5,12 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC2981} from "solady/src/tokens/ERC2981.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {AddressHelper} from "./utils/AddressHelper.sol";
 
 import {CreatorToken} from "./utils/CreatorToken.sol";
-import {NFTFactory, SignatureCheckerLib, NftParameters, InstanceInfo} from "./factories/NFTFactory.sol";
-import {AutoValidatorTransferApprove} from "./utils/AutoValidatorTransferApprove.sol";
+import {NFTFactory, NftParameters, InstanceInfo} from "./factories/NFTFactory.sol";
 
-import {StaticPriceParameters, DynamicPriceParameters, NftParameters} from "./Structures.sol";
+import {StaticPriceParameters, DynamicPriceParameters, NftParameters, InvalidSignature} from "./Structures.sol";
 
 // ========== Errors ==========
 
@@ -18,27 +18,16 @@ import {StaticPriceParameters, DynamicPriceParameters, NftParameters} from "./St
 /// @param ETHsent The amount of ETH sent.
 error IncorrectETHAmountSent(uint256 ETHsent);
 
-/// @notice Error thrown when an invalid signature is provided for minting.
-error InvalidSignature();
-
 /// @notice Error thrown when the mint price changes unexpectedly.
-/// @param expectedMintPrice The expected mint price.
 /// @param currentPrice The actual current mint price.
-error PriceChanged(uint256 expectedMintPrice, uint256 currentPrice);
+error PriceChanged(uint256 currentPrice);
 
 /// @notice Error thrown when the paying token changes unexpectedly.
-/// @param expectedPayingToken The expected paying token.
 /// @param currentPayingToken The actual current paying token.
-error TokenChanged(address expectedPayingToken, address currentPayingToken);
+error TokenChanged(address currentPayingToken);
 
 /// @notice Error thrown when an array exceeds the maximum allowed size.
 error WrongArraySize();
-
-/// @notice Thrown when a zero address is provided where it's not allowed.
-error ZeroAddressPassed();
-
-/// @notice Thrown when a zero amount is provided where it's not allowed.
-error InvalidMintPrice();
 
 /// @notice Thrown when an unauthorized transfer attempt is made.
 error NotTransferable();
@@ -54,14 +43,8 @@ error TokenIdDoesNotExist();
  * @notice Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
  * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
  */
-contract NFT is
-    ERC721,
-    ERC2981,
-    Ownable,
-    CreatorToken,
-    AutoValidatorTransferApprove
-{
-    using SignatureCheckerLib for address;
+contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
+    using AddressHelper for address;
     using SafeTransferLib for address;
 
     // ========== Events ==========
@@ -76,10 +59,12 @@ contract NFT is
     /// @param newToken The address of the new paying token.
     /// @param newPrice The new mint price.
     /// @param newWLPrice The new whitelist mint price.
-    event PaymentInfoChanged(
+    /// @param autoApproved The new value of the automatic approval flag.
+    event NftParametersChanged(
         address newToken,
         uint256 newPrice,
-        uint256 newWLPrice
+        uint256 newWLPrice,
+        bool autoApproved
     );
 
     // ========== State Variables ==========
@@ -88,11 +73,11 @@ contract NFT is
     address public constant ETH_ADDRESS =
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    /// @notice Check https://eips.ethereum.org/EIPS/eip-4906
-    bytes4 private constant _INTERFACE_ID_ERC4906 = 0x49064906;
-
     /// @notice The current total supply of tokens.
     uint256 public totalSupply;
+
+    /// @notice If true, the collection's transfer validator is automatically approved to transfer token holders' tokens.
+    bool private autoApproveTransfersFromValidator;
 
     /// @notice Mapping of token ID to its metadata URI.
     mapping(uint256 => string) public metadataUri;
@@ -110,7 +95,10 @@ contract NFT is
     constructor(NftParameters memory _params) {
         parameters = _params;
 
-        _setDefaultRoyalty(_params.info.feeReceiver, _params.info.feeNumerator);
+        if (_params.info.feeNumerator > 0) {
+            _setDefaultRoyalty(_params.feeReceiver, _params.info.feeNumerator);
+        }
+
         _setTransferValidator(_params.transferValidator);
 
         _initializeOwner(_params.creator);
@@ -119,50 +107,41 @@ contract NFT is
     // ========== Functions ==========
 
     /**
-     * @notice Sets whether the transfer validator is automatically approved as an operator for all token owners.
-     * @dev Can only be called by the contract owner.
-     * @param autoApprove If true, the transfer validator will be automatically approved for all token holders.
-     */
-    function setAutomaticApprovalOfTransfersFromValidator(
-        bool autoApprove
-    ) external onlyOwner {
-        _setAutomaticApprovalOfTransfersFromValidator(autoApprove);
-    }
-
-    /**
      * @notice Sets a new paying token and mint prices for the collection.
+     * @dev Can only be called by the contract owner.
      * @param _payingToken The new paying token address.
      * @param _mintPrice The new mint price.
      * @param _whitelistMintPrice The new whitelist mint price.
+     * @param autoApprove If true, the transfer validator will be automatically approved for all token holders.
      */
-    function setPayingToken(
+    function setNftParameters(
         address _payingToken,
         uint128 _mintPrice,
-        uint128 _whitelistMintPrice
+        uint128 _whitelistMintPrice,
+        bool autoApprove
     ) external onlyOwner {
-        if (_payingToken == address(0)) {
-            revert ZeroAddressPassed();
-        }
-
-        if (_mintPrice == 0) {
-            revert InvalidMintPrice();
-        }
-
         parameters.info.payingToken = _payingToken;
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
 
-        emit PaymentInfoChanged(_payingToken, _mintPrice, _whitelistMintPrice);
+        autoApproveTransfersFromValidator = autoApprove;
+
+        emit NftParametersChanged(
+            _payingToken,
+            _mintPrice,
+            _whitelistMintPrice,
+            autoApprove
+        );
     }
 
     /**
-     * @notice Batch mints new NFTs with static prices to specified addresses.
+     * @notice Mints new NFTs with static prices to specified addresses.
      * @dev Requires signatures from trusted addresses and validates against whitelist status.
      * @param paramsArray An array of parameters for each mint (receiver, tokenId, tokenUri, whitelisted).
      * @param expectedPayingToken The expected token used for payments.
      * @param expectedMintPrice The expected price for the minting operation.
      */
-    function mintStaticPriceBatch(
+    function mintStaticPrice(
         StaticPriceParameters[] calldata paramsArray,
         address expectedPayingToken,
         uint256 expectedMintPrice
@@ -178,47 +157,41 @@ contract NFT is
         InstanceInfo memory info = parameters.info;
 
         uint256 amountToPay;
-        for (uint256 i = 0; i < paramsArray.length; ) {
-            _validatePriceSignature(paramsArray[i]);
+        for (uint256 i = 0; i < paramsArray.length; ++i) {
+            NFTFactory(parameters.factory)
+                .nftFactoryParameters()
+                .signerAddress
+                .checkStaticPriceParameters(paramsArray[i]);
 
             // Determine the mint price based on whitelist status
             uint256 price = paramsArray[i].whitelisted
                 ? info.whitelistMintPrice
                 : info.mintPrice;
 
-            amountToPay += price;
+            unchecked {
+                amountToPay += price;
+            }
 
             _baseMint(
                 paramsArray[i].tokenId,
                 paramsArray[i].receiver,
                 paramsArray[i].tokenUri
             );
-
-            unchecked {
-                ++i;
-            }
         }
 
-        (uint256 amount, uint256 fees, uint256 amountToCreator) = _checkPrice(
-            amountToPay,
-            expectedPayingToken
+        require(
+            _pay(amountToPay, expectedPayingToken) == expectedMintPrice,
+            PriceChanged(expectedMintPrice)
         );
-
-        // Check if the expected mint price matches the actual price
-        if (expectedMintPrice != amount) {
-            revert PriceChanged(expectedMintPrice, amount);
-        }
-
-        _pay(amount, fees, amountToCreator, expectedPayingToken);
     }
 
     /**
-     * @notice Batch mints new NFTs with dynamic prices to specified addresses.
+     * @notice Mints new NFTs with dynamic prices to specified addresses.
      * @dev Requires signatures from trusted addresses and validates against whitelist status.
      * @param paramsArray An array of parameters for each mint (receiver, tokenId, tokenUri, price).
      * @param expectedPayingToken The expected token used for payments.
      */
-    function mintDynamicPriceBatch(
+    function mintDynamicPrice(
         DynamicPriceParameters[] calldata paramsArray,
         address expectedPayingToken
     ) external payable {
@@ -231,84 +204,24 @@ contract NFT is
         );
 
         uint256 amountToPay;
-        for (uint256 i = 0; i < paramsArray.length; ) {
-            _validatePriceSignature(paramsArray[i]);
+        for (uint256 i = 0; i < paramsArray.length; ++i) {
+            NFTFactory(parameters.factory)
+                .nftFactoryParameters()
+                .signerAddress
+                .checkDynamicPriceParameters(paramsArray[i]);
 
-            amountToPay += paramsArray[i].price;
+            unchecked {
+                amountToPay += paramsArray[i].price;
+            }
 
             _baseMint(
                 paramsArray[i].tokenId,
                 paramsArray[i].receiver,
                 paramsArray[i].tokenUri
             );
-
-            unchecked {
-                ++i;
-            }
         }
 
-        (uint256 amount, uint256 fees, uint256 amountToCreator) = _checkPrice(
-            amountToPay,
-            expectedPayingToken
-        );
-
-        _pay(amount, fees, amountToCreator, expectedPayingToken);
-    }
-
-    /**
-     * @notice Mints a new NFT with a static price to a specified address.
-     * @dev Requires a signature from a trusted address and validates against whitelist status.
-     * @param params Minting parameters including receiver, tokenId, tokenUri, and whitelist status.
-     * @param expectedPayingToken The expected token used for payments.
-     * @param expectedMintPrice The expected price for the minting operation.
-     */
-    function mintStaticPrice(
-        StaticPriceParameters calldata params,
-        address expectedPayingToken,
-        uint256 expectedMintPrice
-    ) external payable {
-        _validatePriceSignature(params);
-
-        InstanceInfo memory info = parameters.info;
-
-        uint256 price = params.whitelisted
-            ? info.whitelistMintPrice
-            : info.mintPrice;
-
-        if (expectedMintPrice != price) {
-            revert PriceChanged(expectedMintPrice, price);
-        }
-
-        (uint256 amount, uint256 fees, uint256 amountToCreator) = _checkPrice(
-            price,
-            expectedPayingToken
-        );
-
-        _baseMint(params.tokenId, params.receiver, params.tokenUri);
-
-        _pay(amount, fees, amountToCreator, expectedPayingToken);
-    }
-
-    /**
-     * @notice Mints a new NFT with a dynamic price to a specified address.
-     * @dev Requires a signature from a trusted address and validates against whitelist status.
-     * @param params Minting parameters including receiver, tokenId, tokenUri, and price.
-     * @param expectedPayingToken The expected token used for payments.
-     */
-    function mintDynamicPrice(
-        DynamicPriceParameters calldata params,
-        address expectedPayingToken
-    ) external payable {
-        _validatePriceSignature(params);
-
-        (uint256 amount, uint256 fees, uint256 amountToCreator) = _checkPrice(
-            params.price,
-            expectedPayingToken
-        );
-
-        _baseMint(params.tokenId, params.receiver, params.tokenUri);
-
-        _pay(amount, fees, amountToCreator, expectedPayingToken);
+        _pay(amountToPay, expectedPayingToken);
     }
 
     /**
@@ -329,13 +242,13 @@ contract NFT is
     /// @notice Returns the name of the token collection.
     /// @return The name of the token.
     function name() public view override returns (string memory) {
-        return parameters.info.name;
+        return parameters.info.metadata.name;
     }
 
     /// @notice Returns the symbol of the token collection.
     /// @return The symbol of the token.
     function symbol() public view override returns (string memory) {
-        return parameters.info.symbol;
+        return parameters.info.metadata.symbol;
     }
 
     /**
@@ -398,32 +311,49 @@ contract NFT is
         string calldata tokenUri
     ) internal {
         // Ensure the total supply has not been exceeded
-        if (totalSupply + 1 > parameters.info.maxTotalSupply) {
-            revert TotalSupplyLimitReached();
+        require(
+            totalSupply + 1 <= parameters.info.maxTotalSupply,
+            TotalSupplyLimitReached()
+        );
+        // Overflow check required: The rest of the code assumes that totalSupply never overflows
+        unchecked {
+            totalSupply++;
         }
 
-        totalSupply++;
         metadataUri[tokenId] = tokenUri;
-
         _safeMint(to, tokenId);
     }
 
     /**
      * @notice Handles the payment for minting NFTs, including sending fees to the platform and creator.
      * @dev Payments can be made in ETH or another token.
-     * @param amount The total amount to be paid.
-     * @param fees The platform commission.
-     * @param amountToCreator The amount to send to the creator.
-     * @param expectedPayingToken The token used for the payment.
      */
     function _pay(
-        uint256 amount,
-        uint256 fees,
-        uint256 amountToCreator,
+        uint256 price,
         address expectedPayingToken
-    ) private {
+    ) private returns (uint256 amount) {
         NftParameters memory _parameters = parameters;
+
+        require(
+            expectedPayingToken == _parameters.info.payingToken,
+            TokenChanged(_parameters.info.payingToken)
+        );
+
+        amount = expectedPayingToken == ETH_ADDRESS ? msg.value : price;
+
+        require(amount == price, IncorrectETHAmountSent(amount));
+
         NFTFactory _factory = NFTFactory(_parameters.factory);
+
+        uint256 fees;
+        uint256 amountToCreator;
+        unchecked {
+            fees =
+                (amount * _factory.nftFactoryParameters().platformCommission) /
+                _feeDenominator();
+
+            amountToCreator = amount - fees;
+        }
 
         bytes32 referralCode = _parameters.referralCode;
         address refferalCreator = _factory.getReferralCreator(referralCode);
@@ -436,7 +366,9 @@ contract NFT is
                 referralCode,
                 fees
             );
-            feesToPlatform -= referralFees;
+            unchecked {
+                feesToPlatform -= referralFees;
+            }
         }
 
         if (expectedPayingToken == ETH_ADDRESS) {
@@ -476,41 +408,6 @@ contract NFT is
         emit Paid(msg.sender, expectedPayingToken, amount);
     }
 
-    /**
-     * @notice Verifies the price and calculates the platform commission and amount to send to the creator.
-     * @param price The price to check.
-     * @param expectedPayingToken The token used for the payment.
-     * @return amount The total amount to be paid.
-     * @return fees The platform commission.
-     * @return amountToCreator The amount to send to the creator.
-     */
-    function _checkPrice(
-        uint256 price,
-        address expectedPayingToken
-    ) private returns (uint256 amount, uint256 fees, uint256 amountToCreator) {
-        NftParameters memory _parameters = parameters;
-
-        require(
-            expectedPayingToken == _parameters.info.payingToken,
-            TokenChanged(expectedPayingToken, _parameters.info.payingToken)
-        );
-
-        amount = expectedPayingToken == ETH_ADDRESS ? msg.value : price;
-
-        require(amount == price, IncorrectETHAmountSent(amount));
-
-        unchecked {
-            fees =
-                (amount *
-                    NFTFactory(_parameters.factory)
-                        .nftFactoryParameters()
-                        .platformCommission) /
-                _feeDenominator();
-
-            amountToCreator = amount - fees;
-        }
-    }
-
     /// @dev Hook that is called before any token transfers, including minting and burning.
     /// @param from The address tokens are being transferred from.
     /// @param to The address tokens are being transferred to.
@@ -524,66 +421,9 @@ contract NFT is
 
         // Check if this is not a mint or burn operation, only a transfer.
         if (from != address(0) && to != address(0)) {
-            if (!parameters.info.transferable) {
-                revert NotTransferable();
-            }
+            require(parameters.info.transferable, NotTransferable());
 
             _validateTransfer(msg.sender, from, to, id);
         }
-    }
-
-    /**
-     * @notice Validates the signature for a dynamic price minting transaction.
-     * @param params The parameters of the minting operation.
-     */
-    function _validatePriceSignature(
-        DynamicPriceParameters calldata params
-    ) private view {
-        _isSignatureValid(
-            keccak256(
-                abi.encodePacked(
-                    params.receiver,
-                    params.tokenId,
-                    params.tokenUri,
-                    params.price,
-                    block.chainid
-                )
-            ),
-            params.signature
-        );
-    }
-
-    /**
-     * @notice Validates the signature for a static price minting transaction.
-     * @param params The parameters of the minting operation.
-     */
-    function _validatePriceSignature(
-        StaticPriceParameters calldata params
-    ) private view {
-        _isSignatureValid(
-            keccak256(
-                abi.encodePacked(
-                    params.receiver,
-                    params.tokenId,
-                    params.tokenUri,
-                    params.whitelisted,
-                    block.chainid
-                )
-            ),
-            params.signature
-        );
-    }
-
-    function _isSignatureValid(
-        bytes32 _hash,
-        bytes calldata signature
-    ) private view {
-        require(
-            NFTFactory(parameters.factory)
-                .nftFactoryParameters()
-                .signerAddress
-                .isValidSignatureNow(_hash, signature),
-            InvalidSignature()
-        );
     }
 }
