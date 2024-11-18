@@ -4,16 +4,23 @@
 
 ### Install Dependencies
 
-```
-yarn
+```shell
+$ yarn or yarn install
 ```
 
 ### Set Up env
 
 Rename .env.example to .env and fill all the fields there
 
-- `PK` or `MNEMONIC`: Your Ethereum wallet's private key or wallet's seed phrase
 - `INFURA_ID_PROJECT`: Your Infura API key for network access
+
+Testnet:
+
+- `PK` or `MNEMONIC`: Your Ethereum wallet's private key or wallet's seed phrase
+
+Mainnet:
+
+- `LEDGER_ADDRESS` : The address of your ledger account you want to deploy from
 
 BlockScans API keys:
 
@@ -64,42 +71,61 @@ Addresses that can be set (not necessary addresses):
 
 ### Compile
 
-```
-    yarn compile
+```shell
+$ yarn compile
 ```
 
 ### Test
 
-```
-    yarn test
+```shell
+$ yarn test
 ```
 
 ### Coverage
 
-```
-    yarn coverage
+```shell
+$ yarn coverage
 ```
 
 ### Deploy
 
-- NFT
+- Testnet
 
-```
-    yarn deploy:nft <network_name>
+```shell
+$ yarn deploy:nft <network_name>
 ```
 
-signer and platformAddress need to be specified first. ReceiverFactory, Factory will be deployed.
+- Mainnet
+
+Ensure that your Ledger device is plugged in, unlocked, and connected to the Ethereum app, then run the deploy command:
+
+```shell
+$ yarn deploy:nft <network_name>
+```
+
+This will deploy as usual, however, you will now be prompted on your Ledger device to confirm each transaction before it's sent to the network. You should see a message like the following in your terminal:
+
+```shell
+Deploying [ NFTFactory ]
+
+Batch #1
+Executing NFTFactory...
+
+Ledger: Waiting for confirmation on device
+```
+
+At this point, you should see a prompt on your Ledger device to confirm the transaction. Once you confirm, the message will update to show that the transaction was sent to the network, and you'll see the deployment progress in your terminal.
 
 ### Verification
 
 - NFT
 
-```
-    yarn verify:nft <network_name>
+```shell
+$ yarn verify:nft <network_name>
 ```
 
 - Or
 
-```
-    yarn/npx hardhat --network <network_name> verify <ReceiverFactory address>
+```shell
+$ yarn/npx hardhat --network <network_name> verify <ReceiverFactory address>
 ```

@@ -2,18 +2,23 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import "solidity-docgen"
-import "@shardlabs/starknet-hardhat-plugin";
 import "hardhat-contract-sizer";
+import "@nomicfoundation/hardhat-ledger";
 
 import dotenv from "dotenv";
-import { ChainIds, createRPClink } from './utils/chainConfig'
+import { createConnect } from './utils/config'
+import { createLedgerConnect } from './utils/ledger-config'
+import { ChainIds } from "./utils/chain-ids";
 dotenv.config();
 
-if (!process.env.PK) {
-  throw new Error('Private key (PK) not found in environment variables.');
-}
-const accounts = [process.env.PK];
+let accounts: string[] = [], ledgerAccounts: string[] = [];
 
+if (process.env.PK) {
+  accounts = [process.env.PK];
+}
+if (process.env.LEDGER_ADDRESS) {
+  ledgerAccounts = [process.env.LEDGER_ADDRESS];
+}
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -29,23 +34,19 @@ const config: HardhatUserConfig = {
       },
     ],
   },
-  // starknet: {
-  //   dockerizedVersion: "0.10.3",
-  //   network: "alpha-goerli"
-  // },
   networks: {
     hardhat: {
       allowUnlimitedContractSize: false,
     },
-    mainnet: createRPClink(ChainIds.mainnet, accounts, process.env.INFURA_ID_PROJECT),
-    bsc: createRPClink(ChainIds.bsc, accounts),
-    matic: createRPClink(ChainIds.matic, accounts, process.env.INFURA_ID_PROJECT),
-    blast: createRPClink(ChainIds.blast, accounts),
-    skale: createRPClink(ChainIds.skale, accounts),
-    sepolia: createRPClink(ChainIds.sepolia, accounts, process.env.INFURA_ID_PROJECT),
-    blast_sepolia: createRPClink(ChainIds.blast_sepolia, accounts),
-    skale_calypso_testnet: createRPClink(ChainIds.skale_calypso_testnet, accounts),
-    amoy: createRPClink(ChainIds.amoy, accounts),
+    mainnet: createLedgerConnect(ChainIds.mainnet, ledgerAccounts, process.env.INFURA_ID_PROJECT),
+    bsc: createLedgerConnect(ChainIds.bsc, ledgerAccounts),
+    matic: createLedgerConnect(ChainIds.matic, ledgerAccounts, process.env.INFURA_ID_PROJECT),
+    blast: createLedgerConnect(ChainIds.blast, ledgerAccounts),
+    skale: createLedgerConnect(ChainIds.skale, ledgerAccounts),
+    sepolia: createConnect(ChainIds.sepolia, accounts, process.env.INFURA_ID_PROJECT),
+    blast_sepolia: createConnect(ChainIds.blast_sepolia, accounts),
+    skale_calypso_testnet: createConnect(ChainIds.skale_calypso_testnet, accounts),
+    amoy: createConnect(ChainIds.amoy, accounts),
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,

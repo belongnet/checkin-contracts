@@ -1,24 +1,15 @@
-
-
-export enum ChainIds {
-	mainnet = 1,
-	bsc = 56,
-	matic = 137,
-	amoy = 80002,
-	blast = 81457,
-	skale = 2046399126,
-	sepolia = 11155111,
-	blast_sepolia = 168587773,
-	skale_calypso_testnet = 974399131
-}
+import { ChainIds } from './chain-ids'
 
 interface NetworkConfig {
 	url: string,
 	chainId: ChainIds,
-	accounts: string[]
+	ledgerAccounts: string[],
 }
 
-export function createRPClink(chainid: ChainIds, accounts: string[], apiKey?: string): NetworkConfig {
+export function createLedgerConnect(chainid: ChainIds, ledgerAccounts: string[], apiKey?: string): NetworkConfig {
+	if (ledgerAccounts.length == 0) {
+		throw Error('Ledger address not found in environment variables.');
+	}
 	if (chainid === ChainIds.mainnet || chainid === ChainIds.matic || chainid == ChainIds.sepolia) {
 		if (apiKey == undefined || apiKey == '' || apiKey == null) {
 			throw Error('Proive api for the network');
@@ -61,6 +52,6 @@ export function createRPClink(chainid: ChainIds, accounts: string[], apiKey?: st
 	return {
 		url,
 		chainId: chainid,
-		accounts
+		ledgerAccounts
 	} as NetworkConfig
 }

@@ -1,5 +1,59 @@
 # Belong.net
 
+## Install Node.js, npm, yarn
+
+- Download the LTS (Long Term Support) version for your operating system from [Node.js official website](https://nodejs.org/).
+
+- Install this version.
+
+- Verify `node.js` installation:
+
+```shell
+$ node -v
+```
+
+Example output:
+
+```shell
+$ v16.x.x or higher
+```
+
+- Verify `npm` installation:
+
+```shell
+$ npm -v
+```
+
+Example output:
+
+```shell
+$ v16.x.x or higher
+```
+
+- Install `yarn`:
+
+```shell
+$ npm install --global yarn
+```
+
+- Verify installation:
+
+```shell
+$ yarn -v
+```
+
+## HardHat Usage
+
+Check [HardHat guide](./docs/guides/HardHat.md).
+
+## Foundry Usage
+
+Check [Foundry guide](./docs/guides/Foundry.md).
+
+## Project Overview
+
+The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. Factory will be deployed via proxy.
+
 ## Proxy deploymet
 
 Proxy deployment consists of 4 steps:
@@ -13,18 +67,6 @@ Initialization:
 
 - connecting `Implementation` to `Proxy` through `ProxyAdmin`
 - initialization of `Proxy` usign delegate call
-
-## HardHat Usage
-
-Check [HardHat guide](./docs/guides/HardHat.md).
-
-## Foundry Usage
-
-Check [Foundry guide](./docs/guides/Foundry.md).
-
-## Project Overview
-
-The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. Factory will be deployed via proxy.
 
 ## 1. Functional Requirements
 
