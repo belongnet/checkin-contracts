@@ -5,7 +5,7 @@ export function defaultParamsCheck(paramToCheck: string | undefined, defaultPara
 		return defaultParam;
 	}
 
-	if (!isNaN(Number(paramToCheck))) {
+	if (/^-?\d+(\.\d+)?$/.test(paramToCheck)) {
 		return Number(paramToCheck);
 	}
 
