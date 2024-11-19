@@ -147,7 +147,7 @@ $ yarn verify:nft <network_name>
 - Or
 
 ```shell
-$ yarn/npx hardhat --network <network_name> verify <ReceiverFactory address>
+$ yarn/npx hardhat --network <network_name> verify <Factory address>
 ```
 
 `<network_name>` supported chains:
