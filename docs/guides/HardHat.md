@@ -31,6 +31,7 @@ BlockScans API keys:
 - `POLYSCAN_API_KEY`: Your Polygonscan API key for contract verification
 
 For the rest of the networks you don't need to provide any API keys for BlockScans.
+If you use [Blockscout](https://docs.blockscout.com/devs/verification/hardhat-verification-plugin), then no need to speify any API keys.
 
 NFT deployment configuration:
 
@@ -107,7 +108,7 @@ Ensure that your Ledger device is plugged in, unlocked, and connected to the Eth
 $ yarn deploy:nft <network_name>
 ```
 
-Supported chains:
+`<network_name>` supported chains:
 
 - `mainnet` - Ethereum mainnet
 - `bsc` - Binance Smart Chain mainnet
@@ -124,19 +125,20 @@ Supported chains:
 This will deploy as usual, however, you will now be prompted on your Ledger device to confirm each transaction before it's sent to the network. You should see a message like the following in your terminal:
 
 ```shell
-Deploying [ NFTFactory ]
-
-Batch #1
-Executing NFTFactory...
-
-Ledger: Waiting for confirmation on device
+✔️ [hardhat-ledger] Connecting wallet
+✔️ [hardhat-ledger] Deriving address #10 (path "m/44'/60'/10'/0/0")
+✔️ [hardhat-ledger] Waiting for confirmation
 ```
 
 At this point, you should see a prompt on your Ledger device to confirm the transaction. Once you confirm, the message will update to show that the transaction was sent to the network, and you'll see the deployment progress in your terminal.
 
-### Verification
+### NFTFactory Verification
 
-- NFT
+After deployment update [.env](../../.env) with specifying the
+
+- `NFT_FACTORY_ADDRESS`: NFT Factory address that has been deployed.
+
+Then run the following commands:
 
 ```shell
 $ yarn verify:nft <network_name>
@@ -147,3 +149,17 @@ $ yarn verify:nft <network_name>
 ```shell
 $ yarn/npx hardhat --network <network_name> verify <ReceiverFactory address>
 ```
+
+`<network_name>` supported chains:
+
+- `mainnet` - Ethereum mainnet
+- `bsc` - Binance Smart Chain mainnet
+- `matic` - Polygon mainnet
+- `blast` - Blast mainnet
+- `skale_europa` - Skale Europa Hub mainnet
+- `skale_nebula` - Skale Nebula Hub mainnet
+- `skale_calypso` - Skale Calypso Hub mainnet
+- `sepolia` - Ethereum Sepolia testnet
+- `blast_sepolia` - Blast Sepolia testnet
+- `skale_calypso_testnet` - Skale Calypso Hub testnet
+- `amoy` - Polygon Amoy testnet

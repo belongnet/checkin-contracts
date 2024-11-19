@@ -61,12 +61,15 @@ const config: HardhatUserConfig = {
       blast: process.env.BLASTSCAN_API_KEY! || '',
       blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
       amoy: process.env.POLYSCAN_API_KEY || '',
-      skale_calypso_testnet: "abc", // Is not required by blockscout. Can be any non-empty string
+      skale_europa: 'skale_europa', // Is not required by blockscout. Can be any non-empty string
+      skale_nebula: 'skale_nebula', // Is not required by blockscout. Can be any non-empty string
+      skale_calypso: 'skale_calypso', // Is not required by blockscout. Can be any non-empty string
+      skale_calypso_testnet: "skale_calypso_testnet", // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
       {
         network: "blast",
-        chainId: 81457,
+        chainId: ChainIds.blast,
         urls: {
           apiURL: "https://api.blastscan.io/api",
           browserURL: "https://blastscan.io/",
@@ -74,25 +77,15 @@ const config: HardhatUserConfig = {
       },
       {
         network: "blast_sepolia",
-        chainId: 168587773,
+        chainId: ChainIds.blast_sepolia,
         urls: {
           apiURL: "https://api-sepolia.blastscan.io/api",
           browserURL: "https://sepolia.blastscan.io/",
         },
       },
       {
-        network: "skale_calypso_testnet",
-        chainId: 974399131,
-        urls: {
-          apiURL:
-            "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/api",
-          browserURL:
-            "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/",
-        },
-      },
-      {
         network: "amoy",
-        chainId: 80002,
+        chainId: ChainIds.amoy,
         urls: {
           apiURL:
             "https://api-amoy.polygonscan.com/api",
@@ -100,6 +93,47 @@ const config: HardhatUserConfig = {
             "https://amoy.polygonscan.com",
         },
       },
+      {
+        network: "skale_europa",
+        chainId: ChainIds.skale_europa,
+        urls: {
+          apiURL:
+            "https://elated-tan-skat.explorer.mainnet.skalenodes.com/api",
+          browserURL:
+            "https://elated-tan-skat.explorer.mainnet.skalenodes.com/",
+        },
+      },
+      {
+        network: "skale_nebula",
+        chainId: ChainIds.skale_nebula,
+        urls: {
+          apiURL:
+            "https://green-giddy-denebola.explorer.mainnet.skalenodes.com/api",
+          browserURL:
+            "https://green-giddy-denebola.explorer.mainnet.skalenodes.com/",
+        },
+      },
+      {
+        network: "skale_calypso",
+        chainId: ChainIds.skale_calypso,
+        urls: {
+          apiURL:
+            "https://honorable-steel-rasalhague.explorer.mainnet.skalenodes.com/api",
+          browserURL:
+            "https://honorable-steel-rasalhague.explorer.mainnet.skalenodes.com/",
+        },
+      },
+      {
+        network: "skale_calypso_testnet",
+        chainId: ChainIds.skale_calypso_testnet,
+        urls: {
+          apiURL:
+            "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/api",
+          browserURL:
+            "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/",
+        },
+      },
+
     ],
   },
   paths: {
