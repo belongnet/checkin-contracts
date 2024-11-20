@@ -1,0 +1,7 @@
+[sncast.testnet]
+fee-token = 'strk'
+url = "https://free-rpc.nethermind.io/sepolia-juno"
+
+[sncast.default]
+fee-token = 'strk'
+url = "https://free-rpc.nethermind.io/sepolia-juno"
