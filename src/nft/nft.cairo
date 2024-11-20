@@ -164,12 +164,10 @@ pub mod NFT {
             self._set_payment_info(payment_token, mint_price, whitelisted_mint_price);
         }
 
-
         fn addWhitelisted(ref self: ContractState, whitelisted: ContractAddress) {
             self.ownable.assert_only_owner();
             self._add_whitelisted(whitelisted);
         }
-
 
         fn mintDynamicPrice( 
             ref self: ContractState,
@@ -178,7 +176,6 @@ pub mod NFT {
         ) {
             self._mint_dynamic_price_batch(dynamic_params, expected_paying_token);
         }
-
 
         fn mintStaticPrice(
             ref self: ContractState,
@@ -189,19 +186,29 @@ pub mod NFT {
             self._mint_static_price_batch(static_params, expected_paying_token, expected_mint_price);
         }
 
-
         fn metadataUri(
             self: @ContractState,
             tokenId: u256,
         ) -> felt252 {
-            return self._metadata_uri(tokenId);
+            return self.nft_node.metadata_uri.read(tokenId);
         }
-
 
         fn contractUri(
             self: @ContractState
         ) -> felt252 {
-            return self._contract_uri();
+            return self.nft_parameters.contract_uri.read();
+        }
+
+        fn creator(
+            self: @ContractState
+        ) -> ContractAddress {
+            return self.creator.read();
+        }
+
+        fn factory(
+            self: @ContractState
+        ) -> ContractAddress {
+            return self.factory.read();
         }
     }
 
@@ -445,26 +452,6 @@ pub mod NFT {
 
             let hash = pedersen_hash.finalize();
             hash
-        }
-
-        fn _whitelisted(
-            self: @ContractState,
-            account: ContractAddress,
-        ) -> bool {
-            return self.nft_node.whitelisted.read(account);
-        }
-
-        fn _metadata_uri(
-            self: @ContractState,
-            token_id: u256,
-        ) -> felt252 {
-            return self.nft_node.metadata_uri.read(token_id);
-        }
-
-        fn _contract_uri(
-            self: @ContractState
-        ) -> felt252 {
-            return self.nft_parameters.contract_uri.read();
         }
     }
 }

@@ -46,29 +46,43 @@ pub trait INFT<TState> {
         ref self: TState,
         nft_parameters: NftParameters,
     );
+
     fn set_payment_info(
         ref self: TState,
         payment_token: ContractAddress,
         mint_price: u256,
         whitelisted_mint_price: u256,
     );
+
     fn addWhitelisted(ref self: TState, whitelisted: ContractAddress);
+
     fn mintDynamicPrice( 
         ref self: TState,
         dynamic_params: Span<DynamicPriceParameters>,
         expected_paying_token: ContractAddress
     );
+
     fn mintStaticPrice(
         ref self: TState,
         static_params: Span<StaticPriceParameters>,
         expected_paying_token: ContractAddress,
         expected_mint_price: u256
     );
+
     fn metadataUri(
         self: @TState,
         tokenId: u256,
     ) -> felt252;
+
     fn contractUri(
         self: @TState
     ) -> felt252;
+
+    fn creator(
+        self: @TState
+    ) -> ContractAddress;
+
+    fn factory(
+        self: @TState
+    ) -> ContractAddress;
 }

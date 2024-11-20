@@ -123,8 +123,9 @@ mod NFTFactory {
     pub const SKALING_FACTOR: u256 = 10000; // 100 %
 
     #[constructor]
-    fn constructor(ref self: ContractState, owner: ContractAddress, class_hash: ClassHash, factory_parameters: FactoryParameters) {
-        self.nft_class_hash.write(class_hash);
+    fn constructor(ref self: ContractState, owner: ContractAddress, nft_class_hash: ClassHash, receiver_class_hash: ClassHash, factory_parameters: FactoryParameters) {
+        self.nft_class_hash.write(nft_class_hash);
+        self.receiver_class_hash.write(receiver_class_hash);
         self.factory_parameters.write(factory_parameters);
 
         self.ownable.initializer(owner);

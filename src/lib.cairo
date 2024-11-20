@@ -11,5 +11,7 @@ mod nftfactory {
     pub mod interface;
 }
 
+mod utils;
+
 #[cfg(test)]
 mod tests;
