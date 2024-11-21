@@ -442,10 +442,10 @@ pub mod NFT {
         }
 
         fn _get_hash(self: @ContractState, params: Span<felt252>) -> felt252 {
-            let mut pedersen_hash = PedersenTrait::new(*params[0]);
+            let mut pedersen_hash = PedersenTrait::new(*params.at(0));
 
             for i in 1..params.len() {
-                pedersen_hash = pedersen_hash.update(*params[i]);
+                pedersen_hash = pedersen_hash.update(*params.at(i));
             };
 
             pedersen_hash = pedersen_hash.update(get_tx_info().unbox().chain_id);
