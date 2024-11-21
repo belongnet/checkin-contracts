@@ -10,7 +10,7 @@ export function createConnect(chainid: ChainIds, accounts: string[], apiKey?: st
 	if (accounts.length == 0) {
 		throw Error('Account private key is not found in environment variables.');
 	}
-	if (chainid === ChainIds.mainnet || chainid === ChainIds.matic || chainid == ChainIds.sepolia) {
+	if (chainid === ChainIds.mainnet || chainid === ChainIds.polygon || chainid == ChainIds.sepolia) {
 		if (apiKey == undefined || apiKey == '' || apiKey == null) {
 			throw Error('Proive api for the network.');
 		}
@@ -24,7 +24,7 @@ export function createConnect(chainid: ChainIds, accounts: string[], apiKey?: st
 		case ChainIds.bsc:
 			url = "https://bsc-dataseed.binance.org";
 			break;
-		case ChainIds.matic:
+		case ChainIds.polygon:
 			url = `https://polygon-mainnet.infura.io/v3/${apiKey}`;
 			break;
 		case ChainIds.blast:

@@ -40,7 +40,7 @@ const config: HardhatUserConfig = {
     },
     mainnet: createLedgerConnect(ChainIds.mainnet, ledgerAccounts, process.env.INFURA_ID_PROJECT),
     bsc: createLedgerConnect(ChainIds.bsc, ledgerAccounts),
-    matic: createLedgerConnect(ChainIds.matic, ledgerAccounts, process.env.INFURA_ID_PROJECT),
+    polygon: createLedgerConnect(ChainIds.polygon, ledgerAccounts, process.env.INFURA_ID_PROJECT),
     blast: createLedgerConnect(ChainIds.blast, ledgerAccounts),
     skale_europa: createLedgerConnect(ChainIds.skale_europa, ledgerAccounts),
     skale_nebula: createLedgerConnect(ChainIds.skale_nebula, ledgerAccounts),
@@ -61,6 +61,7 @@ const config: HardhatUserConfig = {
       blast: process.env.BLASTSCAN_API_KEY! || '',
       blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
       amoy: process.env.POLYSCAN_API_KEY || '',
+      polygon: process.env.POLYSCAN_API_KEY || '',
       skale_europa: 'skale_europa', // Is not required by blockscout. Can be any non-empty string
       skale_nebula: 'skale_nebula', // Is not required by blockscout. Can be any non-empty string
       skale_calypso: 'skale_calypso', // Is not required by blockscout. Can be any non-empty string

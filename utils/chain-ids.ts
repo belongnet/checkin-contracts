@@ -1,7 +1,7 @@
 export enum ChainIds {
 	mainnet = 1,
 	bsc = 56,
-	matic = 137,
+	polygon = 137,
 	blast = 81457,
 	skale_europa = 2046399126,
 	skale_nebula = 1482601649,
