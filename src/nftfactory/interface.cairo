@@ -9,10 +9,10 @@ pub struct FactoryParameters {
     pub max_array_size: u256,
 }
 
-#[derive(Copy, Drop, Serde, starknet::Store)]
+#[derive(Clone, Drop, Serde, starknet::Store)]
 pub struct NftMetadata {
-    pub name: felt252,
-    pub symbol: felt252,
+    pub name: ByteArray,
+    pub symbol: ByteArray,
 }
 
 #[derive(Drop, Serde, starknet::Store)]
@@ -22,7 +22,7 @@ pub struct NftInfo {
     pub nft_address: ContractAddress
 }
 
-#[derive(Copy, Drop, Serde, starknet::Store)]
+#[derive(Clone, Drop, Serde, starknet::Store)]
 pub struct InstanceInfo {
     pub nft_metadata: NftMetadata,
     pub contract_uri: felt252,
