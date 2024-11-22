@@ -97,7 +97,7 @@ $ yarn coverage
 - Testnet
 
 ```shell
-$ yarn deploy:nft <network_name>
+$ yarn deploy:factory <network_name>
 ```
 
 - Mainnet
@@ -105,7 +105,7 @@ $ yarn deploy:nft <network_name>
 Ensure that your Ledger device is plugged in, unlocked, and connected to the Ethereum app, then run the deploy command:
 
 ```shell
-$ yarn deploy:nft <network_name>
+$ yarn deploy:factory <network_name>
 ```
 
 `<network_name>` supported chains:
@@ -132,7 +132,9 @@ This will deploy as usual, however, you will now be prompted on your Ledger devi
 
 At this point, you should see a prompt on your Ledger device to confirm the transaction. Once you confirm, the message will update to show that the transaction was sent to the network, and you'll see the deployment progress in your terminal.
 
-### NFTFactory Verification
+### Verification
+
+- NFT Factory
 
 After deployment update [.env](../../.env) with specifying the
 
@@ -144,10 +146,30 @@ Then run the following commands:
 $ yarn verify:nft <network_name>
 ```
 
-- Or
+- NFT and Royalties receiver
+
+After deployment update [.env](../../.env) with specifying the
+
+- `NFT_ADDRESS`: NFT address that has been deployed.
+- `NFT_CREATOR_ADDRESS`: NFT creator address who deployed an NFT.
+- `RECEIVER_ADDRESS`: Royalties Receiver address that has been deployed.
+- `NFT_NAME`: NFT name.
+- `NFT_SYMBOL`: NFT symbol.
+- `PAYING_TOKEN_ADDRESS`: NFT paying token address (Native currency or ERC20 token).
+- `FEE_NUMERATOR`: NFT fee numerator.
+- `TRANSFERRABLE`: NFT is tranferrable (true/false).
+- `MAX_TOTAL_SUPPLY`: NFT max total supply amount.
+- `MINT_PRICE`: NFT mint price.
+- `WHITELIST_MINT_PRICE`: NFT whitelist mint price.
+- `COLLECTION_EXPIRE`: NFT collection expire timestamp.
+- `CONTRACT_URI`: NFT cotract URI string.
+- `SIGNATURE`: NFT signatre for NFT creation.
+- `REFERRAL_CODE`: NFT referral code if exists.
+
+Then run the following commands:
 
 ```shell
-$ yarn/npx hardhat --network <network_name> verify <Factory address>
+$ yarn verify:deployed <network_name>
 ```
 
 `<network_name>` supported chains:
