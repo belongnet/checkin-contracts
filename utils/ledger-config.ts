@@ -1,25 +1,16 @@
+import { ChainIds } from './chain-ids'
 
-
-export enum ChainIds {
-	mainnet = 1,
-	bsc = 56,
-	matic = 137,
-	amoy = 80002,
-	blast = 81457,
-	skale = 2046399126,
-	sepolia = 11155111,
-	blast_sepolia = 168587773,
-	skale_calypso_testnet = 974399131
-}
-
-interface NetworkConfig {
+export interface NetworkConfig {
 	url: string,
 	chainId: ChainIds,
-	accounts: string[]
+	ledgerAccounts: string[],
 }
 
-export function createRPClink(chainid: ChainIds, accounts: string[], apiKey?: string): NetworkConfig {
-	if (chainid === ChainIds.mainnet || chainid === ChainIds.matic || chainid == ChainIds.sepolia) {
+export function createLedgerConnect(chainid: ChainIds, ledgerAccounts: string[], apiKey?: string): NetworkConfig {
+	if (ledgerAccounts.length == 0) {
+		throw Error('Ledger address not found in environment variables.');
+	}
+	if (chainid === ChainIds.mainnet || chainid === ChainIds.polygon || chainid == ChainIds.sepolia) {
 		if (apiKey == undefined || apiKey == '' || apiKey == null) {
 			throw Error('Proive api for the network');
 		}
@@ -33,14 +24,20 @@ export function createRPClink(chainid: ChainIds, accounts: string[], apiKey?: st
 		case ChainIds.bsc:
 			url = "https://bsc-dataseed.binance.org";
 			break;
-		case ChainIds.matic:
+		case ChainIds.polygon:
 			url = `https://polygon-mainnet.infura.io/v3/${apiKey}`;
 			break;
 		case ChainIds.blast:
 			url = `https://rpc.envelop.is/blast`;
 			break;
-		case ChainIds.skale:
+		case ChainIds.skale_europa:
 			url = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
+			break;
+		case ChainIds.skale_nebula:
+			url = `https://mainnet.skalenodes.com/v1/green-giddy-denebola`;
+			break;
+		case ChainIds.skale_calypso:
+			url = `https://mainnet.skalenodes.com/v1/honorable-steel-rasalhague`;
 			break;
 		case ChainIds.sepolia:
 			url = `https://sepolia.infura.io/v3/${apiKey}`;
@@ -61,6 +58,6 @@ export function createRPClink(chainid: ChainIds, accounts: string[], apiKey?: st
 	return {
 		url,
 		chainId: chainid,
-		accounts
+		ledgerAccounts
 	} as NetworkConfig
 }

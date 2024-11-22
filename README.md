@@ -1,5 +1,47 @@
 # Belong.net
 
+## Install Node.js, npm, yarn
+
+- Download the LTS (Long Term Support) version for your operating system from [Node.js official website](https://nodejs.org/).
+
+- Install this version.
+
+- Verify `node.js` installation:
+
+```shell
+$ node -v
+```
+
+Example output:
+
+```shell
+$ v16.x.x or higher
+```
+
+- Verify `npm` installation:
+
+```shell
+$ npm -v
+```
+
+Example output:
+
+```shell
+$ v16.x.x or higher
+```
+
+- Install `yarn`:
+
+```shell
+$ npm install --global yarn
+```
+
+- Verify installation:
+
+```shell
+$ yarn -v
+```
+
 ## HardHat Usage
 
 Check [HardHat guide](./docs/guides/HardHat.md).
@@ -8,19 +50,23 @@ Check [HardHat guide](./docs/guides/HardHat.md).
 
 Check [Foundry guide](./docs/guides/Foundry.md).
 
-## Remix Usage
-
-- Firstly flatten contract:
-
-```
-forge flatten ./contracts/contract.sol > ./contracts/contract_flattened.sol
-```
-
-Check [Remix guide](./docs/guides/Remix.md).
-
 ## Project Overview
 
 The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. Factory will be deployed via proxy.
+
+## Proxy deploymet
+
+Proxy deployment consists of 4 steps:
+
+- deployment of `Implementation` contract
+- deployment of `Proxy` contract
+- deployment of `ProxyAdmin` contract (the smart contract which will manage all of the proxies deployed from the wallet, it has Ownable modifier, and the Ownership can be transferred)
+- then `ProxyAdmin` address will be stored in config file in the repo, and further deployment of upgrading proxies or deploying new projects will be held by it
+
+Initialization:
+
+- connecting `Implementation` to `Proxy` through `ProxyAdmin`
+- initialization of `Proxy` usign delegate call
 
 ## 1. Functional Requirements
 
