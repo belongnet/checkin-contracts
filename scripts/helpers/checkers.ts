@@ -1,3 +1,5 @@
+import { BigNumberish, BytesLike } from "ethers";
+import { isBytesLike } from "ethers/lib/utils";
 import { ethers } from "hardhat";
 
 export function defaultParamsCheck(paramToCheck: string | undefined, defaultParam: string | number): string | number {
@@ -13,13 +15,27 @@ export function defaultParamsCheck(paramToCheck: string | undefined, defaultPara
 }
 
 export function checkAddress(address: string | undefined): void {
-	if (address === undefined || address.trim() === '' || !ethers.utils.isAddress(address)) {
+	checkString(address);
+
+	if (!ethers.utils.isAddress(address!)) {
 		throw Error(`Invalid Ethereum address provided: ${address}`);
 	}
 }
 
-export function checkNumber(number: number | undefined): void {
+export function checkNumber(number: number | BigNumberish | undefined): void {
 	if (number === undefined || number.toString().trim() === '' || isNaN(Number(number))) {
 		throw Error(`Invalid number provided: ${number}`);
+	}
+}
+
+export function checkString(param: string | undefined): void {
+	if (param === undefined || param.toString().trim() === '') {
+		throw Error(`Invalid string provided: ${param}`);
+	}
+}
+
+export function checkBytesLike(param: string | BytesLike | undefined): void {
+	if (!isBytesLike(param)) {
+		throw Error(`Invalid BytesLike provided: ${param}`);
 	}
 }
