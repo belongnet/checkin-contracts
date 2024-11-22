@@ -2,6 +2,7 @@
 // Compatible with OpenZeppelin Contracts for Cairo ^0.17.0
 
 mod Errors {
+    pub const INITIALIZED: felt252 = 'Contract is already initialized';
     pub const ZERO_ADDRESS: felt252 = 'Zero address passed';
     pub const ZERO_AMOUNT: felt252 = 'Zero amount passed';
     pub const EMPTY_NAME: felt252 = 'Name is empty';
@@ -67,13 +68,13 @@ mod NFTFactory {
         ownable: OwnableComponent::Storage,
         #[substorage(v0)]
         upgradeable: UpgradeableComponent::Storage,
-        
+
+        factory_parameters: FactoryParameters,
         /// Store the class hash of the contract to deploy
         nft_class_hash: ClassHash,
         receiver_class_hash: ClassHash,
 
         nft_info: Map<(felt252, felt252), NftInfo>,
-        factory_parameters: FactoryParameters,
 
         referrals: Map<felt252, ReferralsParametersNode>,
         used_code: Map<ContractAddress, Map<felt252, u8>>,
@@ -127,11 +128,7 @@ mod NFTFactory {
     pub const SKALING_FACTOR: u256 = 10000; // 100 %
 
     #[constructor]
-    fn constructor(ref self: ContractState, owner: ContractAddress, nft_class_hash: ClassHash, receiver_class_hash: ClassHash, factory_parameters: FactoryParameters) {
-        self.nft_class_hash.write(nft_class_hash);
-        self.receiver_class_hash.write(receiver_class_hash);
-        self.factory_parameters.write(factory_parameters);
-
+    fn constructor(ref self: ContractState, owner: ContractAddress) {
         self.ownable.initializer(owner);
     }
 
@@ -145,6 +142,15 @@ mod NFTFactory {
 
     #[abi(embed_v0)]
     impl NFTFactoryImpl of INFTFactory<ContractState> {
+        fn intitialize(ref self: ContractState, nft_class_hash: ClassHash, receiver_class_hash: ClassHash, factory_parameters: FactoryParameters) {
+            self.ownable.assert_only_owner();
+            assert(self.factory_parameters.platform_address.read().is_zero(), super::Errors::INITIALIZED);
+
+            self.nft_class_hash.write(nft_class_hash);
+            self.receiver_class_hash.write(receiver_class_hash);
+            self.factory_parameters.write(factory_parameters);
+        }
+
         fn produce(ref self: ContractState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress {
             let deployed_address = self._produce(instance_info, signature);
             deployed_address

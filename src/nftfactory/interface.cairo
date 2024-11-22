@@ -45,6 +45,8 @@ pub struct SignatureRS {
 
 #[starknet::interface]
 pub trait INFTFactory<TState> {
+    fn intitialize(ref self: TState, nft_class_hash: ClassHash, receiver_class_hash: ClassHash, factory_parameters: FactoryParameters);
+
     fn produce(ref self: TState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress;
 
     fn update_nft_class_hash(ref self: TState, class_hash: ClassHash);
