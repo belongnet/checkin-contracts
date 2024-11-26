@@ -43,7 +43,7 @@ export function createConnect(chainid: ChainIds, accounts: string[], apiKey?: st
 			url = `https://sepolia.infura.io/v3/${apiKey}`;
 			break;
 		case ChainIds.amoy:
-			url = `https://api.zan.top/polygon-amoy`;
+			url = `https://rpc-amoy.polygon.technology`;
 			break;
 		case ChainIds.blast_sepolia:
 			url = `https://sepolia.blast.io`;
