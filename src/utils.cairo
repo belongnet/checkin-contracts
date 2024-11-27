@@ -1,4 +1,4 @@
-use starknet::{ContractAddress, contract_address_const};
+use starknet::{ContractAddress, contract_address_const, class_hash::class_hash_const, ClassHash};
 
 pub fn NAME() -> ByteArray {
     "NAME"
@@ -20,6 +20,10 @@ pub fn OWNER() -> ContractAddress {
     contract_address_const::<'OWNER'>()
 }
 
+pub fn PLATFORM() -> ContractAddress {
+    contract_address_const::<'PLATFORM'>()
+}
+
 pub fn CREATOR() -> ContractAddress {
     contract_address_const::<'CREATOR'>()
 }
@@ -34,6 +38,18 @@ pub fn NFT() -> ContractAddress {
 
 pub fn RECEIVER() -> ContractAddress {
     contract_address_const::<'RECEIVER'>()
+}
+
+pub fn CURRENCY() -> ContractAddress {
+    contract_address_const::<'CURRENCY'>()
+}
+
+pub fn NFT_CLASS_HASH() -> ClassHash {
+    class_hash_const::<'NFT_CLASS_HASH'>()
+}
+
+pub fn RECEIVER_CLASS_HASH() -> ClassHash {
+    class_hash_const::<'RECEIVER_CLASS_HASH'>()
 }
 
 pub fn FRACTION() -> u128 {
