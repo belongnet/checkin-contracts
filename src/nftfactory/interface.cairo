@@ -45,7 +45,12 @@ pub struct SignatureRS {
 
 #[starknet::interface]
 pub trait INFTFactory<TState> {
-    fn intitialize(ref self: TState, nft_class_hash: ClassHash, receiver_class_hash: ClassHash, factory_parameters: FactoryParameters);
+    fn initialize(
+        ref self: TState,
+        nft_class_hash: ClassHash,
+        receiver_class_hash: ClassHash,
+        factory_parameters: FactoryParameters
+    );
 
     fn produce(ref self: TState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress;
 
@@ -53,21 +58,23 @@ pub trait INFTFactory<TState> {
 
     fn update_receiver_class_hash(ref self: TState, class_hash: ClassHash);
 
-    fn set_factory_parameters(ref self: TState, factory_parameters: FactoryParameters);
+    fn setFactoryParameters(ref self: TState, factory_parameters: FactoryParameters);
 
-    fn set_referral_percentages(ref self: TState, percentages: Span<u16>);
+    fn setReferralPercentages(ref self: TState, percentages: Span<u16>);
 
-    fn nft_info(self: @TState, nft_metadata: NftMetadata) -> NftInfo;
+    fn nftInfo(self: @TState, nft_metadata: NftMetadata) -> NftInfo;
 
     fn nftFactoryParameters(self: @TState) -> FactoryParameters;
 
-    fn max_array_size(self: @TState) -> u256;
+    fn maxArraySize(self: @TState) -> u256;
 
-    fn signer_public_key(self: @TState) -> felt252;
+    fn signerPublicKey(self: @TState) -> felt252;
 
-    fn platform_params(self: @TState) -> (u256, ContractAddress);
+    fn platformParams(self: @TState) -> (u256, ContractAddress);
 
-    fn referral_code(self: @TState, account: ContractAddress) -> felt252;
+    fn usedToPercentage(self: @TState, timesUsed: u8) -> u16;
+
+    fn referralCode(self: @TState, account: ContractAddress) -> felt252;
 
     fn getReferralRate(self: @TState, referral_user: ContractAddress, referral_code: felt252, amount: u256) -> u256;
 

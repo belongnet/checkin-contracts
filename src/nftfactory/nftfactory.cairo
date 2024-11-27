@@ -14,10 +14,11 @@ mod Errors {
     pub const CAN_NOT_REFER_SELF: felt252 = 'Can not refer to self';
     pub const REFFERAL_CODE_NOT_USED_BY_USER: felt252 = 'User code did not used code';
     pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
+    pub const WRONG_PERCENTAGES_LEN: felt252 = 'Wrong percentages length';
 }
 
 #[starknet::contract]
-mod NFTFactory {
+pub mod NFTFactory {
     use crate::nftfactory::interface::{INFTFactory, FactoryParameters, NftMetadata, NftInfo, InstanceInfo, SignatureRS};
     use crate::nft::interface::{INFTDispatcher, INFTDispatcherTrait, NftParameters};
     use core::{ecdsa::check_ecdsa_signature, traits::Into, num::traits::Zero, hash::HashStateTrait, pedersen::
@@ -142,13 +143,18 @@ mod NFTFactory {
 
     #[abi(embed_v0)]
     impl NFTFactoryImpl of INFTFactory<ContractState> {
-        fn intitialize(ref self: ContractState, nft_class_hash: ClassHash, receiver_class_hash: ClassHash, factory_parameters: FactoryParameters) {
+        fn initialize(
+            ref self: ContractState,
+            nft_class_hash: ClassHash,
+            receiver_class_hash: ClassHash,
+            factory_parameters: FactoryParameters
+        ) {
             self.ownable.assert_only_owner();
             assert(self.factory_parameters.platform_address.read().is_zero(), super::Errors::INITIALIZED);
 
             self.nft_class_hash.write(nft_class_hash);
             self.receiver_class_hash.write(receiver_class_hash);
-            self.factory_parameters.write(factory_parameters);
+            self._set_factory_parameters(factory_parameters);
         }
 
         fn produce(ref self: ContractState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress {
@@ -166,17 +172,17 @@ mod NFTFactory {
             self.receiver_class_hash.write(class_hash);
         }
 
-        fn set_factory_parameters(ref self: ContractState, factory_parameters: FactoryParameters) {
+        fn setFactoryParameters(ref self: ContractState, factory_parameters: FactoryParameters) {
             self.ownable.assert_only_owner();
             self._set_factory_parameters(factory_parameters);
         }
 
-        fn set_referral_percentages(ref self: ContractState, percentages: Span<u16>) {
+        fn setReferralPercentages(ref self: ContractState, percentages: Span<u16>) {
             self.ownable.assert_only_owner();
             self._set_referral_percentages(percentages);
         }
 
-        fn nft_info(self: @ContractState, nft_metadata: NftMetadata) -> NftInfo {
+        fn nftInfo(self: @ContractState, nft_metadata: NftMetadata) -> NftInfo {
             return self._nft_info(nft_metadata);
         }
 
@@ -184,19 +190,23 @@ mod NFTFactory {
             return self.factory_parameters.read();
         }
 
-        fn max_array_size(self: @ContractState) -> u256 {
+        fn maxArraySize(self: @ContractState) -> u256 {
             return self.factory_parameters.max_array_size.read();
         }
 
-        fn signer_public_key(self: @ContractState) -> felt252 {
+        fn signerPublicKey(self: @ContractState) -> felt252 {
             return self.factory_parameters.signer_public_key.read();
         }
 
-        fn platform_params(self: @ContractState) -> (u256, ContractAddress) {
+        fn platformParams(self: @ContractState) -> (u256, ContractAddress) {
             return (self.factory_parameters.platform_commission.read(), self.factory_parameters.platform_address.read());
         }
 
-        fn referral_code(self: @ContractState, account: ContractAddress) -> felt252 {
+        fn usedToPercentage(self: @ContractState, timesUsed: u8) -> u16 {
+            return self.used_to_percentage.at(timesUsed.into()).read();
+        }
+
+        fn referralCode(self: @ContractState, account: ContractAddress) -> felt252 {
             let hash = pedersen(account.into(), get_contract_address().into());
             self._check_referral_code(hash);
 
@@ -394,6 +404,8 @@ mod NFTFactory {
         }
 
         fn _set_referral_percentages(ref self: ContractState, percentages: Span<u16>) {
+            assert(percentages.len() == 5, super::Errors::WRONG_PERCENTAGES_LEN);
+
             for i in 0..percentages.len() {
                 self.used_to_percentage.append().write(*percentages.at(i));
             };
