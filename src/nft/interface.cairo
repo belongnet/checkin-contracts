@@ -44,45 +44,42 @@ pub struct SignatureRS {
 pub trait INFT<TState> {
     fn initialize(
         ref self: TState,
-        nft_parameters: NftParameters,
+        nftParameters: NftParameters,
     );
 
-    fn set_payment_info(
+    fn setPaymentInfo(
         ref self: TState,
-        payment_token: ContractAddress,
-        mint_price: u256,
-        whitelisted_mint_price: u256,
+        paymentToken: ContractAddress,
+        mintPrice: u256,
+        whitelistedMintPrice: u256,
     );
 
     fn addWhitelisted(ref self: TState, whitelisted: ContractAddress);
 
     fn mintDynamicPrice( 
         ref self: TState,
-        dynamic_params: Span<DynamicPriceParameters>,
-        expected_paying_token: ContractAddress
+        dynamicParams: Span<DynamicPriceParameters>,
+        expectedPayingToken: ContractAddress
     );
 
     fn mintStaticPrice(
         ref self: TState,
-        static_params: Span<StaticPriceParameters>,
-        expected_paying_token: ContractAddress,
-        expected_mint_price: u256
+        staticParams: Span<StaticPriceParameters>,
+        expectedPayingToken: ContractAddress,
+        expectedMintPrice: u256
     );
 
-    fn metadataUri(
-        self: @TState,
-        tokenId: u256,
-    ) -> felt252;
+    fn nftParameters(self: @TState) -> NftParameters;
 
-    fn contractUri(
-        self: @TState
-    ) -> felt252;
+    fn metadataUri(self: @TState, tokenId: u256) -> felt252;
 
-    fn creator(
-        self: @TState
-    ) -> ContractAddress;
+    fn contractUri(self: @TState) -> felt252;
 
-    fn factory(
-        self: @TState
-    ) -> ContractAddress;
+    fn creator(self: @TState) -> ContractAddress;
+
+    fn factory(self: @TState) -> ContractAddress;
+
+    fn totalSupply(self: @TState) -> u256;
+
+    fn isWhitelisted(self: @TState, whitelisted: ContractAddress) -> bool;
 }

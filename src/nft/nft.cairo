@@ -10,7 +10,7 @@ mod Errors {
     pub const EXPECTED_PRICE_ERROR: felt252 = 'Price not equals to existent';
     pub const NOT_TRANSFERRABLE: felt252 = 'Not transferrable';
     pub const ONLY_FACTORY: felt252 = 'Only Factory can call';
-    pub const INITIALIZE_ONLY_ONCE: felt252 = 'Itialize only once';
+    pub const INITIALIZE_ONLY_ONCE: felt252 = 'Initialize only once';
     pub const WRONG_ARRAY_SIZE: felt252 = 'Wrong array size';
     pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
 }
@@ -92,7 +92,7 @@ pub mod NFT {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         #[flat]
         ERC721Event: ERC721Component::Event,
         #[flat]
@@ -147,21 +147,22 @@ pub mod NFT {
     impl NFTImpl of INFT<ContractState> {
         fn initialize(
             ref self: ContractState,
-            nft_parameters: NftParameters,
+            nftParameters: NftParameters,
         ) {
-            self._initialize(
-                nft_parameters
-            );
+            assert(get_caller_address() == self.factory.read(), super::Errors::ONLY_FACTORY);
+            assert(self.nft_parameters.mint_price.read().is_zero(), super::Errors::INITIALIZE_ONLY_ONCE);
+
+            self.nft_parameters.write(nftParameters);
         }
 
-        fn set_payment_info(
+        fn setPaymentInfo(
             ref self: ContractState,
-            payment_token: ContractAddress,
-            mint_price: u256,
-            whitelisted_mint_price: u256,
+            paymentToken: ContractAddress,
+            mintPrice: u256,
+            whitelistedMintPrice: u256,
         ) {
             self.ownable.assert_only_owner();
-            self._set_payment_info(payment_token, mint_price, whitelisted_mint_price);
+            self._set_payment_info(paymentToken, mintPrice, whitelistedMintPrice);
         }
 
         fn addWhitelisted(ref self: ContractState, whitelisted: ContractAddress) {
@@ -171,44 +172,47 @@ pub mod NFT {
 
         fn mintDynamicPrice( 
             ref self: ContractState,
-            dynamic_params: Span<DynamicPriceParameters>,
-            expected_paying_token: ContractAddress
+            dynamicParams: Span<DynamicPriceParameters>,
+            expectedPayingToken: ContractAddress
         ) {
-            self._mint_dynamic_price_batch(dynamic_params, expected_paying_token);
+            self._mint_dynamic_price_batch(dynamicParams, expectedPayingToken);
         }
 
         fn mintStaticPrice(
             ref self: ContractState,
-            static_params: Span<StaticPriceParameters>,
-            expected_paying_token: ContractAddress,
-            expected_mint_price: u256
+            staticParams: Span<StaticPriceParameters>,
+            expectedPayingToken: ContractAddress,
+            expectedMintPrice: u256
         ) {
-            self._mint_static_price_batch(static_params, expected_paying_token, expected_mint_price);
+            self._mint_static_price_batch(staticParams, expectedPayingToken, expectedMintPrice);
         }
 
-        fn metadataUri(
-            self: @ContractState,
-            tokenId: u256,
-        ) -> felt252 {
+        fn nftParameters(self: @ContractState) -> NftParameters {
+            return self.nft_parameters.read();
+        }
+
+        fn metadataUri(self: @ContractState, tokenId: u256) -> felt252 {
             return self.nft_node.metadata_uri.read(tokenId);
         }
 
-        fn contractUri(
-            self: @ContractState
-        ) -> felt252 {
+        fn contractUri(self: @ContractState) -> felt252 {
             return self.nft_parameters.contract_uri.read();
         }
 
-        fn creator(
-            self: @ContractState
-        ) -> ContractAddress {
+        fn creator(self: @ContractState) -> ContractAddress {
             return self.creator.read();
         }
 
-        fn factory(
-            self: @ContractState
-        ) -> ContractAddress {
+        fn factory(self: @ContractState) -> ContractAddress {
             return self.factory.read();
+        }
+
+        fn totalSupply(self: @ContractState) -> u256 {
+            return self.nft_node.total_supply.read();
+        }
+
+        fn isWhitelisted(self: @ContractState, whitelisted: ContractAddress) -> bool {
+            self.nft_node.whitelisted.read(whitelisted)
         }
     }
 
@@ -230,16 +234,6 @@ pub mod NFT {
 
     #[generate_trait]
     impl InternalImpl of InternalTrait {
-        fn _initialize(
-            ref self: ContractState,
-            nft_parameters: NftParameters,
-        ) {
-            assert(get_caller_address() == self.factory.read(), super::Errors::ONLY_FACTORY);
-            assert(self.nft_parameters.mint_price.read().is_zero(), super::Errors::INITIALIZE_ONLY_ONCE);
-
-            self.nft_parameters.write(nft_parameters);
-        }
-
         fn _set_payment_info(
             ref self: ContractState,
             payment_token: ContractAddress,
@@ -264,7 +258,7 @@ pub mod NFT {
         ) {
             let array_size = static_params.len();
             assert(
-                array_size.into() <= INFTFactoryDispatcher { contract_address: self.factory.read() }.max_array_size(),
+                array_size.into() <= INFTFactoryDispatcher { contract_address: self.factory.read() }.maxArraySize(),
                 super::Errors::WRONG_ARRAY_SIZE
             );
 
@@ -275,7 +269,7 @@ pub mod NFT {
                 let pedersen_hash = self._get_static_params_hash(params);
                 let validate = check_ecdsa_signature(
                     pedersen_hash,
-                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signer_public_key(),
+                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signerPublicKey(),
                     params.signature.r,
                     params.signature.s
                 );
@@ -310,7 +304,7 @@ pub mod NFT {
         ) {
             let array_size = dynamic_params.len();
             assert(
-                array_size.into() <= INFTFactoryDispatcher { contract_address: self.factory.read() }.max_array_size(),
+                array_size.into() <= INFTFactoryDispatcher { contract_address: self.factory.read() }.maxArraySize(),
                 super::Errors::WRONG_ARRAY_SIZE
             );
 
@@ -321,7 +315,7 @@ pub mod NFT {
                 let pedersen_hash = self._get_dynamic_params_hash(params);
                 let validate = check_ecdsa_signature(
                     pedersen_hash,
-                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signer_public_key(),
+                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signerPublicKey(),
                     params.signature.r,
                     params.signature.s
                 );
@@ -374,7 +368,7 @@ pub mod NFT {
                 fees_to_platform = fees_to_platform - referral_fees;
             }
 
-            let (_, platform) = factory.platform_params();
+            let (_, platform) = factory.platformParams();
 
             let user = get_caller_address();
             let token = IERC20Dispatcher { contract_address: self.nft_parameters.payment_token.read() };
@@ -405,7 +399,7 @@ pub mod NFT {
             // price is the same so no need to return it
             assert(payment_token == self.nft_parameters.payment_token.read(), super::Errors::EXPECTED_TOKEN_ERROR);
 
-            let (platform_commission, _) = INFTFactoryDispatcher { contract_address: self.factory.read() }.platform_params();
+            let (platform_commission, _) = INFTFactoryDispatcher { contract_address: self.factory.read() }.platformParams();
 
             let fees = (price * platform_commission) / DefaultConfig::FEE_DENOMINATOR.into();
 
