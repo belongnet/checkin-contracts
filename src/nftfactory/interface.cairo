@@ -1,6 +1,6 @@
 use starknet::{ContractAddress, ClassHash};
 
-#[derive(Drop, Serde, starknet::Store)]
+#[derive(Drop, Serde, Copy, starknet::Store)]
 pub struct FactoryParameters {
     pub signer_public_key: felt252,
     pub default_payment_currency: ContractAddress,

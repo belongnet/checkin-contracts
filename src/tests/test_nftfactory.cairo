@@ -71,7 +71,7 @@ fn test_initialize() {
 
     start_cheat_caller_address(contract, utils::OWNER());
 
-    nft_factory.initialize(nft_class_hash, receiver_class_hash, factory_parameters.clone());
+    nft_factory.initialize(nft_class_hash, receiver_class_hash, factory_parameters);
 
     assert_eq!(nft_factory.nftFactoryParameters().signer_public_key, factory_parameters.signer_public_key);
     assert_eq!(nft_factory.nftFactoryParameters().default_payment_currency, factory_parameters.default_payment_currency);
@@ -215,9 +215,11 @@ fn test_setReferralPercentages() {
 
     nft_factory.setReferralPercentages(percentages);
 
-    for i in 0..percentages.len() {
-        assert_eq!(nft_factory.usedToPercentage(i.into()), percentages[i.into()]);
-    };
+    assert_eq!(nft_factory.usedToPercentage(0), *percentages[0]);
+    assert_eq!(nft_factory.usedToPercentage(1), *percentages[1]);
+    assert_eq!(nft_factory.usedToPercentage(2), *percentages[2]);
+    assert_eq!(nft_factory.usedToPercentage(3), *percentages[3]);
+    assert_eq!(nft_factory.usedToPercentage(4), *percentages[4]);
 }
 
 #[should_panic(expected: 'Wrong percentages length')]
