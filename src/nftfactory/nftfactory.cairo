@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts for Cairo ^0.17.0
-
 mod Errors {
     pub const INITIALIZED: felt252 = 'Contract is already initialized';
     pub const ZERO_ADDRESS: felt252 = 'Zero address passed';
@@ -19,12 +18,14 @@ mod Errors {
 
 #[starknet::contract]
 pub mod NFTFactory {
-    use crate::nftfactory::interface::{INFTFactory, FactoryParameters, NftMetadata, NftInfo, InstanceInfo, SignatureRS};
+    use crate::nftfactory::interface::{INFTFactory, FactoryParameters, NftInfo, InstanceInfo, SignatureRS};
+    use crate::utils::{
+        interfaces::IOffChainMessageHash,
+        message_hash::MessageHash
+    };
     use crate::nft::interface::{INFTDispatcher, INFTDispatcherTrait, NftParameters};
-    use core::{ecdsa::check_ecdsa_signature, traits::Into, num::traits::Zero, hash::HashStateTrait, pedersen::
-        {
-            pedersen, PedersenTrait
-        }
+    use core::{ecdsa::check_ecdsa_signature, traits::Into, num::traits::Zero, hash::HashStateTrait, 
+        pedersen::{pedersen, PedersenTrait},
     };
     use starknet::{
         ContractAddress,
@@ -51,7 +52,8 @@ pub mod NFTFactory {
     use openzeppelin::{
         utils::serde::SerializedAppend,
         access::ownable::OwnableComponent, 
-        upgrades::{UpgradeableComponent, interface::IUpgradeable}
+        upgrades::{UpgradeableComponent, interface::IUpgradeable},
+        account::interface::{ISRC6Dispatcher, ISRC6DispatcherTrait}
     };
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
@@ -157,8 +159,8 @@ pub mod NFTFactory {
             self._set_factory_parameters(factory_parameters);
         }
 
-        fn produce(ref self: ContractState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress {
-            let deployed_address = self._produce(instance_info, signature);
+        fn produce(ref self: ContractState, instance_info: InstanceInfo) -> ContractAddress {
+            let deployed_address = self._produce(instance_info);
             deployed_address
         }
 
@@ -182,8 +184,8 @@ pub mod NFTFactory {
             self._set_referral_percentages(percentages);
         }
 
-        fn nftInfo(self: @ContractState, nft_metadata: NftMetadata) -> NftInfo {
-            return self._nft_info(nft_metadata);
+        fn nftInfo(self: @ContractState, name: ByteArray, symbol: ByteArray) -> NftInfo {
+            return self._nft_info(name, symbol);
         }
 
         fn nftFactoryParameters(self: @ContractState) -> FactoryParameters {
@@ -194,8 +196,8 @@ pub mod NFTFactory {
             return self.factory_parameters.max_array_size.read();
         }
 
-        fn signerPublicKey(self: @ContractState) -> felt252 {
-            return self.factory_parameters.signer_public_key.read();
+        fn signer(self: @ContractState) -> ContractAddress {
+            return self.factory_parameters.signer.read();
         }
 
         fn platformParams(self: @ContractState) -> (u256, ContractAddress) {
@@ -243,27 +245,32 @@ pub mod NFTFactory {
 
     #[generate_trait]
     impl InternalImpl of InternalTrait {
-        fn _produce(ref self: ContractState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress {
+        fn _produce(ref self: ContractState, instance_info: InstanceInfo) -> ContractAddress {
             let info = instance_info.clone();
-            let metadata = info.nft_metadata.clone();
 
-            assert(metadata.name.len().is_non_zero(), super::Errors::EMPTY_NAME);
-            assert(metadata.symbol.len().is_non_zero(), super::Errors::EMPTY_SYMBOL);
+            assert(info.name.len().is_non_zero(), super::Errors::EMPTY_NAME);
+            assert(info.symbol.len().is_non_zero(), super::Errors::EMPTY_SYMBOL);
 
-
-            let metadata_name_hash: felt252 = pedersen(metadata.name.len().into(), metadata.name.at(0).unwrap().into());
-            let metadata_symbol_hash: felt252 = pedersen(metadata.symbol.len().into(), metadata.symbol.at(0).unwrap().into());
+            let metadata_name_hash: felt252 = pedersen(info.name.len().into(), info.name.at(0).unwrap().into());
+            let metadata_symbol_hash: felt252 = pedersen(info.symbol.len().into(), info.symbol.at(0).unwrap().into());
         
             assert(self.nft_info.entry((metadata_name_hash,metadata_symbol_hash)).nft_address.read().is_zero(), super::Errors::NFT_EXISTS);
-        
-            let pedersen_hash = self._get_instance_info_hash(info.clone());
-            let validate = check_ecdsa_signature(
-                pedersen_hash,
-                self.factory_parameters.signer_public_key.read(),
-                signature.r,
-                signature.s
-            );
-            assert(validate, super::Errors::VALIDATION_ERROR);
+            
+            let message = MessageHash {
+                name_hash: metadata_name_hash,
+                symbol_hash: metadata_symbol_hash,
+                contract_uri: info.contract_uri,
+                royalty_fraction: info.royalty_fraction
+            };
+
+            let hash = message.get_message_hash();
+            let is_valid_signature_felt = 
+                ISRC6Dispatcher { contract_address: self.factory_parameters.signer.read() }.is_valid_signature(hash, info.signature);
+            // Check either 'VALID' or True for backwards compatibility
+            let is_valid_signature = is_valid_signature_felt == starknet::VALIDATED
+                || is_valid_signature_felt == 1;
+
+            assert(is_valid_signature, super::Errors::VALIDATION_ERROR);
 
             let payment_token = if info.payment_token.is_zero() {
                 self.factory_parameters.default_payment_currency.read()
@@ -303,8 +310,8 @@ pub mod NFTFactory {
             let mut nft_constructor_calldata: Array<felt252> = array![];
             nft_constructor_calldata.append_serde(get_caller_address());
             nft_constructor_calldata.append_serde(get_contract_address());
-            nft_constructor_calldata.append_serde(info.nft_metadata.name);
-            nft_constructor_calldata.append_serde(info.nft_metadata.symbol);
+            nft_constructor_calldata.append_serde(info.name.clone());
+            nft_constructor_calldata.append_serde(info.symbol.clone());
             nft_constructor_calldata.append_serde(receiver_address);
             nft_constructor_calldata.append_serde(info.royalty_fraction);
 
@@ -319,7 +326,8 @@ pub mod NFTFactory {
             self.nft_info.write(
                 (metadata_name_hash,metadata_symbol_hash), 
                 NftInfo {
-                    nft_metadata: metadata.clone(),
+                    name: info.name.clone(),
+                    symbol: info.symbol.clone(),
                     creator: get_caller_address(),
                     nft_address: nft_address
                 }
@@ -330,8 +338,8 @@ pub mod NFTFactory {
                     NFTCreated { 
                         deployed_address: nft_address,
                         creator: get_caller_address(),
-                        name: metadata.name,
-                        symbol: metadata.symbol,
+                        name: info.name,
+                        symbol: info.symbol,
                     }
                 )
             );
@@ -397,7 +405,7 @@ pub mod NFTFactory {
         }
 
         fn _set_factory_parameters(ref self: ContractState, factory_parameters: FactoryParameters) {
-            assert(factory_parameters.signer_public_key.is_non_zero(), super::Errors::ZERO_ADDRESS);
+            assert(factory_parameters.signer.is_non_zero(), super::Errors::ZERO_ADDRESS);
             assert(factory_parameters.platform_address.is_non_zero(), super::Errors::ZERO_ADDRESS);
             assert(factory_parameters.platform_commission.is_non_zero(), super::Errors::ZERO_AMOUNT);
             self.factory_parameters.write(factory_parameters);
@@ -411,9 +419,9 @@ pub mod NFTFactory {
             };
         }
 
-        fn _nft_info(self: @ContractState, nft_metadata: NftMetadata) -> NftInfo {
-            let metadata_name_hash: felt252 = pedersen(nft_metadata.name.len().into(), nft_metadata.name.at(0).unwrap().into());
-            let metadata_symbol_hash: felt252 = pedersen(nft_metadata.symbol.len().into(), nft_metadata.symbol.at(0).unwrap().into());
+        fn _nft_info(self: @ContractState, name: ByteArray, symbol: ByteArray) -> NftInfo {
+            let metadata_name_hash: felt252 = pedersen(name.len().into(), name.at(0).unwrap().into());
+            let metadata_symbol_hash: felt252 = pedersen(symbol.len().into(), symbol.at(0).unwrap().into());
         
             let nft_info = self.nft_info.read((metadata_name_hash,metadata_symbol_hash));
             assert(nft_info.nft_address.is_non_zero(), super::Errors::NFT_NOT_EXISTS);
@@ -426,24 +434,6 @@ pub mod NFTFactory {
                 self.referrals.entry(referral_code).referral_creator.read().is_non_zero(),
                 super::Errors::REFFERAL_CODE_NOT_EXISTS
             );
-        }
-
-        fn _get_instance_info_hash(self: @ContractState, instance_info: InstanceInfo) -> felt252 {
-            let mut info_calldata = array![];
-            info_calldata.append_serde(instance_info.nft_metadata.name);
-            info_calldata.append_serde(instance_info.nft_metadata.symbol);
-            info_calldata.append_serde(instance_info.contract_uri);
-            info_calldata.append_serde(instance_info.royalty_fraction);
-            info_calldata.append_serde(instance_info.fee_receiver);
-            info_calldata.append_serde(get_tx_info().unbox().chain_id);
-
-            let mut pedersen_hash = PedersenTrait::new(*info_calldata.at(0));
-
-            for i in 1..info_calldata.len() {
-                pedersen_hash.update(*info_calldata.at(i));
-            };
-
-            return pedersen_hash.finalize();
         }
 
         fn _get_referral_creator(self: @ContractState, referral_code: felt252) -> ContractAddress {
