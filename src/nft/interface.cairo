@@ -22,7 +22,7 @@ pub struct DynamicPriceParameters {
     pub token_id: u256,
     pub price: u256,
     pub token_uri: felt252,
-    pub signature: SignatureRS,
+    pub signature: Array<felt252>
 }
 
 #[derive(Drop, Serde, Copy, starknet::Store)]
@@ -31,13 +31,15 @@ pub struct StaticPriceParameters {
     pub token_id: u256,
     pub whitelisted: bool,
     pub token_uri: felt252,
-    pub signature: SignatureRS,
+    pub signature: Array<felt252>
 }
 
-#[derive(Drop, Serde, Copy, starknet::Store)]
-pub struct SignatureRS {
-    pub r: felt252,
-    pub s: felt252,
+#[derive(Drop, Serde, Hash)]
+pub struct DynamicPriceHash {
+    pub receiver: ContractAddress,
+    pub token_id: u256,
+    pub price: u256,
+    pub token_uri: felt252,
 }
 
 #[starknet::interface]
