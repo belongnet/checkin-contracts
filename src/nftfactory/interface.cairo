@@ -2,42 +2,39 @@ use starknet::{ContractAddress, ClassHash};
 
 #[derive(Drop, Serde, Copy, starknet::Store)]
 pub struct FactoryParameters {
-    pub signer_public_key: felt252,
+    pub signer: ContractAddress,
     pub default_payment_currency: ContractAddress,
     pub platform_address: ContractAddress,
     pub platform_commission: u256,
     pub max_array_size: u256,
 }
 
-#[derive(Clone, Drop, Serde, starknet::Store)]
-pub struct NftMetadata {
-    pub name: ByteArray,
-    pub symbol: ByteArray,
-}
-
 #[derive(Drop, Serde, starknet::Store)]
 pub struct NftInfo {
-    pub nft_metadata: NftMetadata,
+    pub name: ByteArray,
+    pub symbol: ByteArray,
     pub creator: ContractAddress,
     pub nft_address: ContractAddress
 }
 
-#[derive(Clone, Drop, Serde, starknet::Store)]
+#[derive(Clone, Drop, Serde)]
 pub struct InstanceInfo {
-    pub nft_metadata: NftMetadata,
+    pub name: ByteArray,
+    pub symbol: ByteArray,
     pub contract_uri: felt252,
     pub payment_token: ContractAddress,
     pub fee_receiver: ContractAddress,
-    pub royalty_fraction: felt252,
+    pub royalty_fraction: u128,
     pub transferrable: bool,
     pub max_total_supply: u256,         // The max total supply of a new collection
     pub mint_price: u256,               // Mint price of a token from a new collection
     pub whitelisted_mint_price: u256,     // Mint price for whitelisted users
     pub collection_expires: u256,       // Collection expiration period (timestamp)
     pub referral_code: felt252,
+    pub signature: Array<felt252>
 }
 
-#[derive(Drop, Serde, starknet::Store)]
+#[derive(Clone, Drop, Serde)]
 pub struct SignatureRS {
     pub r: felt252,
     pub s: felt252,
@@ -52,7 +49,7 @@ pub trait INFTFactory<TState> {
         factory_parameters: FactoryParameters
     );
 
-    fn produce(ref self: TState, instance_info: InstanceInfo, signature: SignatureRS) -> ContractAddress;
+    fn produce(ref self: TState, instance_info: InstanceInfo) -> ContractAddress;
 
     fn update_nft_class_hash(ref self: TState, class_hash: ClassHash);
 
@@ -62,13 +59,13 @@ pub trait INFTFactory<TState> {
 
     fn setReferralPercentages(ref self: TState, percentages: Span<u16>);
 
-    fn nftInfo(self: @TState, nft_metadata: NftMetadata) -> NftInfo;
+    fn nftInfo(self: @TState, name: ByteArray, symbol: ByteArray) -> NftInfo;
 
     fn nftFactoryParameters(self: @TState) -> FactoryParameters;
 
     fn maxArraySize(self: @TState) -> u256;
 
-    fn signerPublicKey(self: @TState) -> felt252;
+    fn signer(self: @TState) -> ContractAddress;
 
     fn platformParams(self: @TState) -> (u256, ContractAddress);
 
