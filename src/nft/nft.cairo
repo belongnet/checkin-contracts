@@ -18,6 +18,10 @@ mod Errors {
 #[starknet::contract]
 pub mod NFT {
     use crate::nft::interface::{INFT, NftParameters, DynamicPriceParameters, StaticPriceParameters};
+    use crate::utils::{
+        interfaces::IOffChainMessageHash,
+        message_hash::MessageHash
+    };
     use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait};
     use core::{num::traits::Zero, ecdsa::check_ecdsa_signature, hash::HashStateTrait, pedersen::{PedersenTrait}};
     use starknet::{
@@ -269,7 +273,7 @@ pub mod NFT {
                 let pedersen_hash = self._get_static_params_hash(params);
                 let validate = check_ecdsa_signature(
                     pedersen_hash,
-                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signerPublicKey(),
+                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signer(),
                     params.signature.r,
                     params.signature.s
                 );
@@ -315,7 +319,7 @@ pub mod NFT {
                 let pedersen_hash = self._get_dynamic_params_hash(params);
                 let validate = check_ecdsa_signature(
                     pedersen_hash,
-                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signerPublicKey(),
+                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signer(),
                     params.signature.r,
                     params.signature.s
                 );
