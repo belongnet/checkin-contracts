@@ -11,7 +11,11 @@ mod nftfactory {
     pub mod interface;
 }
 
-mod utils;
+mod utils{
+    pub mod message_hash;
+    pub mod snip12;
+    pub mod interfaces;
+}
 
 #[cfg(test)]
 mod tests;
