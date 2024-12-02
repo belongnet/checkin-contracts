@@ -29,6 +29,9 @@ BlockScans API keys:
 - `ETHERSCAN_API_KEY`: Your Etherscan API key for contract verification
 - `BLASTSCAN_API_KEY`: Your Blastscan API key for contract verification
 - `POLYSCAN_API_KEY`: Your Polygonscan API key for contract verification
+- `CELOSCAN_API_KEY`: Your Celoscan API key for contract verification
+- `BASESCAN_API_KEY`: Your Basescan API key for contract verification
+- `LINEASCAN_API_KEY`: Your Lineascan API key for contract verification
 
 For the rest of the networks you don't need to provide any API keys for BlockScans.
 If you use [Blockscout](https://docs.blockscout.com/devs/verification/hardhat-verification-plugin), then no need to speify any API keys.
@@ -114,6 +117,9 @@ $ yarn deploy:factory <network_name>
 - `bsc` - Binance Smart Chain mainnet
 - `matic` - Polygon mainnet
 - `blast` - Blast mainnet
+- `celo` - Celo mainnet
+- `base` - BASE mainnet
+- `linea` - Linea mainnet
 - `skale_europa` - Skale Europa Hub mainnet
 - `skale_nebula` - Skale Nebula Hub mainnet
 - `skale_calypso` - Skale Calypso Hub mainnet
@@ -178,6 +184,9 @@ $ yarn verify:deployed <network_name>
 - `bsc` - Binance Smart Chain mainnet
 - `matic` - Polygon mainnet
 - `blast` - Blast mainnet
+- `celo` - Celo mainnet
+- `base` - BASE mainnet
+- `linea` - Linea mainnet
 - `skale_europa` - Skale Europa Hub mainnet
 - `skale_nebula` - Skale Nebula Hub mainnet
 - `skale_calypso` - Skale Calypso Hub mainnet

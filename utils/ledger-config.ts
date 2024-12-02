@@ -30,6 +30,15 @@ export function createLedgerConnect(chainid: ChainIds, ledgerAccounts: string[],
 		case ChainIds.blast:
 			url = `https://rpc.envelop.is/blast`;
 			break;
+		case ChainIds.celo:
+			url = `https://rpc.ankr.com/celo`;
+			break;
+		case ChainIds.base:
+			url = `https://base.llamarpc.com`;
+			break;
+		case ChainIds.linea:
+			url = `https://linea-rpc.publicnode.com`;
+			break;
 		case ChainIds.skale_europa:
 			url = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
 			break;
