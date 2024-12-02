@@ -17,17 +17,19 @@ mod Errors {
 
 #[starknet::contract]
 pub mod NFT {
-    use crate::nft::interface::{INFT, NftParameters, DynamicPriceParameters, StaticPriceParameters};
-    use crate::utils::{
-        interfaces::IOffChainMessageHash,
-        message_hash::MessageHash
+    use crate::nft::interface::{
+        INFT, NftParameters, DynamicPriceParameters, StaticPriceParameters
     };
-    use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait};
-    use core::{num::traits::Zero, ecdsa::check_ecdsa_signature, hash::HashStateTrait, pedersen::{PedersenTrait}};
+    use crate::utils::{
+        interfaces::IMessageHash, static_price_hash::StaticPriceHash, dynamic_price_hash::DynamicPriceHash
+    };
+    use crate::nftfactory::interface::{
+        INFTFactoryDispatcher, INFTFactoryDispatcherTrait
+    };
+    use core::num::traits::Zero;
     use starknet::{
         ContractAddress,
         get_caller_address,
-        get_tx_info,
         event::EventEmitter,
         storage::{
             StoragePointerReadAccess, 
@@ -41,16 +43,13 @@ pub mod NFT {
         access::ownable::OwnableComponent,
         introspection::src5::SRC5Component,
         token::{
-            erc20::interface::{
-                IERC20Dispatcher,
-                IERC20DispatcherTrait
-            },
+            erc20::interface::{IERC20Dispatcher,IERC20DispatcherTrait},
             erc721::ERC721Component,
-            common::erc2981::{
-                ERC2981Component,
-                DefaultConfig
-            }
-        } 
+            common::erc2981::{ERC2981Component,DefaultConfig}
+        },
+        account::interface::{
+            ISRC6Dispatcher, ISRC6DispatcherTrait
+        }
     };
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
@@ -176,7 +175,7 @@ pub mod NFT {
 
         fn mintDynamicPrice( 
             ref self: ContractState,
-            dynamicParams: Span<DynamicPriceParameters>,
+            dynamicParams: Array<DynamicPriceParameters>,
             expectedPayingToken: ContractAddress
         ) {
             self._mint_dynamic_price_batch(dynamicParams, expectedPayingToken);
@@ -184,7 +183,7 @@ pub mod NFT {
 
         fn mintStaticPrice(
             ref self: ContractState,
-            staticParams: Span<StaticPriceParameters>,
+            staticParams: Array<StaticPriceParameters>,
             expectedPayingToken: ContractAddress,
             expectedMintPrice: u256
         ) {
@@ -256,7 +255,7 @@ pub mod NFT {
 
         fn _mint_static_price_batch(
             ref self: ContractState,
-            static_params: Span<StaticPriceParameters>,
+            static_params: Array<StaticPriceParameters>,
             expected_paying_token: ContractAddress,
             expected_mint_price: u256
         ) {
@@ -266,18 +265,29 @@ pub mod NFT {
                 super::Errors::WRONG_ARRAY_SIZE
             );
 
+            let signer = ISRC6Dispatcher { 
+                contract_address: INFTFactoryDispatcher { contract_address: self.factory.read() }.signer() 
+            };
+
             let mut amount_to_pay = 0;
             for i in 0..array_size {
                 let params = *static_params.at(i);
 
-                let pedersen_hash = self._get_static_params_hash(params);
-                let validate = check_ecdsa_signature(
-                    pedersen_hash,
-                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signer(),
-                    params.signature.r,
-                    params.signature.s
+                let message = StaticPriceHash {
+                    receiver: params.receiver,
+                    token_id: params.token_id,
+                    whitelisted: params.whitelisted,
+                    token_uri: params.token_uri,
+                };
+
+                let is_valid_signature_felt = signer.is_valid_signature(
+                    message.get_message_hash(), params.signature.into()
                 );
-                assert(validate, super::Errors::VALIDATION_ERROR);
+
+                assert(
+                    is_valid_signature_felt == starknet::VALIDATED || is_valid_signature_felt == 1, 
+                    super::Errors::VALIDATION_ERROR
+                );
 
                 let mint_price = if params.whitelisted {
                     self.nft_parameters.whitelisted_mint_price.read()
@@ -303,7 +313,7 @@ pub mod NFT {
 
         fn _mint_dynamic_price_batch(
             ref self: ContractState,
-            dynamic_params: Span<DynamicPriceParameters>,
+            dynamic_params: Array<DynamicPriceParameters>,
             expected_paying_token: ContractAddress
         ) {
             let array_size = dynamic_params.len();
@@ -312,18 +322,29 @@ pub mod NFT {
                 super::Errors::WRONG_ARRAY_SIZE
             );
 
+            let signer = ISRC6Dispatcher { 
+                contract_address: INFTFactoryDispatcher { contract_address: self.factory.read() }.signer() 
+            };
+
             let mut amount_to_pay = 0;
             for i in 0..array_size {
                 let params = *dynamic_params.at(i);
 
-                let pedersen_hash = self._get_dynamic_params_hash(params);
-                let validate = check_ecdsa_signature(
-                    pedersen_hash,
-                    INFTFactoryDispatcher { contract_address: self.factory.read() }.signer(),
-                    params.signature.r,
-                    params.signature.s
+                let message = DynamicPriceHash {
+                    receiver: params.receiver,
+                    token_id: params.token_id,
+                    price: params.price,
+                    token_uri: params.token_uri,
+                };
+
+                let is_valid_signature_felt = signer.is_valid_signature(
+                    message.get_message_hash(), params.signature.into()
                 );
-                assert(validate, super::Errors::VALIDATION_ERROR);
+
+                assert(
+                    is_valid_signature_felt == starknet::VALIDATED || is_valid_signature_felt == 1, 
+                    super::Errors::VALIDATION_ERROR
+                );
 
                 amount_to_pay += params.price;
 
@@ -410,46 +431,6 @@ pub mod NFT {
             let amount_to_creator = price - fees;
 
             return (fees, amount_to_creator);
-        }
-
-        fn _get_dynamic_params_hash(self: @ContractState, dynamic_params: DynamicPriceParameters) -> felt252 {
-            let token_id: felt252 = dynamic_params.token_id.try_into().unwrap();
-            let price: felt252 = dynamic_params.price.try_into().unwrap();
-            let params: Span<felt252> = array![
-                dynamic_params.receiver.into(),
-                token_id,
-                dynamic_params.token_uri.into(),
-                price,
-            ].span();
-
-            let hash = self._get_hash(params);
-            hash
-        }
-
-        fn _get_static_params_hash(self: @ContractState, static_params: StaticPriceParameters) -> felt252 {
-            let token_id: felt252 = static_params.token_id.try_into().unwrap();
-            let params: Span<felt252> = array![
-                static_params.receiver.into(),
-                token_id,
-                static_params.token_uri.into(),
-                static_params.whitelisted.into(),
-            ].span();
-
-            let hash = self._get_hash(params);
-            hash
-        }
-
-        fn _get_hash(self: @ContractState, params: Span<felt252>) -> felt252 {
-            let mut pedersen_hash = PedersenTrait::new(*params.at(0));
-
-            for i in 1..params.len() {
-                pedersen_hash = pedersen_hash.update(*params.at(i));
-            };
-
-            pedersen_hash = pedersen_hash.update(get_tx_info().unbox().chain_id);
-
-            let hash = pedersen_hash.finalize();
-            hash
         }
     }
 }

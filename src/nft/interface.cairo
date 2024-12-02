@@ -9,37 +9,29 @@ pub struct NftParameters {
     //     ETH - 0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7
     // )
     pub mint_price: u256,               // Mint price of a token from a new collection
-    pub whitelisted_mint_price: u256,     // Mint price for whitelisted users
+    pub whitelisted_mint_price: u256,   // Mint price for whitelisted users
     pub max_total_supply: u256,         // The max total supply of a new collection
     pub collection_expires: u256,       // Collection expiration period (timestamp)
     pub transferrable: bool,
     pub referral_code: felt252
 }
 
-#[derive(Drop, Serde, Copy, starknet::Store)]
+#[derive(Drop, Serde, Copy)]
 pub struct DynamicPriceParameters {
     pub receiver: ContractAddress,
     pub token_id: u256,
     pub price: u256,
     pub token_uri: felt252,
-    pub signature: Array<felt252>
+    pub signature: Span<felt252>
 }
 
-#[derive(Drop, Serde, Copy, starknet::Store)]
+#[derive(Drop, Serde, Copy)]
 pub struct StaticPriceParameters {
     pub receiver: ContractAddress,
     pub token_id: u256,
     pub whitelisted: bool,
     pub token_uri: felt252,
-    pub signature: Array<felt252>
-}
-
-#[derive(Drop, Serde, Hash)]
-pub struct DynamicPriceHash {
-    pub receiver: ContractAddress,
-    pub token_id: u256,
-    pub price: u256,
-    pub token_uri: felt252,
+    pub signature: Span<felt252>
 }
 
 #[starknet::interface]
@@ -60,13 +52,13 @@ pub trait INFT<TState> {
 
     fn mintDynamicPrice( 
         ref self: TState,
-        dynamicParams: Span<DynamicPriceParameters>,
+        dynamicParams: Array<DynamicPriceParameters>,
         expectedPayingToken: ContractAddress
     );
 
     fn mintStaticPrice(
         ref self: TState,
-        staticParams: Span<StaticPriceParameters>,
+        staticParams: Array<StaticPriceParameters>,
         expectedPayingToken: ContractAddress,
         expectedMintPrice: u256
     );
