@@ -1,14 +1,15 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
-import "@openzeppelin/hardhat-upgrades";
-import "solidity-docgen"
-import "hardhat-contract-sizer";
 import "@nomicfoundation/hardhat-ledger";
-
+import "@openzeppelin/hardhat-upgrades";
+import "hardhat-contract-sizer";
+import "solidity-docgen"
 import dotenv from "dotenv";
-import { createConnect } from './utils/config'
+
+import { createPrivateKeyConnect } from './utils/private-key-config'
 import { createLedgerConnect } from './utils/ledger-config'
-import { ChainIds } from "./utils/chain-ids";
+import { ChainIds } from "./utils/chains";
+
 dotenv.config();
 
 let accounts: string[] = [], ledgerAccounts: string[] = [];
@@ -38,9 +39,9 @@ const config: HardhatUserConfig = {
     hardhat: {
       allowUnlimitedContractSize: false,
     },
-    mainnet: createLedgerConnect(ChainIds.mainnet, ledgerAccounts, process.env.INFURA_ID_PROJECT),
+    mainnet: createLedgerConnect(ChainIds.mainnet, ledgerAccounts),
     bsc: createLedgerConnect(ChainIds.bsc, ledgerAccounts),
-    polygon: createLedgerConnect(ChainIds.polygon, ledgerAccounts, process.env.INFURA_ID_PROJECT),
+    polygon: createLedgerConnect(ChainIds.polygon, ledgerAccounts),
     blast: createLedgerConnect(ChainIds.blast, ledgerAccounts),
     celo: createLedgerConnect(ChainIds.celo, ledgerAccounts),
     base: createLedgerConnect(ChainIds.base, ledgerAccounts),
@@ -48,10 +49,10 @@ const config: HardhatUserConfig = {
     skale_europa: createLedgerConnect(ChainIds.skale_europa, ledgerAccounts),
     skale_nebula: createLedgerConnect(ChainIds.skale_nebula, ledgerAccounts),
     skale_calypso: createLedgerConnect(ChainIds.skale_calypso, ledgerAccounts),
-    sepolia: createConnect(ChainIds.sepolia, accounts, process.env.INFURA_ID_PROJECT),
-    blast_sepolia: createConnect(ChainIds.blast_sepolia, accounts),
-    skale_calypso_testnet: createConnect(ChainIds.skale_calypso_testnet, accounts),
-    amoy: createConnect(ChainIds.amoy, accounts),
+    sepolia: createPrivateKeyConnect(ChainIds.sepolia, accounts),
+    blast_sepolia: createPrivateKeyConnect(ChainIds.blast_sepolia, accounts),
+    skale_calypso_testnet: createPrivateKeyConnect(ChainIds.skale_calypso_testnet, accounts),
+    amoy: createPrivateKeyConnect(ChainIds.amoy, accounts),
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
@@ -137,14 +138,6 @@ const config: HardhatUserConfig = {
         },
       },
       {
-        network: "blast_sepolia",
-        chainId: ChainIds.blast_sepolia,
-        urls: {
-          apiURL: "https://api-sepolia.blastscan.io/api",
-          browserURL: "https://sepolia.blastscan.io/",
-        },
-      },
-      {
         network: "amoy",
         chainId: ChainIds.amoy,
         urls: {
@@ -152,6 +145,14 @@ const config: HardhatUserConfig = {
             "https://api-amoy.polygonscan.com/api",
           browserURL:
             "https://amoy.polygonscan.com",
+        },
+      },
+      {
+        network: "blast_sepolia",
+        chainId: ChainIds.blast_sepolia,
+        urls: {
+          apiURL: "https://api-sepolia.blastscan.io/api",
+          browserURL: "https://sepolia.blastscan.io/",
         },
       },
       {
@@ -164,7 +165,6 @@ const config: HardhatUserConfig = {
             "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/",
         },
       },
-
     ],
   },
   paths: {
