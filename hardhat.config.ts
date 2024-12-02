@@ -42,6 +42,9 @@ const config: HardhatUserConfig = {
     bsc: createLedgerConnect(ChainIds.bsc, ledgerAccounts),
     polygon: createLedgerConnect(ChainIds.polygon, ledgerAccounts, process.env.INFURA_ID_PROJECT),
     blast: createLedgerConnect(ChainIds.blast, ledgerAccounts),
+    celo: createLedgerConnect(ChainIds.celo, ledgerAccounts),
+    base: createLedgerConnect(ChainIds.base, ledgerAccounts),
+    linea: createLedgerConnect(ChainIds.linea, ledgerAccounts),
     skale_europa: createLedgerConnect(ChainIds.skale_europa, ledgerAccounts),
     skale_nebula: createLedgerConnect(ChainIds.skale_nebula, ledgerAccounts),
     skale_calypso: createLedgerConnect(ChainIds.skale_calypso, ledgerAccounts),
@@ -57,14 +60,17 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       mainnet: process.env.ETHERSCAN_API_KEY! || '',
-      sepolia: process.env.ETHERSCAN_API_KEY! || '',
       blast: process.env.BLASTSCAN_API_KEY! || '',
-      blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
-      amoy: process.env.POLYSCAN_API_KEY || '',
       polygon: process.env.POLYSCAN_API_KEY || '',
+      celo: process.env.CELOSCAN_API_KEY || '',
+      base: process.env.BASESCAN_API_KEY || '',
+      linea: process.env.LINEASCAN_API_KEY || '',
       skale_europa: 'skale_europa', // Is not required by blockscout. Can be any non-empty string
       skale_nebula: 'skale_nebula', // Is not required by blockscout. Can be any non-empty string
       skale_calypso: 'skale_calypso', // Is not required by blockscout. Can be any non-empty string
+      sepolia: process.env.ETHERSCAN_API_KEY! || '',
+      amoy: process.env.POLYSCAN_API_KEY || '',
+      blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
       skale_calypso_testnet: "skale_calypso_testnet", // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
@@ -77,21 +83,27 @@ const config: HardhatUserConfig = {
         },
       },
       {
-        network: "blast_sepolia",
-        chainId: ChainIds.blast_sepolia,
+        network: "celo",
+        chainId: ChainIds.celo,
         urls: {
-          apiURL: "https://api-sepolia.blastscan.io/api",
-          browserURL: "https://sepolia.blastscan.io/",
+          apiURL: "https://api.celoscan.io/api",
+          browserURL: "https://celoscan.io/",
         },
       },
       {
-        network: "amoy",
-        chainId: ChainIds.amoy,
+        network: "base",
+        chainId: ChainIds.base,
         urls: {
-          apiURL:
-            "https://api-amoy.polygonscan.com/api",
-          browserURL:
-            "https://amoy.polygonscan.com",
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org/",
+        },
+      },
+      {
+        network: "linea",
+        chainId: ChainIds.linea,
+        urls: {
+          apiURL: "https://api.lineascan.build/api",
+          browserURL: "https://lineascan.build/",
         },
       },
       {
@@ -122,6 +134,24 @@ const config: HardhatUserConfig = {
             "https://honorable-steel-rasalhague.explorer.mainnet.skalenodes.com/api",
           browserURL:
             "https://honorable-steel-rasalhague.explorer.mainnet.skalenodes.com/",
+        },
+      },
+      {
+        network: "blast_sepolia",
+        chainId: ChainIds.blast_sepolia,
+        urls: {
+          apiURL: "https://api-sepolia.blastscan.io/api",
+          browserURL: "https://sepolia.blastscan.io/",
+        },
+      },
+      {
+        network: "amoy",
+        chainId: ChainIds.amoy,
+        urls: {
+          apiURL:
+            "https://api-amoy.polygonscan.com/api",
+          browserURL:
+            "https://amoy.polygonscan.com",
         },
       },
       {
