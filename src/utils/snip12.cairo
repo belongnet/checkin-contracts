@@ -1,4 +1,4 @@
-use crate::utils::interfaces::{IStructHash};
+use crate::utils::interfaces::IStructHash;
 
 pub const STARKNET_DOMAIN_TYPE_HASH: felt252 =
 selector!(
