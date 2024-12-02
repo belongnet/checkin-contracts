@@ -18,14 +18,17 @@ mod Errors {
 
 #[starknet::contract]
 pub mod NFTFactory {
-    use crate::nftfactory::interface::{INFTFactory, FactoryParameters, NftInfo, InstanceInfo, SignatureRS};
-    use crate::utils::{
-        interfaces::IOffChainMessageHash,
-        message_hash::MessageHash
+    use crate::nftfactory::interface::{
+        INFTFactory, FactoryParameters, NftInfo, InstanceInfo
     };
-    use crate::nft::interface::{INFTDispatcher, INFTDispatcherTrait, NftParameters};
-    use core::{ecdsa::check_ecdsa_signature, traits::Into, num::traits::Zero, hash::HashStateTrait, 
-        pedersen::{pedersen, PedersenTrait},
+    use crate::utils::{
+        interfaces::IMessageHash, produce_hash::ProduceHash
+    };
+    use crate::nft::interface::{
+        INFTDispatcher, INFTDispatcherTrait, NftParameters
+    };
+    use core::{
+        traits::Into, num::traits::Zero, pedersen::pedersen
     };
     use starknet::{
         ContractAddress,
@@ -50,10 +53,19 @@ pub mod NFTFactory {
         }
     };
     use openzeppelin::{
-        utils::serde::SerializedAppend,
+        utils::{
+            serde::SerializedAppend,
+            bytearray::{
+                ByteArrayExtImpl, ByteArrayExtTrait
+            }
+        },
         access::ownable::OwnableComponent, 
-        upgrades::{UpgradeableComponent, interface::IUpgradeable},
-        account::interface::{ISRC6Dispatcher, ISRC6DispatcherTrait}
+        upgrades::{
+            UpgradeableComponent, interface::IUpgradeable
+        },
+        account::interface::{
+            ISRC6Dispatcher, ISRC6DispatcherTrait
+        }
     };
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
@@ -251,12 +263,12 @@ pub mod NFTFactory {
             assert(info.name.len().is_non_zero(), super::Errors::EMPTY_NAME);
             assert(info.symbol.len().is_non_zero(), super::Errors::EMPTY_SYMBOL);
 
-            let metadata_name_hash: felt252 = pedersen(info.name.len().into(), info.name.at(0).unwrap().into());
-            let metadata_symbol_hash: felt252 = pedersen(info.symbol.len().into(), info.symbol.at(0).unwrap().into());
+            let metadata_name_hash: felt252 = info.name.hash();
+            let metadata_symbol_hash: felt252 = info.symbol.hash();
         
-            assert(self.nft_info.entry((metadata_name_hash,metadata_symbol_hash)).nft_address.read().is_zero(), super::Errors::NFT_EXISTS);
+            assert(self.nft_info.entry((metadata_name_hash, metadata_symbol_hash)).nft_address.read().is_zero(), super::Errors::NFT_EXISTS);
             
-            let message = MessageHash {
+            let message = ProduceHash {
                 name_hash: metadata_name_hash,
                 symbol_hash: metadata_symbol_hash,
                 contract_uri: info.contract_uri,
@@ -420,10 +432,10 @@ pub mod NFTFactory {
         }
 
         fn _nft_info(self: @ContractState, name: ByteArray, symbol: ByteArray) -> NftInfo {
-            let metadata_name_hash: felt252 = pedersen(name.len().into(), name.at(0).unwrap().into());
-            let metadata_symbol_hash: felt252 = pedersen(symbol.len().into(), symbol.at(0).unwrap().into());
+            let metadata_name_hash: felt252 = name.hash();
+            let metadata_symbol_hash: felt252 = symbol.hash();
         
-            let nft_info = self.nft_info.read((metadata_name_hash,metadata_symbol_hash));
+            let nft_info = self.nft_info.read((metadata_name_hash, metadata_symbol_hash));
             assert(nft_info.nft_address.is_non_zero(), super::Errors::NFT_NOT_EXISTS);
 
             nft_info
