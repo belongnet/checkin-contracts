@@ -1,20 +1,29 @@
-use starknet::{get_tx_info, get_caller_address};
+use starknet::{
+    ContractAddress, get_tx_info, get_caller_address
+};
 use core::{
     poseidon::PoseidonTrait,
-    hash::{HashStateExTrait, HashStateTrait, Hash}
+    hash::{
+        HashStateExTrait, HashStateTrait
+    }
 };
-use crate::utils::snip12::{StarknetDomain, SNIP12::StructHashStarknetDomain};
-use crate::utils::interfaces::{IOffChainMessageHash, IStructHash};
+use crate::utils::snip12::{
+    StarknetDomain, SNIP12::StructHashStarknetDomain
+};
+use crate::utils::interfaces::{
+    IMessageHash, IStructHash
+};
 
 pub const MESSAGE_TYPE_HASH: felt252 = selector!(
     "\"StaticPriceHash\"(
     \"receiver\":\"ContractAddress\",
-    \"token_id\":\"felt\",
-    \"contract_uri\":\"felt\",
-    \"royalty_fraction\":\"u128\")"
+    \"token_id\":\"u256\",
+    \"whitelisted\":\"bool\",
+    \"token_uri\":\"felt\")
+    \"u256\"(\"low\":\"felt\",\"high\":\"felt\")"
 );
 
-#[derive(Drop, Serde, Hash)]
+#[derive(Hash, Drop, Copy)]
 pub struct StaticPriceHash {
     pub receiver: ContractAddress,
     pub token_id: u256,
@@ -22,7 +31,7 @@ pub struct StaticPriceHash {
     pub token_uri: felt252,
 }
 
-pub impl OffChainStaticPriceHash of IOffChainMessageHash<MessageHash> {
+pub impl MessageStaticPriceHash of IMessageHash<StaticPriceHash> {
     fn get_message_hash(self: @StaticPriceHash) -> felt252 {
         let domain = StarknetDomain {
             name: 'NFT', version: '1', chain_id: get_tx_info().unbox().chain_id, revision: 1
