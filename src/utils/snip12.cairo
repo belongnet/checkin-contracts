@@ -2,7 +2,11 @@ use crate::utils::interfaces::IStructHash;
 
 pub const STARKNET_DOMAIN_TYPE_HASH: felt252 =
 selector!(
-    "\"StarknetDomain\"(\"name\":\"shortstring\",\"version\":\"shortstring\",\"chainId\":\"shortstring\",\"revision\":\"shortstring\")"
+    "\"StarknetDomain\"(
+    \"name\":\"shortstring\",
+    \"version\":\"shortstring\",
+    \"chainId\":\"shortstring\",
+    \"revision\":\"shortstring\")"
 );
 
 /// @notice StarknetDomain using SNIP 12

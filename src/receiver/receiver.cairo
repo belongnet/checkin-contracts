@@ -11,8 +11,12 @@ mod Errors {
 
 #[starknet::contract]
 mod Receiver {
-    use crate::receiver::interface::{IReceiver};
-    use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait};
+    use crate::receiver::interface::{
+        IReceiver
+    };
+    use crate::nftfactory::interface::{
+        INFTFactoryDispatcher, INFTFactoryDispatcherTrait
+    };
     use core::num::traits::Zero;
     use starknet::{
         ContractAddress,
@@ -87,11 +91,12 @@ mod Receiver {
         let mut amount_to_referral: u256 = 0;
 
         if referral_exist {
-            amount_to_referral = INFTFactoryDispatcher { contract_address: get_caller_address() }.getReferralRate(
-                *payees.at(0),
-                referral_code,
-                amount_to_platform
-            );
+            amount_to_referral = 
+                INFTFactoryDispatcher { contract_address: get_caller_address() }.getReferralRate(
+                    *payees.at(0),
+                    referral_code,
+                    amount_to_platform
+                );
             amount_to_platform -= amount_to_referral;
         }
 
@@ -157,7 +162,11 @@ mod Receiver {
 
             token.transfer(to, to_release);
 
-            self.emit(Event::PaymentReleasedEvent(PaymentReleased { payment_token, payee: to, released: to_release }));
+            self.emit(
+                Event::PaymentReleasedEvent(
+                    PaymentReleased { payment_token, payee: to, released: to_release }
+                )
+            );
             
         }
 

@@ -250,7 +250,11 @@ pub mod NFT {
             self.nft_parameters.mint_price.write(mint_price);
             self.nft_parameters.whitelisted_mint_price.write(whitelisted_mint_price);
 
-            self.emit(Event::PaymentInfoChangedEvent(PaymentInfoChanged { payment_token, mint_price, whitelisted_mint_price }));
+            self.emit(
+                Event::PaymentInfoChangedEvent(
+                    PaymentInfoChanged { payment_token, mint_price, whitelisted_mint_price }
+                )
+            );
         }
 
         fn _mint_static_price_batch(
@@ -260,14 +264,14 @@ pub mod NFT {
             expected_mint_price: u256
         ) {
             let array_size = static_params.len();
+            let factory = INFTFactoryDispatcher { contract_address: self.factory.read() };
+
             assert(
-                array_size.into() <= INFTFactoryDispatcher { contract_address: self.factory.read() }.maxArraySize(),
+                array_size.into() <= factory.maxArraySize(),
                 super::Errors::WRONG_ARRAY_SIZE
             );
 
-            let signer = ISRC6Dispatcher { 
-                contract_address: INFTFactoryDispatcher { contract_address: self.factory.read() }.signer() 
-            };
+            let signer = ISRC6Dispatcher { contract_address: factory.signer() };
 
             let mut amount_to_pay = 0;
             for i in 0..array_size {
@@ -317,14 +321,14 @@ pub mod NFT {
             expected_paying_token: ContractAddress
         ) {
             let array_size = dynamic_params.len();
+            let factory = INFTFactoryDispatcher { contract_address: self.factory.read() };
+
             assert(
-                array_size.into() <= INFTFactoryDispatcher { contract_address: self.factory.read() }.maxArraySize(),
+                array_size.into() <= factory.maxArraySize(),
                 super::Errors::WRONG_ARRAY_SIZE
             );
 
-            let signer = ISRC6Dispatcher { 
-                contract_address: INFTFactoryDispatcher { contract_address: self.factory.read() }.signer() 
-            };
+            let signer = ISRC6Dispatcher { contract_address: factory.signer() };
 
             let mut amount_to_pay = 0;
             for i in 0..array_size {
@@ -406,7 +410,11 @@ pub mod NFT {
 
             token.transfer_from(user, creator, amount_to_creator);
             
-            self.emit(Event::PaidEvent(Paid { user, payment_token: token.contract_address, amount }));
+            self.emit(
+                Event::PaidEvent(
+                    Paid { user, payment_token: token.contract_address, amount }
+                )
+            );
         }
 
         fn _add_whitelisted(ref self: ContractState, whitelisted: ContractAddress) {

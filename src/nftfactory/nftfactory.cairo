@@ -345,12 +345,12 @@ pub mod NFTFactory {
                 }
             );
 
-            self.emit(
+            self.emit( 
                 Event::NFTCreatedEvent(
                     NFTCreated { 
                         deployed_address: nft_address,
                         creator: get_caller_address(),
-                        name: info.name,
+                        name: info.name,    
                         symbol: info.symbol,
                     }
                 )
@@ -361,7 +361,7 @@ pub mod NFTFactory {
 
         fn _create_referral_code(ref self: ContractState) -> felt252 {
             let mut referral_code = pedersen(get_caller_address().into(), get_contract_address().into());
-            referral_code = pedersen(referral_code, get_tx_info().unbox().chain_id);
+            referral_code = pedersen(referral_code, get_tx_info().unbox().chain_id); 
 
             assert(self.referrals.entry(referral_code).referral_creator.read().is_zero(), super::Errors::REFFERAL_CODE_EXISTS);
             
