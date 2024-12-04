@@ -1,4 +1,4 @@
-use crate::utils::interfaces::IStructHash;
+use crate::snip12::interfaces::IStructHash;
 
 pub const STARKNET_DOMAIN_TYPE_HASH: felt252 =
 selector!(
@@ -31,8 +31,7 @@ pub mod SNIP12 {
                     *self.version,
                     *self.chain_id,
                     *self.revision
-                ]
-                    .span()
+                ].span()
             )
         }
     }

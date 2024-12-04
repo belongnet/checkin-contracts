@@ -7,32 +7,32 @@ use core::{
         HashStateExTrait, HashStateTrait
     }
 };
-use crate::utils::snip12::{
+use crate::snip12::snip12::{
     StarknetDomain, SNIP12::StructHashStarknetDomain
 };
-use crate::utils::interfaces::{
+use crate::snip12::interfaces::{
     IMessageHash, IStructHash
 };
 
 pub const MESSAGE_TYPE_HASH: felt252 = selector!(
-    "\"StaticPriceHash\"(
+    "\"DynamicPriceHash\"(
     \"receiver\":\"ContractAddress\",
     \"token_id\":\"u256\",
-    \"whitelisted\":\"bool\",
+    \"price\":\"u256\",
     \"token_uri\":\"felt\")
     \"u256\"(\"low\":\"felt\",\"high\":\"felt\")"
 );
 
 #[derive(Hash, Drop, Copy)]
-pub struct StaticPriceHash {
+pub struct DynamicPriceHash {
     pub receiver: ContractAddress,
     pub token_id: u256,
-    pub whitelisted: bool,
+    pub price: u256,
     pub token_uri: felt252,
 }
 
-pub impl MessageStaticPriceHash of IMessageHash<StaticPriceHash> {
-    fn get_message_hash(self: @StaticPriceHash) -> felt252 {
+pub impl MessageDynamicPriceHash of IMessageHash<DynamicPriceHash> {
+    fn get_message_hash(self: @DynamicPriceHash) -> felt252 {
         let domain = StarknetDomain {
             name: 'NFT', version: '1', chain_id: get_tx_info().unbox().chain_id, revision: 1
         };
@@ -46,8 +46,8 @@ pub impl MessageStaticPriceHash of IMessageHash<StaticPriceHash> {
     }
 }
 
-impl StructStaticPriceHash of IStructHash<StaticPriceHash> {
-    fn get_struct_hash(self: @StaticPriceHash) -> felt252 {
+impl StructDynamicPriceHash of IStructHash<DynamicPriceHash> {
+    fn get_struct_hash(self: @DynamicPriceHash) -> felt252 {
         let mut state = PoseidonTrait::new();
         state = state.update_with(MESSAGE_TYPE_HASH);
         state = state.update_with(*self);

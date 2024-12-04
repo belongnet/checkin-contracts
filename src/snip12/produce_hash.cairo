@@ -7,10 +7,10 @@ use core::{
         HashStateExTrait, HashStateTrait
     }
 };
-use crate::utils::snip12::{
+use crate::snip12::snip12::{
     StarknetDomain, SNIP12::StructHashStarknetDomain
 };
-use crate::utils::interfaces::{
+use crate::snip12::interfaces::{
     IMessageHash, IStructHash
 };
 
@@ -51,5 +51,25 @@ impl StructProduceHash of IStructHash<ProduceHash> {
         state = state.update_with(MESSAGE_TYPE_HASH);
         state = state.update_with(*self);
         state.finalize()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ProduceHash, IMessageHash};
+    use snforge_std::start_cheat_caller_address_global;
+    #[test]
+    fn test_valid_hash() {
+        // This value was computed using StarknetJS
+        let message_hash = 0x5396a36734cc134ed89f93c3abdb15a74b80478a7c56a5efc6b9ac550742508;
+        let produce_hash = ProduceHash { 
+            name_hash: 123,
+            symbol_hash: 456,
+            contract_uri: 789,
+            royalty_fraction: 111213 
+        };
+
+        start_cheat_caller_address_global(1337.try_into().unwrap());
+        assert_eq!(produce_hash.get_message_hash(), message_hash);
     }
 }
