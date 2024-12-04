@@ -20,8 +20,13 @@ pub mod NFT {
     use crate::nft::interface::{
         INFT, NftParameters, DynamicPriceParameters, StaticPriceParameters
     };
-    use crate::utils::{
-        interfaces::IMessageHash, static_price_hash::StaticPriceHash, dynamic_price_hash::DynamicPriceHash
+    use crate::snip12::{
+        static_price_hash::{
+            MessageStaticPriceHash, StaticPriceHash
+        },
+        dynamic_price_hash::{
+            MessageDynamicPriceHash, DynamicPriceHash
+        }
     };
     use crate::nftfactory::interface::{
         INFTFactoryDispatcher, INFTFactoryDispatcherTrait

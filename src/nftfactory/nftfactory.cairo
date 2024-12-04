@@ -21,8 +21,8 @@ pub mod NFTFactory {
     use crate::nftfactory::interface::{
         INFTFactory, FactoryParameters, NftInfo, InstanceInfo
     };
-    use crate::utils::{
-        interfaces::IMessageHash, produce_hash::ProduceHash
+    use crate::snip12::produce_hash::{
+        MessageProduceHash, ProduceHash
     };
     use crate::nft::interface::{
         INFTDispatcher, INFTDispatcherTrait, NftParameters
