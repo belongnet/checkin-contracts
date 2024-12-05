@@ -46,7 +46,7 @@ fn test_deploy() {
 
     let ownable = IOwnableDispatcher {contract_address: contract};
 
-    assert_eq!(ownable.owner(), utils::CREATOR());
+    assert_eq!(ownable.owner(), utils::OWNER());
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn test_initialize() {
     let receiver_class_hash = utils::RECEIVER_CLASS_HASH();
 
     let factory_parameters = FactoryParameters {
-        signer_public_key: 'pk/pk',
+        signer: utils::SIGNER(),
         default_payment_currency: utils::CURRENCY(),
         platform_address: utils::PLATFORM(),
         platform_commission: 100,
@@ -73,7 +73,7 @@ fn test_initialize() {
 
     nft_factory.initialize(nft_class_hash, receiver_class_hash, factory_parameters);
 
-    assert_eq!(nft_factory.nftFactoryParameters().signer_public_key, factory_parameters.signer_public_key);
+    assert_eq!(nft_factory.nftFactoryParameters().signer, factory_parameters.signer);
     assert_eq!(nft_factory.nftFactoryParameters().default_payment_currency, factory_parameters.default_payment_currency);
     assert_eq!(nft_factory.nftFactoryParameters().platform_address, factory_parameters.platform_address);
     assert_eq!(nft_factory.nftFactoryParameters().platform_commission, factory_parameters.platform_commission);
@@ -120,7 +120,7 @@ fn test_setFactoryParameters() {
     let nft_factory = INFTFactoryDispatcher {contract_address: contract};
 
     let factory_parameters = FactoryParameters {
-        signer_public_key: 'pk/pk',
+        signer: utils::SIGNER(),
         default_payment_currency: utils::CURRENCY(),
         platform_address: utils::PLATFORM(),
         platform_commission: 100,
@@ -133,7 +133,7 @@ fn test_setFactoryParameters() {
 
     nft_factory.setFactoryParameters(factory_parameters);
 
-    assert_eq!(nft_factory.nftFactoryParameters().signer_public_key, factory_parameters.signer_public_key);
+    assert_eq!(nft_factory.nftFactoryParameters().signer, factory_parameters.signer);
     assert_eq!(nft_factory.nftFactoryParameters().default_payment_currency, factory_parameters.default_payment_currency);
     assert_eq!(nft_factory.nftFactoryParameters().platform_address, factory_parameters.platform_address);
     assert_eq!(nft_factory.nftFactoryParameters().platform_commission, factory_parameters.platform_commission);
@@ -148,7 +148,7 @@ fn should_not_paste_singer_pk_0_setFactoryParameters() {
     let nft_factory = INFTFactoryDispatcher {contract_address: contract};
 
     let factory_parameters = FactoryParameters {
-        signer_public_key: 0,
+        signer: utils::ZERO_ADDRESS(),
         default_payment_currency: utils::CURRENCY(),
         platform_address: utils::PLATFORM(),
         platform_commission: 100,
@@ -168,7 +168,7 @@ fn should_not_paste_platform_address_0_setFactoryParameters() {
     let nft_factory = INFTFactoryDispatcher {contract_address: contract};
 
     let factory_parameters = FactoryParameters {
-        signer_public_key: 'dadada',
+        signer: utils::SIGNER(),
         default_payment_currency: utils::CURRENCY(),
         platform_address: utils::ZERO_ADDRESS(),
         platform_commission: 100,
@@ -188,7 +188,7 @@ fn should_not_paste_platform_commission_0_setFactoryParameters() {
     let nft_factory = INFTFactoryDispatcher {contract_address: contract};
 
     let factory_parameters = FactoryParameters {
-        signer_public_key: 'dadada',
+        signer: utils::SIGNER(),
         default_payment_currency: utils::CURRENCY(),
         platform_address: utils::PLATFORM(),
         platform_commission: 0,
@@ -222,6 +222,7 @@ fn test_setReferralPercentages() {
     assert_eq!(nft_factory.usedToPercentage(4), *percentages[4]);
 }
 
+#[test]
 #[should_panic(expected: 'Wrong percentages length')]
 fn should_paste_correct_array_size_setReferralPercentages() {
     let contract = deploy();

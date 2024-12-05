@@ -28,6 +28,10 @@ pub fn CREATOR() -> ContractAddress {
     contract_address_const::<'CREATOR'>()
 }
 
+pub fn SIGNER() -> ContractAddress {
+    contract_address_const::<'SIGNER'>()
+}
+
 pub fn FACTORY() -> ContractAddress {
     contract_address_const::<'FACTORY'>()
 }
