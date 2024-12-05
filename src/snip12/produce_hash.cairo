@@ -7,19 +7,15 @@ use core::{
         HashStateExTrait, HashStateTrait
     }
 };
-use crate::snip12::snip12::{
-    StarknetDomain, SNIP12::StructHashStarknetDomain
-};
-use crate::snip12::interfaces::{
-    IMessageHash, IStructHash
+use crate::snip12::{
+    interfaces::{
+        IMessageHash, IStructHash
+    },
+    snip12::SNIP12::StarknetDomain
 };
 
 pub const MESSAGE_TYPE_HASH: felt252 = selector!(
-    "\"ProduceHash\"(
-    \"name_hash\":\"felt\",
-    \"symbol_hash\":\"felt\",
-    \"contract_uri\":\"felt\",
-    \"royalty_fraction\":\"u128\")"
+    "\"ProduceHash\"(\"name_hash\":\"felt\",\"symbol_hash\":\"felt\",\"contract_uri\":\"felt\",\"royalty_fraction\":\"u128\")"
 );
 
 #[derive(Hash, Drop, Copy)]
@@ -61,7 +57,7 @@ mod tests {
     #[test]
     fn test_valid_hash() {
         // This value was computed using StarknetJS
-        let message_hash = 0x5396a36734cc134ed89f93c3abdb15a74b80478a7c56a5efc6b9ac550742508;
+        let message_hash = 0x417965d8cd8fb6115f7058aa129af19cc425b34fa86ca7a6eea41c40f892b1e;
         let produce_hash = ProduceHash { 
             name_hash: 123,
             symbol_hash: 456,
