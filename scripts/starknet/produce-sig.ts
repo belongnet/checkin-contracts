@@ -54,4 +54,4 @@ const produceHash: ProduceHash = {
 
 console.log(`Produce hash typed data: ${JSON.stringify(getTypedData(produceHash, "0"))}`);
 
-console.log(`Produce hash: ${getTypedDataHash(produceHash, "0", 1337n)}`);
+console.log(`Produce hash: ${getTypedDataHash(produceHash, "393402133025997798000961", 1337n)}`);
