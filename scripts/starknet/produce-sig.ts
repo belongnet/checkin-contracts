@@ -1,5 +1,6 @@
 import { TypedData, typedData } from "starknet";
 import { getDomain } from "./snip12";
+import { snforge_chainId } from "../constants";
 
 const contractName = 'NFTFactory';
 
@@ -49,9 +50,7 @@ const produceHash: ProduceHash = {
 	name_hash: "123",
 	symbol_hash: "456",
 	contract_uri: "789",
-	royalty_fraction: "111213"
+	royalty_fraction: "101112"
 };
 
-console.log(`Produce hash typed data: ${JSON.stringify(getTypedData(produceHash, "0"))}`);
-
-console.log(`Produce hash: ${getTypedDataHash(produceHash, "393402133025997798000961", 1337n)}`);
+console.log(`Produce Hash: ${getTypedDataHash(produceHash, snforge_chainId, 1337n)}`);
