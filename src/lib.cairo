@@ -22,7 +22,10 @@ mod snip12 {
 
 mod mocks { pub mod erc20mock; }
 
-mod utils;
+mod utils {
+    pub mod constants;
+    pub mod signing;
+}
 
 #[cfg(test)]
 mod tests;
