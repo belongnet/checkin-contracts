@@ -1,4 +1,4 @@
-use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait, FactoryParameters};
+use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait, FactoryParameters, InstanceInfo};
 use crate::nftfactory::nftfactory::{NFTFactory};
 // Import the deploy syscall to be able to deploy the contract.
 use starknet::{
@@ -31,6 +31,19 @@ fn deploy() -> ContractAddress {
 
     let mut calldata = array![];
     calldata.append_serde(utils::OWNER());
+
+    // Declare and deploy
+    let (contract_address, _) = contract.deploy(
+        @calldata
+    ).unwrap();
+
+    contract_address
+}
+
+fn deploy_mocks() -> ContractAddress {
+    let contract = declare("ERC20Mock").unwrap().contract_class();
+
+    let calldata = array![];
 
     // Declare and deploy
     let (contract_address, _) = contract.deploy(
@@ -78,38 +91,44 @@ fn test_initialize() {
     assert_eq!(nft_factory.nftFactoryParameters().platform_address, factory_parameters.platform_address);
     assert_eq!(nft_factory.nftFactoryParameters().platform_commission, factory_parameters.platform_commission);
     assert_eq!(nft_factory.nftFactoryParameters().max_array_size, factory_parameters.max_array_size);
+
+    let (platform_commission, platform_address) = nft_factory.platformParams();
+    assert_eq!(nft_factory.maxArraySize(), factory_parameters.max_array_size);
+    assert_eq!(nft_factory.signer(), factory_parameters.signer);
+    assert_eq!(platform_commission, factory_parameters.platform_commission);
+    assert_eq!(platform_address, factory_parameters.platform_address);
 }
 
 #[test]
 #[should_panic(expected: 'Caller is not the owner')]
-fn test_update_nft_class_hash() {
+fn test_updateNftClassHash() {
     let contract = deploy();
 
     let nft_factory = INFTFactoryDispatcher {contract_address: contract};
     
     let nft_class_hash = utils::NFT_CLASS_HASH();
 
-    nft_factory.update_nft_class_hash(nft_class_hash);
+    nft_factory.updateNftClassHash(nft_class_hash);
 
     start_cheat_caller_address(contract, utils::OWNER());
 
-    nft_factory.update_nft_class_hash(nft_class_hash);
+    nft_factory.updateNftClassHash(nft_class_hash);
 }
 
 #[test]
 #[should_panic(expected: 'Caller is not the owner')]
-fn test_update_receiver_class_hash() {
+fn test_updateReceiverClassHash() {
     let contract = deploy();
 
     let nft_factory = INFTFactoryDispatcher {contract_address: contract};
     
     let receiver_class_hash = utils::RECEIVER_CLASS_HASH();
 
-    nft_factory.update_receiver_class_hash(receiver_class_hash);
+    nft_factory.updateReceiverClassHash(receiver_class_hash);
 
     start_cheat_caller_address(contract, utils::OWNER());
 
-    nft_factory.update_receiver_class_hash(receiver_class_hash);
+    nft_factory.updateReceiverClassHash(receiver_class_hash);
 }
 
 #[test]
@@ -234,4 +253,88 @@ fn should_paste_correct_array_size_setReferralPercentages() {
     start_cheat_caller_address(contract, utils::OWNER());
 
     nft_factory.setReferralPercentages(percentages);
+}
+
+#[test]
+#[should_panic(expected: 'User code did not used code')]
+fn test_createReferralCode() {
+    let contract = deploy();
+
+    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+
+    start_cheat_caller_address(contract, utils::CREATOR());
+
+    let mut spy = spy_events();
+
+    let code = nft_factory.createReferralCode();
+
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    contract,
+                    NFTFactory::Event::ReferralCodeCreatedEvent(
+                        NFTFactory::ReferralCodeCreated { 
+                            referral_creator: utils::CREATOR(),
+                            referral_code: code,
+                        }
+                    )
+                )
+            ]
+        );
+
+    assert_eq!(code, nft_factory.referralCode(utils::CREATOR()));
+    assert_eq!(nft_factory.getReferralCreator(code), utils::CREATOR());
+
+    nft_factory.createReferralCode();
+}
+
+#[test]
+#[should_panic(expected: 'User code did not used code')]
+fn test_produce() {
+    let contract = deploy();
+    let erc20mock = deploy_mocks();
+
+    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+
+    let instance_info = InstanceInfo {
+        name: utils::NAME(),
+        symbol: utils::SYMBOL(),
+        contract_uri: utils::COUNTRACT_URI(),
+        payment_token: erc20mock,
+        royalty_fraction: utils::FRACTION(),
+        transferrable: true,
+        max_total_supply: utils::MAX_TOTAL_SUPPLY(),
+        mint_price: utils::MINT_PRICE(),
+        whitelisted_mint_price: utils::WL_MINT_PRICE(),
+        collection_expires: utils::EXPIRES(),
+        referral_code: utils::REFERRAL_CODE(),
+        signature: utils::REFERRAL_CODE()
+    };
+
+    start_cheat_caller_address(contract, utils::CREATOR());
+
+    let mut spy = spy_events();
+
+    let code = nft_factory.produce();
+
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    contract,
+                    NFTFactory::Event::ReferralCodeCreatedEvent(
+                        NFTFactory::ReferralCodeCreated { 
+                            referral_creator: utils::CREATOR(),
+                            referral_code: code,
+                        }
+                    )
+                )
+            ]
+        );
+
+    assert_eq!(code, nft_factory.referralCode(utils::CREATOR()));
+    assert_eq!(nft_factory.getReferralCreator(code), utils::CREATOR());
+
+    nft_factory.createReferralCode();
 }

@@ -16,7 +16,8 @@ use snforge_std::{
     spy_events,
     EventSpyAssertionsTrait,
     ContractClassTrait,
-    DeclareResultTrait};
+    DeclareResultTrait
+};
 use crate::utils as utils;
 
 // Deploy the contract and return its dispatcher.
