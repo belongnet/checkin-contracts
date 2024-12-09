@@ -20,6 +20,8 @@ mod snip12 {
     pub mod interfaces;
 }
 
+mod mocks { pub mod erc20mock; }
+
 mod utils;
 
 #[cfg(test)]
