@@ -56,6 +56,30 @@ pub fn RECEIVER_CLASS_HASH() -> ClassHash {
     class_hash_const::<'RECEIVER_CLASS_HASH'>()
 }
 
+pub fn COUNTRACT_URI() -> ByteArray {
+    "https://api.example.com/v1/"
+}
+
 pub fn FRACTION() -> u128 {
     600
+}
+
+pub fn MAX_TOTAL_SUPPLY() -> u256 {
+    100
+}
+
+pub fn MINT_PRICE() -> u256 {
+    100
+}
+
+pub fn WL_MINT_PRICE() -> u256 {
+    50
+}
+
+pub fn EXPIRES() -> u256 {
+    10000000000000
+}
+
+pub fn REFERRAL_CODE() -> felt252 {
+    'REFERRAL CODE'
 }
