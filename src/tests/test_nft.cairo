@@ -18,19 +18,19 @@ use snforge_std::{
     ContractClassTrait,
     DeclareResultTrait
 };
-use crate::utils as utils;
+use crate::utils::constants as constants;
 
 // Deploy the contract and return its dispatcher.
 fn deploy() -> ContractAddress {
     let contract = declare("NFT").unwrap().contract_class();
 
     let mut calldata = array![];
-    calldata.append_serde(utils::CREATOR());
-    calldata.append_serde(utils::FACTORY());
-    calldata.append_serde(utils::NAME());
-    calldata.append_serde(utils::SYMBOL());
-    calldata.append_serde(utils::RECEIVER());
-    calldata.append_serde(utils::FRACTION());
+    calldata.append_serde(constants::CREATOR());
+    calldata.append_serde(constants::FACTORY());
+    calldata.append_serde(constants::NAME());
+    calldata.append_serde(constants::SYMBOL());
+    calldata.append_serde(constants::RECEIVER());
+    calldata.append_serde(constants::FRACTION());
 
     // Declare and deploy
     let (contract_address, _) = contract.deploy(
@@ -48,11 +48,11 @@ fn test_deploy() {
     let ownable = IOwnableDispatcher {contract_address: contract};
     let nft = INFTDispatcher {contract_address: contract};
 
-    assert_eq!(erc721.name(), utils::NAME());
-    assert_eq!(erc721.symbol(), utils::SYMBOL());
-    assert_eq!(nft.creator(), utils::CREATOR());
-    assert_eq!(nft.factory(), utils::FACTORY());
-    assert_eq!(ownable.owner(), utils::CREATOR());
+    assert_eq!(erc721.name(), constants::NAME());
+    assert_eq!(erc721.symbol(), constants::SYMBOL());
+    assert_eq!(nft.creator(), constants::CREATOR());
+    assert_eq!(nft.factory(), constants::FACTORY());
+    assert_eq!(ownable.owner(), constants::CREATOR());
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn test_initialize() {
 
     nft.initialize(nft_parameters);
 
-    start_cheat_caller_address(contract, utils::FACTORY());
+    start_cheat_caller_address(contract, constants::FACTORY());
 
     nft.initialize(nft_parameters);
 
@@ -108,7 +108,7 @@ fn should_call_once_initialize() {
         referral_code: '0x000',
     };
 
-    start_cheat_caller_address(contract, utils::FACTORY());
+    start_cheat_caller_address(contract, constants::FACTORY());
 
     nft.initialize(nft_parameters);
 
@@ -124,7 +124,7 @@ fn test_setPaymentInfo() {
 
     nft.setPaymentInfo(contract_address_const::<1>(), 3000, 0);
 
-    start_cheat_caller_address(contract, utils::CREATOR());
+    start_cheat_caller_address(contract, constants::CREATOR());
 
     let mut spy = spy_events();
 
@@ -158,7 +158,7 @@ fn should_not_paste_zero_addr_setPaymentInfo() {
 
     let nft = INFTDispatcher {contract_address: contract};
 
-    start_cheat_caller_address(contract, utils::CREATOR());
+    start_cheat_caller_address(contract, constants::CREATOR());
 
     nft.setPaymentInfo(contract_address_const::<0>(), 3000, 0);
 }
@@ -181,13 +181,13 @@ fn should_not_paste_zero_amount_setPaymentInfo() {
         referral_code: '0x000',
     };
 
-    start_cheat_caller_address(contract, utils::FACTORY());
+    start_cheat_caller_address(contract, constants::FACTORY());
 
     nft.initialize(nft_parameters);
 
     stop_cheat_caller_address(contract);
 
-    start_cheat_caller_address(contract, utils::CREATOR());
+    start_cheat_caller_address(contract, constants::CREATOR());
 
     nft.setPaymentInfo(contract_address_const::<1>(), 0, 0);
 }
@@ -201,7 +201,7 @@ fn test_addWhitelisted() {
 
     nft.addWhitelisted(contract_address_const::<1>());
 
-    start_cheat_caller_address(contract, utils::CREATOR());
+    start_cheat_caller_address(contract, constants::CREATOR());
 
     nft.addWhitelisted(contract_address_const::<1>());
 
@@ -215,7 +215,7 @@ fn should_not_whitelisted_twice_addWhitelisted() {
 
     let nft = INFTDispatcher {contract_address: contract};
 
-    start_cheat_caller_address(contract, utils::CREATOR());
+    start_cheat_caller_address(contract, constants::CREATOR());
 
     nft.addWhitelisted(contract_address_const::<1>());
 
