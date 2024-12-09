@@ -21,9 +21,8 @@ pub struct NftInfo {
 pub struct InstanceInfo {
     pub name: ByteArray,
     pub symbol: ByteArray,
-    pub contract_uri: felt252,
+    pub contract_uri: ByteArray,
     pub payment_token: ContractAddress,
-    pub fee_receiver: ContractAddress,
     pub royalty_fraction: u128,
     pub transferrable: bool,
     pub max_total_supply: u256,         // The max total supply of a new collection
@@ -51,9 +50,11 @@ pub trait INFTFactory<TState> {
 
     fn produce(ref self: TState, instance_info: InstanceInfo) -> ContractAddress;
 
-    fn update_nft_class_hash(ref self: TState, class_hash: ClassHash);
+    fn createReferralCode(ref self: TState) -> felt252;
 
-    fn update_receiver_class_hash(ref self: TState, class_hash: ClassHash);
+    fn updateNftClassHash(ref self: TState, class_hash: ClassHash);
+
+    fn updateReceiverClassHash(ref self: TState, class_hash: ClassHash);
 
     fn setFactoryParameters(ref self: TState, factory_parameters: FactoryParameters);
 

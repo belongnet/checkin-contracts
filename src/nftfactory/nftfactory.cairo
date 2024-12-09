@@ -28,7 +28,7 @@ pub mod NFTFactory {
         INFTDispatcher, INFTDispatcherTrait, NftParameters
     };
     use core::{
-        traits::Into, num::traits::Zero, pedersen::pedersen
+        traits::Into, num::traits::Zero, poseidon::poseidon_hash_span
     };
     use starknet::{
         ContractAddress,
@@ -104,7 +104,7 @@ pub mod NFTFactory {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         #[flat]
         OwnableEvent: OwnableComponent::Event,
         #[flat]
@@ -176,12 +176,16 @@ pub mod NFTFactory {
             deployed_address
         }
 
-        fn update_nft_class_hash(ref self: ContractState, class_hash: ClassHash) {
+        fn createReferralCode(ref self: ContractState) -> felt252 {
+            return self._create_referral_code();
+        }
+
+        fn updateNftClassHash(ref self: ContractState, class_hash: ClassHash) {
             self.ownable.assert_only_owner();
             self.nft_class_hash.write(class_hash);
         }
 
-        fn update_receiver_class_hash(ref self: ContractState, class_hash: ClassHash) {
+        fn updateReceiverClassHash(ref self: ContractState, class_hash: ClassHash) {
             self.ownable.assert_only_owner();
             self.receiver_class_hash.write(class_hash);
         }
@@ -221,7 +225,9 @@ pub mod NFTFactory {
         }
 
         fn referralCode(self: @ContractState, account: ContractAddress) -> felt252 {
-            let hash = pedersen(account.into(), get_contract_address().into());
+            let hash = poseidon_hash_span(
+                array![account.into(), get_contract_address().into(), get_tx_info().unbox().chain_id].span()
+            );
             self._check_referral_code(hash);
 
             hash
@@ -265,13 +271,14 @@ pub mod NFTFactory {
 
             let metadata_name_hash: felt252 = info.name.hash();
             let metadata_symbol_hash: felt252 = info.symbol.hash();
+            let contract_uri_hash: felt252 = info.contract_uri.hash();
         
             assert(self.nft_info.entry((metadata_name_hash, metadata_symbol_hash)).nft_address.read().is_zero(), super::Errors::NFT_EXISTS);
             
             let message = ProduceHash {
                 name_hash: metadata_name_hash,
                 symbol_hash: metadata_symbol_hash,
-                contract_uri: info.contract_uri,
+                contract_uri: contract_uri_hash,
                 royalty_fraction: info.royalty_fraction
             };
 
@@ -292,7 +299,7 @@ pub mod NFTFactory {
 
             let nft_parameters = NftParameters {
                 payment_token,
-                contract_uri: info.contract_uri,
+                contract_uri: contract_uri_hash,
                 mint_price: info.mint_price,
                 whitelisted_mint_price: info.whitelisted_mint_price,
                 max_total_supply: info.max_total_supply,
@@ -360,8 +367,9 @@ pub mod NFTFactory {
         }
 
         fn _create_referral_code(ref self: ContractState) -> felt252 {
-            let mut referral_code = pedersen(get_caller_address().into(), get_contract_address().into());
-            referral_code = pedersen(referral_code, get_tx_info().unbox().chain_id); 
+            let mut referral_code = poseidon_hash_span(
+                array![get_caller_address().into(), get_contract_address().into(), get_tx_info().unbox().chain_id].span()
+            );
 
             assert(self.referrals.entry(referral_code).referral_creator.read().is_zero(), super::Errors::REFFERAL_CODE_EXISTS);
             
