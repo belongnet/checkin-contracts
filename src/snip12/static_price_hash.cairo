@@ -28,7 +28,7 @@ pub struct StaticPriceHash {
 }
 
 pub impl MessageStaticPriceHash of IMessageHash<StaticPriceHash> {
-    fn get_message_hash(self: @StaticPriceHash) -> felt252 {
+    fn get_message_hash(self: @StaticPriceHash, contract: ContractAddress) -> felt252 {
         let domain = StarknetDomain {
             name: 'NFT', version: '1', chain_id: get_tx_info().unbox().chain_id, revision: 1
         };
@@ -36,7 +36,7 @@ pub impl MessageStaticPriceHash of IMessageHash<StaticPriceHash> {
         state = state.update_with('StarkNet Message');
         state = state.update_with(domain.get_struct_hash());
         // This can be a field within the struct, it doesn't have to be get_caller_address().
-        state = state.update_with(get_caller_address());
+        state = state.update_with(contract);
         state = state.update_with(self.get_struct_hash());
         state.finalize()
     }
@@ -70,6 +70,6 @@ mod tests {
         };
 
         start_cheat_caller_address_global(1337.try_into().unwrap());
-        assert_eq!(dynamic_price_hash.get_message_hash(), message_hash);
+        assert_eq!(dynamic_price_hash.get_message_hash(1337.try_into().unwrap()), message_hash);
     }
 }

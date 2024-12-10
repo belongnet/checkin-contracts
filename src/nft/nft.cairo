@@ -35,6 +35,7 @@ pub mod NFT {
     use starknet::{
         ContractAddress,
         get_caller_address,
+        get_contract_address,
         event::EventEmitter,
         storage::{
             StoragePointerReadAccess, 
@@ -148,7 +149,9 @@ pub mod NFT {
 
         self.erc721.initializer(name, symbol, "");
         self.ownable.initializer(creator);
-        self.erc2981.initializer(fee_receiver, royalty_fraction);
+        if royalty_fraction.is_non_zero() && fee_receiver.is_non_zero() {
+            self.erc2981.initializer(fee_receiver, royalty_fraction);
+        }
     }
 
     #[abi(embed_v0)]
@@ -290,7 +293,7 @@ pub mod NFT {
                 };
 
                 let is_valid_signature_felt = signer.is_valid_signature(
-                    message.get_message_hash(), params.signature.into()
+                    message.get_message_hash(get_contract_address()), params.signature.into()
                 );
 
                 assert(
@@ -347,7 +350,7 @@ pub mod NFT {
                 };
 
                 let is_valid_signature_felt = signer.is_valid_signature(
-                    message.get_message_hash(), params.signature.into()
+                    message.get_message_hash(get_contract_address()), params.signature.into()
                 );
 
                 assert(

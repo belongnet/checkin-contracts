@@ -11,7 +11,7 @@ mod Errors {
     pub const REFFERAL_CODE_EXISTS: felt252 = 'Referral code is already exists';
     pub const REFFERAL_CODE_NOT_EXISTS: felt252 = 'Referral code is not exists';
     pub const CAN_NOT_REFER_SELF: felt252 = 'Can not refer to self';
-    pub const REFFERAL_CODE_NOT_USED_BY_USER: felt252 = 'User code did not used code';
+    pub const REFFERAL_CODE_NOT_USED_BY_USER: felt252 = 'User code did not used';
     pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
     pub const WRONG_PERCENTAGES_LEN: felt252 = 'Wrong percentages length';
 }
@@ -282,13 +282,12 @@ pub mod NFTFactory {
                 royalty_fraction: info.royalty_fraction
             };
 
-            let hash = message.get_message_hash();
+            let hash = message.get_message_hash(get_contract_address());
             let is_valid_signature_felt = 
                 ISRC6Dispatcher { contract_address: self.factory_parameters.signer.read() }.is_valid_signature(hash, info.signature);
             // Check either 'VALID' or True for backwards compatibility
             let is_valid_signature = is_valid_signature_felt == starknet::VALIDATED
                 || is_valid_signature_felt == 1;
-
             assert(is_valid_signature, super::Errors::VALIDATION_ERROR);
 
             let payment_token = if info.payment_token.is_zero() {
@@ -308,6 +307,7 @@ pub mod NFTFactory {
                 referral_code: info.referral_code,
             };
 
+            println!("here: {}", 1);
             // Zero address
             let mut receiver_address: ContractAddress = contract_address_const::<0>();
             self._set_referral_user(info.referral_code, get_caller_address());
@@ -325,7 +325,7 @@ pub mod NFTFactory {
                 ).unwrap_syscall();
                 receiver_address = address;
             }
-
+            println!("here: {}", 2);
             let mut nft_constructor_calldata: Array<felt252> = array![];
             nft_constructor_calldata.append_serde(get_caller_address());
             nft_constructor_calldata.append_serde(get_contract_address());
@@ -333,11 +333,11 @@ pub mod NFTFactory {
             nft_constructor_calldata.append_serde(info.symbol.clone());
             nft_constructor_calldata.append_serde(receiver_address);
             nft_constructor_calldata.append_serde(info.royalty_fraction);
-
+            println!("here: {}", 3);
             let (nft_address, _) = deploy_syscall(
                 self.nft_class_hash.read(), 0, nft_constructor_calldata.span(), false
             ).unwrap_syscall();
-
+            println!("here: {}", 4);
             INFTDispatcher { contract_address: nft_address }.initialize(
                 nft_parameters
             );
