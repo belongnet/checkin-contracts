@@ -194,3 +194,5 @@ $ yarn verify:deployed <network_name>
 - `blast_sepolia` - Blast Sepolia testnet
 - `skale_calypso_testnet` - Skale Calypso Hub testnet
 - `amoy` - Polygon Amoy testnet
+
+### [Deployed Crypto Addresses](./../addresses.md)
