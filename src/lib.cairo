@@ -20,7 +20,10 @@ mod snip12 {
     pub mod interfaces;
 }
 
-mod mocks { pub mod erc20mock; }
+mod mocks { 
+    pub mod erc20mock; 
+    pub mod account; 
+}
 
 mod utils {
     pub mod constants;
