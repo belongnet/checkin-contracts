@@ -8,8 +8,20 @@ pub fn NAME() -> ByteArray {
     "NAME"
 }
 
+pub fn NAME_2() -> ByteArray {
+    "NAME_2"
+}
+
+pub fn NAME_3() -> ByteArray {
+    "NAME_3"
+}
+
 pub fn SYMBOL() -> ByteArray {
     "SYMBOL"
+}
+
+pub fn SYMBOL_2() -> ByteArray {
+    "SYMBOL_2"
 }
 
 pub fn BASE_URI() -> ByteArray {
@@ -36,16 +48,20 @@ pub fn SIGNER() -> ContractAddress {
     contract_address_const::<'SIGNER'>()
 }
 
+pub fn RECEIVER() -> ContractAddress {
+    contract_address_const::<'RECEIVER'>()
+}
+
+pub fn REFERRAL() -> ContractAddress {
+    contract_address_const::<'REFERRAL'>()
+}
+
 pub fn FACTORY() -> ContractAddress {
     contract_address_const::<'FACTORY'>()
 }
 
 pub fn NFT() -> ContractAddress {
     contract_address_const::<'NFT'>()
-}
-
-pub fn RECEIVER() -> ContractAddress {
-    contract_address_const::<'RECEIVER'>()
 }
 
 pub fn CURRENCY() -> ContractAddress {
