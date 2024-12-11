@@ -9,7 +9,7 @@ mod Errors {
     pub const NFT_EXISTS: felt252 = 'NFT is already exists';
     pub const NFT_NOT_EXISTS: felt252 = 'NFT is not exists';
     pub const REFFERAL_CODE_EXISTS: felt252 = 'Referral code is already exists';
-    pub const REFFERAL_CODE_NOT_EXISTS: felt252 = 'Referral code is not exists';
+    pub const REFFERAL_CODE_NOT_EXISTS: felt252 = 'Referral code does not exist';
     pub const CAN_NOT_REFER_SELF: felt252 = 'Can not refer to self';
     pub const REFFERAL_CODE_NOT_USED_BY_USER: felt252 = 'User code did not used';
     pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
@@ -109,17 +109,18 @@ pub mod NFTFactory {
         OwnableEvent: OwnableComponent::Event,
         #[flat]
         UpgradeableEvent: UpgradeableComponent::Event,
-        NFTCreatedEvent: NFTCreated,
+        ProducedEvent: Produced,
         ReferralCodeCreatedEvent: ReferralCodeCreated,
         ReferralCodeUsedEvent: ReferralCodeUsed
     }
 
     #[derive(Drop, PartialEq, starknet::Event)]
-    pub struct NFTCreated {
+    pub struct Produced {
         #[key]
-        pub deployed_address: ContractAddress,
+        pub nft_address: ContractAddress,
         #[key]
         pub creator: ContractAddress,
+        pub receiver_address: ContractAddress,
         pub name: ByteArray,
         pub symbol: ByteArray,
     }
@@ -161,7 +162,8 @@ pub mod NFTFactory {
             ref self: ContractState,
             nft_class_hash: ClassHash,
             receiver_class_hash: ClassHash,
-            factory_parameters: FactoryParameters
+            factory_parameters: FactoryParameters,
+            percentages: Span<u16>
         ) {
             self.ownable.assert_only_owner();
             assert(self.factory_parameters.platform_address.read().is_zero(), super::Errors::INITIALIZED);
@@ -169,11 +171,12 @@ pub mod NFTFactory {
             self.nft_class_hash.write(nft_class_hash);
             self.receiver_class_hash.write(receiver_class_hash);
             self._set_factory_parameters(factory_parameters);
+            self._set_referral_percentages(percentages);
         }
 
-        fn produce(ref self: ContractState, instance_info: InstanceInfo) -> ContractAddress {
-            let deployed_address = self._produce(instance_info);
-            deployed_address
+        fn produce(ref self: ContractState, instance_info: InstanceInfo) -> (ContractAddress, ContractAddress) {
+            let (deployed_address, receiver_address) = self._produce(instance_info);
+            (deployed_address, receiver_address)
         }
 
         fn createReferralCode(ref self: ContractState) -> felt252 {
@@ -263,7 +266,7 @@ pub mod NFTFactory {
 
     #[generate_trait]
     impl InternalImpl of InternalTrait {
-        fn _produce(ref self: ContractState, instance_info: InstanceInfo) -> ContractAddress {
+        fn _produce(ref self: ContractState, instance_info: InstanceInfo) -> (ContractAddress, ContractAddress) {
             let info = instance_info.clone();
 
             assert(info.name.len().is_non_zero(), super::Errors::EMPTY_NAME);
@@ -307,7 +310,6 @@ pub mod NFTFactory {
                 referral_code: info.referral_code,
             };
 
-            println!("here: {}", 1);
             // Zero address
             let mut receiver_address: ContractAddress = contract_address_const::<0>();
             self._set_referral_user(info.referral_code, get_caller_address());
@@ -325,7 +327,7 @@ pub mod NFTFactory {
                 ).unwrap_syscall();
                 receiver_address = address;
             }
-            println!("here: {}", 2);
+
             let mut nft_constructor_calldata: Array<felt252> = array![];
             nft_constructor_calldata.append_serde(get_caller_address());
             nft_constructor_calldata.append_serde(get_contract_address());
@@ -333,37 +335,39 @@ pub mod NFTFactory {
             nft_constructor_calldata.append_serde(info.symbol.clone());
             nft_constructor_calldata.append_serde(receiver_address);
             nft_constructor_calldata.append_serde(info.royalty_fraction);
-            println!("here: {}", 3);
+
             let (nft_address, _) = deploy_syscall(
                 self.nft_class_hash.read(), 0, nft_constructor_calldata.span(), false
             ).unwrap_syscall();
-            println!("here: {}", 4);
+
             INFTDispatcher { contract_address: nft_address }.initialize(
                 nft_parameters
             );
 
             self.nft_info.write(
-                (metadata_name_hash,metadata_symbol_hash), 
+                (metadata_name_hash, metadata_symbol_hash), 
                 NftInfo {
                     name: info.name.clone(),
                     symbol: info.symbol.clone(),
                     creator: get_caller_address(),
-                    nft_address: nft_address
+                    nft_address,
+                    receiver_address
                 }
             );
 
             self.emit( 
-                Event::NFTCreatedEvent(
-                    NFTCreated { 
-                        deployed_address: nft_address,
+                Event::ProducedEvent(
+                    Produced { 
+                        nft_address,
                         creator: get_caller_address(),
-                        name: info.name,    
+                        receiver_address,
+                        name: info.name,
                         symbol: info.symbol,
                     }
                 )
             );
 
-            nft_address
+            (nft_address, receiver_address)
         }
 
         fn _create_referral_code(ref self: ContractState) -> felt252 {

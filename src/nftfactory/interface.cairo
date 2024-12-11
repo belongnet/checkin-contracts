@@ -14,7 +14,8 @@ pub struct NftInfo {
     pub name: ByteArray,
     pub symbol: ByteArray,
     pub creator: ContractAddress,
-    pub nft_address: ContractAddress
+    pub nft_address: ContractAddress,
+    pub receiver_address: ContractAddress
 }
 
 #[derive(Clone, Drop, Serde)]
@@ -45,10 +46,11 @@ pub trait INFTFactory<TState> {
         ref self: TState,
         nft_class_hash: ClassHash,
         receiver_class_hash: ClassHash,
-        factory_parameters: FactoryParameters
+        factory_parameters: FactoryParameters,
+        percentages: Span<u16>
     );
 
-    fn produce(ref self: TState, instance_info: InstanceInfo) -> ContractAddress;
+    fn produce(ref self: TState, instance_info: InstanceInfo) -> (ContractAddress, ContractAddress);
 
     fn createReferralCode(ref self: TState) -> felt252;
 
