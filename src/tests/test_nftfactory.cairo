@@ -1,20 +1,7 @@
 use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait, FactoryParameters, InstanceInfo};
 use crate::nftfactory::nftfactory::{NFTFactory};
 use crate::snip12::produce_hash::{ProduceHash, MessageProduceHash};
-use core::poseidon::poseidon_hash_span;
-// Import the deploy syscall to be able to deploy the contract.
-use starknet::{
-    ContractAddress,
-    SyscallResultTrait,
-    get_contract_address,
-    get_caller_address,
-    contract_address_const,
-    // Use starknet test utils to fake the contract_address
-    testing::set_contract_address,
-    secp256k1::{
-        Secp256k1Point
-    }
-};
+use starknet::ContractAddress;
 use openzeppelin::{
     utils::{
         serde::SerializedAppend,
@@ -125,11 +112,9 @@ fn deploy_initialize_produce(signer: ContractAddress) -> (ContractAddress, Contr
 pub fn deploy_account_mock() -> ContractAddress {
     let contract = declare("DualCaseAccountMock").unwrap().contract_class();
 
-    let calldata = array![constants::stark::KEY_PAIR().public_key];
-
     // Declare and deploy
     let (contract_address, _) = contract.deploy(
-        @calldata
+        @array![constants::stark::KEY_PAIR().public_key]
     ).unwrap();
 
     contract_address
@@ -138,11 +123,9 @@ pub fn deploy_account_mock() -> ContractAddress {
 fn deploy_erc20_mock() -> ContractAddress {
     let contract = declare("ERC20Mock").unwrap().contract_class();
 
-    let calldata = array![];
-
     // Declare and deploy
     let (contract_address, _) = contract.deploy(
-        @calldata
+        @array![]
     ).unwrap();
 
     contract_address
@@ -464,6 +447,7 @@ fn test_produce() {
     assert_eq!(nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).symbol, constants::SYMBOL());
     assert_eq!(nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).creator, constants::CREATOR());
     assert_eq!(nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).nft_address, nft);
+    assert_eq!(nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).receiver_address, receiver);
 
     // Throws: 'NFT is already exists'
     nft_factory.produce(instance_info);

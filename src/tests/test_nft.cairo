@@ -1,11 +1,18 @@
 use crate::nft::interface::{INFTDispatcher, INFTDispatcherTrait, NftParameters};
 use crate::nft::nft::{NFT};
+use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait, FactoryParameters, InstanceInfo};
+use crate::snip12::produce_hash::{ProduceHash, MessageProduceHash};
 // Import the deploy syscall to be able to deploy the contract.
 use starknet::{ContractAddress, SyscallResultTrait, get_contract_address, contract_address_const};
 // Use starknet test utils to fake the contract_address
 use starknet::testing::set_contract_address;
 use openzeppelin::{
-    utils::serde::SerializedAppend,
+    utils::{
+        serde::SerializedAppend,
+        bytearray::{
+            ByteArrayExtImpl, ByteArrayExtTrait
+        }
+    },
     token::erc721::interface::{ERC721ABIDispatcher, ERC721ABIDispatcherTrait},
     access::ownable::interface::{IOwnableDispatcher, IOwnableDispatcherTrait}
 };
@@ -13,11 +20,14 @@ use snforge_std::{
     declare,
     start_cheat_caller_address,
     stop_cheat_caller_address,
+    start_cheat_caller_address_global,
+    stop_cheat_caller_address_global,
     spy_events,
     EventSpyAssertionsTrait,
     ContractClassTrait,
     DeclareResultTrait
 };
+use crate::utils::signing::StarkSerializedSigning;
 use crate::utils::constants as constants;
 
 // Deploy the contract and return its dispatcher.
@@ -39,6 +49,79 @@ fn deploy() -> ContractAddress {
 
     contract_address
 }
+
+fn deploy_factory_nft_receiver_erc20(signer: ContractAddress) 
+    -> (
+        ContractAddress, ContractAddress, ContractAddress, ContractAddress
+    ) {
+    let factory_class = declare("NFTFactory").unwrap().contract_class();
+    let nft_class = declare("NFT").unwrap().contract_class();
+    let receiver_class = declare("Receiver").unwrap().contract_class();
+    let erc20mock_class = declare("ERC20Mock").unwrap().contract_class();
+
+    let (erc20mock, _) = erc20mock_class.deploy(
+        @array![]
+    ).unwrap();
+
+    let mut calldata = array![];
+    calldata.append_serde(constants::OWNER());
+    let (factory, _) = factory_class.deploy(
+        @calldata
+    ).unwrap();
+
+    let nft_factory = INFTFactoryDispatcher {contract_address: factory};
+
+    let factory_parameters = FactoryParameters {
+        signer,
+        default_payment_currency: constants::CURRENCY(),
+        platform_address: constants::PLATFORM(),
+        platform_commission: 100,
+        max_array_size: 10,
+    };
+
+    let percentages = array![0, 5000, 3000, 1500, 500].span();
+
+    start_cheat_caller_address(factory, constants::OWNER());
+    nft_factory.initialize(
+        *nft_class.class_hash, *receiver_class.class_hash, factory_parameters, percentages
+    );
+
+    let fraction = 0;
+    let produce_hash = ProduceHash { 
+        name_hash: constants::NAME().hash(),
+        symbol_hash: constants::SYMBOL().hash(),
+        contract_uri: constants::CONTRACT_URI().hash(),
+        royalty_fraction: fraction
+    };
+    start_cheat_caller_address_global(signer);
+
+    let signature = constants::stark::KEY_PAIR().serialized_sign(
+        produce_hash.get_message_hash(factory)
+    );
+
+    let instance_info = InstanceInfo {
+        name: constants::NAME(),
+        symbol: constants::SYMBOL(),
+        contract_uri: constants::CONTRACT_URI(),
+        payment_token: erc20mock,
+        royalty_fraction: fraction,
+        transferrable: true,
+        max_total_supply: constants::MAX_TOTAL_SUPPLY(),
+        mint_price: constants::MINT_PRICE(),
+        whitelisted_mint_price: constants::WL_MINT_PRICE(),
+        collection_expires: constants::EXPIRES(),
+        referral_code: '',
+        signature
+    };
+
+    stop_cheat_caller_address_global();
+    start_cheat_caller_address(factory, constants::CREATOR());
+
+    let (nft, receiver) = nft_factory.produce(instance_info.clone());
+
+    (factory, nft, receiver, erc20mock)
+}
+
 
 #[test]
 fn test_deploy() {
