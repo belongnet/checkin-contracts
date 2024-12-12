@@ -21,16 +21,10 @@ pub mod NFT {
         INFT, NftParameters, DynamicPriceParameters, StaticPriceParameters
     };
     use crate::snip12::{
-        static_price_hash::{
-            MessageStaticPriceHash, StaticPriceHash
-        },
-        dynamic_price_hash::{
-            MessageDynamicPriceHash, DynamicPriceHash
-        }
+        static_price_hash::{MessageStaticPriceHash, StaticPriceHash},
+        dynamic_price_hash::{MessageDynamicPriceHash, DynamicPriceHash}
     };
-    use crate::nftfactory::interface::{
-        INFTFactoryDispatcher, INFTFactoryDispatcherTrait
-    };
+    use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait};
     use core::num::traits::Zero;
     use starknet::{
         ContractAddress,
@@ -53,9 +47,7 @@ pub mod NFT {
             erc721::ERC721Component,
             common::erc2981::{ERC2981Component,DefaultConfig}
         },
-        account::interface::{
-            ISRC6Dispatcher, ISRC6DispatcherTrait
-        }
+        account::interface::{ISRC6Dispatcher, ISRC6DispatcherTrait}
     };
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
