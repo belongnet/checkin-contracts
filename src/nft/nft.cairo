@@ -259,6 +259,55 @@ pub mod NFT {
             );
         }
 
+        fn _mint_dynamic_price_batch(
+            ref self: ContractState,
+            dynamic_params: Array<DynamicPriceParameters>,
+            expected_paying_token: ContractAddress
+        ) {
+            let array_size = dynamic_params.len();
+            let factory = INFTFactoryDispatcher { contract_address: self.factory.read() };
+
+            assert(
+                array_size.into() <= factory.maxArraySize(),
+                super::Errors::WRONG_ARRAY_SIZE
+            );
+
+            let signer = ISRC6Dispatcher { contract_address: factory.signer() };
+
+            let mut amount_to_pay = 0;
+            for i in 0..array_size {
+                let params = *dynamic_params.at(i);
+
+                let message = DynamicPriceHash {
+                    receiver: params.receiver,
+                    token_id: params.token_id,
+                    price: params.price,
+                    token_uri: params.token_uri,
+                };
+
+                let is_valid_signature_felt = signer.is_valid_signature(
+                    message.get_message_hash(get_contract_address()), params.signature.into()
+                );
+
+                assert(
+                    is_valid_signature_felt == starknet::VALIDATED || is_valid_signature_felt == 1, 
+                    super::Errors::VALIDATION_ERROR
+                );
+
+                amount_to_pay += params.price;
+
+                self._base_mint(
+                    params.token_id,
+                    params.receiver,
+                    params.token_uri
+                );
+            };
+
+            let (fees, amount_to_creator) = self._check_price(amount_to_pay, expected_paying_token);
+
+            self._pay(amount_to_pay, fees, amount_to_creator);
+        }
+
         fn _mint_static_price_batch(
             ref self: ContractState,
             static_params: Array<StaticPriceParameters>,
@@ -313,55 +362,6 @@ pub mod NFT {
             let (fees, amount_to_creator) = self._check_price(amount_to_pay, expected_paying_token);
 
             assert(expected_mint_price == amount_to_pay, super::Errors::EXPECTED_PRICE_ERROR);
-
-            self._pay(amount_to_pay, fees, amount_to_creator);
-        }
-
-        fn _mint_dynamic_price_batch(
-            ref self: ContractState,
-            dynamic_params: Array<DynamicPriceParameters>,
-            expected_paying_token: ContractAddress
-        ) {
-            let array_size = dynamic_params.len();
-            let factory = INFTFactoryDispatcher { contract_address: self.factory.read() };
-
-            assert(
-                array_size.into() <= factory.maxArraySize(),
-                super::Errors::WRONG_ARRAY_SIZE
-            );
-
-            let signer = ISRC6Dispatcher { contract_address: factory.signer() };
-
-            let mut amount_to_pay = 0;
-            for i in 0..array_size {
-                let params = *dynamic_params.at(i);
-
-                let message = DynamicPriceHash {
-                    receiver: params.receiver,
-                    token_id: params.token_id,
-                    price: params.price,
-                    token_uri: params.token_uri,
-                };
-
-                let is_valid_signature_felt = signer.is_valid_signature(
-                    message.get_message_hash(get_contract_address()), params.signature.into()
-                );
-
-                assert(
-                    is_valid_signature_felt == starknet::VALIDATED || is_valid_signature_felt == 1, 
-                    super::Errors::VALIDATION_ERROR
-                );
-
-                amount_to_pay += params.price;
-
-                self._base_mint(
-                    params.token_id,
-                    params.receiver,
-                    params.token_uri
-                );
-            };
-
-            let (fees, amount_to_creator) = self._check_price(amount_to_pay, expected_paying_token);
 
             self._pay(amount_to_pay, fees, amount_to_creator);
         }
