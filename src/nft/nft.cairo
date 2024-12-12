@@ -227,10 +227,12 @@ pub mod NFT {
             auth: ContractAddress,
         ) {
             let contract_state = self.get_contract();
-            let from = contract_state.owner_of(token_id);
 
-            if to.is_non_zero() && from.is_non_zero() {
-                assert(contract_state.nft_parameters.transferrable.read(), super::Errors::NOT_TRANSFERRABLE);
+            if contract_state.erc721.exists(token_id) {
+                let from = contract_state.owner_of(token_id);
+                if to.is_non_zero() && from.is_non_zero() {
+                    assert(contract_state.nft_parameters.transferrable.read(), super::Errors::NOT_TRANSFERRABLE);
+                }
             }
         }
     }
@@ -399,20 +401,19 @@ pub mod NFT {
 
             let (_, platform) = factory.platformParams();
 
-            let user = get_caller_address();
             let token = IERC20Dispatcher { contract_address: self.nft_parameters.payment_token.read() };
             if fees_to_platform.is_non_zero() {
-                token.transfer_from(user, platform, fees_to_platform);
+                token.transfer(platform, fees_to_platform);
             }
             if referral_fees.is_non_zero() {
-                token.transfer_from(user, factory.getReferralCreator(referral_code), referral_fees);
+                token.transfer(factory.getReferralCreator(referral_code), referral_fees);
             }
 
-            token.transfer_from(user, creator, amount_to_creator);
+            token.transfer(creator, amount_to_creator);
             
             self.emit(
                 Event::PaidEvent(
-                    Paid { user, payment_token: token.contract_address, amount }
+                    Paid { user: get_caller_address(), payment_token: token.contract_address, amount }
                 )
             );
         }
