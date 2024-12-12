@@ -5,6 +5,7 @@
 pub mod ERC20Mock {
     use starknet::ContractAddress;
     use openzeppelin::token::erc20::{ERC20Component, ERC20HooksEmptyImpl};
+    use crate::mocks::erc20mockinterface::IERC20Mintable;
 
     component!(path: ERC20Component, storage: erc20, event: ERC20Event);
 
@@ -31,10 +32,8 @@ pub mod ERC20Mock {
         self.erc20.initializer("ERC20Mock", "ERC20MOCK");
     }
 
-    #[generate_trait]
-    #[abi(per_item)]
-    impl ExternalImpl of ExternalTrait {
-        #[external(v0)]
+    #[abi(embed_v0)]
+    impl ExternalImpl of IERC20Mintable<ContractState> {
         fn mint(ref self: ContractState, recipient: ContractAddress, amount: u256) {
             self.erc20.mint(recipient, amount);
         }

@@ -21,8 +21,9 @@ mod snip12 {
 }
 
 mod mocks { 
-    pub mod erc20mock; 
-    pub mod account; 
+    pub mod erc20mock;
+    pub mod erc20mockinterface;
+    pub mod account;
 }
 
 mod utils {
