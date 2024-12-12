@@ -52,6 +52,10 @@ pub fn RECEIVER() -> ContractAddress {
     contract_address_const::<'RECEIVER'>()
 }
 
+pub fn FEE_RECEIVER() -> ContractAddress {
+    contract_address_const::<'FEE_RECEIVER'>()
+}
+
 pub fn REFERRAL() -> ContractAddress {
     contract_address_const::<'REFERRAL'>()
 }
@@ -103,6 +107,11 @@ pub fn EXPIRES() -> u256 {
 pub fn REFERRAL_CODE() -> felt252 {
     'REFERRAL CODE'
 }
+
+pub fn TOKEN_URI() -> felt252 {
+    'TOKEN_URI'
+}
+
 
 //
 // Signing keys
