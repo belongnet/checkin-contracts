@@ -122,7 +122,6 @@ fn deploy_factory_nft_receiver_erc20(signer: ContractAddress)
     (factory, nft, receiver, erc20mock)
 }
 
-
 #[test]
 fn test_deploy() {
     let contract = deploy();
@@ -156,8 +155,6 @@ fn test_initialize() {
         referral_code: '0x000',
     };
 
-    nft.initialize(nft_parameters);
-
     start_cheat_caller_address(contract, constants::FACTORY());
 
     nft.initialize(nft_parameters);
@@ -171,11 +168,15 @@ fn test_initialize() {
     assert_eq!(nft.nftParameters().collection_expires, nft_parameters.collection_expires);
     assert_eq!(nft.nftParameters().transferrable, nft_parameters.transferrable);
     assert_eq!(nft.nftParameters().referral_code, nft_parameters.referral_code);
+
+    start_cheat_caller_address(contract, constants::RECEIVER());
+    // Throws: 'Only Factory can call'
+    nft.initialize(nft_parameters);
 }
 
 #[test]
 #[should_panic(expected: 'Initialize only once')]
-fn should_call_once_initialize() {
+fn test_initialize_only_once() {
     let contract = deploy();
 
     let nft = INFTDispatcher {contract_address: contract};
@@ -195,6 +196,7 @@ fn should_call_once_initialize() {
 
     nft.initialize(nft_parameters);
 
+    // Throws: 'Initialize only once'
     nft.initialize(nft_parameters);
 }
 
@@ -204,8 +206,6 @@ fn test_setPaymentInfo() {
     let contract = deploy();
 
     let nft = INFTDispatcher {contract_address: contract};
-
-    nft.setPaymentInfo(contract_address_const::<1>(), 3000, 0);
 
     start_cheat_caller_address(contract, constants::CREATOR());
 
@@ -232,11 +232,15 @@ fn test_setPaymentInfo() {
     assert_eq!(nft.nftParameters().payment_token, contract_address_const::<1>());
     assert_eq!(nft.nftParameters().mint_price, 3000);
     assert_eq!(nft.nftParameters().whitelisted_mint_price, 0);
+
+    start_cheat_caller_address(contract, constants::RECEIVER());
+    // Throws: 'Caller is not the owner'
+    nft.setPaymentInfo(contract_address_const::<1>(), 3000, 0);
 }
 
 #[test]
 #[should_panic(expected: 'Zero address passed')]
-fn should_not_paste_zero_addr_setPaymentInfo() {
+fn test_setPaymentInfo_zero_address() {
     let contract = deploy();
 
     let nft = INFTDispatcher {contract_address: contract};
@@ -248,7 +252,7 @@ fn should_not_paste_zero_addr_setPaymentInfo() {
 
 #[test]
 #[should_panic(expected: 'Zero amount passed')]
-fn should_not_paste_zero_amount_setPaymentInfo() {
+fn test_setPaymentInfo_zero_amount() {
     let contract = deploy();
 
     let nft = INFTDispatcher {contract_address: contract};
@@ -282,18 +286,20 @@ fn test_addWhitelisted() {
 
     let nft = INFTDispatcher {contract_address: contract};
 
-    nft.addWhitelisted(contract_address_const::<1>());
-
     start_cheat_caller_address(contract, constants::CREATOR());
 
     nft.addWhitelisted(contract_address_const::<1>());
 
     assert_eq!(nft.isWhitelisted(contract_address_const::<1>()), true);
+
+    start_cheat_caller_address(contract, constants::RECEIVER());
+    // Throws: 'Caller is not the owner'
+    nft.addWhitelisted(contract_address_const::<1>());
 }
 
 #[test]
 #[should_panic(expected: 'Address is already whitelisted')]
-fn should_not_whitelisted_twice_addWhitelisted() {
+fn test_addWhitelisted_whitelisted_already() {
     let contract = deploy();
 
     let nft = INFTDispatcher {contract_address: contract};
@@ -302,5 +308,6 @@ fn should_not_whitelisted_twice_addWhitelisted() {
 
     nft.addWhitelisted(contract_address_const::<1>());
 
+    // Throws: 'Address is already whitelisted'
     nft.addWhitelisted(contract_address_const::<1>());
 }
