@@ -9,4 +9,8 @@ pub trait IReceiver<TState> {
     fn totalReleased(self: @TState) -> u256;
 
     fn released(self: @TState, account: ContractAddress) -> u256;
+
+    fn payees(self: @TState) -> Span<ContractAddress>;
+
+    fn shares(self: @TState, account: ContractAddress) -> u16;
 }
