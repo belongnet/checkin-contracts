@@ -1,7 +1,10 @@
 use crate::nft::interface::{
     INFTDispatcher, INFTDispatcherTrait, NftParameters, DynamicPriceParameters, StaticPriceParameters
 };
-use crate::nft::nft::NFT;
+use crate::receiver::receiver::Receiver;
+use crate::receiver::interface::{
+    IReceiverDispatcher, IReceiverDispatcherTrait
+};
 use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait, FactoryParameters, InstanceInfo};
 use crate::snip12::produce_hash::{ProduceHash, MessageProduceHash};
 use crate::snip12::dynamic_price_hash::{DynamicPriceHash, MessageDynamicPriceHash};
@@ -40,29 +43,12 @@ use crate::utils::signing::StarkSerializedSigning;
 use crate::utils::constants as constants;
 
 // Deploy the contract and return its dispatcher.
-fn deploy() -> ContractAddress {
-    let contract = declare("Receiver").unwrap().contract_class();
 
-    let mut calldata = array![];
-    calldata.append_serde(constants::CREATOR());
-    calldata.append_serde(constants::FACTORY());
-    calldata.append_serde(constants::NAME());
-    calldata.append_serde(constants::SYMBOL());
-    calldata.append_serde(constants::FEE_RECEIVER());
-    calldata.append_serde(constants::FRACTION());
-
-    // Declare and deploy
-    let (contract_address, _) = contract.deploy(
-        @calldata
-    ).unwrap();
-
-    contract_address
-}
-
-fn deploy_factory_nft_receiver_erc20(signer: ContractAddress, referral: bool, transferrable: bool)
+fn deploy_factory_nft_receiver_erc20(is_referral: bool, transferrable: bool)
     -> (
         ContractAddress, ContractAddress, ContractAddress, ContractAddress
     ) {
+    let signer = deploy_account_mock();
     let factory_class = declare("NFTFactory").unwrap().contract_class();
     let nft_class = declare("NFT").unwrap().contract_class();
     let receiver_class = declare("Receiver").unwrap().contract_class();
@@ -96,18 +82,19 @@ fn deploy_factory_nft_receiver_erc20(signer: ContractAddress, referral: bool, tr
     );
 
     start_cheat_caller_address(factory, constants::REFERRAL());
-    let referral = if referral {
+    let referral_code = if is_referral {
         nft_factory.createReferralCode()
     } else {
-        ''
+        0
     };
 
-    let fraction = 0;
+    let royalty_fraction = constants::FRACTION();
+
     let produce_hash = ProduceHash { 
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
         contract_uri: constants::CONTRACT_URI().hash(),
-        royalty_fraction: fraction
+        royalty_fraction
     };
     start_cheat_caller_address_global(signer);
 
@@ -118,13 +105,13 @@ fn deploy_factory_nft_receiver_erc20(signer: ContractAddress, referral: bool, tr
         symbol: constants::SYMBOL(),
         contract_uri: constants::CONTRACT_URI(),
         payment_token: erc20mock,
-        royalty_fraction: fraction,
+        royalty_fraction,
         transferrable,
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         collection_expires: constants::EXPIRES(),
-        referral_code: referral,
+        referral_code,
         signature
     };
 
@@ -136,6 +123,9 @@ fn deploy_factory_nft_receiver_erc20(signer: ContractAddress, referral: bool, tr
     start_cheat_caller_address(erc20mock, signer);
     IERC20MintableDispatcher {contract_address: erc20mock}.mint(signer, 100000000);
     IERC20Dispatcher{contract_address: erc20mock}.approve(nft, 100000000);
+
+    stop_cheat_caller_address(factory);
+    stop_cheat_caller_address_global();
 
     (factory, nft, receiver, erc20mock)
 }
@@ -169,727 +159,117 @@ fn sign_message(msg_hash: felt252) -> Array<felt252> {
 
 #[test]
 fn test_deploy() {
-    let contract = deploy();
+    let (_, _, _receiver, _) = deploy_factory_nft_receiver_erc20(false, true);
 
-    let erc721 = ERC721ABIDispatcher {contract_address: contract};
-    let ownable = IOwnableDispatcher {contract_address: contract};
-    let nft = INFTDispatcher {contract_address: contract};
+    let receiver = IReceiverDispatcher {contract_address: _receiver};
 
-    assert_eq!(erc721.name(), constants::NAME());
-    assert_eq!(erc721.symbol(), constants::SYMBOL());
-    assert_eq!(nft.creator(), constants::CREATOR());
-    assert_eq!(nft.factory(), constants::FACTORY());
-    assert_eq!(ownable.owner(), constants::CREATOR());
+    let payees = array![constants::CREATOR(), constants::PLATFORM(), constants::ZERO_ADDRESS()];
+
+    let AMOUNT_TO_CREATOR: u16 = 8000;
+    let AMOUNT_TO_PLATFORM: u16 = 2000;
+
+    assert_eq!(receiver.payees(), payees.span());
+    assert_eq!(receiver.shares(constants::CREATOR()), AMOUNT_TO_CREATOR);
+    assert_eq!(receiver.shares(constants::PLATFORM()), AMOUNT_TO_PLATFORM);
 }
 
 #[test]
-#[should_panic(expected: 'Only Factory can call')]
-fn test_initialize() {
-    let contract = deploy();
+fn test_deploy_referral() {
+    let (_, _, _receiver, _) = deploy_factory_nft_receiver_erc20(true, true);
 
-    let nft = INFTDispatcher {contract_address: contract};
+    let receiver = IReceiverDispatcher {contract_address: _receiver};
 
-    let nft_parameters = NftParameters {
-        payment_token: contract_address_const::<0>(),
-        contract_uri: 'uri/uri',
-        mint_price: 200,
-        whitelisted_mint_price: 100,
-        max_total_supply: 1000,
-        collection_expires: 1010101010110010100,
-        transferrable: true,
-        referral_code: '0x000',
-    };
+    let payees = array![constants::CREATOR(), constants::PLATFORM(), constants::REFERRAL()];
 
-    start_cheat_caller_address(contract, constants::FACTORY());
+    let AMOUNT_TO_CREATOR: u16 = 8000;
+    let AMOUNT_TO_PLATFORM: u16 = 1000;
+    let AMOUNT_TO_REFERRAL: u16 = 1000;
 
-    nft.initialize(nft_parameters);
-
-    assert_eq!(nft.nftParameters().payment_token, nft_parameters.payment_token);
-    assert_eq!(nft.nftParameters().contract_uri, nft_parameters.contract_uri);
-    assert_eq!(nft.nftParameters().mint_price, nft_parameters.mint_price);
-    assert_eq!(nft.nftParameters().whitelisted_mint_price, nft_parameters.whitelisted_mint_price);
-    assert_eq!(nft.nftParameters().max_total_supply, nft_parameters.max_total_supply);
-    assert_eq!(nft.nftParameters().max_total_supply, nft_parameters.max_total_supply);
-    assert_eq!(nft.nftParameters().collection_expires, nft_parameters.collection_expires);
-    assert_eq!(nft.nftParameters().transferrable, nft_parameters.transferrable);
-    assert_eq!(nft.nftParameters().referral_code, nft_parameters.referral_code);
-
-    start_cheat_caller_address(contract, constants::RECEIVER());
-    // Throws: 'Only Factory can call'
-    nft.initialize(nft_parameters);
+    assert_eq!(receiver.payees(), payees.span());
+    assert_eq!(receiver.shares(constants::CREATOR()), AMOUNT_TO_CREATOR);
+    assert_eq!(receiver.shares(constants::PLATFORM()), AMOUNT_TO_PLATFORM);
+    assert_eq!(receiver.shares(constants::REFERRAL()), AMOUNT_TO_REFERRAL);
 }
 
 #[test]
-#[should_panic(expected: 'Initialize only once')]
-fn test_initialize_only_once() {
-    let contract = deploy();
+#[should_panic(expected: 'Only payee call')]
+fn test_release() {
+    let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
+    IERC20MintableDispatcher {contract_address: erc20}.mint(_receiver, 100000);
 
-    let nft = INFTDispatcher {contract_address: contract};
-
-    let nft_parameters = NftParameters {
-        payment_token: contract_address_const::<0>(),
-        contract_uri: 'uri/uri',
-        mint_price: 200,
-        whitelisted_mint_price: 100,
-        max_total_supply: 1000,
-        collection_expires: 1010101010110010100,
-        transferrable: true,
-        referral_code: '0x000',
-    };
-
-    start_cheat_caller_address(contract, constants::FACTORY());
-
-    nft.initialize(nft_parameters);
-
-    // Throws: 'Initialize only once'
-    nft.initialize(nft_parameters);
-}
-
-#[test]
-#[should_panic(expected: 'Caller is not the owner')]
-fn test_setPaymentInfo() {
-    let contract = deploy();
-
-    let nft = INFTDispatcher {contract_address: contract};
-
-    start_cheat_caller_address(contract, constants::CREATOR());
+    let receiver = IReceiverDispatcher {contract_address: _receiver};
 
     let mut spy = spy_events();
 
-    nft.setPaymentInfo(contract_address_const::<1>(), 3000, 0);
-
-    spy
-        .assert_emitted(
-            @array![
-                (
-                    contract,
-                    NFT::Event::PaymentInfoChangedEvent(
-                        NFT::PaymentInfoChanged { 
-                            payment_token: contract_address_const::<1>(),
-                            mint_price: 3000,
-                            whitelisted_mint_price: 0
-                        }
-                    )
-                )
-            ]
-        );
-
-    assert_eq!(nft.nftParameters().payment_token, contract_address_const::<1>());
-    assert_eq!(nft.nftParameters().mint_price, 3000);
-    assert_eq!(nft.nftParameters().whitelisted_mint_price, 0);
-
-    start_cheat_caller_address(contract, constants::RECEIVER());
-    // Throws: 'Caller is not the owner'
-    nft.setPaymentInfo(contract_address_const::<1>(), 3000, 0);
-}
-
-#[test]
-#[should_panic(expected: 'Zero address passed')]
-fn test_setPaymentInfo_zero_address() {
-    let contract = deploy();
-
-    let nft = INFTDispatcher {contract_address: contract};
-
-    start_cheat_caller_address(contract, constants::CREATOR());
-
-    nft.setPaymentInfo(contract_address_const::<0>(), 3000, 0);
-}
-
-#[test]
-#[should_panic(expected: 'Zero amount passed')]
-fn test_setPaymentInfo_zero_amount() {
-    let contract = deploy();
-
-    let nft = INFTDispatcher {contract_address: contract};
-
-    let nft_parameters = NftParameters {
-        payment_token: contract_address_const::<0>(),
-        contract_uri: 'uri/uri',
-        mint_price: 200,
-        whitelisted_mint_price: 100,
-        max_total_supply: 1000,
-        collection_expires: 1010101010110010100,
-        transferrable: true,
-        referral_code: '0x000',
-    };
-
-    start_cheat_caller_address(contract, constants::FACTORY());
-
-    nft.initialize(nft_parameters);
-
-    stop_cheat_caller_address(contract);
-
-    start_cheat_caller_address(contract, constants::CREATOR());
-
-    nft.setPaymentInfo(contract_address_const::<1>(), 0, 0);
-}
-
-#[test]
-#[should_panic(expected: 'Caller is not the owner')]
-fn test_addWhitelisted() {
-    let contract = deploy();
-
-    let nft = INFTDispatcher {contract_address: contract};
-
-    start_cheat_caller_address(contract, constants::CREATOR());
-
-    nft.addWhitelisted(contract_address_const::<1>());
-
-    assert_eq!(nft.isWhitelisted(contract_address_const::<1>()), true);
-
-    start_cheat_caller_address(contract, constants::RECEIVER());
-    // Throws: 'Caller is not the owner'
-    nft.addWhitelisted(contract_address_const::<1>());
-}
-
-#[test]
-#[should_panic(expected: 'Address is already whitelisted')]
-fn test_addWhitelisted_whitelisted_already() {
-    let contract = deploy();
-
-    let nft = INFTDispatcher {contract_address: contract};
-
-    start_cheat_caller_address(contract, constants::CREATOR());
-
-    nft.addWhitelisted(contract_address_const::<1>());
-
-    // Throws: 'Address is already whitelisted'
-    nft.addWhitelisted(contract_address_const::<1>());
-}
-
-#[test]
-#[should_panic(expected: 'Wrong array size')]
-fn test_mintDynamicPrice() {
-    let signer = deploy_account_mock();
-    let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, false, true);
-    let nft = INFTDispatcher {contract_address: _nft};
-    let erc20 = IERC20Dispatcher{contract_address: erc20mock};
-
-    let receiver = signer;
-    let token_id: u256 = 0;
-    let price: u256 = 1000;
-    let token_uri = constants::TOKEN_URI();
-
-    let dynamic_price_hash = DynamicPriceHash { 
-        receiver,
-        token_id: token_id,
-        price: price,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(dynamic_price_hash.get_message_hash(_nft)).into();
-
-    let dynamic_params = DynamicPriceParameters {
-        receiver,
-        token_id,
-        price,
-        token_uri,
-        signature
-    };
-
-    let mut dynamic_params_array = array![dynamic_params];
-
-    let signer_balance_before = erc20.balance_of(signer);
-    let platfrom_balance_before = erc20.balance_of(constants::PLATFORM());
-    let creator_balance_before = erc20.balance_of(constants::CREATOR());
-
-    let mut spy = spy_events();
-    nft.mintDynamicPrice(dynamic_params_array, erc20mock);
+    receiver.release(erc20, constants::CREATOR());
 
     spy
     .assert_emitted(
         @array![
             (
-                _nft,
-                NFT::Event::PaidEvent(
-                    NFT::Paid { 
-                        user: signer,
-                        payment_token: erc20mock,
-                        amount: price
+                _receiver,
+                Receiver::Event::PaymentReleasedEvent(
+                    Receiver::PaymentReleased { 
+                        payment_token: erc20,
+                        payee: constants::CREATOR(),
+                        released: 80000
                     }
                 )
             )
         ]
     );
 
-    let signer_balance_after = erc20.balance_of(signer);
-    let platfrom_balance_after = erc20.balance_of(constants::PLATFORM());
-    let creator_balance_after = erc20.balance_of(constants::CREATOR());
+    assert_eq!(receiver.released(constants::CREATOR()), 80000);
+    assert_eq!(receiver.totalReleased(), 80000);
 
-    println!("platfrom_balance_after should be 10 % from price: {}", platfrom_balance_after);
-    println!("creator_balance_after should be without 10 % from price: {}", creator_balance_after);
-    assert_eq!(signer_balance_before - price, signer_balance_after);
-    assert_eq!(
-        creator_balance_before + (price - (platfrom_balance_after - platfrom_balance_before)), creator_balance_after
-    );
-    assert_eq!(ERC721ABIDispatcher{contract_address: _nft}.owner_of(token_id), signer);
-
-    dynamic_params_array = array![dynamic_params, dynamic_params, dynamic_params];
-    // Throws: 'Wrong array size'
-    nft.mintDynamicPrice(dynamic_params_array, erc20mock);
+    // Throws: 'Only payee call'
+    receiver.release(erc20, erc20);
 }
 
 #[test]
-#[should_panic(expected: 'Total supply limit reached')]
-fn test_mintDynamicPrice_total_supply_limit() {
-    let signer = deploy_account_mock();
-    let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, false, true);
-    let nft = INFTDispatcher {contract_address: _nft};
+#[should_panic(expected: 'Account not due payment')]
+fn test_release_account_due_payment() {
+    let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
+    IERC20MintableDispatcher {contract_address: erc20}.mint(_receiver, 100000);
 
-    let receiver = signer;
-    let token_id: u256 = 100000;
-    let price: u256 = 1000;
-    let token_uri = constants::TOKEN_URI();
+    let receiver = IReceiverDispatcher {contract_address: _receiver};
 
-    let dynamic_price_hash = DynamicPriceHash { 
-        receiver,
-        token_id: token_id,
-        price: price,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(dynamic_price_hash.get_message_hash(_nft)).into();
+    start_cheat_caller_address(_receiver, constants::CREATOR());
 
-    let dynamic_params = DynamicPriceParameters {
-        receiver,
-        token_id,
-        price,
-        token_uri,
-        signature
-    };
+    receiver.release(erc20, constants::CREATOR());
 
-    let mut dynamic_params_array = array![dynamic_params];
-
-    nft.mintDynamicPrice(dynamic_params_array, erc20mock);
+    // Throws: 'Account not due payment'
+    receiver.release(erc20, constants::CREATOR());
 }
 
 #[test]
-#[should_panic(expected: 'Invalid signature')]
-fn test_mintDynamicPrice_signature() {
-    let signer = deploy_account_mock();
-    let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, false, true);
-    let nft = INFTDispatcher {contract_address: _nft};
+fn test_releaseAll() {
+    let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
+    IERC20MintableDispatcher {contract_address: erc20}.mint(_receiver, 100000);
 
-    let receiver = signer;
-    let token_id: u256 = 100000;
-    let price: u256 = 1000;
-    let token_uri = constants::TOKEN_URI();
+    let receiver = IReceiverDispatcher {contract_address: _receiver};
 
-    let dynamic_price_hash = DynamicPriceHash { 
-        receiver,
-        token_id: token_id,
-        price: price,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(dynamic_price_hash.get_message_hash(_nft)).into();
+    receiver.releaseAll(erc20);
 
-    let dynamic_params = DynamicPriceParameters {
-        receiver,
-        token_id: token_id + 1,
-        price,
-        token_uri,
-        signature
-    };
-
-    let mut dynamic_params_array = array![dynamic_params];
-
-    nft.mintDynamicPrice(dynamic_params_array, erc20mock);
+    assert_eq!(receiver.released(constants::CREATOR()), 80000);
+    assert_eq!(receiver.released(constants::PLATFORM()), 10000);
+    assert_eq!(receiver.released(constants::REFERRAL()), 10000);
+    assert_eq!(receiver.totalReleased(), 100000);
 }
 
 #[test]
-#[should_panic(expected: 'Token not equals to existent')]
-fn test_mintDynamicPrice_expected_token() {
-    let signer = deploy_account_mock();
-    let (_, _nft, _, _) = deploy_factory_nft_receiver_erc20(signer, false, true);
-    let nft = INFTDispatcher {contract_address: _nft};
+fn test_releaseAll_without_referral() {
+    let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(false, true);
+    IERC20MintableDispatcher {contract_address: erc20}.mint(_receiver, 100000);
 
-    let receiver = signer;
-    let token_id: u256 = 0;
-    let price: u256 = 1000;
-    let token_uri = constants::TOKEN_URI();
+    let receiver = IReceiverDispatcher {contract_address: _receiver};
 
-    let dynamic_price_hash = DynamicPriceHash { 
-        receiver,
-        token_id: token_id,
-        price: price,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(dynamic_price_hash.get_message_hash(_nft)).into();
+    start_cheat_caller_address(_receiver, constants::CREATOR());
 
-    let dynamic_params = DynamicPriceParameters {
-        receiver,
-        token_id,
-        price,
-        token_uri,
-        signature
-    };
+    receiver.releaseAll(erc20);
 
-    let mut dynamic_params_array = array![dynamic_params];
-
-    nft.mintDynamicPrice(dynamic_params_array, _nft);
-}
-
-#[test]
-fn test_mintDynamicPrice_referral() {
-    let signer = deploy_account_mock();
-    let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, true, true);
-    let nft = INFTDispatcher {contract_address: _nft};
-    let erc20 = IERC20Dispatcher{contract_address: erc20mock};
-
-    let receiver = signer;
-    let token_id: u256 = 0;
-    let price: u256 = 1000;
-    let token_uri = constants::TOKEN_URI();
-
-    let dynamic_price_hash = DynamicPriceHash { 
-        receiver,
-        token_id: token_id,
-        price: price,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(dynamic_price_hash.get_message_hash(_nft)).into();
-
-    let dynamic_params = DynamicPriceParameters {
-        receiver,
-        token_id,
-        price,
-        token_uri,
-        signature
-    };
-
-    let mut dynamic_params_array = array![dynamic_params];
-
-    let signer_balance_before = erc20.balance_of(signer);
-    let platfrom_balance_before = erc20.balance_of(constants::PLATFORM());
-    let referral_balance_before = erc20.balance_of(constants::REFERRAL());
-    let creator_balance_before = erc20.balance_of(constants::CREATOR());
-
-    let mut spy = spy_events();
-    nft.mintDynamicPrice(dynamic_params_array, erc20mock);
-
-    spy
-    .assert_emitted(
-        @array![
-            (
-                _nft,
-                NFT::Event::PaidEvent(
-                    NFT::Paid { 
-                        user: signer,
-                        payment_token: erc20mock,
-                        amount: price
-                    }
-                )
-            )
-        ]
-    );
-
-    let signer_balance_after = erc20.balance_of(signer);
-    let platfrom_balance_after = erc20.balance_of(constants::PLATFORM());
-    let referral_balance_after = erc20.balance_of(constants::REFERRAL());
-    let creator_balance_after = erc20.balance_of(constants::CREATOR());
-
-    println!(
-        "platfrom_balance_after + referral_balance_after should be 10 % from price: {}", 
-        platfrom_balance_after + referral_balance_after
-    );
-    println!("platfrom_balance_after should be 5 % from price: {}", platfrom_balance_after);
-    println!("referral_balance_after should be 5 % from price: {}", referral_balance_after);
-    println!("creator_balance_after should be without 10 % from price: {}", creator_balance_after);
-    assert_eq!(signer_balance_before - price, signer_balance_after);
-    assert_eq!(
-        creator_balance_before + 
-            (price - (
-                (platfrom_balance_after - platfrom_balance_before) + (referral_balance_after - referral_balance_before)
-            )
-        ),
-        creator_balance_after
-    );
-    assert_eq!(ERC721ABIDispatcher{contract_address: _nft}.owner_of(token_id), signer);
-}
-
-#[test]
-#[should_panic(expected: 'Wrong array size')]
-fn test_mintStaticPrice() {
-    let signer = deploy_account_mock();
-    let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, false, true);
-    let nft = INFTDispatcher {contract_address: _nft};
-    let erc20 = IERC20Dispatcher{contract_address: erc20mock};
-
-    let receiver = signer;
-    let token_id: u256 = 0;
-    let whitelisted: bool = false;
-    let token_uri = constants::TOKEN_URI();
-
-    let static_price_hash = StaticPriceHash { 
-        receiver,
-        token_id: token_id,
-        whitelisted,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(static_price_hash.get_message_hash(_nft)).into();
-
-    let static_params = StaticPriceParameters {
-        receiver,
-        token_id,
-        whitelisted,
-        token_uri,
-        signature
-    };
-
-    let mut static_params_array = array![static_params];
-
-    let signer_balance_before = erc20.balance_of(signer);
-    let platfrom_balance_before = erc20.balance_of(constants::PLATFORM());
-    let creator_balance_before = erc20.balance_of(constants::CREATOR());
-
-    let mut spy = spy_events();
-    nft.mintStaticPrice(static_params_array, erc20mock, constants::MINT_PRICE());
-
-    spy
-    .assert_emitted(
-        @array![
-            (
-                _nft,
-                NFT::Event::PaidEvent(
-                    NFT::Paid { 
-                        user: signer,
-                        payment_token: erc20mock,
-                        amount: constants::MINT_PRICE()
-                    }
-                )
-            )
-        ]
-    );
-
-    let signer_balance_after = erc20.balance_of(signer);
-    let platfrom_balance_after = erc20.balance_of(constants::PLATFORM());
-    let creator_balance_after = erc20.balance_of(constants::CREATOR());
-
-    println!("platfrom_balance_after should be 10 % from price: {}", platfrom_balance_after);
-    println!("creator_balance_after should be without 10 % from price: {}", creator_balance_after);
-    assert_eq!(signer_balance_before - constants::MINT_PRICE(), signer_balance_after);
-    assert_eq!(
-        creator_balance_before + (constants::MINT_PRICE() - (platfrom_balance_after - platfrom_balance_before)), creator_balance_after
-    );
-    assert_eq!(ERC721ABIDispatcher{contract_address: _nft}.owner_of(token_id), signer);
-
-    static_params_array = array![static_params, static_params, static_params];
-    // Throws: 'Wrong array size'
-    nft.mintStaticPrice(static_params_array, erc20mock, constants::MINT_PRICE());
-}
-
-#[test]
-fn test_mintStaticPrice_whitelitsed() {
-    let signer = deploy_account_mock();
-    let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, false, true);
-    let nft = INFTDispatcher {contract_address: _nft};
-    let erc20 = IERC20Dispatcher{contract_address: erc20mock};
-
-    let receiver = signer;
-    let token_id: u256 = 0;
-    let whitelisted: bool = true;
-    let token_uri = constants::TOKEN_URI();
-
-    let static_price_hash = StaticPriceHash { 
-        receiver,
-        token_id: token_id,
-        whitelisted,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(static_price_hash.get_message_hash(_nft)).into();
-
-    let static_params = StaticPriceParameters {
-        receiver,
-        token_id,
-        whitelisted,
-        token_uri,
-        signature
-    };
-
-    let mut static_params_array = array![static_params];
-
-    let signer_balance_before = erc20.balance_of(signer);
-    let platfrom_balance_before = erc20.balance_of(constants::PLATFORM());
-    let creator_balance_before = erc20.balance_of(constants::CREATOR());
-
-    let mut spy = spy_events();
-    nft.mintStaticPrice(static_params_array, erc20mock, constants::WL_MINT_PRICE());
-
-    spy
-    .assert_emitted(
-        @array![
-            (
-                _nft,
-                NFT::Event::PaidEvent(
-                    NFT::Paid { 
-                        user: signer,
-                        payment_token: erc20mock,
-                        amount: constants::WL_MINT_PRICE()
-                    }
-                )
-            )
-        ]
-    );
-
-    let signer_balance_after = erc20.balance_of(signer);
-    let platfrom_balance_after = erc20.balance_of(constants::PLATFORM());
-    let creator_balance_after = erc20.balance_of(constants::CREATOR());
-
-    println!("platfrom_balance_after should be 10 % from price: {}", platfrom_balance_after);
-    println!("creator_balance_after should be without 10 % from price: {}", creator_balance_after);
-    assert_eq!(signer_balance_before - constants::WL_MINT_PRICE(), signer_balance_after);
-    assert_eq!(
-        creator_balance_before + (constants::WL_MINT_PRICE() - (platfrom_balance_after - platfrom_balance_before)), creator_balance_after
-    );
-    assert_eq!(ERC721ABIDispatcher{contract_address: _nft}.owner_of(token_id), signer);
-}
-
-#[test]
-#[should_panic(expected: 'Invalid signature')]
-fn test_mintStaticPrice_signature() {
-    let signer = deploy_account_mock();
-    let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, false, true);
-    let nft = INFTDispatcher {contract_address: _nft};
-
-    let receiver = signer;
-    let token_id: u256 = 0;
-    let whitelisted: bool = true;
-    let token_uri = constants::TOKEN_URI();
-
-    let static_price_hash = StaticPriceHash { 
-        receiver,
-        token_id,
-        whitelisted,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(static_price_hash.get_message_hash(_nft)).into();
-
-    let static_params = StaticPriceParameters {
-        receiver,
-        token_id: token_id + 1,
-        whitelisted,
-        token_uri,
-        signature
-    };
-
-    let mut static_params_array = array![static_params];
-
-    nft.mintStaticPrice(static_params_array, erc20mock, constants::WL_MINT_PRICE());
-}
-
-#[test]
-#[should_panic(expected: 'Price not equals to existent')]
-fn test_mintStaticPrice_expected_price() {
-    let signer = deploy_account_mock();
-    let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, false, true);
-    let nft = INFTDispatcher {contract_address: _nft};
-
-    let receiver = signer;
-    let token_id: u256 = 0;
-    let whitelisted: bool = true;
-    let token_uri = constants::TOKEN_URI();
-
-    let static_price_hash = StaticPriceHash { 
-        receiver,
-        token_id,
-        whitelisted,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(static_price_hash.get_message_hash(_nft)).into();
-
-    let static_params = StaticPriceParameters {
-        receiver,
-        token_id,
-        whitelisted,
-        token_uri,
-        signature
-    };
-
-    let mut static_params_array = array![static_params];
-
-    nft.mintStaticPrice(static_params_array, erc20mock, constants::MINT_PRICE());
-}
-
-#[test]
-fn test_transfer_transferrable() {
-    let signer = deploy_account_mock();
-    let account_2 = deploy_account_mock_2();
-    let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, false, true);
-    let nft = INFTDispatcher {contract_address: _nft};
-
-    let receiver = signer;
-    let token_id: u256 = 0;
-    let whitelisted: bool = false;
-    let token_uri = constants::TOKEN_URI();
-
-    let static_price_hash = StaticPriceHash { 
-        receiver,
-        token_id: token_id,
-        whitelisted,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(static_price_hash.get_message_hash(_nft)).into();
-
-    let static_params = StaticPriceParameters {
-        receiver,
-        token_id,
-        whitelisted,
-        token_uri,
-        signature
-    };
-
-    let mut static_params_array = array![static_params];
-
-    nft.mintStaticPrice(static_params_array, erc20mock, constants::MINT_PRICE());
-
-    assert_eq!(ERC721ABIDispatcher{contract_address: _nft}.owner_of(token_id), signer);
-
-    ERC721ABIDispatcher{contract_address: _nft}.transfer_from(signer, account_2, token_id);
-
-    assert_eq!(ERC721ABIDispatcher{contract_address: _nft}.owner_of(token_id), account_2);
-}
-
-#[test]
-#[should_panic(expected: 'Not transferrable')]
-fn test_transfer_not_transferrable() {
-    let signer = deploy_account_mock();
-    let account_2 = deploy_account_mock_2();
-    let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, false, false);
-    let nft = INFTDispatcher {contract_address: _nft};
-
-    let receiver = signer;
-    let token_id: u256 = 0;
-    let whitelisted: bool = false;
-    let token_uri = constants::TOKEN_URI();
-
-    let static_price_hash = StaticPriceHash { 
-        receiver,
-        token_id: token_id,
-        whitelisted,
-        token_uri
-    };
-    start_cheat_caller_address_global(signer);
-    let signature: Span<felt252> = sign_message(static_price_hash.get_message_hash(_nft)).into();
-
-    let static_params = StaticPriceParameters {
-        receiver,
-        token_id,
-        whitelisted,
-        token_uri,
-        signature
-    };
-
-    let mut static_params_array = array![static_params];
-
-    nft.mintStaticPrice(static_params_array, erc20mock, constants::MINT_PRICE());
-
-    ERC721ABIDispatcher{contract_address: _nft}.transfer_from(signer, account_2, token_id);
+    assert_eq!(receiver.released(constants::CREATOR()), 80000);
+    assert_eq!(receiver.released(constants::PLATFORM()), 20000);
+    assert_eq!(receiver.released(constants::REFERRAL()), 0);
+    assert_eq!(receiver.totalReleased(), 100000);
 }
