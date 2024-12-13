@@ -455,8 +455,6 @@ pub mod NFTFactory {
         }
 
         fn _get_referral_creator(self: @ContractState, referral_code: felt252) -> ContractAddress {
-            self._check_referral_code(referral_code);
-
             let creator = self.referrals.entry(referral_code).referral_creator.read();
 
             creator
