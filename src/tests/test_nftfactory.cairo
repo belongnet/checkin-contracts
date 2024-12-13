@@ -65,6 +65,8 @@ fn deploy_initialize(signer: ContractAddress) -> ContractAddress {
 
     nft_factory.initialize(*nft_class.class_hash, *receiver_class.class_hash, factory_parameters, percentages);
 
+    stop_cheat_caller_address(contract);
+
     contract
 }
 
@@ -101,10 +103,12 @@ fn deploy_initialize_produce(signer: ContractAddress) -> (ContractAddress, Contr
         signature
     };
 
-    stop_cheat_caller_address_global();
     start_cheat_caller_address(contract, constants::CREATOR());
 
     let (nft, receiver) = nft_factory.produce(instance_info.clone());
+
+    stop_cheat_caller_address_global();
+    stop_cheat_caller_address(contract);
 
     (contract, nft, receiver)
 }
@@ -392,7 +396,10 @@ fn test_produce() {
 
     let nft_factory = INFTFactoryDispatcher {contract_address: contract};
 
-    let fraction = 0;
+    start_cheat_caller_address(contract, constants::REFERRAL());
+    let referral_code = nft_factory.createReferralCode();
+
+    let fraction = constants::FRACTION();
     let produce_hash = ProduceHash { 
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
@@ -414,7 +421,7 @@ fn test_produce() {
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         collection_expires: constants::EXPIRES(),
-        referral_code: '',
+        referral_code,
         signature
     };
 

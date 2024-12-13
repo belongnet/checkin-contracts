@@ -59,7 +59,7 @@ fn deploy() -> ContractAddress {
     contract_address
 }
 
-fn deploy_factory_nft_receiver_erc20(signer: ContractAddress, referral: bool, transferrable: bool)
+fn deploy_factory_nft_receiver_erc20(signer: ContractAddress, is_referral: bool, transferrable: bool)
     -> (
         ContractAddress, ContractAddress, ContractAddress, ContractAddress
     ) {
@@ -96,18 +96,23 @@ fn deploy_factory_nft_receiver_erc20(signer: ContractAddress, referral: bool, tr
     );
 
     start_cheat_caller_address(factory, constants::REFERRAL());
-    let referral = if referral {
+    let referral = if is_referral {
         nft_factory.createReferralCode()
     } else {
         ''
     };
 
-    let fraction = 0;
+    let royalty_fraction = if is_referral {
+        constants::FRACTION()
+    } else {
+        0
+    };
+
     let produce_hash = ProduceHash { 
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
         contract_uri: constants::CONTRACT_URI().hash(),
-        royalty_fraction: fraction
+        royalty_fraction
     };
     start_cheat_caller_address_global(signer);
 
@@ -118,7 +123,7 @@ fn deploy_factory_nft_receiver_erc20(signer: ContractAddress, referral: bool, tr
         symbol: constants::SYMBOL(),
         contract_uri: constants::CONTRACT_URI(),
         payment_token: erc20mock,
-        royalty_fraction: fraction,
+        royalty_fraction,
         transferrable,
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
