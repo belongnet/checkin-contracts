@@ -403,13 +403,13 @@ pub mod NFT {
 
             let token = IERC20Dispatcher { contract_address: self.nft_parameters.payment_token.read() };
             if fees_to_platform.is_non_zero() {
-                token.transfer(platform, fees_to_platform);
+                token.transfer_from(get_caller_address(), platform, fees_to_platform);
             }
             if referral_fees.is_non_zero() {
-                token.transfer(factory.getReferralCreator(referral_code), referral_fees);
+                token.transfer_from(get_caller_address(), factory.getReferralCreator(referral_code), referral_fees);
             }
 
-            token.transfer(creator, amount_to_creator);
+            token.transfer_from(get_caller_address(), creator, amount_to_creator);
             
             self.emit(
                 Event::PaidEvent(
