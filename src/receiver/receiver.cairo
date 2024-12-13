@@ -11,12 +11,8 @@ mod Errors {
 
 #[starknet::contract]
 mod Receiver {
-    use crate::receiver::interface::{
-        IReceiver
-    };
-    use crate::nftfactory::interface::{
-        INFTFactoryDispatcher, INFTFactoryDispatcherTrait
-    };
+    use crate::receiver::interface::IReceiver;
+    use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait};
     use core::num::traits::Zero;
     use starknet::{
         ContractAddress,
@@ -37,10 +33,7 @@ mod Receiver {
     };
     use openzeppelin::{
         token::{
-            erc20::interface::{
-                IERC20Dispatcher,
-                IERC20DispatcherTrait
-            }
+            erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait}
         } 
     };
 

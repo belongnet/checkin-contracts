@@ -21,9 +21,7 @@ pub mod NFTFactory {
     use crate::nftfactory::interface::{
         INFTFactory, FactoryParameters, NftInfo, InstanceInfo
     };
-    use crate::snip12::produce_hash::{
-        MessageProduceHash, ProduceHash
-    };
+    use crate::snip12::produce_hash::{MessageProduceHash, ProduceHash};
     use crate::nft::interface::{
         INFTDispatcher, INFTDispatcherTrait, NftParameters
     };
@@ -55,17 +53,13 @@ pub mod NFTFactory {
     use openzeppelin::{
         utils::{
             serde::SerializedAppend,
-            bytearray::{
-                ByteArrayExtImpl, ByteArrayExtTrait
-            }
+            bytearray::{ByteArrayExtImpl, ByteArrayExtTrait}
         },
         access::ownable::OwnableComponent, 
         upgrades::{
             UpgradeableComponent, interface::IUpgradeable
         },
-        account::interface::{
-            ISRC6Dispatcher, ISRC6DispatcherTrait
-        }
+        account::interface::{ISRC6Dispatcher, ISRC6DispatcherTrait}
     };
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
