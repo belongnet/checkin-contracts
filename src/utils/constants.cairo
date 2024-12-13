@@ -93,11 +93,11 @@ pub fn MAX_TOTAL_SUPPLY() -> u256 {
 }
 
 pub fn MINT_PRICE() -> u256 {
-    100
+    100000000
 }
 
 pub fn WL_MINT_PRICE() -> u256 {
-    50
+    50000000
 }
 
 pub fn EXPIRES() -> u256 {

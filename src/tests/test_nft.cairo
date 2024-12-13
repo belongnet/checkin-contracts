@@ -84,7 +84,7 @@ fn deploy_factory_nft_receiver_erc20(signer: ContractAddress, is_referral: bool,
         signer,
         default_payment_currency: constants::CURRENCY(),
         platform_address: constants::PLATFORM(),
-        platform_commission: 100,
+        platform_commission: 1000,
         max_array_size: 2,
     };
 
@@ -372,7 +372,7 @@ fn test_mintDynamicPrice() {
 
     let receiver = signer;
     let token_id: u256 = 0;
-    let price: u256 = 1000;
+    let price: u256 = constants::MINT_PRICE();
     let token_uri = constants::TOKEN_URI();
 
     let dynamic_price_hash = DynamicPriceHash { 
@@ -446,7 +446,7 @@ fn test_mintDynamicPrice_total_supply_limit() {
 
     let receiver = signer;
     let token_id: u256 = 100000;
-    let price: u256 = 1000;
+    let price: u256 = constants::MINT_PRICE();
     let token_uri = constants::TOKEN_URI();
 
     let dynamic_price_hash = DynamicPriceHash { 
@@ -482,7 +482,7 @@ fn test_mintDynamicPrice_signature() {
 
     let receiver = signer;
     let token_id: u256 = 100000;
-    let price: u256 = 1000;
+    let price: u256 = constants::MINT_PRICE();
     let token_uri = constants::TOKEN_URI();
 
     let dynamic_price_hash = DynamicPriceHash { 
@@ -518,7 +518,7 @@ fn test_mintDynamicPrice_expected_token() {
 
     let receiver = signer;
     let token_id: u256 = 0;
-    let price: u256 = 1000;
+    let price: u256 = constants::MINT_PRICE();
     let token_uri = constants::TOKEN_URI();
 
     let dynamic_price_hash = DynamicPriceHash { 
@@ -554,7 +554,7 @@ fn test_mintDynamicPrice_referral() {
 
     let receiver = signer;
     let token_id: u256 = 0;
-    let price: u256 = 1000;
+    let price: u256 = constants::MINT_PRICE();
     let token_uri = constants::TOKEN_URI();
 
     let dynamic_price_hash = DynamicPriceHash { 
@@ -628,7 +628,6 @@ fn test_mintDynamicPrice_referral() {
 }
 
 #[test]
-#[ignore]
 #[should_panic(expected: 'Wrong array size')]
 fn test_mintStaticPrice() {
     let signer = deploy_account_mock();
@@ -704,7 +703,6 @@ fn test_mintStaticPrice() {
 }
 
 #[test]
-#[ignore]
 fn test_mintStaticPrice_whitelitsed() {
     let signer = deploy_account_mock();
     let (_, _nft, _, erc20mock) = deploy_factory_nft_receiver_erc20(signer, false, true);
@@ -764,7 +762,6 @@ fn test_mintStaticPrice_whitelitsed() {
     let signer_balance_after = erc20.balance_of(signer);
     let platfrom_balance_after = erc20.balance_of(constants::PLATFORM());
     let creator_balance_after = erc20.balance_of(constants::CREATOR());
-
     println!("platfrom_balance_after should be 10 % from price: {}", platfrom_balance_after);
     println!("creator_balance_after should be without 10 % from price: {}", creator_balance_after);
     assert_eq!(signer_balance_before - constants::WL_MINT_PRICE(), signer_balance_after);
