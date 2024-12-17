@@ -15,40 +15,26 @@ pub mod Receiver {
     use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait};
     use core::num::traits::Zero;
     use starknet::{
-        ContractAddress,
-        get_caller_address,
-        get_contract_address,
-        event::EventEmitter,
+        ContractAddress, get_caller_address, get_contract_address, event::EventEmitter,
         storage::{
-            StoragePointerReadAccess, 
-            StoragePointerWriteAccess, 
-            Map,
-            Vec,
-            VecTrait,
-            MutableVecTrait,
-            StoragePathEntry,
-            StorageMapReadAccess,
-            StorageMapWriteAccess,
-        }
+            StoragePointerReadAccess, StoragePointerWriteAccess, Map, Vec, VecTrait,
+            MutableVecTrait, StoragePathEntry, StorageMapReadAccess, StorageMapWriteAccess,
+        },
     };
-    use openzeppelin::{
-        token::{
-            erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait}
-        } 
-    };
+    use openzeppelin::{token::{erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait}}};
 
     #[storage]
     struct Storage {
         payees: Vec<ContractAddress>,
         shares: Map<ContractAddress, u16>,
         total_released: u256,
-        released: Map<ContractAddress, u256>
+        released: Map<ContractAddress, u256>,
     }
 
     #[event]
     #[derive(Drop, starknet::Event)]
     pub enum Event {
-        PaymentReleasedEvent: PaymentReleased
+        PaymentReleasedEvent: PaymentReleased,
     }
 
     #[derive(Drop, PartialEq, starknet::Event)]
@@ -57,7 +43,7 @@ pub mod Receiver {
         pub payment_token: ContractAddress,
         #[key]
         pub payee: ContractAddress,
-        pub released: u256
+        pub released: u256,
     }
 
     pub const TOTAL_SHARES: u16 = 10000;
@@ -70,7 +56,7 @@ pub mod Receiver {
         referral_code: felt252,
         creator: ContractAddress,
         platform: ContractAddress,
-        referral: ContractAddress
+        referral: ContractAddress,
     ) {
         let referral_exist = referral.is_non_zero() && referral_code.is_non_zero();
 
@@ -78,12 +64,8 @@ pub mod Receiver {
         let mut amount_to_referral: u256 = 0;
 
         if referral_exist {
-            amount_to_referral = 
-                INFTFactoryDispatcher { contract_address: get_caller_address() }.getReferralRate(
-                    creator,
-                    referral_code,
-                    amount_to_platform
-                );
+            amount_to_referral = INFTFactoryDispatcher { contract_address: get_caller_address() }
+                .getReferralRate(creator, referral_code, amount_to_platform);
             amount_to_platform -= amount_to_referral;
 
             self.shares.entry(referral).write(amount_to_referral.try_into().unwrap());
@@ -141,18 +123,19 @@ pub mod Receiver {
             };
         }
 
-        fn _release(ref self: ContractState, payment_token: ContractAddress, to: ContractAddress) -> u256{
+        fn _release(
+            ref self: ContractState, payment_token: ContractAddress, to: ContractAddress,
+        ) -> u256 {
             let token = IERC20Dispatcher { contract_address: payment_token };
 
             let total_released = self.total_released.read();
             let released = self.released.read(to);
 
-            let to_release = self._pending_payment(
-                to,
-                token.balance_of(get_contract_address()) + total_released,
-                released
-            );
-            
+            let to_release = self
+                ._pending_payment(
+                    to, token.balance_of(get_contract_address()) + total_released, released,
+                );
+
             if to_release == 0 {
                 return 0;
             }
@@ -162,12 +145,13 @@ pub mod Receiver {
 
             token.transfer(to, to_release);
 
-            self.emit(
-                Event::PaymentReleasedEvent(
-                    PaymentReleased { payment_token, payee: to, released: to_release }
-                )
-            );
-            
+            self
+                .emit(
+                    Event::PaymentReleasedEvent(
+                        PaymentReleased { payment_token, payee: to, released: to_release },
+                    ),
+                );
+
             to_release
         }
 
@@ -175,15 +159,14 @@ pub mod Receiver {
             self: @ContractState,
             account: ContractAddress,
             total_received: u256,
-            already_released: u256
-        ) -> u256{
-            let payment = 
-                (total_received * self.shares.read(account).into()) / TOTAL_SHARES.into();
-    
+            already_released: u256,
+        ) -> u256 {
+            let payment = (total_received * self.shares.read(account).into()) / TOTAL_SHARES.into();
+
             if payment <= already_released {
                 return 0;
             }
-    
+
             return payment - already_released;
         }
 

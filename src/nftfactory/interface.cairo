@@ -15,7 +15,7 @@ pub struct NftInfo {
     pub symbol: ByteArray,
     pub creator: ContractAddress,
     pub nft_address: ContractAddress,
-    pub receiver_address: ContractAddress
+    pub receiver_address: ContractAddress,
 }
 
 #[derive(Clone, Drop, Serde)]
@@ -26,12 +26,12 @@ pub struct InstanceInfo {
     pub payment_token: ContractAddress,
     pub royalty_fraction: u128,
     pub transferrable: bool,
-    pub max_total_supply: u256,         // The max total supply of a new collection
-    pub mint_price: u256,               // Mint price of a token from a new collection
-    pub whitelisted_mint_price: u256,     // Mint price for whitelisted users
-    pub collection_expires: u256,       // Collection expiration period (timestamp)
+    pub max_total_supply: u256, // The max total supply of a new collection
+    pub mint_price: u256, // Mint price of a token from a new collection
+    pub whitelisted_mint_price: u256, // Mint price for whitelisted users
+    pub collection_expires: u256, // Collection expiration period (timestamp)
     pub referral_code: felt252,
-    pub signature: Array<felt252>
+    pub signature: Array<felt252>,
 }
 
 #[derive(Clone, Drop, Serde)]
@@ -47,7 +47,7 @@ pub trait INFTFactory<TState> {
         nft_class_hash: ClassHash,
         receiver_class_hash: ClassHash,
         factory_parameters: FactoryParameters,
-        percentages: Span<u16>
+        percentages: Span<u16>,
     );
 
     fn produce(ref self: TState, instance_info: InstanceInfo) -> (ContractAddress, ContractAddress);
@@ -76,7 +76,9 @@ pub trait INFTFactory<TState> {
 
     fn referralCode(self: @TState, account: ContractAddress) -> felt252;
 
-    fn getReferralRate(self: @TState, referral_user: ContractAddress, referral_code: felt252, amount: u256) -> u256;
+    fn getReferralRate(
+        self: @TState, referral_user: ContractAddress, referral_code: felt252, amount: u256,
+    ) -> u256;
 
     fn getReferralCreator(self: @TState, referral_code: felt252) -> ContractAddress;
 

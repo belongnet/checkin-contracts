@@ -1,11 +1,12 @@
 use crate::nft::interface::{
-    INFTDispatcher, INFTDispatcherTrait, NftParameters, DynamicPriceParameters, StaticPriceParameters
+    INFTDispatcher, INFTDispatcherTrait, NftParameters, DynamicPriceParameters,
+    StaticPriceParameters,
 };
 use crate::receiver::receiver::Receiver;
-use crate::receiver::interface::{
-    IReceiverDispatcher, IReceiverDispatcherTrait
+use crate::receiver::interface::{IReceiverDispatcher, IReceiverDispatcherTrait};
+use crate::nftfactory::interface::{
+    INFTFactoryDispatcher, INFTFactoryDispatcherTrait, FactoryParameters, InstanceInfo,
 };
-use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait, FactoryParameters, InstanceInfo};
 use crate::snip12::produce_hash::{ProduceHash, MessageProduceHash};
 use crate::snip12::dynamic_price_hash::{DynamicPriceHash, MessageDynamicPriceHash};
 use crate::snip12::static_price_hash::{StaticPriceHash, MessageStaticPriceHash};
@@ -16,55 +17,39 @@ use starknet::{ContractAddress, SyscallResultTrait, get_contract_address, contra
 use starknet::testing::set_contract_address;
 use core::traits::Into;
 use openzeppelin::{
-    utils::{
-        serde::SerializedAppend,
-        bytearray::{
-            ByteArrayExtImpl, ByteArrayExtTrait
-        }
-    },
+    utils::{serde::SerializedAppend, bytearray::{ByteArrayExtImpl, ByteArrayExtTrait}},
     token::{
-        erc20::interface::{IERC20Dispatcher,IERC20DispatcherTrait},
-        erc721::interface::{ERC721ABIDispatcher, ERC721ABIDispatcherTrait}
+        erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait},
+        erc721::interface::{ERC721ABIDispatcher, ERC721ABIDispatcherTrait},
     },
-    access::ownable::interface::{IOwnableDispatcher, IOwnableDispatcherTrait}
+    access::ownable::interface::{IOwnableDispatcher, IOwnableDispatcherTrait},
 };
 use snforge_std::{
-    declare,
-    start_cheat_caller_address,
-    stop_cheat_caller_address,
-    start_cheat_caller_address_global,
-    stop_cheat_caller_address_global,
-    spy_events,
-    EventSpyAssertionsTrait,
-    ContractClassTrait,
-    DeclareResultTrait
+    declare, start_cheat_caller_address, stop_cheat_caller_address,
+    start_cheat_caller_address_global, stop_cheat_caller_address_global, spy_events,
+    EventSpyAssertionsTrait, ContractClassTrait, DeclareResultTrait,
 };
 use crate::utils::signing::StarkSerializedSigning;
 use crate::utils::constants as constants;
 
 // Deploy the contract and return its dispatcher.
 
-fn deploy_factory_nft_receiver_erc20(is_referral: bool, transferrable: bool)
-    -> (
-        ContractAddress, ContractAddress, ContractAddress, ContractAddress
-    ) {
+fn deploy_factory_nft_receiver_erc20(
+    is_referral: bool, transferrable: bool,
+) -> (ContractAddress, ContractAddress, ContractAddress, ContractAddress) {
     let signer = deploy_account_mock();
     let factory_class = declare("NFTFactory").unwrap().contract_class();
     let nft_class = declare("NFT").unwrap().contract_class();
     let receiver_class = declare("Receiver").unwrap().contract_class();
     let erc20mock_class = declare("ERC20Mock").unwrap().contract_class();
 
-    let (erc20mock, _) = erc20mock_class.deploy(
-        @array![]
-    ).unwrap();
+    let (erc20mock, _) = erc20mock_class.deploy(@array![]).unwrap();
 
     let mut calldata = array![];
     calldata.append_serde(constants::OWNER());
-    let (factory, _) = factory_class.deploy(
-        @calldata
-    ).unwrap();
+    let (factory, _) = factory_class.deploy(@calldata).unwrap();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: factory};
+    let nft_factory = INFTFactoryDispatcher { contract_address: factory };
 
     let factory_parameters = FactoryParameters {
         signer,
@@ -77,9 +62,10 @@ fn deploy_factory_nft_receiver_erc20(is_referral: bool, transferrable: bool)
     let percentages = array![0, 5000, 3000, 1500, 500].span();
 
     start_cheat_caller_address(factory, constants::OWNER());
-    nft_factory.initialize(
-        *nft_class.class_hash, *receiver_class.class_hash, factory_parameters, percentages
-    );
+    nft_factory
+        .initialize(
+            *nft_class.class_hash, *receiver_class.class_hash, factory_parameters, percentages,
+        );
 
     start_cheat_caller_address(factory, constants::REFERRAL());
     let referral_code = if is_referral {
@@ -90,11 +76,11 @@ fn deploy_factory_nft_receiver_erc20(is_referral: bool, transferrable: bool)
 
     let royalty_fraction = constants::FRACTION();
 
-    let produce_hash = ProduceHash { 
+    let produce_hash = ProduceHash {
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
         contract_uri: constants::CONTRACT_URI().hash(),
-        royalty_fraction
+        royalty_fraction,
     };
     start_cheat_caller_address_global(signer);
 
@@ -112,7 +98,7 @@ fn deploy_factory_nft_receiver_erc20(is_referral: bool, transferrable: bool)
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         collection_expires: constants::EXPIRES(),
         referral_code,
-        signature
+        signature,
     };
 
     stop_cheat_caller_address_global();
@@ -121,8 +107,8 @@ fn deploy_factory_nft_receiver_erc20(is_referral: bool, transferrable: bool)
     let (nft, receiver) = nft_factory.produce(instance_info.clone());
 
     start_cheat_caller_address(erc20mock, signer);
-    IERC20MintableDispatcher {contract_address: erc20mock}.mint(signer, 100000000);
-    IERC20Dispatcher{contract_address: erc20mock}.approve(nft, 100000000);
+    IERC20MintableDispatcher { contract_address: erc20mock }.mint(signer, 100000000);
+    IERC20Dispatcher { contract_address: erc20mock }.approve(nft, 100000000);
 
     stop_cheat_caller_address(factory);
     stop_cheat_caller_address_global();
@@ -134,9 +120,9 @@ pub fn deploy_account_mock() -> ContractAddress {
     let contract = declare("DualCaseAccountMock").unwrap().contract_class();
 
     // Declare and deploy
-    let (contract_address, _) = contract.deploy(
-        @array![constants::stark::KEY_PAIR().public_key]
-    ).unwrap();
+    let (contract_address, _) = contract
+        .deploy(@array![constants::stark::KEY_PAIR().public_key])
+        .unwrap();
 
     contract_address
 }
@@ -145,9 +131,9 @@ pub fn deploy_account_mock_2() -> ContractAddress {
     let contract = declare("DualCaseAccountMock").unwrap().contract_class();
 
     // Declare and deploy
-    let (contract_address, _) = contract.deploy(
-        @array![constants::stark::KEY_PAIR_2().public_key]
-    ).unwrap();
+    let (contract_address, _) = contract
+        .deploy(@array![constants::stark::KEY_PAIR_2().public_key])
+        .unwrap();
 
     contract_address
 }
@@ -161,7 +147,7 @@ fn sign_message(msg_hash: felt252) -> Array<felt252> {
 fn test_deploy() {
     let (_, _, _receiver, _) = deploy_factory_nft_receiver_erc20(false, true);
 
-    let receiver = IReceiverDispatcher {contract_address: _receiver};
+    let receiver = IReceiverDispatcher { contract_address: _receiver };
 
     let payees = array![constants::CREATOR(), constants::PLATFORM(), constants::ZERO_ADDRESS()];
 
@@ -177,7 +163,7 @@ fn test_deploy() {
 fn test_deploy_referral() {
     let (_, _, _receiver, _) = deploy_factory_nft_receiver_erc20(true, true);
 
-    let receiver = IReceiverDispatcher {contract_address: _receiver};
+    let receiver = IReceiverDispatcher { contract_address: _receiver };
 
     let payees = array![constants::CREATOR(), constants::PLATFORM(), constants::REFERRAL()];
 
@@ -195,29 +181,27 @@ fn test_deploy_referral() {
 #[should_panic(expected: 'Only payee call')]
 fn test_release() {
     let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
-    IERC20MintableDispatcher {contract_address: erc20}.mint(_receiver, 100000);
+    IERC20MintableDispatcher { contract_address: erc20 }.mint(_receiver, 100000);
 
-    let receiver = IReceiverDispatcher {contract_address: _receiver};
+    let receiver = IReceiverDispatcher { contract_address: _receiver };
 
     let mut spy = spy_events();
 
     receiver.release(erc20, constants::CREATOR());
 
     spy
-    .assert_emitted(
-        @array![
-            (
-                _receiver,
-                Receiver::Event::PaymentReleasedEvent(
-                    Receiver::PaymentReleased { 
-                        payment_token: erc20,
-                        payee: constants::CREATOR(),
-                        released: 80000
-                    }
-                )
-            )
-        ]
-    );
+        .assert_emitted(
+            @array![
+                (
+                    _receiver,
+                    Receiver::Event::PaymentReleasedEvent(
+                        Receiver::PaymentReleased {
+                            payment_token: erc20, payee: constants::CREATOR(), released: 80000,
+                        },
+                    ),
+                ),
+            ],
+        );
 
     assert_eq!(receiver.released(constants::CREATOR()), 80000);
     assert_eq!(receiver.totalReleased(), 80000);
@@ -230,9 +214,9 @@ fn test_release() {
 #[should_panic(expected: 'Account not due payment')]
 fn test_release_account_due_payment() {
     let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
-    IERC20MintableDispatcher {contract_address: erc20}.mint(_receiver, 100000);
+    IERC20MintableDispatcher { contract_address: erc20 }.mint(_receiver, 100000);
 
-    let receiver = IReceiverDispatcher {contract_address: _receiver};
+    let receiver = IReceiverDispatcher { contract_address: _receiver };
 
     start_cheat_caller_address(_receiver, constants::CREATOR());
 
@@ -245,9 +229,9 @@ fn test_release_account_due_payment() {
 #[test]
 fn test_releaseAll() {
     let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
-    IERC20MintableDispatcher {contract_address: erc20}.mint(_receiver, 100000);
+    IERC20MintableDispatcher { contract_address: erc20 }.mint(_receiver, 100000);
 
-    let receiver = IReceiverDispatcher {contract_address: _receiver};
+    let receiver = IReceiverDispatcher { contract_address: _receiver };
 
     receiver.releaseAll(erc20);
 
@@ -260,9 +244,9 @@ fn test_releaseAll() {
 #[test]
 fn test_releaseAll_without_referral() {
     let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(false, true);
-    IERC20MintableDispatcher {contract_address: erc20}.mint(_receiver, 100000);
+    IERC20MintableDispatcher { contract_address: erc20 }.mint(_receiver, 100000);
 
-    let receiver = IReceiverDispatcher {contract_address: _receiver};
+    let receiver = IReceiverDispatcher { contract_address: _receiver };
 
     start_cheat_caller_address(_receiver, constants::CREATOR());
 

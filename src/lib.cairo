@@ -20,7 +20,7 @@ mod snip12 {
     pub mod interfaces;
 }
 
-mod mocks { 
+mod mocks {
     pub mod erc20mock;
     pub mod erc20mockinterface;
     pub mod account;

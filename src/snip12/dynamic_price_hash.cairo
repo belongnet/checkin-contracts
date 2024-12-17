@@ -1,22 +1,12 @@
-use starknet::{
-    ContractAddress, get_tx_info, get_caller_address
-};
-use core::{
-    poseidon::PoseidonTrait,
-    hash::{
-        HashStateExTrait, HashStateTrait
-    }
-};
+use starknet::{ContractAddress, get_tx_info, get_caller_address};
+use core::{poseidon::PoseidonTrait, hash::{HashStateExTrait, HashStateTrait}};
 use crate::snip12::{
-    interfaces::{
-        IMessageHash, IStructHash
-    },
-    snip12::SNIP12::StarknetDomain,
-    u256_hash::StructHashU256
+    interfaces::{IMessageHash, IStructHash}, snip12::SNIP12::StarknetDomain,
+    u256_hash::StructHashU256,
 };
 
 pub const MESSAGE_TYPE_HASH: felt252 = selector!(
-    "\"DynamicPriceHash\"(\"receiver\":\"ContractAddress\",\"token_id\":\"u256\",\"price\":\"u256\",\"token_uri\":\"felt\")\"u256\"(\"low\":\"u128\",\"high\":\"u128\")"
+    "\"DynamicPriceHash\"(\"receiver\":\"ContractAddress\",\"token_id\":\"u256\",\"price\":\"u256\",\"token_uri\":\"felt\")\"u256\"(\"low\":\"u128\",\"high\":\"u128\")",
 );
 
 #[derive(Hash, Drop, Copy)]
@@ -30,7 +20,7 @@ pub struct DynamicPriceHash {
 pub impl MessageDynamicPriceHash of IMessageHash<DynamicPriceHash> {
     fn get_message_hash(self: @DynamicPriceHash, contract: ContractAddress) -> felt252 {
         let domain = StarknetDomain {
-            name: 'NFT', version: '1', chain_id: get_tx_info().unbox().chain_id, revision: 1
+            name: 'NFT', version: '1', chain_id: get_tx_info().unbox().chain_id, revision: 1,
         };
         let mut state = PoseidonTrait::new();
         state = state.update_with('StarkNet Message');
@@ -62,11 +52,8 @@ mod tests {
     fn test_valid_hash() {
         // This value was computed using StarknetJS
         let message_hash = 0x6ab4badd6739b9e3b15e3f23ea0ca219a0b2277bbc62dd838efe06bd19e7fad;
-        let dynamic_price_hash = DynamicPriceHash { 
-            receiver: 123.try_into().unwrap(),
-            token_id: 456,
-            price: 789,
-            token_uri: 101112 
+        let dynamic_price_hash = DynamicPriceHash {
+            receiver: 123.try_into().unwrap(), token_id: 456, price: 789, token_uri: 101112,
         };
 
         start_cheat_caller_address_global(1337.try_into().unwrap());

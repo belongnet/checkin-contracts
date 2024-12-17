@@ -1,9 +1,4 @@
-use core::{
-    poseidon::PoseidonTrait,
-    hash::{
-        HashStateExTrait, HashStateTrait
-    }
-};
+use core::{poseidon::PoseidonTrait, hash::{HashStateExTrait, HashStateTrait}};
 use crate::snip12::interfaces::IStructHash;
 
 const U256_TYPE_HASH: felt252 = selector!("\"u256\"(\"low\":\"u128\",\"high\":\"u128\")");

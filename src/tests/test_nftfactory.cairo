@@ -1,29 +1,18 @@
-use crate::nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait, FactoryParameters, InstanceInfo};
+use crate::nftfactory::interface::{
+    INFTFactoryDispatcher, INFTFactoryDispatcherTrait, FactoryParameters, InstanceInfo,
+};
 use crate::nftfactory::nftfactory::{NFTFactory};
 use crate::snip12::produce_hash::{ProduceHash, MessageProduceHash};
 use starknet::ContractAddress;
 use openzeppelin::{
-    utils::{
-        serde::SerializedAppend,
-        bytearray::{
-            ByteArrayExtImpl, ByteArrayExtTrait
-        }
-    },
-    access::ownable::interface::{IOwnableDispatcher, IOwnableDispatcherTrait}
+    utils::{serde::SerializedAppend, bytearray::{ByteArrayExtImpl, ByteArrayExtTrait}},
+    access::ownable::interface::{IOwnableDispatcher, IOwnableDispatcherTrait},
 };
 use snforge_std::{
-    declare,
-    start_cheat_caller_address,
-    stop_cheat_caller_address,
-    start_cheat_caller_address_global,
-    stop_cheat_caller_address_global,
-    spy_events,
-    EventSpyAssertionsTrait,
-    ContractClassTrait,
-    DeclareResultTrait,
-    signature::stark_curve::{
-        StarkCurveKeyPairImpl, StarkCurveSignerImpl, StarkCurveVerifierImpl
-    }
+    declare, start_cheat_caller_address, stop_cheat_caller_address,
+    start_cheat_caller_address_global, stop_cheat_caller_address_global, spy_events,
+    EventSpyAssertionsTrait, ContractClassTrait, DeclareResultTrait,
+    signature::stark_curve::{StarkCurveKeyPairImpl, StarkCurveSignerImpl, StarkCurveVerifierImpl},
 };
 use crate::utils::signing::StarkSerializedSigning;
 use crate::utils::constants as constants;
@@ -36,9 +25,7 @@ fn deploy() -> ContractAddress {
     calldata.append_serde(constants::OWNER());
 
     // Declare and deploy
-    let (contract_address, _) = contract.deploy(
-        @calldata
-    ).unwrap();
+    let (contract_address, _) = contract.deploy(@calldata).unwrap();
 
     contract_address
 }
@@ -46,7 +33,7 @@ fn deploy() -> ContractAddress {
 fn deploy_initialize(signer: ContractAddress) -> ContractAddress {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let nft_class = declare("NFT").unwrap().contract_class();
     let receiver_class = declare("Receiver").unwrap().contract_class();
@@ -63,26 +50,31 @@ fn deploy_initialize(signer: ContractAddress) -> ContractAddress {
 
     start_cheat_caller_address(contract, constants::OWNER());
 
-    nft_factory.initialize(*nft_class.class_hash, *receiver_class.class_hash, factory_parameters, percentages);
+    nft_factory
+        .initialize(
+            *nft_class.class_hash, *receiver_class.class_hash, factory_parameters, percentages,
+        );
 
     stop_cheat_caller_address(contract);
 
     contract
 }
 
-fn deploy_initialize_produce(signer: ContractAddress) -> (ContractAddress, ContractAddress, ContractAddress) {
+fn deploy_initialize_produce(
+    signer: ContractAddress,
+) -> (ContractAddress, ContractAddress, ContractAddress) {
     let account = deploy_account_mock();
     let contract = deploy_initialize(account);
     let erc20mock = deploy_erc20_mock();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let fraction = 0;
-    let produce_hash = ProduceHash { 
+    let produce_hash = ProduceHash {
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
         contract_uri: constants::CONTRACT_URI().hash(),
-        royalty_fraction: fraction
+        royalty_fraction: fraction,
     };
     start_cheat_caller_address_global(account);
 
@@ -100,7 +92,7 @@ fn deploy_initialize_produce(signer: ContractAddress) -> (ContractAddress, Contr
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         collection_expires: constants::EXPIRES(),
         referral_code: '',
-        signature
+        signature,
     };
 
     start_cheat_caller_address(contract, constants::CREATOR());
@@ -117,9 +109,9 @@ pub fn deploy_account_mock() -> ContractAddress {
     let contract = declare("DualCaseAccountMock").unwrap().contract_class();
 
     // Declare and deploy
-    let (contract_address, _) = contract.deploy(
-        @array![constants::stark::KEY_PAIR().public_key]
-    ).unwrap();
+    let (contract_address, _) = contract
+        .deploy(@array![constants::stark::KEY_PAIR().public_key])
+        .unwrap();
 
     contract_address
 }
@@ -128,9 +120,7 @@ fn deploy_erc20_mock() -> ContractAddress {
     let contract = declare("ERC20Mock").unwrap().contract_class();
 
     // Declare and deploy
-    let (contract_address, _) = contract.deploy(
-        @array![]
-    ).unwrap();
+    let (contract_address, _) = contract.deploy(@array![]).unwrap();
 
     contract_address
 }
@@ -143,7 +133,7 @@ fn sign_message(msg_hash: felt252) -> Array<felt252> {
 fn test_deploy() {
     let contract = deploy();
 
-    let ownable = IOwnableDispatcher {contract_address: contract};
+    let ownable = IOwnableDispatcher { contract_address: contract };
 
     assert_eq!(ownable.owner(), constants::OWNER());
 }
@@ -153,8 +143,8 @@ fn test_deploy() {
 fn test_initialize() {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
-    
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
+
     let nft_class_hash = constants::NFT_CLASS_HASH();
     let receiver_class_hash = constants::RECEIVER_CLASS_HASH();
 
@@ -172,10 +162,20 @@ fn test_initialize() {
     nft_factory.initialize(nft_class_hash, receiver_class_hash, factory_parameters, percentages);
 
     assert_eq!(nft_factory.nftFactoryParameters().signer, factory_parameters.signer);
-    assert_eq!(nft_factory.nftFactoryParameters().default_payment_currency, factory_parameters.default_payment_currency);
-    assert_eq!(nft_factory.nftFactoryParameters().platform_address, factory_parameters.platform_address);
-    assert_eq!(nft_factory.nftFactoryParameters().platform_commission, factory_parameters.platform_commission);
-    assert_eq!(nft_factory.nftFactoryParameters().max_array_size, factory_parameters.max_array_size);
+    assert_eq!(
+        nft_factory.nftFactoryParameters().default_payment_currency,
+        factory_parameters.default_payment_currency,
+    );
+    assert_eq!(
+        nft_factory.nftFactoryParameters().platform_address, factory_parameters.platform_address,
+    );
+    assert_eq!(
+        nft_factory.nftFactoryParameters().platform_commission,
+        factory_parameters.platform_commission,
+    );
+    assert_eq!(
+        nft_factory.nftFactoryParameters().max_array_size, factory_parameters.max_array_size,
+    );
 
     let (platform_commission, platform_address) = nft_factory.platformParams();
     assert_eq!(nft_factory.maxArraySize(), factory_parameters.max_array_size);
@@ -193,8 +193,8 @@ fn test_initialize() {
 fn test_updateNftClassHash() {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
-    
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
+
     let nft_class_hash = constants::NFT_CLASS_HASH();
 
     start_cheat_caller_address(contract, constants::OWNER());
@@ -211,8 +211,8 @@ fn test_updateNftClassHash() {
 fn test_updateReceiverClassHash() {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
-    
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
+
     let receiver_class_hash = constants::RECEIVER_CLASS_HASH();
 
     start_cheat_caller_address(contract, constants::OWNER());
@@ -229,7 +229,7 @@ fn test_updateReceiverClassHash() {
 fn test_setFactoryParameters() {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let factory_parameters = FactoryParameters {
         signer: constants::SIGNER(),
@@ -244,10 +244,20 @@ fn test_setFactoryParameters() {
     nft_factory.setFactoryParameters(factory_parameters);
 
     assert_eq!(nft_factory.nftFactoryParameters().signer, factory_parameters.signer);
-    assert_eq!(nft_factory.nftFactoryParameters().default_payment_currency, factory_parameters.default_payment_currency);
-    assert_eq!(nft_factory.nftFactoryParameters().platform_address, factory_parameters.platform_address);
-    assert_eq!(nft_factory.nftFactoryParameters().platform_commission, factory_parameters.platform_commission);
-    assert_eq!(nft_factory.nftFactoryParameters().max_array_size, factory_parameters.max_array_size);
+    assert_eq!(
+        nft_factory.nftFactoryParameters().default_payment_currency,
+        factory_parameters.default_payment_currency,
+    );
+    assert_eq!(
+        nft_factory.nftFactoryParameters().platform_address, factory_parameters.platform_address,
+    );
+    assert_eq!(
+        nft_factory.nftFactoryParameters().platform_commission,
+        factory_parameters.platform_commission,
+    );
+    assert_eq!(
+        nft_factory.nftFactoryParameters().max_array_size, factory_parameters.max_array_size,
+    );
 
     start_cheat_caller_address(contract, constants::REFERRAL());
     // Throws: 'Caller is not the owner'
@@ -259,7 +269,7 @@ fn test_setFactoryParameters() {
 fn test_setFactoryParameters_signer_zero_address() {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let factory_parameters = FactoryParameters {
         signer: constants::ZERO_ADDRESS(),
@@ -279,7 +289,7 @@ fn test_setFactoryParameters_signer_zero_address() {
 fn test_setFactoryParameters_platform_zero_address() {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let factory_parameters = FactoryParameters {
         signer: constants::SIGNER(),
@@ -299,7 +309,7 @@ fn test_setFactoryParameters_platform_zero_address() {
 fn test_setFactoryParameters_zero_amount() {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let factory_parameters = FactoryParameters {
         signer: constants::SIGNER(),
@@ -319,7 +329,7 @@ fn test_setFactoryParameters_zero_amount() {
 fn test_setReferralPercentages() {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let percentages = array![0, 5000, 3000, 1500, 500].span();
 
@@ -343,10 +353,10 @@ fn test_setReferralPercentages() {
 fn test_setReferralPercentages_percentages_length() {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let percentages = array![0, 5000, 3000, 1500].span();
-    
+
     start_cheat_caller_address(contract, constants::OWNER());
 
     nft_factory.setReferralPercentages(percentages);
@@ -357,7 +367,7 @@ fn test_setReferralPercentages_percentages_length() {
 fn test_createReferralCode() {
     let contract = deploy();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     start_cheat_caller_address(contract, constants::CREATOR());
 
@@ -371,13 +381,12 @@ fn test_createReferralCode() {
                 (
                     contract,
                     NFTFactory::Event::ReferralCodeCreatedEvent(
-                        NFTFactory::ReferralCodeCreated { 
-                            referral_creator: constants::CREATOR(),
-                            referral_code: code,
-                        }
-                    )
-                )
-            ]
+                        NFTFactory::ReferralCodeCreated {
+                            referral_creator: constants::CREATOR(), referral_code: code,
+                        },
+                    ),
+                ),
+            ],
         );
 
     assert_eq!(code, nft_factory.referralCode(constants::CREATOR()));
@@ -394,17 +403,17 @@ fn test_produce() {
     let contract = deploy_initialize(account);
     let erc20mock = deploy_erc20_mock();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     start_cheat_caller_address(contract, constants::REFERRAL());
     let referral_code = nft_factory.createReferralCode();
 
     let fraction = constants::FRACTION();
-    let produce_hash = ProduceHash { 
+    let produce_hash = ProduceHash {
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
         contract_uri: constants::CONTRACT_URI().hash(),
-        royalty_fraction: fraction
+        royalty_fraction: fraction,
     };
     start_cheat_caller_address_global(account);
 
@@ -422,7 +431,7 @@ fn test_produce() {
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         collection_expires: constants::EXPIRES(),
         referral_code,
-        signature
+        signature,
     };
 
     stop_cheat_caller_address_global();
@@ -438,23 +447,29 @@ fn test_produce() {
                 (
                     contract,
                     NFTFactory::Event::ProducedEvent(
-                        NFTFactory::Produced { 
+                        NFTFactory::Produced {
                             nft_address: nft,
                             creator: constants::CREATOR(),
                             receiver_address: receiver,
-                            name: constants::NAME(),    
+                            name: constants::NAME(),
                             symbol: constants::SYMBOL(),
-                        }
-                    )
-                )
-            ]
+                        },
+                    ),
+                ),
+            ],
         );
 
     assert_eq!(nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).name, constants::NAME());
-    assert_eq!(nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).symbol, constants::SYMBOL());
-    assert_eq!(nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).creator, constants::CREATOR());
+    assert_eq!(
+        nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).symbol, constants::SYMBOL(),
+    );
+    assert_eq!(
+        nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).creator, constants::CREATOR(),
+    );
     assert_eq!(nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).nft_address, nft);
-    assert_eq!(nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).receiver_address, receiver);
+    assert_eq!(
+        nft_factory.nftInfo(constants::NAME(), constants::SYMBOL()).receiver_address, receiver,
+    );
 
     // Throws: 'NFT is already exists'
     nft_factory.produce(instance_info);
@@ -467,14 +482,14 @@ fn test_produce_signature() {
     let contract = deploy_initialize(account);
     let erc20mock = deploy_erc20_mock();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let fraction = 0;
-    let produce_hash = ProduceHash { 
+    let produce_hash = ProduceHash {
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
         contract_uri: constants::CONTRACT_URI().hash(),
-        royalty_fraction: fraction
+        royalty_fraction: fraction,
     };
     start_cheat_caller_address_global(account);
 
@@ -492,7 +507,7 @@ fn test_produce_signature() {
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         collection_expires: constants::EXPIRES(),
         referral_code: '',
-        signature
+        signature,
     };
 
     stop_cheat_caller_address_global();
@@ -508,14 +523,14 @@ fn test_produce_with_referral_code() {
     let contract = deploy_initialize(account);
     let erc20mock = deploy_erc20_mock();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let fraction = 0;
-    let produce_hash = ProduceHash { 
+    let produce_hash = ProduceHash {
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
         contract_uri: constants::CONTRACT_URI().hash(),
-        royalty_fraction: fraction
+        royalty_fraction: fraction,
     };
 
     start_cheat_caller_address_global(account);
@@ -537,7 +552,7 @@ fn test_produce_with_referral_code() {
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         collection_expires: constants::EXPIRES(),
         referral_code: code,
-        signature
+        signature,
     };
 
     start_cheat_caller_address(contract, constants::CREATOR());
@@ -552,17 +567,16 @@ fn test_produce_with_referral_code() {
                 (
                     contract,
                     NFTFactory::Event::ReferralCodeUsedEvent(
-                        NFTFactory::ReferralCodeUsed { 
-                            referral_user: constants::CREATOR(),
-                            referral_code: code,
-                        }
-                    )
-                )
-            ]
+                        NFTFactory::ReferralCodeUsed {
+                            referral_user: constants::CREATOR(), referral_code: code,
+                        },
+                    ),
+                ),
+            ],
         );
 
     let amount = 10;
-    assert_eq!(nft_factory.getReferralRate(constants::CREATOR(), code, amount), amount/2);
+    assert_eq!(nft_factory.getReferralRate(constants::CREATOR(), code, amount), amount / 2);
 }
 
 #[test]
@@ -572,14 +586,14 @@ fn test_produce_with_referral_code_refer_to_self() {
     let contract = deploy_initialize(account);
     let erc20mock = deploy_erc20_mock();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let fraction = 0;
-    let produce_hash = ProduceHash { 
+    let produce_hash = ProduceHash {
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
         contract_uri: constants::CONTRACT_URI().hash(),
-        royalty_fraction: fraction
+        royalty_fraction: fraction,
     };
 
     start_cheat_caller_address_global(account);
@@ -601,7 +615,7 @@ fn test_produce_with_referral_code_refer_to_self() {
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         collection_expires: constants::EXPIRES(),
         referral_code: code,
-        signature
+        signature,
     };
 
     nft_factory.produce(instance_info);
@@ -614,14 +628,14 @@ fn test_produce_referral_code_exist() {
     let contract = deploy_initialize(account);
     let erc20mock = deploy_erc20_mock();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let fraction = 0;
-    let produce_hash = ProduceHash { 
+    let produce_hash = ProduceHash {
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
         contract_uri: constants::CONTRACT_URI().hash(),
-        royalty_fraction: fraction
+        royalty_fraction: fraction,
     };
 
     let mut produce_hash_2 = produce_hash.clone();
@@ -646,7 +660,7 @@ fn test_produce_referral_code_exist() {
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         collection_expires: constants::EXPIRES(),
         referral_code: constants::REFERRAL_CODE(),
-        signature
+        signature,
     };
 
     let mut instance_info_2 = instance_info.clone();
@@ -663,14 +677,14 @@ fn test_produce_with_multiple_referral_code_usage() {
     let contract = deploy_initialize(account);
     let erc20mock = deploy_erc20_mock();
 
-    let nft_factory = INFTFactoryDispatcher {contract_address: contract};
+    let nft_factory = INFTFactoryDispatcher { contract_address: contract };
 
     let fraction = 0;
-    let produce_hash = ProduceHash { 
+    let produce_hash = ProduceHash {
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
         contract_uri: constants::CONTRACT_URI().hash(),
-        royalty_fraction: fraction
+        royalty_fraction: fraction,
     };
 
     let mut produce_hash_2 = produce_hash.clone();
@@ -709,7 +723,7 @@ fn test_produce_with_multiple_referral_code_usage() {
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         collection_expires: constants::EXPIRES(),
         referral_code: code,
-        signature
+        signature,
     };
 
     let mut instance_info_2 = instance_info.clone();
@@ -730,7 +744,7 @@ fn test_produce_with_multiple_referral_code_usage() {
     instance_info_5.signature = signature_5;
 
     start_cheat_caller_address(contract, constants::CREATOR());
-    
+
     let amount = 10000;
 
     nft_factory.produce(instance_info);

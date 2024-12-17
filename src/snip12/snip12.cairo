@@ -12,9 +12,9 @@ pub mod SNIP12 {
     }
 
     pub const STARKNET_DOMAIN_TYPE_HASH: felt252 = selector!(
-        "\"StarknetDomain\"(\"name\":\"shortstring\",\"version\":\"shortstring\",\"chainId\":\"shortstring\",\"revision\":\"shortstring\")"
+        "\"StarknetDomain\"(\"name\":\"shortstring\",\"version\":\"shortstring\",\"chainId\":\"shortstring\",\"revision\":\"shortstring\")",
     );
-    
+
 
     pub impl StructHashStarknetDomain of IStructHash<StarknetDomain> {
         fn get_struct_hash(self: @StarknetDomain) -> felt252 {
@@ -24,9 +24,9 @@ pub mod SNIP12 {
                     *self.name,
                     *self.version,
                     *self.chain_id,
-                    *self.revision
+                    *self.revision,
                 ]
-                    .span()
+                    .span(),
             )
         }
     }

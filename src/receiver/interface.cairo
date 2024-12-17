@@ -4,7 +4,7 @@ use starknet::ContractAddress;
 pub trait IReceiver<TState> {
     fn releaseAll(ref self: TState, payment_token: ContractAddress);
 
-    fn release(ref self: TState, payment_token: ContractAddress, to: ContractAddress) ;
+    fn release(ref self: TState, payment_token: ContractAddress, to: ContractAddress);
 
     fn totalReleased(self: @TState) -> u256;
 

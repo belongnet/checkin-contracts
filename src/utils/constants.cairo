@@ -1,6 +1,4 @@
-use starknet::{
-    ContractAddress, ClassHash, contract_address_const, class_hash::class_hash_const
-};
+use starknet::{ContractAddress, ClassHash, contract_address_const, class_hash::class_hash_const};
 
 pub type EthPublicKey = starknet::secp256k1::Secp256k1Point;
 
@@ -118,9 +116,7 @@ pub fn TOKEN_URI() -> felt252 {
 //
 
 pub mod stark {
-    use crate::utils::signing::{
-        StarkKeyPair, get_stark_keys_from
-    };
+    use crate::utils::signing::{StarkKeyPair, get_stark_keys_from};
 
     pub fn KEY_PAIR() -> StarkKeyPair {
         get_stark_keys_from('PRIVATE_KEY')
@@ -132,9 +128,7 @@ pub mod stark {
 }
 
 pub mod secp256k1 {
-    use crate::utils::signing::{
-        Secp256k1KeyPair, get_secp256k1_keys_from
-    };
+    use crate::utils::signing::{Secp256k1KeyPair, get_secp256k1_keys_from};
 
     pub fn KEY_PAIR() -> Secp256k1KeyPair {
         let private_key = u256 { low: 'PRIVATE_LOW', high: 'PRIVATE_HIGH' };
@@ -148,9 +142,7 @@ pub mod secp256k1 {
 }
 
 pub mod secp256r1 {
-    use crate::utils::signing::{
-        Secp256r1KeyPair, get_secp256r1_keys_from
-    };
+    use crate::utils::signing::{Secp256r1KeyPair, get_secp256r1_keys_from};
 
     pub fn KEY_PAIR() -> Secp256r1KeyPair {
         let private_key = u256 { low: 'PRIVATE_LOW', high: 'PRIVATE_HIGH' };
