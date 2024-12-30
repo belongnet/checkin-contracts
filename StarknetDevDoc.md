@@ -1,48 +1,50 @@
 # To declare class:
 
 ```bash
-$ starkli declare ./target/dev/nft_NFT.contract_class.json --network sepolia --account ~/.starkli-wallets/deployer/account.json --keystore~/.starkli-wallets/deployer/keystore.json --rpc https://free-rpc.nethermind.io/sepolia-juno
+$ starkli declare ./target/dev/nft_NFT.contract_class.json --network sepolia --account ~/.starkli-wallets/deployer/account.json --keystore ~/.starkli-wallets/deployer/keystore.json --rpc https://free-rpc.nethermind.io/sepolia-juno
+
+$ starkli declare ./target/dev/nft_Receiver.contract_class.json --network sepolia --account ~/.starkli-wallets/deployer/account.json --keystore ~/.starkli-wallets/deployer/keystore.json --rpc https://free-rpc.nethermind.io/sepolia-juno
+
+$ starkli declare ./target/dev/nft_NFTFactory.contract_class.json --network sepolia --account ~/.starkli-wallets/deployer/account.json --keystore ~/.starkli-wallets/deployer/keystore.json --rpc https://free-rpc.nethermind.io/sepolia-juno
 ```
 
 # NFT
 
-Declaring Cairo 1 class: 0x06d7c892b96083e259223814f4d5cb9d27c6b63edf4684c8c41229e06926afc7
+Declaring Cairo 1 class: 0x015b6df174feb8a9075e3670202ce6856ea1cd4b916e6b45922c0a46a412dbe1
 Compiling Sierra class to CASM with compiler version 2.8.2...
-CASM class hash: 0x05f1610efa77281a7d637e8b62ab44d9c99433d76c516c779fc0ce4073fe7931
-Contract declaration transaction: 0x006e4e1f64e08da68c0720f28c26a3738cbf718c4616e6b0b0ac8e895e0c97b7
+CASM class hash: 0x0311e95401338642236bbf2d9f7b88a2d57463bd4fae4d58c947817d71ed7aa3
+Contract declaration transaction: 0x03838d8a9e60f6ef0e1e6c6340d1dbfd868722d5346100e8410b28e8641e2465
 Class hash declared:
-0x06d7c892b96083e259223814f4d5cb9d27c6b63edf4684c8c41229e06926afc7
+0x015b6df174feb8a9075e3670202ce6856ea1cd4b916e6b45922c0a46a412dbe1
 
 # Receiver
 
-Declaring Cairo 1 class: 0x04125bc64ff8c4212e09219e8fc9ecc89967eae605c8c5ec82edbd50ab11dbf4
+Declaring Cairo 1 class: 0x04b8fc093ee4e2f271db671d5e9c8257847e273ca49e5361d0ffbff96ac20fc0
 Compiling Sierra class to CASM with compiler version 2.8.2...
-CASM class hash: 0x0499169ef1004241f8abdf7d86b0697a175b72e85b9e32568ff3bc50d0f831f4
-Contract declaration transaction: 0x02796aa9ee663a6058b61afc405d2a8b78e8c44fc216e20592e950e5606f8a91
+CASM class hash: 0x0784e90a4c24cd75fe9d84c34865ae92571314fe17953bee3d1ddc2720650809
+Contract declaration transaction: 0x047f42e56401b6362febd521555ffd4f002e3cfe0d336cba3e33b997613cadd3
 Class hash declared:
-0x04125bc64ff8c4212e09219e8fc9ecc89967eae605c8c5ec82edbd50ab11dbf4
+0x04b8fc093ee4e2f271db671d5e9c8257847e273ca49e5361d0ffbff96ac20fc0
 
 # Nft Factory
 
-Declaring Cairo 1 class: 0x02dfbfcabeadc296a8d1df504d6a632af6623ffaa12b44bc1ca65c9dfbd97e85
+Declaring Cairo 1 class: 0x0244f01881dfbbd2051d481650b3f43b839beb11701b9c31a8bf4d1a8c2b01ff
 Compiling Sierra class to CASM with compiler version 2.8.2...
-CASM class hash: 0x0164a5d3cbd54330a050e3f889d9c12de4fbaa5621ca6417230b99da9e71edb9
-Contract declaration transaction: 0x07a67322268a8791e8514f6beaff343c910fd60cc02ff141fb5bde4524777234
+CASM class hash: 0x04fe715ade1abf5d4bf783074181ec6d2ab35704df5e8f4ff98195cc12449599
+Contract declaration transaction: 0x02accb58d0468a3a4185f2f7c3a914d3765455e48799c7a525177ce87cf05347
 Class hash declared:
-0x02dfbfcabeadc296a8d1df504d6a632af6623ffaa12b44bc1ca65c9dfbd97e85
-
-starkli declare /x/SmartContracts/smart-contracts/target/dev/nft_NFTFactory.contract_class.json --network sepolia
+0x0244f01881dfbbd2051d481650b3f43b839beb11701b9c31a8bf4d1a8c2b01ff
 
 # To deploy SC
 
-Deploying class 0x02dfbfcabeadc296a8d1df504d6a632af6623ffaa12b44bc1ca65c9dfbd97e85 with salt 0x0427f3290a80b65a2fae67902e665464585ec1a8c063eaeed44a765bc7a5d3ec...
-The contract will be deployed at address 0x0717246d4b4b3e1c4087b2cc63d99c46c08ef7beea9dbc46e2d854f724dcb711
-Contract deployment transaction: 0x06f689013d55a336d2a66c8cf37c7373e86580383ee3a72cfd7e365d42b83525
-Contract deployed:
-0x0717246d4b4b3e1c4087b2cc63d99c46c08ef7beea9dbc46e2d854f724dcb711
-
 ```bash
-$ starkli deploy 0x02dfbfcabeadc296a8d1df504d6a632af6623ffaa12b44bc1ca65c9dfbd97e85 0x06e534AaA270d95F705248fC50aE5E19E9290b69c53AD339B4ea8ed3db5858d4
+$ starkli deploy 0x0244f01881dfbbd2051d481650b3f43b839beb11701b9c31a8bf4d1a8c2b01ff 0x06e534AaA270d95F705248fC50aE5E19E9290b69c53AD339B4ea8ed3db5858d4 --network sepolia --account ~/.starkli-wallets/deployer/account.json --keystore ~/.starkli-wallets/deployer/keystore.json --rpc https://free-rpc.nethermind.io/sepolia-juno
 ```
 
-starkli deploy 0x02dfbfcabeadc296a8d1df504d6a632af6623ffaa12b44bc1ca65c9dfbd97e85 0x06e534AaA270d95F705248fC50aE5E19E9290b69c53AD339B4ea8ed3db5858d4
+# Nft Factory
+
+Deploying class 0x0244f01881dfbbd2051d481650b3f43b839beb11701b9c31a8bf4d1a8c2b01ff with salt 0x03059285a0fd953c1ebeb000b8936749786670c823a4d48c632aaf2ec562dc5e...
+The contract will be deployed at address 0x00b755fa4342afb5998ee920585882f3888df02fbc01a906696983f47ee9587f
+Contract deployment transaction: 0x069b8185c970a60d95ab20f61540a0ac5433d075f172d828ca84a4394fecdd2b
+Contract deployed:
+0x00b755fa4342afb5998ee920585882f3888df02fbc01a906696983f47ee9587f

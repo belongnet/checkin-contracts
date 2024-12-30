@@ -16,7 +16,8 @@
     "@types/cacheable-request": "^8.3.2",
     "solady": "^0.0.234",
     "solidity-docgen": "^0.6.0-beta.36",
-    "starknet": "^6.11.0"
+    "starknet": "^6.11.0",
+    "starkscan": "^0.0.11"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.6",
