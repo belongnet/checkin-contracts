@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2022",
+    "target": "ES2022",
     "lib": ["ES2022"],
-    "module": "ES2022",
+    "module": "CommonJS",
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -10,10 +10,6 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "resolveJsonModule": true
-  },
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
   },
   "exclude": ["node_modules", "artifacts", "cache", ".git"],
   "include": [

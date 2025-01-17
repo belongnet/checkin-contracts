@@ -1,72 +1,107 @@
-import { ChainIds } from './chain-ids'
+import { ChainIds, chainRPCs } from './chain-ids'
 
-export interface NetworkConfig {
+interface NetworkConfig {
 	url: string,
 	chainId: ChainIds,
 	accounts: string[],
 }
 
-export function createConnect(chainid: ChainIds, accounts: string[], apiKey?: string): NetworkConfig {
+interface NetworkConfig {
+	url: string,
+	chainId: ChainIds,
+	ledgerAccounts: string[],
+}
+
+interface CustomChainScanConfig {
+	network: string,
+	chainId: ChainIds,
+	urls: {
+		apiURL: string,
+		browserURL: string
+	},
+}
+
+export function createConnect(chainId: ChainIds, accounts: string[], apiKey?: string): NetworkConfig {
 	if (accounts.length == 0) {
 		throw Error('Account private key is not found in environment variables.');
 	}
-	if (chainid === ChainIds.mainnet || chainid === ChainIds.polygon || chainid == ChainIds.sepolia) {
-		if (apiKey == undefined || apiKey == '' || apiKey == null) {
-			throw Error('Proive api for the network.');
-		}
+
+	return {
+		url: chainRPCs(chainId, apiKey),
+		chainId,
+		accounts
+	} as NetworkConfig
+}
+
+export function createLedgerConnect(chainId: ChainIds, ledgerAccounts: string[], apiKey?: string): NetworkConfig {
+	if (ledgerAccounts.length == 0) {
+		throw Error('Ledger address not found in environment variables.');
 	}
 
-	let url: string;
-	switch (chainid) {
-		case ChainIds.mainnet:
-			url = `https://mainnet.infura.io/v3/${apiKey}`;
-			break;
-		case ChainIds.bsc:
-			url = "https://bsc-dataseed.binance.org";
-			break;
-		case ChainIds.polygon:
-			url = `https://polygon-mainnet.infura.io/v3/${apiKey}`;
-			break;
+	return {
+		url: chainRPCs(chainId, apiKey),
+		chainId,
+		ledgerAccounts
+	} as NetworkConfig
+}
+
+export const blockscanConfig = (network: string, chainId: ChainIds): CustomChainScanConfig => {
+	if (chainId === ChainIds.mainnet || chainId === ChainIds.polygon || chainId == ChainIds.sepolia) {
+		throw Error('Not a custom chain.');
+	}
+
+	let browserURL: string;
+	let apiURL: string;
+
+	switch (chainId) {
 		case ChainIds.blast:
-			url = `https://rpc.envelop.is/blast`;
+			browserURL = `blastscan.io/`;
 			break;
 		case ChainIds.celo:
-			url = `https://rpc.ankr.com/celo`;
+			browserURL = `celoscan.io/`;
 			break;
 		case ChainIds.base:
-			url = `https://base.llamarpc.com`;
+			browserURL = `basescan.org/`;
 			break;
 		case ChainIds.linea:
-			url = `https://linea-rpc.publicnode.com`;
-			break;
-		case ChainIds.skale_europa:
-			url = `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
-			break;
-		case ChainIds.skale_nebula:
-			url = `https://mainnet.skalenodes.com/v1/green-giddy-denebola`;
-			break;
-		case ChainIds.skale_calypso:
-			url = `https://mainnet.skalenodes.com/v1/honorable-steel-rasalhague`;
-			break;
-		case ChainIds.sepolia:
-			url = `https://sepolia.infura.io/v3/${apiKey}`;
-			break;
-		case ChainIds.amoy:
-			url = `https://rpc-amoy.polygon.technology`;
+			browserURL = `lineascan.build/`;
 			break;
 		case ChainIds.blast_sepolia:
-			url = `https://sepolia.blast.io`;
+			browserURL = `sepolia.blastscan.io/`;
+			break;
+		case ChainIds.amoy:
+			browserURL = `amoy.polygonscan.com`;
+			break;
+		case ChainIds.skale_europa:
+			browserURL = `elated-tan-skat.explorer.mainnet.skalenodes.com/`;
+			break;
+		case ChainIds.skale_nebula:
+			browserURL = `green-giddy-denebola.explorer.mainnet.skalenodes.com/`;
+			break;
+		case ChainIds.skale_calypso:
+			browserURL = `honorable-steel-rasalhague.explorer.mainnet.skalenodes.com/`;
 			break;
 		case ChainIds.skale_calypso_testnet:
-			url = "https://testnet.skalenodes.com/v1/giant-half-dual-testnet";
+			browserURL = `giant-half-dual-testnet.explorer.testnet.skalenodes.com/`;
 			break;
 		default:
 			throw Error('No networks provided');
 	}
 
+	if (chainId !== ChainIds.skale_europa && chainId !== ChainIds.skale_nebula && chainId !== ChainIds.skale_calypso && chainId !== ChainIds.skale_calypso_testnet) {
+		apiURL = `https://api.${browserURL}api`
+	} else {
+		apiURL = `https://${browserURL}api`
+	}
+
+	browserURL = `https://${browserURL}`;
+
 	return {
-		url,
-		chainId: chainid,
-		accounts
-	} as NetworkConfig
+		network,
+		chainId,
+		urls: {
+			apiURL,
+			browserURL
+		}
+	}
 }

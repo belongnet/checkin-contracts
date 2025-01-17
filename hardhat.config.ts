@@ -6,9 +6,9 @@ import "hardhat-contract-sizer";
 import "@nomicfoundation/hardhat-ledger";
 
 import dotenv from "dotenv";
-import { createConnect } from './utils/config'
-import { createLedgerConnect } from './utils/ledger-config'
 import { ChainIds } from "./utils/chain-ids";
+import { blockscanConfig, createConnect, createLedgerConnect } from './utils/config'
+
 dotenv.config();
 
 let accounts: string[] = [], ledgerAccounts: string[] = [];
@@ -45,6 +45,7 @@ const config: HardhatUserConfig = {
     celo: createLedgerConnect(ChainIds.celo, ledgerAccounts),
     base: createLedgerConnect(ChainIds.base, ledgerAccounts),
     linea: createLedgerConnect(ChainIds.linea, ledgerAccounts),
+    astar: createLedgerConnect(ChainIds.astar, ledgerAccounts),
     skale_europa: createLedgerConnect(ChainIds.skale_europa, ledgerAccounts),
     skale_nebula: createLedgerConnect(ChainIds.skale_nebula, ledgerAccounts),
     skale_calypso: createLedgerConnect(ChainIds.skale_calypso, ledgerAccounts),
@@ -52,10 +53,6 @@ const config: HardhatUserConfig = {
     blast_sepolia: createConnect(ChainIds.blast_sepolia, accounts),
     skale_calypso_testnet: createConnect(ChainIds.skale_calypso_testnet, accounts),
     amoy: createConnect(ChainIds.amoy, accounts),
-  },
-  gasReporter: {
-    enabled: process.env.REPORT_GAS !== undefined,
-    currency: "USD",
   },
   etherscan: {
     apiKey: {
@@ -65,106 +62,27 @@ const config: HardhatUserConfig = {
       celo: process.env.CELOSCAN_API_KEY || '',
       base: process.env.BASESCAN_API_KEY || '',
       linea: process.env.LINEASCAN_API_KEY || '',
-      skale_europa: 'skale_europa', // Is not required by blockscout. Can be any non-empty string
-      skale_nebula: 'skale_nebula', // Is not required by blockscout. Can be any non-empty string
-      skale_calypso: 'skale_calypso', // Is not required by blockscout. Can be any non-empty string
       sepolia: process.env.ETHERSCAN_API_KEY! || '',
       amoy: process.env.POLYSCAN_API_KEY || '',
       blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
+      skale_europa: 'skale_europa', // Is not required by blockscout. Can be any non-empty string
+      skale_nebula: 'skale_nebula', // Is not required by blockscout. Can be any non-empty string
+      skale_calypso: 'skale_calypso', // Is not required by blockscout. Can be any non-empty string
       skale_calypso_testnet: "skale_calypso_testnet", // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
-      {
-        network: "blast",
-        chainId: ChainIds.blast,
-        urls: {
-          apiURL: "https://api.blastscan.io/api",
-          browserURL: "https://blastscan.io/",
-        },
-      },
-      {
-        network: "celo",
-        chainId: ChainIds.celo,
-        urls: {
-          apiURL: "https://api.celoscan.io/api",
-          browserURL: "https://celoscan.io/",
-        },
-      },
-      {
-        network: "base",
-        chainId: ChainIds.base,
-        urls: {
-          apiURL: "https://api.basescan.org/api",
-          browserURL: "https://basescan.org/",
-        },
-      },
-      {
-        network: "linea",
-        chainId: ChainIds.linea,
-        urls: {
-          apiURL: "https://api.lineascan.build/api",
-          browserURL: "https://lineascan.build/",
-        },
-      },
-      {
-        network: "skale_europa",
-        chainId: ChainIds.skale_europa,
-        urls: {
-          apiURL:
-            "https://elated-tan-skat.explorer.mainnet.skalenodes.com/api",
-          browserURL:
-            "https://elated-tan-skat.explorer.mainnet.skalenodes.com/",
-        },
-      },
-      {
-        network: "skale_nebula",
-        chainId: ChainIds.skale_nebula,
-        urls: {
-          apiURL:
-            "https://green-giddy-denebola.explorer.mainnet.skalenodes.com/api",
-          browserURL:
-            "https://green-giddy-denebola.explorer.mainnet.skalenodes.com/",
-        },
-      },
-      {
-        network: "skale_calypso",
-        chainId: ChainIds.skale_calypso,
-        urls: {
-          apiURL:
-            "https://honorable-steel-rasalhague.explorer.mainnet.skalenodes.com/api",
-          browserURL:
-            "https://honorable-steel-rasalhague.explorer.mainnet.skalenodes.com/",
-        },
-      },
-      {
-        network: "blast_sepolia",
-        chainId: ChainIds.blast_sepolia,
-        urls: {
-          apiURL: "https://api-sepolia.blastscan.io/api",
-          browserURL: "https://sepolia.blastscan.io/",
-        },
-      },
-      {
-        network: "amoy",
-        chainId: ChainIds.amoy,
-        urls: {
-          apiURL:
-            "https://api-amoy.polygonscan.com/api",
-          browserURL:
-            "https://amoy.polygonscan.com",
-        },
-      },
-      {
-        network: "skale_calypso_testnet",
-        chainId: ChainIds.skale_calypso_testnet,
-        urls: {
-          apiURL:
-            "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/api",
-          browserURL:
-            "https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/",
-        },
-      },
-
+      blockscanConfig("blast", ChainIds.blast),
+      blockscanConfig("celo", ChainIds.celo),
+      blockscanConfig("base", ChainIds.base),
+      blockscanConfig("linea", ChainIds.linea),
+      blockscanConfig("skale_europa", ChainIds.skale_europa),
+      blockscanConfig("skale_nebula", ChainIds.skale_nebula),
+      blockscanConfig("skale_calypso", ChainIds.skale_calypso),
+      blockscanConfig("blast_sepolia", ChainIds.blast_sepolia),
+      blockscanConfig("amoy", ChainIds.amoy),
+      blockscanConfig("skale_calypso_testnet", ChainIds.skale_calypso_testnet),
+      blockscanConfig("skale_europa", ChainIds.skale_europa),
+      blockscanConfig("skale_nebula", ChainIds.skale_nebula),
     ],
   },
   paths: {
@@ -174,6 +92,10 @@ const config: HardhatUserConfig = {
     outputDir: "./docs/contracts",
     exclude: ['nft-with-royalties/mocks', 'mocks'],
     pages: 'files'
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS !== undefined,
+    currency: "USD",
   },
 };
 
