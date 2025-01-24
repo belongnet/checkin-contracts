@@ -65,6 +65,7 @@ const config: HardhatUserConfig = {
       sepolia: process.env.ETHERSCAN_API_KEY! || '',
       amoy: process.env.POLYSCAN_API_KEY || '',
       blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
+      astar: 'astar', // Is not required by blockscout. Can be any non-empty string
       skale_europa: 'skale_europa', // Is not required by blockscout. Can be any non-empty string
       skale_nebula: 'skale_nebula', // Is not required by blockscout. Can be any non-empty string
       skale_calypso: 'skale_calypso', // Is not required by blockscout. Can be any non-empty string
@@ -75,14 +76,13 @@ const config: HardhatUserConfig = {
       blockscanConfig("celo", ChainIds.celo),
       blockscanConfig("base", ChainIds.base),
       blockscanConfig("linea", ChainIds.linea),
+      blockscanConfig("astar", ChainIds.astar),
       blockscanConfig("skale_europa", ChainIds.skale_europa),
       blockscanConfig("skale_nebula", ChainIds.skale_nebula),
       blockscanConfig("skale_calypso", ChainIds.skale_calypso),
       blockscanConfig("blast_sepolia", ChainIds.blast_sepolia),
       blockscanConfig("amoy", ChainIds.amoy),
       blockscanConfig("skale_calypso_testnet", ChainIds.skale_calypso_testnet),
-      blockscanConfig("skale_europa", ChainIds.skale_europa),
-      blockscanConfig("skale_nebula", ChainIds.skale_nebula),
     ],
   },
   paths: {
