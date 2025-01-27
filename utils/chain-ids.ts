@@ -39,7 +39,7 @@ export const chainRPCs = (chainid: ChainIds, apiKey?: string): string => {
 		case ChainIds.linea:
 			return `https://linea-rpc.publicnode.com`;
 		case ChainIds.astar:
-			return `https://evm.astar.network`;
+			return `https://1rpc.io/astr`;
 		case ChainIds.skale_europa:
 			return `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
 		case ChainIds.skale_nebula:
