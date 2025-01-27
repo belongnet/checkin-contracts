@@ -3,9 +3,9 @@
     "test": "hardhat test",
     "coverage": "hardhat coverage",
     "compile": "hardhat compile",
-    "deploy:factory": "hardhat run ./scripts/mainntet-deployment/deploy.ts --network",
-    "verify:factory": "hardhat run ./scripts/mainntet-deployment/verify_factory.ts --network",
-    "verify:deployed": "hardhat run ./scripts/mainntet-deployment/verify_deployed.ts --network",
+    "deploy:factory": "hardhat run ./scripts/mainnet-deployment/deploy.ts --network",
+    "verify:factory": "hardhat run ./scripts/mainnet-deployment/verify_factory.ts --network",
+    "verify:deployed": "hardhat run ./scripts/mainnet-deployment/verify_deployed.ts --network",
     "docgen": "hardhat docgen"
   },
   "dependencies": {
