@@ -75,6 +75,8 @@ export const blockscanUrls = (chainid: ChainIds, apiKey?: string): string => {
 			return `https://basescan.org/`;
 		case ChainIds.linea:
 			return `https://lineascan.build/`;
+		case ChainIds.astar:
+			return `https://astar.blockscout.com/`;
 		case ChainIds.blast_sepolia:
 			return `https://sepolia.blastscan.io/`;
 		case ChainIds.amoy:

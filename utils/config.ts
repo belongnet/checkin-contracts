@@ -66,14 +66,14 @@ export const blockscanConfig = (network: string, chainId: ChainIds): CustomChain
 		case ChainIds.linea:
 			browserURL = `lineascan.build/`;
 			break;
+		case ChainIds.astar:
+			browserURL = `astar.blockscout.com/`;
+			break;
 		case ChainIds.blast_sepolia:
 			browserURL = `sepolia.blastscan.io/`;
 			break;
 		case ChainIds.amoy:
 			browserURL = `amoy.polygonscan.com`;
-			break;
-		case ChainIds.astar:
-			browserURL = `astar.blockscout.com/`;
 			break;
 		case ChainIds.skale_europa:
 			browserURL = `elated-tan-skat.explorer.mainnet.skalenodes.com/`;
