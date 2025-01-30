@@ -46,6 +46,7 @@ const config: HardhatUserConfig = {
     celo: createLedgerConnect(ChainIds.celo, ledgerAccounts),
     base: createLedgerConnect(ChainIds.base, ledgerAccounts),
     linea: createLedgerConnect(ChainIds.linea, ledgerAccounts),
+    astar: createLedgerConnect(ChainIds.astar, ledgerAccounts),
     skale_europa: createLedgerConnect(ChainIds.skale_europa, ledgerAccounts),
     skale_nebula: createLedgerConnect(ChainIds.skale_nebula, ledgerAccounts),
     skale_calypso: createLedgerConnect(ChainIds.skale_calypso, ledgerAccounts),
@@ -53,10 +54,6 @@ const config: HardhatUserConfig = {
     blast_sepolia: createPrivateKeyConnect(ChainIds.blast_sepolia, accounts),
     skale_calypso_testnet: createPrivateKeyConnect(ChainIds.skale_calypso_testnet, accounts),
     amoy: createPrivateKeyConnect(ChainIds.amoy, accounts),
-  },
-  gasReporter: {
-    enabled: process.env.REPORT_GAS !== undefined,
-    currency: "USD",
   },
   etherscan: {
     apiKey: {
@@ -66,12 +63,13 @@ const config: HardhatUserConfig = {
       celo: process.env.CELOSCAN_API_KEY || '',
       base: process.env.BASESCAN_API_KEY || '',
       linea: process.env.LINEASCAN_API_KEY || '',
-      skale_europa: 'skale_europa', // Is not required by blockscout. Can be any non-empty string
-      skale_nebula: 'skale_nebula', // Is not required by blockscout. Can be any non-empty string
-      skale_calypso: 'skale_calypso', // Is not required by blockscout. Can be any non-empty string
       sepolia: process.env.ETHERSCAN_API_KEY! || '',
       amoy: process.env.POLYSCAN_API_KEY || '',
       blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
+      astar: 'astar', // Is not required by blockscout. Can be any non-empty string
+      skale_europa: 'skale_europa', // Is not required by blockscout. Can be any non-empty string
+      skale_nebula: 'skale_nebula', // Is not required by blockscout. Can be any non-empty string
+      skale_calypso: 'skale_calypso', // Is not required by blockscout. Can be any non-empty string
       skale_calypso_testnet: "skale_calypso_testnet", // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
@@ -174,6 +172,10 @@ const config: HardhatUserConfig = {
     outputDir: "./docs/contracts",
     exclude: ['nft-with-royalties/mocks', 'mocks'],
     pages: 'files'
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS !== undefined,
+    currency: "USD",
   },
 };
 

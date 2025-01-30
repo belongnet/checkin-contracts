@@ -1,1 +1,35 @@
-mod nft;
+mod nft {
+    pub mod nft;
+    pub mod interface;
+}
+mod receiver {
+    pub mod receiver;
+    pub mod interface;
+}
+mod nftfactory {
+    pub mod nftfactory;
+    pub mod interface;
+}
+
+mod snip12 {
+    pub mod snip12;
+    pub mod u256_hash;
+    pub mod produce_hash;
+    pub mod static_price_hash;
+    pub mod dynamic_price_hash;
+    pub mod interfaces;
+}
+
+mod mocks {
+    pub mod erc20mock;
+    pub mod erc20mockinterface;
+    pub mod account;
+}
+
+mod utils {
+    pub mod constants;
+    pub mod signing;
+}
+
+#[cfg(test)]
+mod tests;

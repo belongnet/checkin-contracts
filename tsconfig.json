@@ -1,11 +1,14 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "CommonJS",
+    "allowJs": true,
+    "skipLibCheck": true,
     "esModuleInterop": true,
+    "moduleResolution": "node",
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "skipLibCheck": true,
     "resolveJsonModule": true
   },
   "exclude": ["node_modules", "artifacts", "cache", ".git"],
