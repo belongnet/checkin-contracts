@@ -149,7 +149,7 @@ After deployment update [.env](../../.env) with specifying the
 Then run the following commands:
 
 ```shell
-$ yarn verify:nft <network_name>
+$ yarn verify:factory <network_name>
 ```
 
 - NFT and Royalties receiver
@@ -194,3 +194,5 @@ $ yarn verify:deployed <network_name>
 - `blast_sepolia` - Blast Sepolia testnet
 - `skale_calypso_testnet` - Skale Calypso Hub testnet
 - `amoy` - Polygon Amoy testnet
+
+### [Deployed Crypto Addresses](./../addresses.md)
