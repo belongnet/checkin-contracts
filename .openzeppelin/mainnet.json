@@ -1,0 +1,232 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0x075A78d6A1b4Dfef645f4c415cf8A2055b8b37E5",
+    "txHash": "0x4e41dcfd81bbb9007cc425058a0b239586633578dcbb9e509b8e09dce473dc46"
+  },
+  "proxies": [
+    {
+      "address": "0xdc5b6db27eD9A48a5CA2C20a53D0249bf95e75Ef",
+      "txHash": "0x80108067867ae7f851c1a2df1ec5490423d5bb838f5970d5b5cbdcc8fea67c36",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "7498482730ad0cda028b64b56f69453d341864564899ff9ff44cb50df821d838": {
+      "address": "0x256956578fdB2798Be3553dE9E11E4caffE46160",
+      "txHash": "0xe0a0c507631112161b388c204739d6684eae92fc9e6e5a672a9e550da3c3d5d1",
+      "layout": {
+        "solcVersion": "0.8.27",
+        "storage": [
+          {
+            "label": "usedToPercentage",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_array(t_uint16)5_storage",
+            "contract": "ReferralSystem",
+            "src": "contracts/utils/ReferralSystem.sol:52"
+          },
+          {
+            "label": "referrals",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_bytes32,t_struct(ReferralCode)1381_storage)",
+            "contract": "ReferralSystem",
+            "src": "contracts/utils/ReferralSystem.sol:55"
+          },
+          {
+            "label": "usedCode",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_address,t_mapping(t_bytes32,t_uint256))",
+            "contract": "ReferralSystem",
+            "src": "contracts/utils/ReferralSystem.sol:58"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ReferralSystem",
+            "src": "contracts/utils/ReferralSystem.sol:189"
+          },
+          {
+            "label": "_nftFactoryParameters",
+            "offset": 0,
+            "slot": "53",
+            "type": "t_struct(NftFactoryParameters)1401_storage",
+            "contract": "NFTFactory",
+            "src": "contracts/factories/NFTFactory.sol:47"
+          },
+          {
+            "label": "getNftInstanceInfo",
+            "offset": 0,
+            "slot": "59",
+            "type": "t_mapping(t_bytes32,t_struct(NftInstanceInfo)1475_storage)",
+            "contract": "NFTFactory",
+            "src": "contracts/factories/NFTFactory.sol:50"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint16)5_storage": {
+            "label": "uint16[5]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_bytes32,t_uint256))": {
+            "label": "mapping(address => mapping(bytes32 => uint256))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(NftInstanceInfo)1475_storage)": {
+            "label": "mapping(bytes32 => struct NftInstanceInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(ReferralCode)1381_storage)": {
+            "label": "mapping(bytes32 => struct ReferralCode)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(NftFactoryParameters)1401_storage": {
+            "label": "struct NftFactoryParameters",
+            "members": [
+              {
+                "label": "platformAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "signerAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "defaultPaymentCurrency",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "platformCommission",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "maxArraySize",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "transferValidator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_struct(NftInstanceInfo)1475_storage": {
+            "label": "struct NftInstanceInfo",
+            "members": [
+              {
+                "label": "creator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "nftAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "royaltiesReceiver",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "metadata",
+                "type": "t_struct(NftMetadata)1461_storage",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(NftMetadata)1461_storage": {
+            "label": "struct NftMetadata",
+            "members": [
+              {
+                "label": "name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "symbol",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(ReferralCode)1381_storage": {
+            "label": "struct ReferralCode",
+            "members": [
+              {
+                "label": "creator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "referralUsers",
+                "type": "t_array(t_address)dyn_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint16": {
+            "label": "uint16",
+            "numberOfBytes": "2"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {}
+      }
+    }
+  }
+}
