@@ -19,7 +19,7 @@ const info: InstanceInfoStruct = {
 	payingToken: process.env.PAYING_TOKEN_ADDRESS,
 	feeNumerator: process.env.FEE_NUMERATOR,
 	transferable: process.env.TRANSFERRABLE?.toLowerCase() === 'true' ? true : false,
-	maxTotalSupply: process.env.FEE_NUMERATOR,
+	maxTotalSupply: process.env.MAX_TOTAL_SUPPLY,
 	mintPrice: process.env.MINT_PRICE,
 	whitelistMintPrice: process.env.WHITELIST_MINT_PRICE,
 	collectionExpire: process.env.COLLECTION_EXPIRE,
