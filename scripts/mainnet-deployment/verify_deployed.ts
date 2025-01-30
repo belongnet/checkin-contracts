@@ -1,7 +1,7 @@
 import { verifyContract } from "../helpers/verify";
-import { ethers } from "hardhat";
 import { checkAddress, checkBytesLike, checkNumber, checkString } from "../helpers/checkers";
 import { InstanceInfoStruct, NftMetadataStruct, NftParametersStruct } from "../helpers/structs";
+import { ethers } from "hardhat";
 
 const Platform_address = process.env.PLATFORM_ADDRESS;
 const NFTFactory_Address = process.env.NFT_FACTORY_ADDRESS;
