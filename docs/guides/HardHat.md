@@ -138,6 +138,12 @@ This will deploy as usual, however, you will now be prompted on your Ledger devi
 
 At this point, you should see a prompt on your Ledger device to confirm the transaction. Once you confirm, the message will update to show that the transaction was sent to the network, and you'll see the deployment progress in your terminal.
 
+**To deploy NFT mock (for verification):**
+
+```shell
+$ yarn deploy:nft_mock <network_name>
+```
+
 ### Verification
 
 - NFT Factory
@@ -171,6 +177,16 @@ After deployment update [.env](../../.env) with specifying the
 - `CONTRACT_URI`: NFT cotract URI string.
 - `SIGNATURE`: NFT signatre for NFT creation.
 - `REFERRAL_CODE`: NFT referral code if exists.
+
+**To verify NFT mock:**
+
+Update [.env](../../.env) with specifying the:
+
+- `NFT_MOCK`: NFT mock address that has been deployed.
+
+```shell
+$ yarn verify:nft_mock <network_name>
+```
 
 Then run the following commands:
 
