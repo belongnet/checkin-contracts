@@ -38,9 +38,9 @@ const config: HardhatUserConfig = {
     hardhat: {
       allowUnlimitedContractSize: false,
     },
-    'ethereum': {
-      url: 'https://eth.drpc.org',
-    },
+    // 'ethereum': {
+    //   url: 'https://eth.drpc.org',
+    // },
     mainnet: createLedgerConnect(ChainIds.mainnet, ledgerAccounts, process.env.INFURA_ID_PROJECT),
     bsc: createLedgerConnect(ChainIds.bsc, ledgerAccounts),
     polygon: createLedgerConnect(ChainIds.polygon, ledgerAccounts, process.env.INFURA_ID_PROJECT),
@@ -59,7 +59,8 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      'ethereum': 'empty',
+      mainnet: process.env.ETHERSCAN_API_KEY! || '',
+      // 'ethereum': 'empty',
       blast: process.env.BLASTSCAN_API_KEY! || '',
       polygon: process.env.POLYSCAN_API_KEY || '',
       celo: process.env.CELOSCAN_API_KEY || '',
@@ -75,14 +76,14 @@ const config: HardhatUserConfig = {
       skale_calypso_testnet: "skale_calypso_testnet", // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
-      {
-        network: "ethereum",
-        chainId: 1,
-        urls: {
-          apiURL: "https://eth.blockscout.com/api",
-          browserURL: "https://eth.blockscout.com"
-        }
-      },
+      // {
+      //   network: "ethereum",
+      //   chainId: 1,
+      //   urls: {
+      //     apiURL: "https://eth.blockscout.com/api",
+      //     browserURL: "https://eth.blockscout.com"
+      //   }
+      // },
       blockscanConfig("blast", ChainIds.blast),
       blockscanConfig("celo", ChainIds.celo),
       blockscanConfig("base", ChainIds.base),
