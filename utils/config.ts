@@ -4,12 +4,14 @@ interface NetworkConfig {
 	url: string,
 	chainId: ChainIds,
 	accounts: string[],
+	gasPrice: number
 }
 
 interface NetworkConfig {
 	url: string,
 	chainId: ChainIds,
 	ledgerAccounts: string[],
+	gasPrice: number
 }
 
 interface CustomChainScanConfig {
@@ -29,7 +31,8 @@ export function createConnect(chainId: ChainIds, accounts: string[], apiKey?: st
 	return {
 		url: chainRPCs(chainId, apiKey),
 		chainId,
-		accounts
+		accounts,
+		gasPrice: 6000000000
 	} as NetworkConfig
 }
 
@@ -41,7 +44,8 @@ export function createLedgerConnect(chainId: ChainIds, ledgerAccounts: string[],
 	return {
 		url: chainRPCs(chainId, apiKey),
 		chainId,
-		ledgerAccounts
+		ledgerAccounts,
+		gasPrice: 6000000000
 	} as NetworkConfig
 }
 

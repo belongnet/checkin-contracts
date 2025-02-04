@@ -39,7 +39,7 @@ const config: HardhatUserConfig = {
       allowUnlimitedContractSize: false,
     },
     'ethereum': {
-      url: 'https://eth.drpc.org'
+      url: 'https://eth.drpc.org',
     },
     mainnet: createLedgerConnect(ChainIds.mainnet, ledgerAccounts, process.env.INFURA_ID_PROJECT),
     bsc: createLedgerConnect(ChainIds.bsc, ledgerAccounts),
