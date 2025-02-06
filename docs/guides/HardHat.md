@@ -97,18 +97,36 @@ $ yarn coverage
 
 ### Deploy
 
-- Testnet
+- V1
+
+Testnet
 
 ```shell
 $ yarn deploy:factory <network_name>
 ```
 
-- Mainnet
+Mainnet
 
 Ensure that your Ledger device is plugged in, unlocked, and connected to the Ethereum app, then run the deploy command:
 
 ```shell
 $ yarn deploy:factory <network_name>
+```
+
+- V2 Crossmint support
+
+Testnet
+
+```shell
+$ yarn deploy:factoryV2 <network_name>
+```
+
+Mainnet
+
+Ensure that your Ledger device is plugged in, unlocked, and connected to the Ethereum app, then run the deploy command:
+
+```shell
+$ yarn deploy:factoryV2 <network_name>
 ```
 
 `<network_name>` supported chains:
@@ -140,8 +158,16 @@ At this point, you should see a prompt on your Ledger device to confirm the tran
 
 **To deploy NFT mock (for verification):**
 
+- V1
+
 ```shell
 $ yarn deploy:nft_mock <network_name>
+```
+
+- V2 Crossmint support
+
+```shell
+$ yarn deploy:nft_mockV2 <network_name>
 ```
 
 ### Verification
@@ -154,8 +180,16 @@ After deployment update [.env](../../.env) with specifying the
 
 Then run the following commands:
 
+- V1
+
 ```shell
 $ yarn verify:factory <network_name>
+```
+
+- V2 Crossmint support
+
+```shell
+$ yarn verify:factoryV2 <network_name>
 ```
 
 - NFT and Royalties receiver
@@ -184,14 +218,30 @@ Update [.env](../../.env) with specifying the:
 
 - `NFT_MOCK`: NFT mock address that has been deployed.
 
+- V1
+
 ```shell
 $ yarn verify:nft_mock <network_name>
 ```
 
+- V2 Crossmint support
+
+```shell
+$ yarn verify:nft_mockV2 <network_name>
+```
+
 Then run the following commands:
+
+- V1
 
 ```shell
 $ yarn verify:deployed <network_name>
+```
+
+- V2 Crossmint support
+
+```shell
+$ yarn verify:deployedV2 <network_name>
 ```
 
 `<network_name>` supported chains:
