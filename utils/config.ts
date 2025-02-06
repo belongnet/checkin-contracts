@@ -73,7 +73,7 @@ export const blockscanConfig = (network: string, chainId: ChainIds): CustomChain
 			browserURL = `sepolia.blastscan.io/`;
 			break;
 		case ChainIds.amoy:
-			browserURL = `amoy.polygonscan.com`;
+			browserURL = `amoy.polygonscan.com/`;
 			break;
 		case ChainIds.skale_europa:
 			browserURL = `elated-tan-skat.explorer.mainnet.skalenodes.com/`;
@@ -92,7 +92,7 @@ export const blockscanConfig = (network: string, chainId: ChainIds): CustomChain
 	}
 
 	if (chainId !== ChainIds.skale_europa && chainId !== ChainIds.skale_nebula && chainId !== ChainIds.skale_calypso && chainId !== ChainIds.skale_calypso_testnet) {
-		if (chainId === ChainIds.blast_sepolia) {
+		if (chainId === ChainIds.blast_sepolia || chainId === ChainIds.amoy) {
 			apiURL = `https://api-${browserURL}api`
 		} else {
 			apiURL = `https://api.${browserURL}api`
@@ -101,9 +101,8 @@ export const blockscanConfig = (network: string, chainId: ChainIds): CustomChain
 		apiURL = `https://${browserURL}api`
 	}
 
-	console.log(apiURL)
 	browserURL = `https://${browserURL}`;
-	console.log(browserURL)
+
 	return {
 		network,
 		chainId,
