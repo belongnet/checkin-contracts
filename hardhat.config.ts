@@ -85,6 +85,7 @@ const config: HardhatUserConfig = {
       //   }
       // },
       blockscanConfig("blast", ChainIds.blast),
+      blockscanConfig("blast_sepolia", ChainIds.blast_sepolia),
       blockscanConfig("celo", ChainIds.celo),
       blockscanConfig("base", ChainIds.base),
       blockscanConfig("linea", ChainIds.linea),

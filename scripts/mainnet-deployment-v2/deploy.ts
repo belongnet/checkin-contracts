@@ -49,7 +49,7 @@ async function deploy() {
 
   referralPercentages.forEach((number) => {
     checkNumber(number);
-    console.log(`Ref erral percentages: ${number}`);
+    console.log(`Referral percentages: ${number}`);
   });
 
   console.log("NFTFactory:");

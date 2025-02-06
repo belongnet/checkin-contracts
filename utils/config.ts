@@ -92,13 +92,18 @@ export const blockscanConfig = (network: string, chainId: ChainIds): CustomChain
 	}
 
 	if (chainId !== ChainIds.skale_europa && chainId !== ChainIds.skale_nebula && chainId !== ChainIds.skale_calypso && chainId !== ChainIds.skale_calypso_testnet) {
-		apiURL = `https://api.${browserURL}api`
+		if (chainId === ChainIds.blast_sepolia) {
+			apiURL = `https://api-${browserURL}api`
+		} else {
+			apiURL = `https://api.${browserURL}api`
+		}
 	} else {
 		apiURL = `https://${browserURL}api`
 	}
 
+	console.log(apiURL)
 	browserURL = `https://${browserURL}`;
-
+	console.log(browserURL)
 	return {
 		network,
 		chainId,

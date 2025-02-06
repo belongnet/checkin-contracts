@@ -3,7 +3,7 @@ import { verifyContract } from "../helpers/verify";
 import dotenv from "dotenv";
 dotenv.config();
 
-const NFTFactory_Address = process.env.NFT_FACTORY_ADDRESS;
+const NFTFactory_Address = '0x4b6AC59541F51051E30993e1dC30c55d0983b3d0';
 async function verify() {
   console.log("Verification: ");
 
