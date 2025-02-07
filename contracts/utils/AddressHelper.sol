@@ -27,13 +27,14 @@ library AddressHelper {
      */
     function checkDynamicPriceParameters(
         address signer,
+        address receiver,
         DynamicPriceParameters calldata params
     ) internal view {
         require(
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
-                        params.receiver,
+                        receiver,
                         params.tokenId,
                         params.tokenUri,
                         params.price,
@@ -55,13 +56,14 @@ library AddressHelper {
      */
     function checkStaticPriceParameters(
         address signer,
+        address receiver,
         StaticPriceParameters calldata params
     ) internal view {
         require(
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
-                        params.receiver,
+                        receiver,
                         params.tokenId,
                         params.tokenUri,
                         params.whitelisted,

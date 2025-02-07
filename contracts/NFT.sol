@@ -142,6 +142,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
      * @param expectedMintPrice The expected price for the minting operation.
      */
     function mintStaticPrice(
+        address receiver,
         StaticPriceParameters[] calldata paramsArray,
         address expectedPayingToken,
         uint256 expectedMintPrice
@@ -161,7 +162,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
             NFTFactory(parameters.factory)
                 .nftFactoryParameters()
                 .signerAddress
-                .checkStaticPriceParameters(paramsArray[i]);
+                .checkStaticPriceParameters(receiver, paramsArray[i]);
 
             // Determine the mint price based on whitelist status
             uint256 price = paramsArray[i].whitelisted
@@ -174,7 +175,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
 
             _baseMint(
                 paramsArray[i].tokenId,
-                paramsArray[i].receiver,
+                receiver,
                 paramsArray[i].tokenUri
             );
         }
@@ -192,6 +193,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
      * @param expectedPayingToken The expected token used for payments.
      */
     function mintDynamicPrice(
+        address receiver,
         DynamicPriceParameters[] calldata paramsArray,
         address expectedPayingToken
     ) external payable {
@@ -208,7 +210,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
             NFTFactory(parameters.factory)
                 .nftFactoryParameters()
                 .signerAddress
-                .checkDynamicPriceParameters(paramsArray[i]);
+                .checkDynamicPriceParameters(receiver, paramsArray[i]);
 
             unchecked {
                 amountToPay += paramsArray[i].price;
@@ -216,7 +218,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
 
             _baseMint(
                 paramsArray[i].tokenId,
-                paramsArray[i].receiver,
+                receiver,
                 paramsArray[i].tokenUri
             );
         }
