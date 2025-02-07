@@ -3,7 +3,7 @@ import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, ContractFactory } from "ethers";
 import { WETHMock, MockTransferValidator, NFTFactory as NFTFactory, RoyaltiesReceiver } from "../typechain-types";
 import { expect } from "chai";
-import { InstanceInfoStruct, NFT, NftParametersStruct, DynamicPriceParametersV2Struct as DynamicPriceParametersStruct, StaticPriceParametersV2Struct as StaticPriceParametersStruct } from "../typechain-types/contracts/NFT";
+import { InstanceInfoStruct, NFT, NftParametersStruct, DynamicPriceParametersStruct, StaticPriceParametersStruct } from "../typechain-types/contracts/NFT";
 import EthCrypto from "eth-crypto";
 import { NftFactoryParametersStruct } from '../typechain-types/contracts/factories/NFTFactory';
 
