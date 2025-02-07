@@ -8,11 +8,6 @@
     "verify:factory": "hardhat run ./scripts/mainnet-deployment/verify_factory.ts --network",
     "verify:nft_mock": "hardhat run ./scripts/mainnet-deployment/NFT_Mock_verify.ts --network",
     "verify:deployed": "hardhat run ./scripts/mainnet-deployment/verify_deployed.ts --network",
-    "deploy:factoryV2": "hardhat run ./scripts/mainnet-deployment-v2/deploy.ts --network",
-    "deploy:nft_mockV2": "hardhat run ./scripts/mainnet-deployment-v2/NFT_Mock_deploy.ts --network",
-    "verify:factoryV2": "hardhat run ./scripts/mainnet-deployment-v2/verify_factory.ts --network",
-    "verify:nft_mockV2": "hardhat run ./scripts/mainnet-deployment-v2/NFT_Mock_verify.ts --network",
-    "verify:deployedV2": "hardhat run ./scripts/mainnet-deployment-v2/verify_deployed.ts --network",
     "docgen": "hardhat docgen"
   },
   "dependencies": {
