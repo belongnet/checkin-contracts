@@ -1,12 +1,11 @@
 import { ethers, upgrades } from 'hardhat';
 import { loadFixture, } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, ContractFactory } from "ethers";
-import { WETHMock, MockTransferValidator, NFTFactory, RoyaltiesReceiver } from "../typechain-types";
+import { WETHMock, MockTransferValidator, NFTFactory as NFTFactory, RoyaltiesReceiver } from "../typechain-types";
 import { expect } from "chai";
-import { InstanceInfoStruct, NFT, NftParametersStruct } from "../typechain-types/contracts/NFT";
+import { InstanceInfoStruct, NFT, NftParametersStruct, DynamicPriceParametersV2Struct as DynamicPriceParametersStruct, StaticPriceParametersV2Struct as StaticPriceParametersStruct } from "../typechain-types/contracts/NFT";
 import EthCrypto from "eth-crypto";
 import { NftFactoryParametersStruct } from '../typechain-types/contracts/factories/NFTFactory';
-import { DynamicPriceParametersStruct, StaticPriceParametersStruct } from '../typechain-types/contracts/NFT';
 
 describe('NFT', () => {
 	const PLATFORM_COMISSION = "100";
@@ -265,9 +264,9 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
+					bob.address,
 					[
 						{
-							receiver: bob.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -330,9 +329,9 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
+					bob.address,
 					[
 						{
-							receiver: bob.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -377,9 +376,9 @@ describe('NFT', () => {
 			await expect(
 				nft_eth
 					.connect(alice).mintStaticPrice(
+						alice.address,
 						[
 							{
-								receiver: alice.address,
 								tokenId: 0,
 								tokenUri: NFT_721_BASE_URI,
 								whitelisted: false,
@@ -398,9 +397,9 @@ describe('NFT', () => {
 				nft_eth
 					.connect(alice)
 					.mintStaticPrice(
+						alice.address,
 						[
 							{
-								receiver: alice.address,
 								tokenId: 0,
 								tokenUri: NFT_721_BASE_URI,
 								whitelisted: false,
@@ -419,9 +418,9 @@ describe('NFT', () => {
 				nft_eth
 					.connect(alice)
 					.mintStaticPrice(
+						alice.address,
 						[
 							{
-								receiver: alice.address,
 								tokenId: 0,
 								tokenUri: NFT_721_BASE_URI,
 								whitelisted: false,
@@ -439,9 +438,9 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -477,9 +476,9 @@ describe('NFT', () => {
 				await nft_eth
 					.connect(alice)
 					.mintStaticPrice(
+						alice.address,
 						[
 							{
-								receiver: alice.address,
 								tokenId: i,
 								tokenUri: NFT_721_BASE_URI,
 								whitelisted: false,
@@ -508,9 +507,9 @@ describe('NFT', () => {
 				nft_eth
 					.connect(alice)
 					.mintStaticPrice(
+						alice.address,
 						[
 							{
-								receiver: alice.address,
 								tokenId: 11,
 								tokenUri: NFT_721_BASE_URI,
 								whitelisted: false,
@@ -565,16 +564,15 @@ describe('NFT', () => {
 			await expect(nft_eth
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
 							signature,
 						} as StaticPriceParametersStruct,
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -596,9 +594,9 @@ describe('NFT', () => {
 			await expect(nft_eth
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 1,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -615,9 +613,9 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: true,
@@ -653,7 +651,6 @@ describe('NFT', () => {
 				const signature = EthCrypto.sign(signer.privateKey, message);
 
 				staticParams.push({
-					receiver: alice.address,
 					tokenId: i,
 					tokenUri: NFT_721_BASE_URI,
 					whitelisted: false,
@@ -664,6 +661,7 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					staticParams,
 					ETH_ADDRESS,
 					ethers.utils.parseEther("0.03").mul(9),
@@ -691,9 +689,9 @@ describe('NFT', () => {
 			await expect(nft_eth
 				.connect(alice).mintDynamicPrice
 				(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							price: ethers.utils.parseEther("0.01"),
 							tokenUri: NFT_721_BASE_URI,
@@ -710,9 +708,9 @@ describe('NFT', () => {
 				nft_eth
 					.connect(alice).mintDynamicPrice
 					(
+						alice.address,
 						[
 							{
-								receiver: alice.address,
 								tokenId: 0,
 								price: ethers.utils.parseEther("0.02"),
 								tokenUri: NFT_721_BASE_URI,
@@ -755,9 +753,9 @@ describe('NFT', () => {
 			await expect(nft_eth
 				.connect(alice)
 				.mintDynamicPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							price: ethers.utils.parseEther("0.02"),
 							tokenUri: NFT_721_BASE_URI,
@@ -791,13 +789,15 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintDynamicPrice(
-					[{
-						receiver: alice.address,
-						tokenId: 0,
-						price: ethers.utils.parseEther("0.02"),
-						tokenUri: NFT_721_BASE_URI,
-						signature,
-					} as DynamicPriceParametersStruct],
+					alice.address,
+					[
+						{
+							tokenId: 0,
+							price: ethers.utils.parseEther("0.02"),
+							tokenUri: NFT_721_BASE_URI,
+							signature,
+						} as DynamicPriceParametersStruct
+					],
 					ETH_ADDRESS,
 					{
 						value: ethers.utils.parseEther("0.02"),
@@ -826,7 +826,6 @@ describe('NFT', () => {
 				const signature = EthCrypto.sign(signer.privateKey, message);
 
 				dynamicParams.push({
-					receiver: alice.address,
 					tokenId: i,
 					price: ethers.utils.parseEther("0.02"),
 					tokenUri: NFT_721_BASE_URI,
@@ -837,6 +836,7 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintDynamicPrice(
+					alice.address,
 					dynamicParams,
 					ETH_ADDRESS,
 					{
@@ -891,9 +891,9 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -935,9 +935,9 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -982,9 +982,9 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1029,9 +1029,9 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1059,9 +1059,9 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 1,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1131,9 +1131,9 @@ describe('NFT', () => {
 			await nft
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1201,9 +1201,9 @@ describe('NFT', () => {
 			await nft
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: true,
@@ -1245,9 +1245,9 @@ describe('NFT', () => {
 
 			await expect(
 				nft_eth.connect(alice).mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 1,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1278,9 +1278,9 @@ describe('NFT', () => {
 
 			await expect(
 				nft_eth.connect(alice).mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1295,9 +1295,9 @@ describe('NFT', () => {
 
 			await expect(
 				nft_eth.connect(alice).mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1329,9 +1329,9 @@ describe('NFT', () => {
 
 			await expect(
 				nft_erc20.connect(alice).mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 1,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1364,9 +1364,9 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1418,9 +1418,9 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1461,9 +1461,9 @@ describe('NFT', () => {
 			await nft_erc20
 				.connect(charlie)
 				.mintStaticPrice(
+					charlie.address,
 					[
 						{
-							receiver: charlie.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1515,9 +1515,9 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(alice)
 				.mintStaticPrice(
+					alice.address,
 					[
 						{
-							receiver: alice.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1556,9 +1556,9 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(charlie)
 				.mintStaticPrice(
+					charlie.address,
 					[
 						{
-							receiver: charlie.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1642,9 +1642,9 @@ describe('NFT', () => {
 			await nft
 				.connect(charlie)
 				.mintStaticPrice(
+					charlie.address,
 					[
 						{
-							receiver: charlie.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
@@ -1822,9 +1822,9 @@ describe('NFT', () => {
 			await nft_eth
 				.connect(charlie)
 				.mintStaticPrice(
+					charlie.address,
 					[
 						{
-							receiver: charlie.address,
 							tokenId: 0,
 							tokenUri: NFT_721_BASE_URI,
 							whitelisted: false,
