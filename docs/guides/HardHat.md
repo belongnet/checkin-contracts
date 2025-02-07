@@ -97,13 +97,13 @@ $ yarn coverage
 
 ### Deploy
 
-Testnet
+- Testnet
 
 ```shell
 $ yarn deploy:factory <network_name>
 ```
 
-Mainnet
+- Mainnet
 
 Ensure that your Ledger device is plugged in, unlocked, and connected to the Ethereum app, then run the deploy command:
 
@@ -140,8 +140,6 @@ At this point, you should see a prompt on your Ledger device to confirm the tran
 
 **To deploy NFT mock (for verification):**
 
-- V1
-
 ```shell
 $ yarn deploy:nft_mock <network_name>
 ```
@@ -155,8 +153,6 @@ After deployment update [.env](../../.env) with specifying the
 - `NFT_FACTORY_ADDRESS`: NFT Factory address that has been deployed.
 
 Then run the following commands:
-
-- V1
 
 ```shell
 $ yarn verify:factory <network_name>
@@ -188,15 +184,11 @@ Update [.env](../../.env) with specifying the:
 
 - `NFT_MOCK`: NFT mock address that has been deployed.
 
-- V1
-
 ```shell
 $ yarn verify:nft_mock <network_name>
 ```
 
 Then run the following commands:
-
-- V1
 
 ```shell
 $ yarn verify:deployed <network_name>
