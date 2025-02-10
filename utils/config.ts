@@ -58,9 +58,7 @@ export const blockscanConfig = (
   chainId: ChainIds
 ): CustomChainScanConfig => {
   if (
-    chainId === ChainIds.mainnet ||
-    chainId === ChainIds.polygon ||
-    chainId == ChainIds.sepolia
+    [ChainIds.mainnet, ChainIds.polygon, ChainIds.sepolia].includes(chainId)
   ) {
     throw Error("Not a custom chain.");
   }
@@ -80,6 +78,9 @@ export const blockscanConfig = (
       break;
     case ChainIds.linea:
       browserURL = `lineascan.build/`;
+      break;
+    case ChainIds.astar:
+      browserURL = `arbiscan.io/`;
       break;
     case ChainIds.astar:
       browserURL = `astar.blockscout.com/`;
@@ -112,7 +113,11 @@ export const blockscanConfig = (
     chainId !== ChainIds.skale_calypso &&
     chainId !== ChainIds.skale_calypso_testnet
   ) {
-    if (chainId === ChainIds.blast_sepolia || chainId === ChainIds.amoy) {
+    if (
+      [ChainIds.blast_sepolia, ChainIds.amoy, ChainIds.sepolia].includes(
+        chainId as ChainIds
+      )
+    ) {
       apiURL = `https://api-${browserURL}api`;
     } else {
       apiURL = `https://api.${browserURL}api`;

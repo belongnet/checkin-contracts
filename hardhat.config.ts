@@ -54,6 +54,7 @@ const config: HardhatUserConfig = {
     base: createLedgerConnect(ChainIds.base, ledgerAccounts),
     linea: createLedgerConnect(ChainIds.linea, ledgerAccounts),
     astar: createLedgerConnect(ChainIds.astar, ledgerAccounts),
+    arbitrum: createLedgerConnect(ChainIds.arbitrum, ledgerAccounts),
     skale_europa: createLedgerConnect(ChainIds.skale_europa, ledgerAccounts),
     skale_nebula: createLedgerConnect(ChainIds.skale_nebula, ledgerAccounts),
     skale_calypso: createLedgerConnect(ChainIds.skale_calypso, ledgerAccounts),

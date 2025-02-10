@@ -120,6 +120,8 @@ $ yarn deploy:factory <network_name>
 - `celo` - Celo mainnet
 - `base` - BASE mainnet
 - `linea` - Linea mainnet
+- `astar` - Astar mainnet
+- `arbitrum` - Arbitrum mainnet
 - `skale_europa` - Skale Europa Hub mainnet
 - `skale_nebula` - Skale Nebula Hub mainnet
 - `skale_calypso` - Skale Calypso Hub mainnet
@@ -203,6 +205,8 @@ $ yarn verify:deployed <network_name>
 - `celo` - Celo mainnet
 - `base` - BASE mainnet
 - `linea` - Linea mainnet
+- `astar` - Astar mainnet
+- `arbitrum` - Arbitrum mainnet
 - `skale_europa` - Skale Europa Hub mainnet
 - `skale_nebula` - Skale Nebula Hub mainnet
 - `skale_calypso` - Skale Calypso Hub mainnet

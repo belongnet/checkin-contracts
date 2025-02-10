@@ -1,5 +1,6 @@
 export enum ChainIds {
   mainnet = 1,
+  sepolia = 11155111,
   bsc = 56,
   polygon = 137,
   blast = 81457,
@@ -7,26 +8,16 @@ export enum ChainIds {
   base = 8453,
   linea = 59144,
   astar = 592,
+  arbitrum = 42161,
   skale_europa = 2046399126,
   skale_nebula = 1482601649,
   skale_calypso = 1564830818,
-  sepolia = 11155111,
   blast_sepolia = 168587773,
   skale_calypso_testnet = 974399131,
   amoy = 80002,
 }
 
 export const chainRPCs = (chainid: ChainIds, apiKey?: string): string => {
-  if (
-    chainid === ChainIds.mainnet ||
-    chainid === ChainIds.polygon ||
-    chainid == ChainIds.sepolia
-  ) {
-    if (apiKey == undefined || apiKey == "" || apiKey == null) {
-      throw Error("Proive api for the network.");
-    }
-  }
-
   switch (chainid) {
     case ChainIds.mainnet:
       return `https://eth.llamarpc.com`;
@@ -44,6 +35,8 @@ export const chainRPCs = (chainid: ChainIds, apiKey?: string): string => {
       return `https://linea-rpc.publicnode.com`;
     case ChainIds.astar:
       return `https://1rpc.io/astr`;
+    case ChainIds.arbitrum:
+      return `https://arbitrum.llamarpc.com`;
     case ChainIds.skale_europa:
       return `https://mainnet.skalenodes.com/v1/elated-tan-skat`;
     case ChainIds.skale_nebula:
@@ -70,7 +63,7 @@ export const blockscanUrls = (chainid: ChainIds, apiKey?: string): string => {
     chainid == ChainIds.sepolia
   ) {
     if (apiKey == undefined || apiKey == "" || apiKey == null) {
-      throw Error("Proive api for the network.");
+      throw Error("Provide api for the network.");
     }
   }
 
@@ -89,6 +82,8 @@ export const blockscanUrls = (chainid: ChainIds, apiKey?: string): string => {
       return `https://sepolia.blastscan.io/`;
     case ChainIds.amoy:
       return `https://amoy.polygonscan.com`;
+    case ChainIds.arbitrum:
+      return `https://arbiscan.io/`;
     case ChainIds.skale_europa:
       return `https://elated-tan-skat.explorer.mainnet.skalenodes.com/`;
     case ChainIds.skale_nebula:
