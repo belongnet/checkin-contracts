@@ -13,7 +13,7 @@
 
 ```json
 {
-  "Factory Nft": "0x2d7B04aA3dc9eE073b8bcA2B1E11aB9Cb5937e34",
+  "Factory Nft": "0x153de89888619a2a223fFa095853B160A3ac9Daa",
   "Signer": "0xa5C53AAb28b3dEDD65Aa6B18f59388651eB32dC1"
 }
 ```
@@ -58,7 +58,7 @@
 
 ```json
 {
-  "Factory Nft": "0xcD65AF3de260912D3D7E6C0Cf98308ebF5C8F2a8",
+  "Factory Nft": "0x1FDf398526cfc0aD20752b68fE31C109730B7A88",
   "Signer": "0xa5C53AAb28b3dEDD65Aa6B18f59388651eB32dC1"
 }
 ```
@@ -76,7 +76,7 @@
 
 ```json
 {
-  "Factory Nft": "0xa523Efddd270EcCbdCCD231DfB013053cf1F488B",
+  "Factory Nft": "0x5Ea297F1c2c7c6a173580C2aD60C3EB175692032",
   "Signer": "0xd439981Ed976A05891dB8ae171Fa334ED4d7696b"
 }
 ```
