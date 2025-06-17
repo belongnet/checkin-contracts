@@ -21,7 +21,7 @@ import {
 } from "../typechain-types/contracts/v2/factories/NFTFactoryV2";
 import { RoyaltiesReceiversStruct } from "../typechain-types/contracts/v2/RoyaltiesReceiverV2";
 
-describe.only("NFTFactoryV2", () => {
+describe("NFTFactoryV2", () => {
   const PLATFORM_COMISSION = "10";
   const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
   const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -150,7 +150,7 @@ describe.only("NFTFactoryV2", () => {
   });
 
   describe("Deploy NFT", () => {
-    it.only("should correct deploy NFT instance", async () => {
+    it("should correct deploy NFT instance", async () => {
       const { factory, validator, owner, alice, signer } = await loadFixture(
         fixture
       );
@@ -281,7 +281,6 @@ describe.only("NFTFactoryV2", () => {
 
       let payees: RoyaltiesReceiversStruct = await RoyaltiesReceiver.payees();
 
-      console.log(payees.creator);
       const shares = await Promise.all([
         RoyaltiesReceiver.shares(payees.creator),
         RoyaltiesReceiver.shares(payees.platform),
@@ -290,14 +289,14 @@ describe.only("NFTFactoryV2", () => {
           : RoyaltiesReceiver.shares(payees.referral),
       ]);
 
-      // expect(payees.creator).to.eq(alice.address);
-      // expect(payees.platform).to.eq(
-      //   (await factory.nftFactoryParameters()).platformAddress
-      // );
-      // expect(payees.referral).to.eq(ZERO_ADDRESS);
-      // expect(shares[0]).to.eq(8000);
-      // expect(shares[1]).to.eq(2000);
-      // expect(shares[2]).to.eq(0);
+      expect(payees.creator).to.eq(alice.address);
+      expect(payees.platform).to.eq(
+        (await factory.nftFactoryParameters()).platformAddress
+      );
+      expect(payees.referral).to.eq(ZERO_ADDRESS);
+      expect(shares[0]).to.eq(8000);
+      expect(shares[1]).to.eq(2000);
+      expect(shares[2]).to.eq(0);
     });
 
     it("should correctly deploy several NFT nfts", async () => {
