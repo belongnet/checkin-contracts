@@ -14,16 +14,16 @@ import {
   NftParametersStruct,
   DynamicPriceParametersStruct,
   StaticPriceParametersStruct,
-} from "../typechain-types/contracts/NFTV2";
+} from "../typechain-types/contracts/v2/NFTV2";
 import EthCrypto from "eth-crypto";
 import {
   NftFactoryParametersStruct,
   RoyaltiesParametersStruct,
   ImplementationsStruct,
-} from "../typechain-types/contracts/factories/NFTFactoryV2";
-import { RoyaltiesReceiversStruct } from "../typechain-types/contracts/RoyaltiesReceiverV2";
+} from "../typechain-types/contracts/v2/factories/NFTFactoryV2";
+import { RoyaltiesReceiversStruct } from "../typechain-types/contracts/v2/RoyaltiesReceiverV2";
 
-describe.only("NFTV2", () => {
+describe("NFTV2", () => {
   const PLATFORM_COMISSION = "100";
   const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
   const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -139,7 +139,7 @@ describe.only("NFTV2", () => {
         symbol: nftSymbol,
       },
       contractURI,
-      paymentToken: ETH_ADDRESS,
+      payingToken: ETH_ADDRESS,
       mintPrice: eth_price,
       whitelistMintPrice: eth_price,
       transferable: true,
@@ -155,7 +155,7 @@ describe.only("NFTV2", () => {
         symbol: nftSymbol + "2",
       },
       contractURI,
-      paymentToken: erc20Example.address,
+      payingToken: erc20Example.address,
       mintPrice: token_price,
       whitelistMintPrice: token_price,
       transferable: true,
@@ -262,9 +262,7 @@ describe.only("NFTV2", () => {
         instanceInfoETH.metadata.symbol
       );
       expect(infoReturned.contractURI).to.be.equal(instanceInfoETH.contractURI);
-      expect(infoReturned.paymentToken).to.be.equal(
-        instanceInfoETH.paymentToken
-      );
+      expect(infoReturned.payingToken).to.be.equal(instanceInfoETH.payingToken);
       expect(infoReturned.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
       expect(infoReturned.whitelistMintPrice).to.be.equal(
         instanceInfoETH.whitelistMintPrice
@@ -279,8 +277,8 @@ describe.only("NFTV2", () => {
       expect(await nft_eth.symbol()).to.be.equal(
         instanceInfoETH.metadata.symbol
       );
-      expect((await nft_eth.parameters()).info.paymentToken).to.be.equal(
-        instanceInfoETH.paymentToken
+      expect((await nft_eth.parameters()).info.payingToken).to.be.equal(
+        instanceInfoETH.payingToken
       );
       expect((await nft_eth.parameters()).info.mintPrice).to.be.equal(
         instanceInfoETH.mintPrice
@@ -320,8 +318,8 @@ describe.only("NFTV2", () => {
         instanceInfoToken.collectionExpire
       );
       expect(infoReturned.signature).to.be.equal(instanceInfoToken.signature);
-      expect(infoReturned.paymentToken).to.be.equal(
-        instanceInfoToken.paymentToken
+      expect(infoReturned.payingToken).to.be.equal(
+        instanceInfoToken.payingToken
       );
 
       const interfaceIdIERC2981 = "0x2a55205a"; // IERC2981 interface ID
@@ -353,7 +351,7 @@ describe.only("NFTV2", () => {
       await nft_eth_alice.setNftParameters(
         (
           await nft_eth.parameters()
-        ).info.paymentToken,
+        ).info.payingToken,
         (
           await nft_eth.parameters()
         ).info.mintPrice,
@@ -375,7 +373,7 @@ describe.only("NFTV2", () => {
       await nft_eth_alice.setNftParameters(
         (
           await nft_eth.parameters()
-        ).info.paymentToken,
+        ).info.payingToken,
         (
           await nft_eth.parameters()
         ).info.mintPrice,
@@ -542,7 +540,7 @@ describe.only("NFTV2", () => {
           .setNftParameters(
             (
               await nft_eth.parameters()
-            ).info.paymentToken,
+            ).info.payingToken,
             (
               await nft_eth.parameters()
             ).info.mintPrice,
@@ -1048,21 +1046,21 @@ describe.only("NFTV2", () => {
 
       const newPrice = ethers.utils.parseEther("1");
       const newWLPrice = ethers.utils.parseEther("0.1");
-      const newPaymentToken = bob.address;
+      const newpayingToken = bob.address;
 
       await expect(
         nft_eth
           .connect(owner)
-          .setNftParameters(newPaymentToken, newPrice, newWLPrice, true)
+          .setNftParameters(newpayingToken, newPrice, newWLPrice, true)
       ).to.be.revertedWithCustomError(nft_eth, "Unauthorized");
 
       await nft_eth
         .connect(alice)
-        .setNftParameters(newPaymentToken, newPrice, newWLPrice, true);
+        .setNftParameters(newpayingToken, newPrice, newWLPrice, true);
 
       const [, , , , , infoReturned] = await nft_eth.parameters();
 
-      expect(infoReturned.paymentToken).to.be.equal(newPaymentToken);
+      expect(infoReturned.payingToken).to.be.equal(newpayingToken);
       expect(infoReturned.mintPrice).to.be.equal(newPrice);
       expect(infoReturned.whitelistMintPrice).to.be.equal(newWLPrice);
     });
@@ -1301,7 +1299,7 @@ describe.only("NFTV2", () => {
             symbol: "INNME",
           },
           contractURI: "ipfs://tbd",
-          paymentToken: erc20Example.address,
+          payingToken: erc20Example.address,
           mintPrice: 100,
           whitelistMintPrice: 100,
           transferable: false,
@@ -1375,7 +1373,7 @@ describe.only("NFTV2", () => {
             symbol: "INNME",
           },
           contractURI: "ipfs://tbd",
-          paymentToken: erc20Example.address,
+          payingToken: erc20Example.address,
           mintPrice: ethers.utils.parseEther("100"),
           whitelistMintPrice: ethers.utils.parseEther("50"),
           transferable: true,
@@ -1868,7 +1866,7 @@ describe.only("NFTV2", () => {
             symbol: nftSymbol,
           },
           contractURI,
-          paymentToken: ETH_ADDRESS,
+          payingToken: ETH_ADDRESS,
           mintPrice: eth_price,
           whitelistMintPrice: eth_price,
           transferable: true,
