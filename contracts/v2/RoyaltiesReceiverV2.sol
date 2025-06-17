@@ -100,29 +100,33 @@ contract RoyaltiesReceiverV2 is Initializable {
 
     function shares(address account) public view returns (uint256) {
         NFTFactoryV2 factory = NFTFactoryV2(nftFactory);
-        if (account == payees.creator) {
+        RoyaltiesReceivers memory royaltiesReceivers = payees;
+
+        if (account == royaltiesReceivers.creator) {
             return factory.royaltiesParameters().amountToCreator;
         } else {
             uint256 platformShare = factory
                 .royaltiesParameters()
                 .amountToPlatform;
-            uint256 referralShare = factory.getReferralShare(
-                payees.creator,
-                referralCode
-            );
-            if (referralShare > 0 && payees.referral != address(0)) {
-                unchecked {
-                    platformShare -= referralShare;
+            uint256 referralShare;
+            if (royaltiesReceivers.referral != address(0)) {
+                referralShare = factory.getReferralShare(
+                    royaltiesReceivers.creator,
+                    referralCode
+                );
+
+                if (referralShare > 0) {
+                    unchecked {
+                        platformShare -= referralShare;
+                    }
                 }
             }
-
-            if (account == payees.platform) {
-                return platformShare;
-            } else if (account != address(0) && account == payees.referral) {
-                return referralShare;
-            } else {
-                return 0;
-            }
+            return
+                account == royaltiesReceivers.platform
+                    ? platformShare
+                    : account == royaltiesReceivers.referral
+                        ? referralShare
+                        : 0;
         }
     }
 
@@ -138,13 +142,13 @@ contract RoyaltiesReceiverV2 is Initializable {
      * @param token The address of the currecny to be released (ERC20 token address or address(0) for native Ether).
      */
     function releaseAll(address token) external {
-        RoyaltiesReceivers memory payees_ = payees;
+        RoyaltiesReceivers memory royaltiesReceivers = payees;
 
-        _release(token, payees_.creator);
+        _release(token, royaltiesReceivers.creator);
 
-        _release(token, payees_.platform);
-        if (payees_.referral != address(0)) {
-            _release(token, payees_.referral);
+        _release(token, royaltiesReceivers.platform);
+        if (royaltiesReceivers.referral != address(0)) {
+            _release(token, royaltiesReceivers.referral);
         }
     }
 
@@ -194,21 +198,22 @@ contract RoyaltiesReceiverV2 is Initializable {
      * @param account The payee's address receiving the payment.
      */
     function _release(address token, address account) internal {
-        uint256 payment = _pendingPayment(token, account);
+        bool isNativeRelease = token == ETH_ADDRESS;
+        uint256 payment = _pendingPayment(isNativeRelease, token, account);
 
         if (payment == 0) {
             return;
         }
 
-        if (token == ETH_ADDRESS) {
-            nativeReleases.released[account] += payment;
-            nativeReleases.totalReleased += payment;
+        Releases storage releases = isNativeRelease
+            ? nativeReleases
+            : erc20Releases[token];
+        releases.released[account] += payment;
+        releases.totalReleased += payment;
 
+        if (isNativeRelease) {
             account.safeTransferETH(payment);
         } else {
-            erc20Releases[token].released[account] += payment;
-            erc20Releases[token].totalReleased += payment;
-
             token.safeTransfer(account, payment);
         }
 
@@ -221,26 +226,25 @@ contract RoyaltiesReceiverV2 is Initializable {
      * @return The amount of funds still owed to the payee.
      */
     function _pendingPayment(
+        bool isNativeRelease,
         address token,
         address account
     ) private view returns (uint256) {
-        bool isNativeRelease = token == ETH_ADDRESS;
+        Releases storage releases = isNativeRelease
+            ? nativeReleases
+            : erc20Releases[token];
+        uint256 balance = isNativeRelease
+            ? address(this).balance
+            : token.balanceOf(address(this));
 
-        uint256 totalReceived = isNativeRelease
-            ? address(this).balance + nativeReleases.totalReleased
-            : token.balanceOf(address(this)) +
-                erc20Releases[token].totalReleased;
-        uint256 alreadyReleased = isNativeRelease
-            ? nativeReleases.released[account]
-            : erc20Releases[token].released[account];
+        uint256 payment = ((balance + releases.totalReleased) *
+            shares(account)) / TOTAL_SHARES;
 
-        uint256 payment = (totalReceived * shares(account)) / TOTAL_SHARES;
-
-        if (payment <= alreadyReleased) {
+        if (payment <= releases.released[account]) {
             return 0;
         }
 
-        return payment - alreadyReleased;
+        return payment - releases.released[account];
     }
 
     function _onlyToPayee(address account) private view {
