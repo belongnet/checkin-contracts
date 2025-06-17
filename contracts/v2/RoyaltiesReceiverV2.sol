@@ -5,7 +5,7 @@ import {Initializable} from "solady/src/utils/Initializable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 import {NFTFactoryV2} from "./factories/NFTFactoryV2.sol";
-import {Releases} from "./StructuresV2.sol";
+import {Releases} from "../Structures.sol";
 
 /// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment(address account);

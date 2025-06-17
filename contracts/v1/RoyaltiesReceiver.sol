@@ -4,8 +4,7 @@ pragma solidity 0.8.27;
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 import {NFTFactory} from "./factories/NFTFactory.sol";
-
-import {Releases} from "./Structures.sol";
+import {Releases} from "../Structures.sol";
 
 /// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment(address account);

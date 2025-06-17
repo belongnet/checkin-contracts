@@ -12,7 +12,7 @@ import {NFTV2} from "../NFTV2.sol";
 
 import {RoyaltiesReceiverV2} from "../RoyaltiesReceiverV2.sol";
 
-import {NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo, InvalidSignature} from "../StructuresV2.sol";
+import {NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo, InvalidSignature} from "../../Structures.sol";
 
 // ========== Errors ==========
 
@@ -161,9 +161,9 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
             NFTAlreadyExists()
         );
 
-        _info.paymentToken = _info.paymentToken == address(0)
+        _info.payingToken = _info.payingToken == address(0)
             ? params.defaultPaymentCurrency
-            : _info.paymentToken;
+            : _info.payingToken;
 
         address receiver;
 

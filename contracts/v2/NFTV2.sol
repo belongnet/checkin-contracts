@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
+import {Initializable} from "solady/src/utils/Initializable.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC2981} from "solady/src/tokens/ERC2981.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {AddressHelper} from "./utils/AddressHelper.sol";
+import {AddressHelper} from "../utils/AddressHelper.sol";
 
-import {CreatorToken} from "./utils/CreatorToken.sol";
-import {NFTFactory, NftParameters, InstanceInfo} from "./factories/NFTFactory.sol";
+import {CreatorToken} from "../utils/CreatorToken.sol";
+import {NFTFactoryV2, NftParameters, InstanceInfo} from "./factories/NFTFactoryV2.sol";
 
-import {StaticPriceParameters, DynamicPriceParameters, NftParameters, InvalidSignature} from "./Structures.sol";
+import {StaticPriceParameters, DynamicPriceParameters, NftParameters, InvalidSignature} from "../Structures.sol";
 
 // ========== Errors ==========
 
@@ -43,7 +44,7 @@ error TokenIdDoesNotExist();
  * @notice Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
  * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
  */
-contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
+contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
     using AddressHelper for address;
     using SafeTransferLib for address;
 
@@ -87,12 +88,17 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
 
     // ========== Constructor ==========
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    // constructor() {
+    //     _disableInitializers();
+    // }
+
     /**
      * @notice Deploys the contract with the given collection parameters and transfer validator.
      * @dev Called by the factory when a new instance is deployed.
      * @param _params Collection parameters containing information like name, symbol, fees, and more.
      */
-    constructor(NftParameters memory _params) {
+    function initialize(NftParameters calldata _params) external initializer {
         parameters = _params;
 
         if (_params.info.feeNumerator > 0) {
@@ -102,6 +108,9 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
         _setTransferValidator(_params.transferValidator);
 
         _initializeOwner(_params.creator);
+    }
+    function initV() external view returns (uint64) {
+        return _getInitializedVersion();
     }
 
     // ========== Functions ==========
@@ -149,7 +158,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
     ) external payable {
         require(
             paramsArray.length <=
-                NFTFactory(parameters.factory)
+                NFTFactoryV2(parameters.factory)
                     .nftFactoryParameters()
                     .maxArraySize,
             WrongArraySize()
@@ -159,7 +168,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            NFTFactory(parameters.factory)
+            NFTFactoryV2(parameters.factory)
                 .nftFactoryParameters()
                 .signerAddress
                 .checkStaticPriceParameters(receiver, paramsArray[i]);
@@ -199,7 +208,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
     ) external payable {
         require(
             paramsArray.length <=
-                NFTFactory(parameters.factory)
+                NFTFactoryV2(parameters.factory)
                     .nftFactoryParameters()
                     .maxArraySize,
             WrongArraySize()
@@ -207,7 +216,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            NFTFactory(parameters.factory)
+            NFTFactoryV2(parameters.factory)
                 .nftFactoryParameters()
                 .signerAddress
                 .checkDynamicPriceParameters(receiver, paramsArray[i]);
@@ -345,7 +354,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
 
         require(amount == price, IncorrectETHAmountSent(amount));
 
-        NFTFactory _factory = NFTFactory(_parameters.factory);
+        NFTFactoryV2 _factory = NFTFactoryV2(_parameters.factory);
 
         uint256 fees;
         uint256 amountToCreator;

@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-import {Initializable} from "solady/src/utils/Initializable.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC2981} from "solady/src/tokens/ERC2981.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {AddressHelperV2} from "./utils/AddressHelperV2.sol";
 
-import {CreatorToken} from "./utils/CreatorToken.sol";
-import {NFTFactoryV2, NftParameters, InstanceInfo} from "./factories/NFTFactoryV2.sol";
-
-import {StaticPriceParameters, DynamicPriceParameters, NftParameters, InvalidSignature} from "./StructuresV2.sol";
+import {AddressHelper} from "../utils/AddressHelper.sol";
+import {CreatorToken} from "../utils/CreatorToken.sol";
+import {NFTFactory, NftParameters, InstanceInfo} from "./factories/NFTFactory.sol";
+import {StaticPriceParameters, DynamicPriceParameters, NftParameters, InvalidSignature} from "../Structures.sol";
 
 // ========== Errors ==========
 
@@ -44,8 +42,8 @@ error TokenIdDoesNotExist();
  * @notice Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
  * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
  */
-contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
-    using AddressHelperV2 for address;
+contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
+    using AddressHelper for address;
     using SafeTransferLib for address;
 
     // ========== Events ==========
@@ -88,17 +86,12 @@ contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
 
     // ========== Constructor ==========
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    // constructor() {
-    //     _disableInitializers();
-    // }
-
     /**
      * @notice Deploys the contract with the given collection parameters and transfer validator.
      * @dev Called by the factory when a new instance is deployed.
      * @param _params Collection parameters containing information like name, symbol, fees, and more.
      */
-    function initialize(NftParameters calldata _params) external initializer {
+    constructor(NftParameters memory _params) {
         parameters = _params;
 
         if (_params.info.feeNumerator > 0) {
@@ -109,34 +102,31 @@ contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
 
         _initializeOwner(_params.creator);
     }
-    function initV() external view returns (uint64) {
-        return _getInitializedVersion();
-    }
 
     // ========== Functions ==========
 
     /**
      * @notice Sets a new paying token and mint prices for the collection.
      * @dev Can only be called by the contract owner.
-     * @param _paymentToken The new paying token address.
+     * @param _payingToken The new paying token address.
      * @param _mintPrice The new mint price.
      * @param _whitelistMintPrice The new whitelist mint price.
      * @param autoApprove If true, the transfer validator will be automatically approved for all token holders.
      */
     function setNftParameters(
-        address _paymentToken,
+        address _payingToken,
         uint128 _mintPrice,
         uint128 _whitelistMintPrice,
         bool autoApprove
     ) external onlyOwner {
-        parameters.info.paymentToken = _paymentToken;
+        parameters.info.payingToken = _payingToken;
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
 
         autoApproveTransfersFromValidator = autoApprove;
 
         emit NftParametersChanged(
-            _paymentToken,
+            _payingToken,
             _mintPrice,
             _whitelistMintPrice,
             autoApprove
@@ -158,7 +148,7 @@ contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
     ) external payable {
         require(
             paramsArray.length <=
-                NFTFactoryV2(parameters.factory)
+                NFTFactory(parameters.factory)
                     .nftFactoryParameters()
                     .maxArraySize,
             WrongArraySize()
@@ -168,7 +158,7 @@ contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            NFTFactoryV2(parameters.factory)
+            NFTFactory(parameters.factory)
                 .nftFactoryParameters()
                 .signerAddress
                 .checkStaticPriceParameters(receiver, paramsArray[i]);
@@ -208,7 +198,7 @@ contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
     ) external payable {
         require(
             paramsArray.length <=
-                NFTFactoryV2(parameters.factory)
+                NFTFactory(parameters.factory)
                     .nftFactoryParameters()
                     .maxArraySize,
             WrongArraySize()
@@ -216,7 +206,7 @@ contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            NFTFactoryV2(parameters.factory)
+            NFTFactory(parameters.factory)
                 .nftFactoryParameters()
                 .signerAddress
                 .checkDynamicPriceParameters(receiver, paramsArray[i]);
@@ -346,15 +336,15 @@ contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
         NftParameters memory _parameters = parameters;
 
         require(
-            expectedPayingToken == _parameters.info.paymentToken,
-            TokenChanged(_parameters.info.paymentToken)
+            expectedPayingToken == _parameters.info.payingToken,
+            TokenChanged(_parameters.info.payingToken)
         );
 
         amount = expectedPayingToken == ETH_ADDRESS ? msg.value : price;
 
         require(amount == price, IncorrectETHAmountSent(amount));
 
-        NFTFactoryV2 _factory = NFTFactoryV2(_parameters.factory);
+        NFTFactory _factory = NFTFactory(_parameters.factory);
 
         uint256 fees;
         uint256 amountToCreator;

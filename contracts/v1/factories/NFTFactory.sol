@@ -6,12 +6,9 @@ import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 import {ReferralSystem} from "./utils/ReferralSystem.sol";
-
 import {NFT} from "../NFT.sol";
-
 import {RoyaltiesReceiver} from "../RoyaltiesReceiver.sol";
-
-import {NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo, InvalidSignature} from "../Structures.sol";
+import {NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo, InvalidSignature} from "../../Structures.sol";
 
 // ========== Errors ==========
 
