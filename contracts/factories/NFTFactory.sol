@@ -5,7 +5,7 @@ import {Initializable} from "solady/src/utils/Initializable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
-import {ReferralSystem} from "../utils/ReferralSystem.sol";
+import {ReferralSystem} from "./utils/ReferralSystem.sol";
 
 import {NFT} from "../NFT.sol";
 
