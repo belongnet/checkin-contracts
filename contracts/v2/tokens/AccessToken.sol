@@ -6,12 +6,12 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC2981} from "solady/src/tokens/ERC2981.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {AddressHelper} from "../utils/AddressHelper.sol";
+import {AddressHelper} from "../../utils/AddressHelper.sol";
 
-import {CreatorToken} from "../utils/CreatorToken.sol";
-import {NFTFactoryV2, NftParameters, InstanceInfo} from "./factories/NFTFactoryV2.sol";
+import {CreatorToken} from "../../utils/CreatorToken.sol";
+import {NFTFactoryV2} from "../factories/NFTFactoryV2.sol";
 
-import {StaticPriceParameters, DynamicPriceParameters, NftParameters, InvalidSignature} from "../Structures.sol";
+import {StaticPriceParameters, DynamicPriceParameters, NftParameters, InstanceInfo, InvalidSignature} from "../../Structures.sol";
 
 // ========== Errors ==========
 
@@ -40,11 +40,11 @@ error TotalSupplyLimitReached();
 error TokenIdDoesNotExist();
 
 /**
- * @title NFT Contract
+ * @title AccessToken Contract
  * @notice Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
  * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
  */
-contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
+contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
     using AddressHelper for address;
     using SafeTransferLib for address;
 
@@ -108,9 +108,6 @@ contract NFTV2 is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
         _setTransferValidator(_params.transferValidator);
 
         _initializeOwner(_params.creator);
-    }
-    function initV() external view returns (uint64) {
-        return _getInitializedVersion();
     }
 
     // ========== Functions ==========

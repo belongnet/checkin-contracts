@@ -7,11 +7,9 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {LibClone} from "solady/src/utils/LibClone.sol";
 
 import {ReferralSystemV2} from "./utils/ReferralSystemV2.sol";
-
-import {NFTV2} from "../NFTV2.sol";
-
+import {AccessToken} from "../tokens/AccessToken.sol";
+import {VenueToken} from "../tokens/VenueToken.sol";
 import {RoyaltiesReceiverV2} from "../RoyaltiesReceiverV2.sol";
-
 import {NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo, InvalidSignature} from "../../Structures.sol";
 
 // ========== Errors ==========
@@ -60,7 +58,8 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
     }
 
     struct Implementations {
-        address nft;
+        address accessToken;
+        address venueToken;
         address royaltiesReceiver;
     }
 
@@ -126,12 +125,12 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
      * @dev Creates a new instance of the NFT and adds the information to the storage contract.
      * @param _info Struct containing the details of the new NFT instance.
      * @param referralCode The referral code associated with this NFT instance.
-     * @return nftAddress The address of the created NFT instance.
+     * @return accessToken The address of the created NFT instance.
      */
     function produce(
         InstanceInfo memory _info,
         bytes32 referralCode
-    ) external returns (address nftAddress) {
+    ) external returns (address accessToken) {
         NftFactoryParameters memory params = _nftFactoryParameters;
 
         // Name, symbol signed through BE, and checks if the size > 0.
@@ -181,8 +180,10 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
             );
         }
 
-        nftAddress = currentImplementations.nft.cloneDeterministic(salt);
-        NFTV2(nftAddress).initialize(
+        accessToken = currentImplementations.accessToken.cloneDeterministic(
+            salt
+        );
+        AccessToken(accessToken).initialize(
             NftParameters({
                 transferValidator: params.transferValidator,
                 factory: address(this),
@@ -195,7 +196,7 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
 
         NftInstanceInfo memory info = NftInstanceInfo({
             creator: msg.sender,
-            nftAddress: nftAddress,
+            nftAddress: accessToken,
             metadata: _info.metadata,
             royaltiesReceiver: receiver
         });
