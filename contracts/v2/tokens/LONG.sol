@@ -23,20 +23,17 @@ contract LONG is
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
-    bytes32 public constant BACKEND_ROLE = keccak256("BACKEND_ROLE");
 
     constructor(
         address defaultAdmin,
         address pauser,
         address minter,
-        address burner,
-        address backend
+        address burner
     ) ERC20("LONG", "LONG") ERC20Permit("LONG") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(PAUSER_ROLE, pauser);
         _grantRole(MINTER_ROLE, minter);
         _grantRole(BURNER_ROLE, burner);
-        _grantRole(BACKEND_ROLE, BACKEND_ROLE);
     }
 
     /**
