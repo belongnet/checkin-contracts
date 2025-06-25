@@ -8,7 +8,7 @@ import {EnumerableRoles} from "solady/src/auth/EnumerableRoles.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
-contract VenueToken is Initializable, ERC1155, Ownable, EnumerableRoles {
+contract CreditToken is Initializable, ERC1155, Ownable, EnumerableRoles {
     event TokenUriSet(uint256 tokenId, string tokenUri);
 
     uint256 public constant DEFAULT_ADMIN_ROLE =
