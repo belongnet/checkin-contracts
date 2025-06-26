@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 
 import {ERC1155Base} from "./base/ERC1155Base.sol";
 
-contract CreditToken is ERC1155Base {
+contract ReferralToken is ERC1155Base {
     function initialize(
         address defaultAdmin,
         address manager,
