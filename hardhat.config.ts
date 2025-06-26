@@ -4,7 +4,6 @@ import "@openzeppelin/hardhat-upgrades";
 import "solidity-docgen";
 import "hardhat-contract-sizer";
 import "@nomicfoundation/hardhat-ledger";
-
 import dotenv from "dotenv";
 import { ChainIds } from "./utils/chain-ids";
 import {
