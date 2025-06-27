@@ -140,3 +140,31 @@ struct Releases {
     /// @notice A mapping to track the released amount per payee account.
     mapping(address => uint256) released;
 }
+
+struct RoyaltiesParameters {
+    uint16 amountToCreator;
+    uint16 amountToPlatform;
+}
+
+struct Implementations {
+    address accessToken;
+    address promoterToken;
+    address royaltiesReceiver;
+}
+
+struct VenueInfo {
+    address venue;
+    uint256 venueId;
+    uint256 amount;
+    string uri;
+    bytes signature;
+}
+
+struct SwapInfo {
+    uint24 poolFees;
+    address uniswapV3Router;
+    address uniswapV3Quoter;
+    address weth;
+    address tokenFrom; // eg USDC
+    address tokenTo; // eg LONG
+}
