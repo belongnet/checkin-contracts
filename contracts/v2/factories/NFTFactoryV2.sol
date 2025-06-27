@@ -5,17 +5,15 @@ import {Initializable} from "solady/src/utils/Initializable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {LibClone} from "solady/src/utils/LibClone.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {IQuoter} from "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 
 import {ReferralSystemV2} from "./utils/ReferralSystemV2.sol";
 import {AccessToken} from "../tokens/AccessToken.sol";
-import {VenueToken} from "../tokens/VenueToken.sol";
+import {CreditToken} from "../tokens/CreditToken.sol";
 import {RoyaltiesReceiverV2} from "../RoyaltiesReceiverV2.sol";
-import {NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo, InvalidSignature} from "../../Structures.sol";
-
-// ========== Errors ==========
-
-/// @notice Error thrown when an NFT with the same name and symbol already exists.
-error NFTAlreadyExists();
+import {NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo, RoyaltiesParameters, VenueInfo, Implementations, SwapInfo, InvalidSignature} from "../../Structures.sol";
 
 /**
  * @title NFT Factory Contract
@@ -23,8 +21,14 @@ error NFTAlreadyExists();
  * @dev This contract allows producing NFTs, managing platform settings, and verifying signatures.
  */
 contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
-    using SignatureCheckerLib for address;
-    using LibClone for address;
+    // ========== Errors ==========
+
+    /// @notice Error thrown when an NFT with the same name and symbol already exists.
+    error NFTAlreadyExists();
+
+    error TotalRoyaltiesExceed100Pecents();
+
+    error WrongReferralCode(bytes32 referralCode);
 
     // ========== Events ==========
 
@@ -43,6 +47,7 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Emitted when the implementation address is upgraded.
     event ImplementationUpgraded(Implementations currentImplementations);
     event RoyaltiesUpgraded(RoyaltiesParameters amountToCreator);
+    event VenueDeposit(uint256 venueId, uint256 amount, bytes32 referralCode);
 
     // ========== State Variables ==========
 
@@ -52,22 +57,16 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
     /// @notice A mapping from keccak256(name, symbol) to the NFT instance address.
     mapping(bytes32 => NftInstanceInfo) public getNftInstanceInfo;
 
-    struct RoyaltiesParameters {
-        uint16 amountToCreator;
-        uint16 amountToPlatform;
-    }
-
-    struct Implementations {
-        address accessToken;
-        address venueToken;
-        address royaltiesReceiver;
-    }
-
     Implementations public currentImplementations;
 
     RoyaltiesParameters internal _royaltiesParameters;
 
-    error TotalRoyaltiesExceed100Pecents();
+    SwapInfo public swapInfo;
+
+    address public venueToken;
+
+    mapping(uint256 venueId => mapping(bytes32 referralCode => uint256 remainingCredits))
+        public venueAffiliateCredits;
 
     // ========== Functions ==========
 
@@ -85,74 +84,86 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
         NftFactoryParameters calldata nftFactoryParameters_,
         uint16[5] calldata percentages,
         RoyaltiesParameters calldata _royalties,
-        Implementations calldata _implementations
+        Implementations calldata _implementations,
+        address _venueToken,
+        uint256 _referralCreditsAmount,
+        uint256 _affiliatePercentage
     ) external initializer {
         _nftFactoryParameters = nftFactoryParameters_;
-        _setReferralPercentages(percentages);
+        venueToken = _venueToken;
+        _setRoyalties(_royalties);
+        _setImplementations(_implementations);
+
+        _initializeReferralSystem(
+            _referralCreditsAmount,
+            _affiliatePercentage,
+            percentages
+        );
 
         _initializeOwner(msg.sender);
-
-        _upgradeRoyalties(_royalties);
-        _upgradeImplementations(_implementations);
     }
 
     // function upgradeToV2(
     //     RoyaltiesParameters calldata _royalties,
     //     Implementations calldata _implementations
     // ) external reinitializer(2) {
-    //     _upgradeRoyalties(_royalties);
-    //     _upgradeImplementations(_implementations);
+    //     _setRoyalties(_royalties);
+    //     _setImplementations(_implementations);
     // }
 
     /// @notice Upgrades the implementation contract for future clones.
     /// @dev Only callable by the contract owner.
-    function upgradeImplementations(
+    function setImplementations(
         Implementations calldata _implementations
     ) external onlyOwner {
-        _upgradeImplementations(_implementations);
+        _setImplementations(_implementations);
     }
 
     /// @notice Upgrades the implementation contract for future clones.
     /// @dev Only callable by the contract owner.
-    function upgradeRoyalties(
+    function setRoyalties(
         RoyaltiesParameters calldata _royalties
     ) external onlyOwner {
-        _upgradeRoyalties(_royalties);
+        _setRoyalties(_royalties);
     }
 
     /**
      * @notice Produces a new NFT i nstance.
      * @dev Creates a new instance of the NFT and adds the information to the storage contract.
-     * @param _info Struct containing the details of the new NFT instance.
+     * @param instanceInfo Struct containing the details of the new NFT instance.
      * @param referralCode The referral code associated with this NFT instance.
      * @return accessToken The address of the created NFT instance.
      */
     function produce(
-        InstanceInfo memory _info,
+        InstanceInfo memory instanceInfo,
         bytes32 referralCode
     ) external returns (address accessToken) {
-        NftFactoryParameters memory params = _nftFactoryParameters;
+        NftFactoryParameters memory factoryParams = _nftFactoryParameters;
 
         // Name, symbol signed through BE, and checks if the size > 0.
         if (
-            !params.signerAddress.isValidSignatureNow(
+            !SignatureCheckerLib.isValidSignatureNow(
+                factoryParams.signerAddress,
                 keccak256(
                     abi.encodePacked(
-                        _info.metadata.name,
-                        _info.metadata.symbol,
-                        _info.contractURI,
-                        _info.feeNumerator,
+                        instanceInfo.metadata.name,
+                        instanceInfo.metadata.symbol,
+                        instanceInfo.contractURI,
+                        instanceInfo.feeNumerator,
                         block.chainid
                     )
                 ),
-                _info.signature
+                instanceInfo.signature
             )
         ) {
             revert InvalidSignature();
         }
 
         bytes32 salt = keccak256(
-            abi.encodePacked(_info.metadata.name, _info.metadata.symbol)
+            abi.encodePacked(
+                instanceInfo.metadata.name,
+                instanceInfo.metadata.symbol
+            )
         );
 
         require(
@@ -160,19 +171,19 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
             NFTAlreadyExists()
         );
 
-        _info.payingToken = _info.payingToken == address(0)
-            ? params.defaultPaymentCurrency
-            : _info.payingToken;
+        instanceInfo.payingToken = instanceInfo.payingToken == address(0)
+            ? factoryParams.defaultPaymentCurrency
+            : instanceInfo.payingToken;
 
         address receiver;
 
         _setReferralUser(referralCode, msg.sender);
-        if (_info.feeNumerator > 0) {
-            receiver = currentImplementations.royaltiesReceiver.clone();
+        if (instanceInfo.feeNumerator > 0) {
+            receiver = LibClone.clone(currentImplementations.royaltiesReceiver);
             RoyaltiesReceiverV2(payable(receiver)).initialize(
                 RoyaltiesReceiverV2.RoyaltiesReceivers(
                     msg.sender,
-                    params.platformAddress,
+                    factoryParams.platformAddress,
                     referrals[referralCode].creator
                 ),
                 address(this),
@@ -180,30 +191,124 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
             );
         }
 
-        accessToken = currentImplementations.accessToken.cloneDeterministic(
+        accessToken = LibClone.cloneDeterministic(
+            currentImplementations.accessToken,
             salt
         );
         AccessToken(accessToken).initialize(
             NftParameters({
-                transferValidator: params.transferValidator,
+                transferValidator: factoryParams.transferValidator,
                 factory: address(this),
-                info: _info,
+                info: instanceInfo,
                 creator: msg.sender,
                 feeReceiver: receiver,
                 referralCode: referralCode
             })
         );
 
-        NftInstanceInfo memory info = NftInstanceInfo({
+        NftInstanceInfo memory nftInstanceInfo = NftInstanceInfo({
             creator: msg.sender,
             nftAddress: accessToken,
-            metadata: _info.metadata,
+            metadata: instanceInfo.metadata,
             royaltiesReceiver: receiver
         });
 
-        getNftInstanceInfo[salt] = info;
+        getNftInstanceInfo[salt] = nftInstanceInfo;
 
-        emit NFTCreated(salt, info);
+        emit NFTCreated(salt, nftInstanceInfo);
+    }
+
+    function venueDeposit(
+        VenueInfo calldata venueInfo,
+        bytes32 referralCode
+    ) external {
+        if (
+            !SignatureCheckerLib.isValidSignatureNow(
+                _nftFactoryParameters.signerAddress,
+                keccak256(
+                    abi.encodePacked(
+                        venueInfo.venue,
+                        venueInfo.venueId,
+                        venueInfo.amount,
+                        block.chainid
+                    )
+                ),
+                venueInfo.signature
+            )
+        ) {
+            revert InvalidSignature();
+        }
+
+        uint256 amountToTransfer = venueInfo.amount;
+
+        if (referralCode != bytes32(0)) {
+            affiliate = referrals[referralCode].creator;
+            require(affiliate != address(0), WrongReferralCode(referralCode));
+
+            if (
+                venueAffiliateCredits[venueInfo.venueId][referralCode] <
+                referralCreditsAmount
+            ) {
+                SwapInfo memory _swapInfo = swapInfo;
+
+                uint256 amountToSwap = _calculateRate(
+                    venueInfo.amount,
+                    affiliatePercentage
+                );
+
+                unchecked {
+                    amountToTransfer -= amountToSwap;
+                }
+
+                bytes memory path = abi.encodePacked(
+                    _swapInfo.tokenFrom,
+                    _swapInfo.poolFees,
+                    _swapInfo.weth,
+                    _swapInfo.poolFees,
+                    _swapInfo.tokenTo
+                );
+                uint256 amountOutMinimum = IQuoter(_swapInfo.uniswapV3Quoter)
+                    .quoteExactInput(path, amountToSwap);
+                ISwapRouter.ExactInputParams memory swapParams = ISwapRouter
+                    .ExactInputParams({
+                        path: path,
+                        recipient: affiliate,
+                        deadline: block.timestamp,
+                        amountIn: amountToSwap,
+                        amountOutMinimum: amountOutMinimum
+                    });
+
+                unchecked {
+                    ++venueAffiliateCredits[venueInfo.venueId][referralCode];
+                }
+
+                SafeTransferLib.safeTransferFrom(
+                    _swapInfo.tokenFrom,
+                    msg.sender,
+                    address(this),
+                    amountToSwap
+                );
+                SafeTransferLib.safeApprove(
+                    _swapInfo.tokenFrom,
+                    _swapInfo.uniswapV3Router,
+                    amountToSwap
+                );
+                ISwapRouter(_swapInfo.uniswapV3Router).exactInput(swapParams);
+            }
+        }
+
+        CreditToken(venueToken).mint(
+            venueInfo.venue,
+            venueInfo.venueId,
+            amountToTransfer,
+            venueInfo.uri
+        );
+
+        emit VenuePaidDeposit(
+            venueInfo.venueId,
+            amountToTransfer,
+            referralCode
+        );
     }
 
     /**
@@ -240,28 +345,14 @@ contract NFTFactoryV2 is Initializable, Ownable, ReferralSystemV2 {
         return _royaltiesParameters;
     }
 
-    function getReferralShare(
-        address referralUser,
-        bytes32 code
-    ) public view returns (uint256) {
-        return
-            getReferralRate(
-                referralUser,
-                code,
-                _royaltiesParameters.amountToPlatform
-            );
-    }
-
-    function _upgradeImplementations(
+    function _setImplementations(
         Implementations calldata _implementations
     ) private {
         currentImplementations = _implementations;
         emit ImplementationUpgraded(_implementations);
     }
 
-    function _upgradeRoyalties(
-        RoyaltiesParameters calldata _royalties
-    ) private {
+    function _setRoyalties(RoyaltiesParameters calldata _royalties) private {
         require(
             _royalties.amountToCreator + _royalties.amountToPlatform <= 10000,
             TotalRoyaltiesExceed100Pecents()
