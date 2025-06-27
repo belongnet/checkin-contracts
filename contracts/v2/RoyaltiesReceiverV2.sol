@@ -110,9 +110,10 @@ contract RoyaltiesReceiverV2 is Initializable {
                 .amountToPlatform;
             uint256 referralShare;
             if (royaltiesReceivers.referral != address(0)) {
-                referralShare = factory.getReferralShare(
+                referralShare = factory.getReferralRate(
                     royaltiesReceivers.creator,
-                    referralCode
+                    referralCode,
+                    factory.royaltiesParameters().amountToPlatform
                 );
 
                 if (referralShare > 0) {

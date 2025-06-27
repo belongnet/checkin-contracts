@@ -3,28 +3,30 @@ pragma solidity 0.8.27;
 
 import {ReferralCode} from "../../../Structures.sol";
 
-// ========== Errors ==========
-
-/// @notice Error thrown when a referral code already exists for the creator.
-/// @param referralCreator The address of the creator who already has a referral code.
-/// @param hashedCode The existing referral code.
-error ReferralCodeExists(address referralCreator, bytes32 hashedCode);
-
-/// @notice Error thrown when a user tries to add themselves as their own referrer, or
-/// thrown when a referral code is used that does not have an owner.
-error ReferralCodeOwnerError();
-
-/// @notice Error thrown when a user attempts to get a referral rate for a code they haven't used.
-/// @param referralUser The address of the user who did not use the code.
-/// @param code The referral code the user has not used.
-error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
-
 /**
  * @title Referral System Contract
  * @notice Provides referral system functionality, including creating referral codes, setting users, and managing referral percentages.
  * @dev This abstract contract allows contracts that inherit it to implement referral code-based rewards and tracking.
  */
 abstract contract ReferralSystemV2 {
+    // ========== Errors ==========
+
+    /// @notice Error thrown when a referral code already exists for the creator.
+    /// @param referralCreator The address of the creator who already has a referral code.
+    /// @param hashedCode The existing referral code.
+    error ReferralCodeExists(address referralCreator, bytes32 hashedCode);
+
+    /// @notice Error thrown when a user tries to add themselves as their own referrer, or
+    /// thrown when a referral code is used that does not have an owner.
+    error ReferralCodeOwnerError();
+
+    /// @notice Error thrown when a user attempts to get a referral rate for a code they haven't used.
+    /// @param referralUser The address of the user who did not use the code.
+    /// @param code The referral code the user has not used.
+    error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
+
+    error PecentageExceedsMax(uint16 percentage);
+
     // ========== Events ==========
 
     /// @notice Emitted when referral percentages are set.
@@ -40,6 +42,10 @@ abstract contract ReferralSystemV2 {
     /// @param code The referral code that was used.
     /// @param usedBy The address that used the referral code.
     event ReferralCodeUsed(bytes32 indexed code, address indexed usedBy);
+
+    event ReferralCreditsAmountSet(uint256 credits);
+
+    event AffiliatePercentageSet(uint256 affiliatePercentage);
 
     // ========== Constants ==========
 
@@ -57,6 +63,19 @@ abstract contract ReferralSystemV2 {
     /// @notice Maps referral users to their respective used codes and counts the number of times the code was used.
     mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed))
         public usedCode;
+
+    uint256 public referralCreditsAmount;
+    uint256 public affiliatePercentage;
+
+    function _initializeReferralSystem(
+        uint256 _referralCreditsAmount,
+        uint256 _affiliatePercentage,
+        uint16[5] calldata percentages
+    ) internal {
+        _setReferralCreditsAmount(_referralCreditsAmount);
+        _setAffiliatePercentage(_affiliatePercentage);
+        _setReferralPercentages(percentages);
+    }
 
     // ========== Functions ==========
 
@@ -131,10 +150,26 @@ abstract contract ReferralSystemV2 {
      */
     function _setReferralPercentages(uint16[5] calldata percentages) internal {
         for (uint256 i = 0; i < percentages.length; ++i) {
+            require(
+                percentages[i] <= SCALING_FACTOR,
+                PecentageExceedsMax(percentages[i])
+            );
             usedToPercentage[i] = percentages[i];
         }
 
         emit PercentagesSet(percentages);
+    }
+
+    function _setReferralCreditsAmount(uint256 credits) internal {
+        referralCreditsAmount = credits;
+
+        emit ReferralCreditsAmountSet(credits);
+    }
+
+    function _setAffiliatePercentage(uint256 _affiliatePercentage) internal {
+        affiliatePercentage = _affiliatePercentage;
+
+        emit AffiliatePercentageSet(_affiliatePercentage);
     }
 
     /**
@@ -180,11 +215,18 @@ abstract contract ReferralSystemV2 {
         uint256 amount
     ) internal view returns (uint256 used, uint256 rate) {
         used = usedCode[referralUser][code];
-        rate = (amount * usedToPercentage[used]) / SCALING_FACTOR;
+        rate = _calculateRate(amount, usedToPercentage[used]);
+    }
+
+    function _calculateRate(
+        uint256 amount,
+        uint256 percentage
+    ) internal pure returns (uint256) {
+        rate = (amount * percentage) / SCALING_FACTOR;
     }
 
     // ========== Reserved Storage Space ==========
 
     /// @dev Reserved storage space to allow for layout changes in the future.
-    uint256[50] private __gap;
+    uint256[48] private __gap;
 }
