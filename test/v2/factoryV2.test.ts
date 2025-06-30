@@ -1,20 +1,26 @@
 import { ethers, upgrades } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, BigNumberish, ContractFactory } from 'ethers';
-import { WETHMock, MockTransferValidator, NFTFactoryV2, RoyaltiesReceiverV2 } from '../../typechain-types';
+import {
+  WETHMock,
+  MockTransferValidator,
+  NFTFactoryV2,
+  RoyaltiesReceiverV2,
+  CreditToken,
+  AccessToken,
+} from '../../typechain-types';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
-import { InstanceInfoStruct, NFTV2 } from '../../typechain-types/contracts/v2/NFTV2';
-import { NftFactoryParametersStruct } from '../../typechain-types/contracts/factories/NFTFactoryV2';
+import { PromiseOrValue } from '../../typechain-types/common';
 
-describe.only('NFTFactoryV2', () => {
+describe('NFTFactoryV2', () => {
   const PLATFORM_COMISSION = '10';
   const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const chainId = 31337;
 
-  let factoryParams: NftFactoryParametersStruct,
-    referralPercentages: BigNumberish[],
+  let factoryParams: NFTFactoryV2.NftFactoryParametersStruct,
+    referralPercentages: any,
     royalties: NFTFactoryV2.RoyaltiesParametersStruct,
     implementations: NFTFactoryV2.ImplementationsStruct;
 
@@ -31,16 +37,20 @@ describe.only('NFTFactoryV2', () => {
     await validator.deployed();
 
     const NFTImplementation: ContractFactory = await ethers.getContractFactory('AccessToken');
-    const nft: NFTV2 = (await NFTImplementation.deploy()) as NFTV2;
+    const nft: AccessToken = (await NFTImplementation.deploy()) as AccessToken;
     await nft.deployed();
 
     const RRImplementation: ContractFactory = await ethers.getContractFactory('RoyaltiesReceiverV2');
     const rr: RoyaltiesReceiverV2 = (await RRImplementation.deploy()) as RoyaltiesReceiverV2;
     await rr.deployed();
 
+    const VenueToken: ContractFactory = await ethers.getContractFactory('CreditToken');
+    const venueToken: CreditToken = (await VenueToken.deploy()) as CreditToken;
+    await venueToken.deployed();
+
     implementations = {
-      nft: nft.address,
-      RoyaltiesReceiverV2: rr.address,
+      accessToken: nft.address,
+      royaltiesReceiver: rr.address,
     };
 
     royalties = {
@@ -62,7 +72,7 @@ describe.only('NFTFactoryV2', () => {
     const NFTFactoryV2: ContractFactory = await ethers.getContractFactory('NFTFactoryV2');
     const factory: NFTFactoryV2 = (await upgrades.deployProxy(
       NFTFactoryV2,
-      [factoryParams, referralPercentages, royalties, implementations],
+      [factoryParams, referralPercentages, royalties, implementations, venueToken.address, 3, 500],
       {
         unsafeAllow: ['constructor'],
       },
@@ -73,6 +83,7 @@ describe.only('NFTFactoryV2', () => {
       factory,
       validator,
       erc20Example,
+      venueToken,
       owner,
       alice,
       bob,
@@ -92,16 +103,16 @@ describe.only('NFTFactoryV2', () => {
       expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(factoryParams.maxArraySize);
       expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(validator.address);
 
-      referralPercentages.forEach(async (pecentage, i) => {
+      referralPercentages.forEach(async (pecentage: any, i: PromiseOrValue<BigNumberish>) => {
         expect(await factory.usedToPercentage(i)).to.be.equal(pecentage);
       });
     });
 
     it('can not be initialized again', async () => {
-      const { factory } = await loadFixture(fixture);
+      const { factory, venueToken } = await loadFixture(fixture);
 
       await expect(
-        factory.initialize(factoryParams, referralPercentages, royalties, implementations),
+        factory.initialize(factoryParams, referralPercentages, royalties, implementations, venueToken.address, 3, 500),
       ).to.be.revertedWithCustomError(factory, 'InvalidInitialization');
     });
   });
@@ -120,13 +131,13 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName },
         { type: 'string', value: nftSymbol },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: feeNumerator },
+        { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
 
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      const info: InstanceInfoStruct = {
+      const info: NFTFactoryV2.InstanceInfoStruct = {
         metadata: {
           name: nftName,
           symbol: nftSymbol,
@@ -148,7 +159,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: '' },
         { type: 'string', value: nftSymbol },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: feeNumerator },
+        { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -164,7 +175,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName },
         { type: 'string', value: '' },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: feeNumerator },
+        { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -180,7 +191,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName },
         { type: 'string', value: nftSymbol },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: feeNumerator },
+        { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId + 1 },
       ]);
 
@@ -206,9 +217,8 @@ describe.only('NFTFactoryV2', () => {
 
       console.log('instanceAddress = ', nftAddress);
 
-      const nft = await ethers.getContractAt('NFTV2', nftAddress);
-      const [transferValidator, factoryAddress, creator, feeReceiver, infoReturned] =
-        await nft.parameters();
+      const nft = await ethers.getContractAt('AccessToken', nftAddress);
+      const [transferValidator, factoryAddress, creator, feeReceiver, , infoReturned] = await nft.parameters();
 
       expect(transferValidator).to.be.equal(validator.address);
       expect(factoryAddress).to.be.equal(factory.address);
@@ -257,7 +267,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName1 },
         { type: 'string', value: nftSymbol1 },
         { type: 'string', value: contractURI1 },
-        { type: 'uint96', value: 500 },
+        { type: 'uint96' as any, value: 500 },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -278,7 +288,7 @@ describe.only('NFTFactoryV2', () => {
           feeNumerator: BigNumber.from('500'),
           collectionExpire: BigNumber.from('86400'),
           signature: signature1,
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         ethers.constants.HashZero,
       );
 
@@ -286,7 +296,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName2 },
         { type: 'string', value: nftSymbol2 },
         { type: 'string', value: contractURI2 },
-        { type: 'uint96', value: 0 },
+        { type: 'uint96' as any, value: 0 },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -307,7 +317,7 @@ describe.only('NFTFactoryV2', () => {
           feeNumerator: 0,
           collectionExpire: BigNumber.from('86400'),
           signature: signature2,
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         ethers.constants.HashZero,
       );
 
@@ -315,7 +325,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName3 },
         { type: 'string', value: nftSymbol3 },
         { type: 'string', value: contractURI3 },
-        { type: 'uint96', value: 500 },
+        { type: 'uint96' as any, value: 500 },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -336,7 +346,7 @@ describe.only('NFTFactoryV2', () => {
           feeNumerator: BigNumber.from('500'),
           collectionExpire: BigNumber.from('86400'),
           signature: signature3,
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         ethers.constants.HashZero,
       );
 
@@ -379,7 +389,7 @@ describe.only('NFTFactoryV2', () => {
       console.log('instanceAddress2 = ', instanceInfo2.nftAddress);
       console.log('instanceAddress3 = ', instanceInfo3.nftAddress);
 
-      const nft1 = await ethers.getContractAt('NFTV2', instanceInfo1.nftAddress);
+      const nft1 = await ethers.getContractAt('AccessToken', instanceInfo1.nftAddress);
       let [, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft1.parameters();
       expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
@@ -388,7 +398,7 @@ describe.only('NFTFactoryV2', () => {
       expect(creator).to.be.equal(alice.address);
       expect(feeReceiver).not.to.be.equal(ZERO_ADDRESS);
 
-      const nft2 = await ethers.getContractAt('NFTV2', instanceInfo2.nftAddress);
+      const nft2 = await ethers.getContractAt('AccessToken', instanceInfo2.nftAddress);
       [, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft2.parameters();
       expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
@@ -397,7 +407,7 @@ describe.only('NFTFactoryV2', () => {
       expect(creator).to.be.equal(bob.address);
       expect(feeReceiver).to.be.equal(ZERO_ADDRESS);
 
-      const nft3 = await ethers.getContractAt('NFTV2', instanceInfo3.nftAddress);
+      const nft3 = await ethers.getContractAt('AccessToken', instanceInfo3.nftAddress);
       [, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft3.parameters();
       expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
@@ -455,7 +465,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName },
         { type: 'string', value: nftSymbol },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: feeNumerator },
+        { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -477,7 +487,7 @@ describe.only('NFTFactoryV2', () => {
             feeNumerator: feeNumerator,
             collectionExpire: BigNumber.from('86400'),
             signature: signature,
-          } as InstanceInfoStruct,
+          } as NFTFactoryV2.InstanceInfoStruct,
           hashedCodeFalse,
         ),
       ).to.be.revertedWithCustomError(factory, 'ReferralCodeOwnerError');
@@ -498,7 +508,7 @@ describe.only('NFTFactoryV2', () => {
             feeNumerator: feeNumerator,
             collectionExpire: BigNumber.from('86400'),
             signature: signature,
-          } as InstanceInfoStruct,
+          } as NFTFactoryV2.InstanceInfoStruct,
           hashedCode,
         ),
       ).to.be.revertedWithCustomError(factory, 'ReferralCodeOwnerError');
@@ -518,7 +528,7 @@ describe.only('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         hashedCode,
       );
 
@@ -538,7 +548,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName },
         { type: 'string', value: nftSymbol },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: feeNumerator },
+        { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -559,7 +569,7 @@ describe.only('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         hashedCode,
       );
 
@@ -574,7 +584,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName },
         { type: 'string', value: nftSymbol },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: feeNumerator },
+        { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -595,7 +605,7 @@ describe.only('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         hashedCode,
       );
 
@@ -610,7 +620,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName },
         { type: 'string', value: nftSymbol },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: feeNumerator },
+        { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -631,7 +641,7 @@ describe.only('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         hashedCode,
       );
 
@@ -646,7 +656,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName },
         { type: 'string', value: nftSymbol },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: feeNumerator },
+        { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -667,7 +677,7 @@ describe.only('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         hashedCode,
       );
 
@@ -682,7 +692,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName },
         { type: 'string', value: nftSymbol },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: feeNumerator },
+        { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -703,7 +713,7 @@ describe.only('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         hashedCode,
       );
 
@@ -745,7 +755,7 @@ describe.only('NFTFactoryV2', () => {
         { type: 'string', value: nftName },
         { type: 'string', value: nftSymbol },
         { type: 'string', value: contractURI },
-        { type: 'uint96', value: 500 },
+        { type: 'uint96' as any, value: 500 },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -766,7 +776,7 @@ describe.only('NFTFactoryV2', () => {
           feeNumerator: BigNumber.from('500'),
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         ethers.constants.HashZero,
       );
 
@@ -786,7 +796,7 @@ describe.only('NFTFactoryV2', () => {
             feeNumerator: BigNumber.from('500'),
             collectionExpire: BigNumber.from('86400'),
             signature: signature,
-          } as InstanceInfoStruct,
+          } as NFTFactoryV2.InstanceInfoStruct,
           ethers.constants.HashZero,
         ),
       ).to.be.revertedWithCustomError(factory, 'NFTAlreadyExists');
@@ -795,5 +805,5 @@ describe.only('NFTFactoryV2', () => {
 });
 
 function getPercentage(amount: BigNumberish, percentage: BigNumberish): BigNumberish {
-  return (BigNumber.from(amount).mul(BigNumber.from(percentage)).div(10000);
+  return BigNumber.from(amount).mul(BigNumber.from(percentage)).div(10000);
 }

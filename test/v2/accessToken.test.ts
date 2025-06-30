@@ -1,23 +1,22 @@
 import { ethers, upgrades } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
-import { BigNumber, BigNumberish, ContractFactory } from 'ethers';
+import { BigNumber, ContractFactory } from 'ethers';
 import {
   WETHMock,
   MockTransferValidator,
-  NFTFactoryV2 as NFTFactory,
-  RoyaltiesReceiverV2 as RoyaltiesReceiver,
+  NFTFactoryV2,
+  RoyaltiesReceiverV2 as RoyaltiesReceiverV2,
+  AccessToken,
+  CreditToken,
 } from '../../typechain-types';
 import { expect } from 'chai';
+import EthCrypto from 'eth-crypto';
 import {
-  AccessToken as NFT,
   DynamicPriceParametersStruct,
   StaticPriceParametersStruct,
 } from '../../typechain-types/contracts/v2/tokens/AccessToken';
-import EthCrypto from 'eth-crypto';
-import { InstanceInfoStruct } from '../../scripts/helpers/structs';
-import { NftFactoryParametersStruct, NFTFactoryV2 } from '../../typechain-types/contracts/factories/NFTFactoryV2';
 
-describe('NFTV2', () => {
+describe('AccessToken', () => {
   const PLATFORM_COMISSION = '100';
   const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -29,10 +28,10 @@ describe('NFTV2', () => {
   const eth_price = ethers.utils.parseEther('0.03');
   const token_price = 10000;
 
-  let instanceInfoETH: InstanceInfoStruct,
-    instanceInfoToken: InstanceInfoStruct,
-    nftInfo: NftFactoryParametersStruct,
-    referralPercentages: BigNumberish[],
+  let instanceInfoETH: NFTFactoryV2.InstanceInfoStruct,
+    instanceInfoToken: NFTFactoryV2.InstanceInfoStruct,
+    factoryParams: NFTFactoryV2.NftFactoryParametersStruct,
+    referralPercentages: any,
     royalties: NFTFactoryV2.RoyaltiesParametersStruct,
     implementations: NFTFactoryV2.ImplementationsStruct;
 
@@ -49,15 +48,19 @@ describe('NFTV2', () => {
     await erc20Example.deployed();
 
     const NFTImplementation: ContractFactory = await ethers.getContractFactory('AccessToken');
-    const nft: NFT = (await NFTImplementation.deploy()) as NFT;
+    const nft: AccessToken = (await NFTImplementation.deploy()) as AccessToken;
     await nft.deployed();
 
     const RRImplementation: ContractFactory = await ethers.getContractFactory('RoyaltiesReceiverV2');
-    const rr: RoyaltiesReceiver = (await RRImplementation.deploy()) as RoyaltiesReceiver;
+    const rr: RoyaltiesReceiverV2 = (await RRImplementation.deploy()) as RoyaltiesReceiverV2;
     await rr.deployed();
 
+    const VenueToken: ContractFactory = await ethers.getContractFactory('CreditToken');
+    const venueToken: CreditToken = (await VenueToken.deploy()) as CreditToken;
+    await venueToken.deployed();
+
     implementations = {
-      nft: nft.address,
+      accessToken: nft.address,
       royaltiesReceiver: rr.address,
     };
 
@@ -66,7 +69,7 @@ describe('NFTV2', () => {
       amountToPlatform: 2000,
     };
 
-    nftInfo = {
+    factoryParams = {
       transferValidator: validator.address,
       platformAddress: owner.address,
       signerAddress: signer.address,
@@ -77,14 +80,14 @@ describe('NFTV2', () => {
 
     referralPercentages = [0, 5000, 3000, 1500, 500];
 
-    const NFTFactory: ContractFactory = await ethers.getContractFactory('NFTFactoryV2');
-    const factory: NFTFactory = (await upgrades.deployProxy(
-      NFTFactory,
-      [nftInfo, referralPercentages, royalties, implementations],
+    const NFTFactoryV2: ContractFactory = await ethers.getContractFactory('NFTFactoryV2');
+    const factory: NFTFactoryV2 = (await upgrades.deployProxy(
+      NFTFactoryV2,
+      [factoryParams, referralPercentages, royalties, implementations, venueToken.address, 3, 500],
       {
         unsafeAllow: ['constructor'],
       },
-    )) as NFTFactory;
+    )) as NFTFactoryV2;
     await factory.deployed();
 
     const hashedCode = EthCrypto.hash.keccak256([
@@ -99,7 +102,7 @@ describe('NFTV2', () => {
       { type: 'string', value: nftName },
       { type: 'string', value: nftSymbol },
       { type: 'string', value: contractURI },
-      { type: 'uint96', value: 600 },
+      { type: 'uint96' as any, value: 600 },
       { type: 'uint256', value: chainId },
     ]);
 
@@ -109,7 +112,7 @@ describe('NFTV2', () => {
       { type: 'string', value: nftName + '2' },
       { type: 'string', value: nftSymbol + '2' },
       { type: 'string', value: contractURI },
-      { type: 'uint96', value: 600 },
+      { type: 'uint96' as any as any, value: 600 },
       { type: 'uint256', value: chainId },
     ]);
 
@@ -150,25 +153,25 @@ describe('NFTV2', () => {
     await factory.connect(alice).produce(instanceInfoETH, hashedCode);
     await factory.connect(alice).produce(instanceInfoToken, hashedCode);
 
-    const Nft = await ethers.getContractFactory('NFTV2');
-    const RoyaltiesReceiver = await ethers.getContractFactory('RoyaltiesReceiverV2');
+    const Nft = await ethers.getContractFactory('AccessToken');
+    const RoyaltiesReceiverV2 = await ethers.getContractFactory('RoyaltiesReceiverV2');
 
-    const nft_eth: NFT = await ethers.getContractAt(
-      'NFTV2',
+    const nft_eth: AccessToken = await ethers.getContractAt(
+      'AccessToken',
       (
         await factory.getNftInstanceInfo(ethers.utils.solidityKeccak256(['string', 'string'], [nftName, nftSymbol]))
       ).nftAddress,
     );
 
-    const receiver_eth: RoyaltiesReceiver = await ethers.getContractAt(
+    const receiver_eth: RoyaltiesReceiverV2 = await ethers.getContractAt(
       'RoyaltiesReceiverV2',
       (
         await factory.getNftInstanceInfo(ethers.utils.solidityKeccak256(['string', 'string'], [nftName, nftSymbol]))
       ).royaltiesReceiver,
     );
 
-    const nft_erc20: NFT = await ethers.getContractAt(
-      'NFTV2',
+    const nft_erc20: AccessToken = await ethers.getContractAt(
+      'AccessToken',
       (
         await factory.getNftInstanceInfo(
           ethers.utils.solidityKeccak256(['string', 'string'], [nftName + '2', nftSymbol + '2']),
@@ -176,7 +179,7 @@ describe('NFTV2', () => {
       ).nftAddress,
     );
 
-    const receiver_erc20: RoyaltiesReceiver = await ethers.getContractAt(
+    const receiver_erc20: RoyaltiesReceiverV2 = await ethers.getContractAt(
       'RoyaltiesReceiverV2',
       (
         await factory.getNftInstanceInfo(
@@ -193,6 +196,7 @@ describe('NFTV2', () => {
       receiver_erc20,
       validator,
       erc20Example,
+      venueToken,
       owner,
       alice,
       bob,
@@ -200,9 +204,9 @@ describe('NFTV2', () => {
       pete,
       signer,
       hashedCode,
-      NFTFactory,
+      NFTFactoryV2,
       Nft,
-      RoyaltiesReceiver,
+      RoyaltiesReceiverV2,
     };
   }
 
@@ -305,19 +309,19 @@ describe('NFTV2', () => {
     });
 
     it('Validator is caller', async () => {
-      const { NFTFactory, alice, bob, signer } = await loadFixture(fixture);
+      const { NFTFactoryV2, venueToken, alice, bob, signer } = await loadFixture(fixture);
 
-      const factory: NFTFactory = (await upgrades.deployProxy(
-        NFTFactory,
-        [nftInfo, referralPercentages, royalties, implementations],
+      const factory: NFTFactoryV2 = (await upgrades.deployProxy(
+        NFTFactoryV2,
+        [factoryParams, referralPercentages, royalties, implementations, venueToken.address, 3, 500],
         {
           unsafeAllow: ['constructor'],
         },
-      )) as NFTFactory;
+      )) as NFTFactoryV2;
       await factory.deployed();
 
-      nftInfo.transferValidator = bob.address;
-      await factory.setFactoryParameters(nftInfo, referralPercentages);
+      factoryParams.transferValidator = bob.address;
+      await factory.setFactoryParameters(factoryParams, referralPercentages);
 
       const hashedCode = EthCrypto.hash.keccak256([
         { type: 'address', value: bob.address },
@@ -329,8 +333,8 @@ describe('NFTV2', () => {
 
       await factory.connect(alice).produce(instanceInfoETH, hashedCode);
 
-      const nft_eth: NFT = await ethers.getContractAt(
-        'NFTV2',
+      const nft_eth: AccessToken = await ethers.getContractAt(
+        'AccessToken',
         (
           await factory.getNftInstanceInfo(ethers.utils.solidityKeccak256(['string', 'string'], [nftName, nftSymbol]))
         ).nftAddress,
@@ -342,7 +346,7 @@ describe('NFTV2', () => {
         { type: 'address', value: bob.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -369,19 +373,19 @@ describe('NFTV2', () => {
     });
 
     it('Validator is address zero', async () => {
-      const { NFTFactory, alice, bob, signer } = await loadFixture(fixture);
+      const { NFTFactoryV2, venueToken, alice, bob, signer } = await loadFixture(fixture);
 
-      const factory: NFTFactory = (await upgrades.deployProxy(
-        NFTFactory,
-        [nftInfo, referralPercentages, royalties, implementations],
+      const factory: NFTFactoryV2 = (await upgrades.deployProxy(
+        NFTFactoryV2,
+        [factoryParams, referralPercentages, royalties, implementations, venueToken.address, 3, 500],
         {
           unsafeAllow: ['constructor'],
         },
-      )) as NFTFactory;
+      )) as NFTFactoryV2;
       await factory.deployed();
 
-      nftInfo.transferValidator = ZERO_ADDRESS;
-      await factory.setFactoryParameters(nftInfo, referralPercentages);
+      factoryParams.transferValidator = ZERO_ADDRESS;
+      await factory.setFactoryParameters(factoryParams, referralPercentages);
 
       const hashedCode = EthCrypto.hash.keccak256([
         { type: 'address', value: bob.address },
@@ -393,8 +397,8 @@ describe('NFTV2', () => {
 
       await factory.connect(alice).produce(instanceInfoETH, hashedCode);
 
-      const nft_eth: NFT = await ethers.getContractAt(
-        'NFTV2',
+      const nft_eth: AccessToken = await ethers.getContractAt(
+        'AccessToken',
         (
           await factory.getNftInstanceInfo(ethers.utils.solidityKeccak256(['string', 'string'], [nftName, nftSymbol]))
         ).nftAddress,
@@ -406,7 +410,7 @@ describe('NFTV2', () => {
         { type: 'address', value: bob.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -466,7 +470,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -566,7 +570,7 @@ describe('NFTV2', () => {
           { type: 'address', value: alice.address },
           { type: 'uint256', value: i },
           { type: 'string', value: NFT_721_BASE_URI },
-          { type: 'bool', value: false },
+          { type: 'bool', value: false as any as any },
           { type: 'uint256', value: chainId },
         ]);
 
@@ -593,7 +597,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 11 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -628,7 +632,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: true },
+        { type: 'bool', value: true as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -638,7 +642,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 1 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -652,7 +656,7 @@ describe('NFTV2', () => {
           platformCommission: PLATFORM_COMISSION,
           defaultPaymentCurrency: ETH_ADDRESS,
           maxArraySize: 1,
-        } as NftFactoryParametersStruct,
+        } as NFTFactoryV2.NftFactoryParametersStruct,
         referralPercentages,
       );
       await expect(
@@ -679,8 +683,8 @@ describe('NFTV2', () => {
           },
         ),
       ).to.be.revertedWithCustomError(nft_eth, 'WrongArraySize');
-      nftInfo.maxArraySize = 20;
-      await factory.setFactoryParameters(nftInfo, referralPercentages);
+      factoryParams.maxArraySize = 20;
+      await factory.setFactoryParameters(factoryParams, referralPercentages);
 
       await expect(
         nft_eth.connect(alice).mintStaticPrice(
@@ -735,7 +739,7 @@ describe('NFTV2', () => {
           { type: 'address', value: alice.address },
           { type: 'uint256', value: i },
           { type: 'string', value: NFT_721_BASE_URI },
-          { type: 'bool', value: false },
+          { type: 'bool', value: false as any },
           { type: 'uint256', value: chainId },
         ]);
 
@@ -765,7 +769,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'uint256', value: ethers.utils.parseEther('0.02') },
+        { type: 'uint256', value: ethers.utils.parseEther('0.02') as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -815,7 +819,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'uint256', value: ethers.utils.parseEther('0.02') },
+        { type: 'uint256', value: ethers.utils.parseEther('0.02') as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -829,7 +833,7 @@ describe('NFTV2', () => {
           platformCommission: PLATFORM_COMISSION,
           defaultPaymentCurrency: ETH_ADDRESS,
           maxArraySize: 1,
-        } as NftFactoryParametersStruct,
+        } as NFTFactoryV2.NftFactoryParametersStruct,
         referralPercentages,
       );
       await expect(
@@ -864,7 +868,7 @@ describe('NFTV2', () => {
           platformCommission: PLATFORM_COMISSION,
           defaultPaymentCurrency: ETH_ADDRESS,
           maxArraySize: 20,
-        } as NftFactoryParametersStruct,
+        } as NFTFactoryV2.NftFactoryParametersStruct,
         referralPercentages,
       );
 
@@ -899,7 +903,7 @@ describe('NFTV2', () => {
           { type: 'address', value: alice.address },
           { type: 'uint256', value: i },
           { type: 'string', value: NFT_721_BASE_URI },
-          { type: 'uint256', value: ethers.utils.parseEther('0.02') },
+          { type: 'uint256', value: ethers.utils.parseEther('0.02') as any },
           { type: 'uint256', value: chainId },
         ]);
 
@@ -951,7 +955,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -976,8 +980,8 @@ describe('NFTV2', () => {
     it('Should mint correctly with erc20 token without fee', async () => {
       const { factory, nft_erc20, alice, erc20Example, signer, owner } = await loadFixture(fixture);
 
-      nftInfo.platformCommission = 0;
-      await factory.setFactoryParameters(nftInfo, referralPercentages);
+      factoryParams.platformCommission = 0;
+      await factory.setFactoryParameters(factoryParams, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -990,7 +994,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1016,8 +1020,8 @@ describe('NFTV2', () => {
     it('Should transfer if transferrable', async () => {
       const { factory, nft_erc20, alice, erc20Example, signer, owner, bob } = await loadFixture(fixture);
 
-      nftInfo.platformCommission = 0;
-      await factory.setFactoryParameters(nftInfo, referralPercentages);
+      factoryParams.platformCommission = 0;
+      await factory.setFactoryParameters(factoryParams, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1030,7 +1034,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1058,8 +1062,8 @@ describe('NFTV2', () => {
     it('Should transfer if transferrable', async () => {
       const { factory, nft_erc20, alice, erc20Example, signer, owner, bob } = await loadFixture(fixture);
 
-      nftInfo.platformCommission = 0;
-      await factory.setFactoryParameters(nftInfo, referralPercentages);
+      factoryParams.platformCommission = 0;
+      await factory.setFactoryParameters(factoryParams, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1072,7 +1076,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1100,7 +1104,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 1 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1129,8 +1133,8 @@ describe('NFTV2', () => {
         fixture,
       );
 
-      nftInfo.platformCommission = 0;
-      await factory.setFactoryParameters(nftInfo, referralPercentages);
+      factoryParams.platformCommission = 0;
+      await factory.setFactoryParameters(factoryParams, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1153,11 +1157,11 @@ describe('NFTV2', () => {
           feeNumerator: BigNumber.from('600'),
           collectionExpire: BigNumber.from('86400'),
           signature: '0x00',
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         creator: alice.address,
         referralCode: ethers.constants.HashZero,
         feeReceiver: receiver_erc20.address,
-      } as NftParametersStruct);
+      } as AccessToken.NftParametersStruct);
 
       // mint test tokens
       await erc20Example.connect(alice).mint(alice.address, 10000);
@@ -1168,7 +1172,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1220,11 +1224,11 @@ describe('NFTV2', () => {
           feeNumerator: BigNumber.from('600'),
           collectionExpire: BigNumber.from('86400'),
           signature: '0x00',
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         creator: bob.address,
         referralCode: ethers.constants.HashZero,
         feeReceiver: receiver_erc20.address,
-      } as NftParametersStruct);
+      } as AccessToken.NftParametersStruct);
 
       // mint test tokens
       await erc20Example.connect(alice).mint(alice.address, ethers.utils.parseEther('100'));
@@ -1235,7 +1239,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: true },
+        { type: 'bool', value: true as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1275,7 +1279,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 1 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
       const bad_signature = alice.signMessage(bad_message);
@@ -1307,7 +1311,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1362,7 +1366,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 1 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1396,7 +1400,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1431,8 +1435,8 @@ describe('NFTV2', () => {
       await erc20Example.mint(alice.address, token_price);
       await erc20Example.connect(alice).approve(nft_erc20.address, ethers.constants.MaxUint256);
 
-      nftInfo.platformCommission = 0;
-      await factory.setFactoryParameters(nftInfo, referralPercentages);
+      factoryParams.platformCommission = 0;
+      await factory.setFactoryParameters(factoryParams, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1440,7 +1444,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1480,7 +1484,7 @@ describe('NFTV2', () => {
         { type: 'address', value: charlie.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1519,8 +1523,8 @@ describe('NFTV2', () => {
     it('Should withdraw all funds when contract has 0 comission', async () => {
       const { alice, nft_eth, signer, factory, owner } = await loadFixture(fixture);
 
-      nftInfo.platformCommission = 0;
-      await factory.setFactoryParameters(nftInfo, referralPercentages);
+      factoryParams.platformCommission = 0;
+      await factory.setFactoryParameters(factoryParams, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1528,7 +1532,7 @@ describe('NFTV2', () => {
         { type: 'address', value: alice.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1566,7 +1570,7 @@ describe('NFTV2', () => {
         { type: 'address', value: charlie.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1606,7 +1610,7 @@ describe('NFTV2', () => {
     it('Should correct distribute royalties 2 payees', async () => {
       const {
         Nft,
-        RoyaltiesReceiver,
+        RoyaltiesReceiverV2,
         alice,
         signer,
         erc20Example,
@@ -1620,7 +1624,7 @@ describe('NFTV2', () => {
 
       const NFT_721_BASE_URI = 'test.com/';
 
-      const receiver = await RoyaltiesReceiver.deploy();
+      const receiver = await RoyaltiesReceiverV2.deploy();
       await receiver.deployed();
       await receiver.initialize(
         {
@@ -1651,11 +1655,11 @@ describe('NFTV2', () => {
           feeNumerator: BigNumber.from('600'),
           collectionExpire: BigNumber.from('86400'),
           signature: '0x00',
-        } as InstanceInfoStruct,
+        } as NFTFactoryV2.InstanceInfoStruct,
         creator: alice.address,
         referralCode: ethers.constants.HashZero,
         feeReceiver: receiver.address,
-      } as NftParametersStruct);
+      } as AccessToken.NftParametersStruct);
 
       expect(await nft.owner()).to.be.equal(alice.address);
 
@@ -1663,7 +1667,7 @@ describe('NFTV2', () => {
         { type: 'address', value: charlie.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
@@ -1831,7 +1835,7 @@ describe('NFTV2', () => {
         { type: 'address', value: charlie.address },
         { type: 'uint256', value: 0 },
         { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
+        { type: 'bool', value: false as any },
         { type: 'uint256', value: chainId },
       ]);
 
