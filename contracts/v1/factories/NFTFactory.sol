@@ -6,14 +6,83 @@ import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 import {ReferralSystem} from "./utils/ReferralSystem.sol";
-import {NFT} from "../NFT.sol";
+import {NFT, NftParameters} from "../NFT.sol";
 import {RoyaltiesReceiver} from "../RoyaltiesReceiver.sol";
-import {NftFactoryParameters, NftParameters, InstanceInfo, NftInstanceInfo, InvalidSignature} from "../../Structures.sol";
+import {InvalidSignature} from "../../Structures.sol";
 
 // ========== Errors ==========
 
 /// @notice Error thrown when an NFT with the same name and symbol already exists.
 error NFTAlreadyExists();
+
+/**
+ * @title NftFactoryParameters
+ * @notice A struct that contains parameters related to the NFT factory, such as platform and commission details.
+ * @dev This struct is used to store key configuration information for the NFT factory.
+ */
+struct NftFactoryParameters {
+    /// @notice The platform address that is allowed to collect fees.
+    address platformAddress;
+    /// @notice The address of the signer used for signature verification.
+    address signerAddress;
+    /// @notice The address of the default payment currency.
+    address defaultPaymentCurrency;
+    /// @notice The platform commission in basis points (BPs).
+    uint256 platformCommission;
+    /// @notice The maximum size of an array allowed in batch operations.
+    uint256 maxArraySize;
+    /// @notice The address of the contract used to validate token transfers.
+    address transferValidator;
+}
+
+struct NftMetadata {
+    /// @notice The name of the NFT collection.
+    string name;
+    /// @notice The symbol representing the NFT collection.
+    string symbol;
+}
+
+/**
+ * @title InstanceInfo
+ * @notice A struct that holds detailed information about an individual NFT collection, such as name, symbol, and pricing.
+ * @dev This struct is used to store key metadata and configuration information for each NFT collection.
+ */
+struct InstanceInfo {
+    /// @notice The address of the ERC20 token used for payments, or ETH (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) for Ether.
+    address payingToken;
+    /// @notice The royalty fraction for platform and creator royalties, expressed as a numerator.
+    uint96 feeNumerator;
+    /// @notice A boolean flag indicating whether the tokens in the collection are transferable.
+    bool transferable;
+    /// @notice The maximum total supply of tokens in the collection.
+    uint256 maxTotalSupply;
+    /// @notice The price to mint a token in the collection.
+    uint256 mintPrice;
+    /// @notice The price to mint a token for whitelisted users in the collection.
+    uint256 whitelistMintPrice;
+    /// @notice The expiration time (as a timestamp) for the collection.
+    uint256 collectionExpire;
+    NftMetadata metadata;
+    /// @notice The contract URI for the NFT collection, used for metadata.
+    string contractURI;
+    /// @notice A signature provided by the backend to validate the creation of the collection.
+    bytes signature;
+}
+
+/**
+ * @title NftInstanceInfo
+ * @notice A simplified struct that holds only the basic information of the NFT collection, such as name, symbol, and creator.
+ * @dev This struct is used for lightweight storage of NFT collection metadata.
+ */
+struct NftInstanceInfo {
+    /// @notice The address of the creator of the NFT collection.
+    address creator;
+    /// @notice The address of the NFT contract instance.
+    address nftAddress;
+    /// @notice The address of the Royalties Receiver contract instance.
+    address royaltiesReceiver;
+    NftMetadata metadata;
+}
 
 /**
  * @title NFT Factory Contract

@@ -5,7 +5,6 @@ import {Initializable} from "solady/src/utils/Initializable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 import {NFTFactoryV2} from "./factories/NFTFactoryV2.sol";
-import {Releases} from "../Structures.sol";
 
 /// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment(address account);
@@ -22,6 +21,14 @@ error OnlyToPayee();
  */
 contract RoyaltiesReceiverV2 is Initializable {
     using SafeTransferLib for address;
+
+    /// @notice Struct for tracking total released amounts and account-specific released amounts.
+    struct Releases {
+        /// @notice The total amount of funds released from the contract.
+        uint256 totalReleased;
+        /// @notice A mapping to track the released amount per payee account.
+        mapping(address => uint256) released;
+    }
 
     /// @notice Emitted when a new payee is added to the contract.
     /// @param account The address of the new payee.

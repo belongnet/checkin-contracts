@@ -11,7 +11,7 @@ import {AddressHelper} from "../../utils/AddressHelper.sol";
 import {CreatorToken} from "../../utils/CreatorToken.sol";
 import {NFTFactoryV2} from "../factories/NFTFactoryV2.sol";
 
-import {StaticPriceParameters, DynamicPriceParameters, NftParameters, InstanceInfo, InvalidSignature} from "../../Structures.sol";
+import {StaticPriceParameters, DynamicPriceParameters, InvalidSignature} from "../../Structures.sol";
 
 // ========== Errors ==========
 
@@ -47,6 +47,26 @@ error TokenIdDoesNotExist();
 contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
     using AddressHelper for address;
     using SafeTransferLib for address;
+
+    /**
+     * @title NftParameters
+     * @notice A struct that contains all necessary parameters for creating an NFT collection.
+     * @dev This struct is used to pass parameters between contracts during the creation of a new NFT collection.
+     */
+    struct NftParameters {
+        /// @notice The address of the contract used to validate token transfers.
+        address transferValidator;
+        /// @notice The address of the factory contract where the NFT collection is created.
+        address factory;
+        /// @notice The address of the creator of the NFT collection.
+        address creator;
+        /// @notice The address that will receive the royalties from secondary sales.
+        address feeReceiver;
+        /// @notice The referral code associated with the NFT collection.
+        bytes32 referralCode;
+        /// @notice The detailed information about the NFT collection, including its properties and configuration.
+        NFTFactoryV2.InstanceInfo info;
+    }
 
     // ========== Events ==========
 
@@ -161,7 +181,7 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
             WrongArraySize()
         );
 
-        InstanceInfo memory info = parameters.info;
+        NFTFactoryV2.InstanceInfo memory info = parameters.info;
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {

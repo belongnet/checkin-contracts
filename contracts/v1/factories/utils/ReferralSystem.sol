@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-import {ReferralCode} from "../../../Structures.sol";
-
 // ========== Errors ==========
 
 /// @notice Error thrown when a referral code already exists for the creator.
@@ -18,6 +16,14 @@ error ReferralCodeOwnerError();
 /// @param referralUser The address of the user who did not use the code.
 /// @param code The referral code the user has not used.
 error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
+
+/// @notice Struct for managing a referral code and its users.
+struct ReferralCode {
+    /// @notice The creator of the referral code.
+    address creator;
+    /// @notice The list of users who have used the referral code.
+    address[] referralUsers;
+}
 
 /**
  * @title Referral System Contract

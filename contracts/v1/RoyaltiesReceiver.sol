@@ -4,13 +4,20 @@ pragma solidity 0.8.27;
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 import {NFTFactory} from "./factories/NFTFactory.sol";
-import {Releases} from "../Structures.sol";
 
 /// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment(address account);
 
 /// @notice Thrown when transfer is not to a payee.
 error OnlyToPayee();
+
+/// @notice Struct for tracking total released amounts and account-specific released amounts.
+struct Releases {
+    /// @notice The total amount of funds released from the contract.
+    uint256 totalReleased;
+    /// @notice A mapping to track the released amount per payee account.
+    mapping(address => uint256) released;
+}
 
 /**
  * @title RoyaltiesReceiver

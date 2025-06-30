@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-import {ReferralCode} from "../../../Structures.sol";
-
 /**
  * @title Referral System Contract
  * @notice Provides referral system functionality, including creating referral codes, setting users, and managing referral percentages.
  * @dev This abstract contract allows contracts that inherit it to implement referral code-based rewards and tracking.
  */
 abstract contract ReferralSystemV2 {
+    /// @notice Struct for managing a referral code and its users.
+    struct ReferralCode {
+        /// @notice The creator of the referral code.
+        address creator;
+        /// @notice The list of users who have used the referral code.
+        address[] referralUsers;
+    }
+
     // ========== Errors ==========
 
     /// @notice Error thrown when a referral code already exists for the creator.
@@ -209,6 +215,10 @@ abstract contract ReferralSystemV2 {
         return referrals[code].referralUsers;
     }
 
+    function getVenueId(address venue) public pure returns (uint256) {
+        return uint256(uint160(venue));
+    }
+
     function _getRate(
         address referralUser,
         bytes32 code,
@@ -221,7 +231,7 @@ abstract contract ReferralSystemV2 {
     function _calculateRate(
         uint256 amount,
         uint256 percentage
-    ) internal pure returns (uint256) {
+    ) internal pure returns (uint256 rate) {
         rate = (amount * percentage) / SCALING_FACTOR;
     }
 

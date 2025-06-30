@@ -8,8 +8,8 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 import {AddressHelper} from "../utils/AddressHelper.sol";
 import {CreatorToken} from "../utils/CreatorToken.sol";
-import {NFTFactory, NftParameters, InstanceInfo} from "./factories/NFTFactory.sol";
-import {StaticPriceParameters, DynamicPriceParameters, NftParameters, InvalidSignature} from "../Structures.sol";
+import {NFTFactory, InstanceInfo} from "./factories/NFTFactory.sol";
+import {StaticPriceParameters, DynamicPriceParameters, InvalidSignature} from "../Structures.sol";
 
 // ========== Errors ==========
 
@@ -36,6 +36,26 @@ error TotalSupplyLimitReached();
 
 /// @notice Error thrown when the token id is not exist.
 error TokenIdDoesNotExist();
+
+/**
+ * @title NftParameters
+ * @notice A struct that contains all necessary parameters for creating an NFT collection.
+ * @dev This struct is used to pass parameters between contracts during the creation of a new NFT collection.
+ */
+struct NftParameters {
+    /// @notice The address of the contract used to validate token transfers.
+    address transferValidator;
+    /// @notice The address of the factory contract where the NFT collection is created.
+    address factory;
+    /// @notice The address of the creator of the NFT collection.
+    address creator;
+    /// @notice The address that will receive the royalties from secondary sales.
+    address feeReceiver;
+    /// @notice The referral code associated with the NFT collection.
+    bytes32 referralCode;
+    /// @notice The detailed information about the NFT collection, including its properties and configuration.
+    InstanceInfo info;
+}
 
 /**
  * @title NFT Contract
