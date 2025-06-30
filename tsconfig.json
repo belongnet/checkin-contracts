@@ -17,7 +17,7 @@
     "test/**/*",
     "typechain-types/**/*",
     "hardhat.config.ts",
-    "test/factory.test.ts",
+    "test/v1/factory.test.ts",
     "test/receiverFactory.test.js"
   ]
 }

@@ -1,0 +1,18 @@
+# folders
+artifacts/
+build/
+cache/
+coverage/
+dist/
+lib/
+node_modules/
+typechain/
+contracts/mocks/
+contracts/test/
+docs/
+_tmp/
+
+# files
+coverage.json
+package.json
+
