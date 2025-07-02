@@ -17,12 +17,12 @@ export enum ChainIds {
   amoy = 80002,
 }
 
-export const chainRPCs = (chainid: ChainIds, apiKey?: string): string => {
+export const chainRPCs = (chainid: ChainIds): string => {
   switch (chainid) {
     case ChainIds.mainnet:
       return `https://eth.llamarpc.com`;
     case ChainIds.bsc:
-      return "https://bsc-dataseed.binance.org";
+      return 'https://bsc-dataseed.binance.org';
     case ChainIds.polygon:
       return `https://polygon.llamarpc.com`;
     case ChainIds.blast:
@@ -50,20 +50,16 @@ export const chainRPCs = (chainid: ChainIds, apiKey?: string): string => {
     case ChainIds.blast_sepolia:
       return `https://sepolia.blast.io`;
     case ChainIds.skale_calypso_testnet:
-      return "https://testnet.skalenodes.com/v1/giant-half-dual-testnet";
+      return 'https://testnet.skalenodes.com/v1/giant-half-dual-testnet';
     default:
-      throw Error("No networks provided");
+      throw Error('No networks provided');
   }
 };
 
 export const blockscanUrls = (chainid: ChainIds, apiKey?: string): string => {
-  if (
-    chainid === ChainIds.mainnet ||
-    chainid === ChainIds.polygon ||
-    chainid == ChainIds.sepolia
-  ) {
-    if (apiKey == undefined || apiKey == "" || apiKey == null) {
-      throw Error("Provide api for the network.");
+  if (chainid === ChainIds.mainnet || chainid === ChainIds.polygon || chainid == ChainIds.sepolia) {
+    if (apiKey == undefined || apiKey == '' || apiKey == null) {
+      throw Error('Provide api for the network.');
     }
   }
 
@@ -93,6 +89,6 @@ export const blockscanUrls = (chainid: ChainIds, apiKey?: string): string => {
     case ChainIds.skale_calypso_testnet:
       return `https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/`;
     default:
-      throw Error("No networks provided");
+      throw Error('No networks provided');
   }
 };
