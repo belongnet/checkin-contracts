@@ -37,7 +37,11 @@ abstract contract ReferralSystemV2 {
 
     /// @notice Emitted when referral percentages are set.
     /// @param percentages The new referral percentages.
-    event PercentagesSet(uint16[5] percentages);
+    event ReferralParametersSet(
+        uint16[5] percentages,
+        uint256 credits,
+        uint256 affiliatePercentage
+    );
 
     /// @notice Emitted when a new referral code is created.
     /// @param createdBy The address that created the referral code.
@@ -48,10 +52,6 @@ abstract contract ReferralSystemV2 {
     /// @param code The referral code that was used.
     /// @param usedBy The address that used the referral code.
     event ReferralCodeUsed(bytes32 indexed code, address indexed usedBy);
-
-    event ReferralCreditsAmountSet(uint256 credits);
-
-    event AffiliatePercentageSet(uint256 affiliatePercentage);
 
     // ========== Constants ==========
 
@@ -73,16 +73,6 @@ abstract contract ReferralSystemV2 {
     uint256 public referralCreditsAmount;
     uint256 public affiliatePercentage;
 
-    function _initializeReferralSystem(
-        uint256 _referralCreditsAmount,
-        uint256 _affiliatePercentage,
-        uint16[5] calldata percentages
-    ) internal {
-        _setReferralCreditsAmount(_referralCreditsAmount);
-        _setAffiliatePercentage(_affiliatePercentage);
-        _setReferralPercentages(percentages);
-    }
-
     // ========== Functions ==========
 
     /**
@@ -103,6 +93,47 @@ abstract contract ReferralSystemV2 {
         referrals[hashedCode].creator = msg.sender;
 
         emit ReferralCodeCreated(msg.sender, hashedCode);
+    }
+
+    /**
+     * @notice Returns the referral rate for a user and code, based on the number of times the code was used.
+     * @param referralUser The user who used the referral code.
+     * @param code The referral code used.
+     * @param amount The amount to calculate the referral rate on.
+     * @return The calculated referral rate based on the usage of the referral code.
+     */
+    function getReferralRate(
+        address referralUser,
+        bytes32 code,
+        uint256 amount
+    ) public view returns (uint256) {
+        (uint256 used, uint256 rate) = _getRate(referralUser, code, amount);
+        require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
+        return rate;
+    }
+
+    /**
+     * @notice Returns the creator of a given referral code.
+     * @param code The referral code to get the creator for.
+     * @return The address of the creator associated with the referral code.
+     */
+    function getReferralCreator(bytes32 code) public view returns (address) {
+        return referrals[code].creator;
+    }
+
+    /**
+     * @notice Returns the list of users who used a given referral code.
+     * @param code The referral code to get the users for.
+     * @return An array of addresses that used the referral code.
+     */
+    function getReferralUsers(
+        bytes32 code
+    ) external view returns (address[] memory) {
+        return referrals[code].referralUsers;
+    }
+
+    function getVenueId(address venue) public pure returns (uint256) {
+        return uint256(uint160(venue));
     }
 
     /**
@@ -149,12 +180,11 @@ abstract contract ReferralSystemV2 {
         emit ReferralCodeUsed(hashedCode, referralUser);
     }
 
-    /**
-     * @notice Sets the referral percentages based on the number of times a code is used.
-     * @dev Internal function to set referral percentages.
-     * @param percentages An array containing the referral percentages for initial, second, third, and default use.
-     */
-    function _setReferralPercentages(uint16[5] calldata percentages) internal {
+    function _setReferralParameters(
+        uint16[5] calldata percentages,
+        uint256 credits,
+        uint256 _affiliatePercentage
+    ) internal {
         for (uint256 i = 0; i < percentages.length; ++i) {
             require(
                 percentages[i] <= SCALING_FACTOR,
@@ -162,61 +192,10 @@ abstract contract ReferralSystemV2 {
             );
             usedToPercentage[i] = percentages[i];
         }
-
-        emit PercentagesSet(percentages);
-    }
-
-    function _setReferralCreditsAmount(uint256 credits) internal {
         referralCreditsAmount = credits;
-
-        emit ReferralCreditsAmountSet(credits);
-    }
-
-    function _setAffiliatePercentage(uint256 _affiliatePercentage) internal {
         affiliatePercentage = _affiliatePercentage;
 
-        emit AffiliatePercentageSet(_affiliatePercentage);
-    }
-
-    /**
-     * @notice Returns the referral rate for a user and code, based on the number of times the code was used.
-     * @param referralUser The user who used the referral code.
-     * @param code The referral code used.
-     * @param amount The amount to calculate the referral rate on.
-     * @return The calculated referral rate based on the usage of the referral code.
-     */
-    function getReferralRate(
-        address referralUser,
-        bytes32 code,
-        uint256 amount
-    ) public view returns (uint256) {
-        (uint256 used, uint256 rate) = _getRate(referralUser, code, amount);
-        require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
-        return rate;
-    }
-
-    /**
-     * @notice Returns the creator of a given referral code.
-     * @param code The referral code to get the creator for.
-     * @return The address of the creator associated with the referral code.
-     */
-    function getReferralCreator(bytes32 code) public view returns (address) {
-        return referrals[code].creator;
-    }
-
-    /**
-     * @notice Returns the list of users who used a given referral code.
-     * @param code The referral code to get the users for.
-     * @return An array of addresses that used the referral code.
-     */
-    function getReferralUsers(
-        bytes32 code
-    ) external view returns (address[] memory) {
-        return referrals[code].referralUsers;
-    }
-
-    function getVenueId(address venue) public pure returns (uint256) {
-        return uint256(uint160(venue));
+        emit ReferralParametersSet(percentages, credits, _affiliatePercentage);
     }
 
     function _getRate(

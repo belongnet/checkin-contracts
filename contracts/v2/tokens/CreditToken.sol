@@ -6,20 +6,8 @@ import {ERC1155Base} from "./base/ERC1155Base.sol";
 
 contract CreditToken is ERC1155Base {
     function initialize(
-        address defaultAdmin,
-        address manager,
-        address minter,
-        address burner,
-        string calldata uri_,
-        bool _transferable
+        ERC1155Base.ERC1155Info calldata info
     ) external initializer {
-        _initialize_ERC1155Base(
-            defaultAdmin,
-            manager,
-            minter,
-            burner,
-            uri_,
-            _transferable
-        );
+        _initialize_ERC1155Base(info);
     }
 }

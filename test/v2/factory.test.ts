@@ -4,7 +4,7 @@ import { BigNumber, BigNumberish, ContractFactory } from 'ethers';
 import {
   WETHMock,
   MockTransferValidator,
-  NFTFactoryV2,
+  Factory,
   RoyaltiesReceiverV2,
   CreditToken,
   AccessToken,
@@ -12,17 +12,21 @@ import {
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
 import { PromiseOrValue } from '../../typechain-types/common';
+import {
+  AccessTokenInfoStruct,
+  AccessTokenInfoStructOutput,
+} from '../../typechain-types/contracts/v2/platform/Factory';
 
-describe('NFTFactoryV2', () => {
+describe('Factory', () => {
   const PLATFORM_COMISSION = '10';
   const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const chainId = 31337;
 
-  let factoryParams: NFTFactoryV2.NftFactoryParametersStruct,
+  let factoryParams: Factory.FactoryParametersStruct,
     referralPercentages: any,
-    royalties: NFTFactoryV2.RoyaltiesParametersStruct,
-    implementations: NFTFactoryV2.ImplementationsStruct;
+    royalties: Factory.RoyaltiesParametersStruct,
+    implementations: Factory.ImplementationsStruct;
 
   async function fixture() {
     const [owner, alice, bob, charlie] = await ethers.getSigners();
@@ -48,8 +52,13 @@ describe('NFTFactoryV2', () => {
     const venueToken: CreditToken = (await VenueToken.deploy()) as CreditToken;
     await venueToken.deployed();
 
+    const ReferralToken: ContractFactory = await ethers.getContractFactory('CreditToken');
+    const referralToken: CreditToken = (await ReferralToken.deploy()) as CreditToken;
+    await referralToken.deployed();
+
     implementations = {
       accessToken: nft.address,
+      creditToken: venueToken.address,
       royaltiesReceiver: rr.address,
     };
 
@@ -60,23 +69,23 @@ describe('NFTFactoryV2', () => {
 
     factoryParams = {
       transferValidator: validator.address,
-      platformAddress: owner.address,
-      signerAddress: signer.address,
-      platformCommission: PLATFORM_COMISSION,
-      defaultPaymentCurrency: ETH_ADDRESS,
+      feeCollector: owner.address,
+      signer: signer.address,
+      commissionInBps: PLATFORM_COMISSION,
+      defaultPaymentToken: ETH_ADDRESS,
       maxArraySize: 10,
     };
 
     referralPercentages = [0, 5000, 3000, 1500, 500];
 
-    const NFTFactoryV2: ContractFactory = await ethers.getContractFactory('NFTFactoryV2');
-    const factory: NFTFactoryV2 = (await upgrades.deployProxy(
-      NFTFactoryV2,
-      [factoryParams, referralPercentages, royalties, implementations, venueToken.address, 3, 500],
+    const Factory: ContractFactory = await ethers.getContractFactory('Factory');
+    const factory: Factory = (await upgrades.deployProxy(
+      Factory,
+      [factoryParams, royalties, implementations, referralPercentages, 3, 500],
       {
         unsafeAllow: ['constructor'],
       },
-    )) as NFTFactoryV2;
+    )) as Factory;
     await factory.deployed();
 
     return {
@@ -96,10 +105,10 @@ describe('NFTFactoryV2', () => {
     it('should correct initialize', async () => {
       const { factory, owner, signer, validator } = await loadFixture(fixture);
 
-      expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(owner.address);
-      expect((await factory.nftFactoryParameters()).platformCommission).to.be.equal(+PLATFORM_COMISSION);
-      expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(signer.address);
-      expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(ETH_ADDRESS);
+      expect((await factory.nftFactoryParameters()).feeCollector).to.be.equal(owner.address);
+      expect((await factory.nftFactoryParameters()).commissionInBps).to.be.equal(+PLATFORM_COMISSION);
+      expect((await factory.nftFactoryParameters()).signer).to.be.equal(signer.address);
+      expect((await factory.nftFactoryParameters()).defaultPaymentToken).to.be.equal(ETH_ADDRESS);
       expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(factoryParams.maxArraySize);
       expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(validator.address);
 
@@ -109,10 +118,10 @@ describe('NFTFactoryV2', () => {
     });
 
     it('can not be initialized again', async () => {
-      const { factory, venueToken } = await loadFixture(fixture);
+      const { factory } = await loadFixture(fixture);
 
       await expect(
-        factory.initialize(factoryParams, referralPercentages, royalties, implementations, venueToken.address, 3, 500),
+        factory.initialize(factoryParams, royalties, implementations, referralPercentages, 3, 500),
       ).to.be.revertedWithCustomError(factory, 'InvalidInitialization');
     });
   });
@@ -137,13 +146,13 @@ describe('NFTFactoryV2', () => {
 
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      const info: NFTFactoryV2.InstanceInfoStruct = {
+      const info: AccessTokenInfoStruct = {
         metadata: {
           name: nftName,
           symbol: nftSymbol,
         },
-        contractURI,
-        payingToken: ETH_ADDRESS,
+        contractURI: contractURI,
+        paymentToken: ETH_ADDRESS,
         mintPrice: price,
         whitelistMintPrice: price,
         transferable: true,
@@ -208,21 +217,21 @@ describe('NFTFactoryV2', () => {
 
       const hash = ethers.utils.solidityKeccak256(['string', 'string'], [nftName, nftSymbol]);
 
-      const nftInstanceInfo = await factory.getNftInstanceInfo(hash);
-      const nftAddress = nftInstanceInfo.nftAddress;
-      expect(nftAddress).to.not.be.equal(ZERO_ADDRESS);
+      const nftInstanceInfo = await factory.getNftInstanceInfo(nftName, nftSymbol);
+      const accessToken = nftInstanceInfo.accessToken;
+      expect(accessToken).to.not.be.equal(ZERO_ADDRESS);
       expect(nftInstanceInfo.metadata.name).to.be.equal(nftName);
       expect(nftInstanceInfo.metadata.symbol).to.be.equal(nftSymbol);
       expect(nftInstanceInfo.creator).to.be.equal(alice.address);
 
-      console.log('instanceAddress = ', nftAddress);
+      console.log('instanceAddress = ', accessToken);
 
-      const nft = await ethers.getContractAt('AccessToken', nftAddress);
-      const [transferValidator, factoryAddress, creator, feeReceiver, , infoReturned] = await nft.parameters();
+      const nft = await ethers.getContractAt('AccessToken', accessToken);
+      const [factoryAddress, creator, feeReceiver, , infoReturned] = await nft.parameters();
 
-      expect(transferValidator).to.be.equal(validator.address);
+      expect(await nft.getTransferValidator()).to.be.equal(validator.address);
       expect(factoryAddress).to.be.equal(factory.address);
-      expect(infoReturned.payingToken).to.be.equal(info.payingToken);
+      expect(infoReturned.paymentToken).to.be.equal(info.paymentToken);
       expect(infoReturned.mintPrice).to.be.equal(info.mintPrice);
       expect(infoReturned.contractURI).to.be.equal(info.contractURI);
       expect(creator).to.be.equal(alice.address);
@@ -240,7 +249,7 @@ describe('NFTFactoryV2', () => {
       ]);
 
       expect(payees.creator).to.eq(alice.address);
-      expect(payees.platform).to.eq((await factory.nftFactoryParameters()).platformAddress);
+      expect(payees.platform).to.eq((await factory.nftFactoryParameters()).feeCollector);
       expect(payees.referral).to.eq(ZERO_ADDRESS);
       expect(shares[0]).to.eq(8000);
       expect(shares[1]).to.eq(2000);
@@ -280,7 +289,7 @@ describe('NFTFactoryV2', () => {
             symbol: nftSymbol1,
           },
           contractURI: contractURI1,
-          payingToken: ZERO_ADDRESS,
+          paymentToken: ZERO_ADDRESS,
           mintPrice: price1,
           whitelistMintPrice: price1,
           transferable: true,
@@ -288,7 +297,7 @@ describe('NFTFactoryV2', () => {
           feeNumerator: BigNumber.from('500'),
           collectionExpire: BigNumber.from('86400'),
           signature: signature1,
-        } as NFTFactoryV2.InstanceInfoStruct,
+        } as AccessTokenInfoStructOutput,
         ethers.constants.HashZero,
       );
 
@@ -309,7 +318,7 @@ describe('NFTFactoryV2', () => {
             symbol: nftSymbol2,
           },
           contractURI: contractURI2,
-          payingToken: ETH_ADDRESS,
+          paymentToken: ETH_ADDRESS,
           mintPrice: price2,
           whitelistMintPrice: price2,
           transferable: true,
@@ -317,7 +326,7 @@ describe('NFTFactoryV2', () => {
           feeNumerator: 0,
           collectionExpire: BigNumber.from('86400'),
           signature: signature2,
-        } as NFTFactoryV2.InstanceInfoStruct,
+        } as AccessTokenInfoStruct,
         ethers.constants.HashZero,
       );
 
@@ -338,7 +347,7 @@ describe('NFTFactoryV2', () => {
             symbol: nftSymbol3,
           },
           contractURI: contractURI3,
-          payingToken: ETH_ADDRESS,
+          paymentToken: ETH_ADDRESS,
           mintPrice: price3,
           whitelistMintPrice: price3,
           transferable: true,
@@ -346,32 +355,17 @@ describe('NFTFactoryV2', () => {
           feeNumerator: BigNumber.from('500'),
           collectionExpire: BigNumber.from('86400'),
           signature: signature3,
-        } as NFTFactoryV2.InstanceInfoStruct,
+        } as AccessTokenInfoStruct,
         ethers.constants.HashZero,
       );
 
-      const hash1 = EthCrypto.hash.keccak256([
-        { type: 'string', value: nftName1 },
-        { type: 'string', value: nftSymbol1 },
-      ]);
+      const instanceInfo1 = await factory.getNftInstanceInfo(nftName1, nftSymbol1);
+      const instanceInfo2 = await factory.getNftInstanceInfo(nftName2, nftSymbol2);
+      const instanceInfo3 = await factory.getNftInstanceInfo(nftName3, nftSymbol3);
 
-      const hash2 = EthCrypto.hash.keccak256([
-        { type: 'string', value: nftName2 },
-        { type: 'string', value: nftSymbol2 },
-      ]);
-
-      const hash3 = EthCrypto.hash.keccak256([
-        { type: 'string', value: nftName3 },
-        { type: 'string', value: nftSymbol3 },
-      ]);
-
-      const instanceInfo1 = await factory.getNftInstanceInfo(hash1);
-      const instanceInfo2 = await factory.getNftInstanceInfo(hash2);
-      const instanceInfo3 = await factory.getNftInstanceInfo(hash3);
-
-      expect(instanceInfo1.nftAddress).to.not.be.equal(ZERO_ADDRESS);
-      expect(instanceInfo2.nftAddress).to.not.be.equal(ZERO_ADDRESS);
-      expect(instanceInfo3.nftAddress).to.not.be.equal(ZERO_ADDRESS);
+      expect(instanceInfo1.accessToken).to.not.be.equal(ZERO_ADDRESS);
+      expect(instanceInfo2.accessToken).to.not.be.equal(ZERO_ADDRESS);
+      expect(instanceInfo3.accessToken).to.not.be.equal(ZERO_ADDRESS);
 
       expect(instanceInfo1.metadata.name).to.be.equal(nftName1);
       expect(instanceInfo1.metadata.symbol).to.be.equal(nftSymbol1);
@@ -385,31 +379,31 @@ describe('NFTFactoryV2', () => {
       expect(instanceInfo3.metadata.symbol).to.be.equal(nftSymbol3);
       expect(instanceInfo3.creator).to.be.equal(charlie.address);
 
-      console.log('instanceAddress1 = ', instanceInfo1.nftAddress);
-      console.log('instanceAddress2 = ', instanceInfo2.nftAddress);
-      console.log('instanceAddress3 = ', instanceInfo3.nftAddress);
+      console.log('instanceAddress1 = ', instanceInfo1.accessToken);
+      console.log('instanceAddress2 = ', instanceInfo2.accessToken);
+      console.log('instanceAddress3 = ', instanceInfo3.accessToken);
 
-      const nft1 = await ethers.getContractAt('AccessToken', instanceInfo1.nftAddress);
-      let [, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft1.parameters();
-      expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
+      const nft1 = await ethers.getContractAt('AccessToken', instanceInfo1.accessToken);
+      let [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft1.parameters();
+      expect(infoReturned.paymentToken).to.be.equal(ETH_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
       expect(infoReturned.mintPrice).to.be.equal(price1);
       expect(infoReturned.contractURI).to.be.equal(contractURI1);
       expect(creator).to.be.equal(alice.address);
       expect(feeReceiver).not.to.be.equal(ZERO_ADDRESS);
 
-      const nft2 = await ethers.getContractAt('AccessToken', instanceInfo2.nftAddress);
-      [, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft2.parameters();
-      expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
+      const nft2 = await ethers.getContractAt('AccessToken', instanceInfo2.accessToken);
+      [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft2.parameters();
+      expect(infoReturned.paymentToken).to.be.equal(ETH_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
       expect(infoReturned.mintPrice).to.be.equal(price2);
       expect(infoReturned.contractURI).to.be.equal(contractURI2);
       expect(creator).to.be.equal(bob.address);
       expect(feeReceiver).to.be.equal(ZERO_ADDRESS);
 
-      const nft3 = await ethers.getContractAt('AccessToken', instanceInfo3.nftAddress);
-      [, factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft3.parameters();
-      expect(infoReturned.payingToken).to.be.equal(ETH_ADDRESS);
+      const nft3 = await ethers.getContractAt('AccessToken', instanceInfo3.accessToken);
+      [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft3.parameters();
+      expect(infoReturned.paymentToken).to.be.equal(ETH_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
       expect(infoReturned.mintPrice).to.be.equal(price3);
       expect(infoReturned.contractURI).to.be.equal(contractURI3);
@@ -479,7 +473,7 @@ describe('NFTFactoryV2', () => {
               symbol: nftSymbol,
             },
             contractURI: contractURI,
-            payingToken: ETH_ADDRESS,
+            paymentToken: ETH_ADDRESS,
             mintPrice: price,
             whitelistMintPrice: price,
             transferable: true,
@@ -487,7 +481,7 @@ describe('NFTFactoryV2', () => {
             feeNumerator: feeNumerator,
             collectionExpire: BigNumber.from('86400'),
             signature: signature,
-          } as NFTFactoryV2.InstanceInfoStruct,
+          } as AccessTokenInfoStruct,
           hashedCodeFalse,
         ),
       ).to.be.revertedWithCustomError(factory, 'ReferralCodeOwnerError');
@@ -500,7 +494,7 @@ describe('NFTFactoryV2', () => {
               symbol: nftSymbol,
             },
             contractURI: contractURI,
-            payingToken: ETH_ADDRESS,
+            paymentToken: ETH_ADDRESS,
             mintPrice: price,
             whitelistMintPrice: price,
             transferable: true,
@@ -508,7 +502,7 @@ describe('NFTFactoryV2', () => {
             feeNumerator: feeNumerator,
             collectionExpire: BigNumber.from('86400'),
             signature: signature,
-          } as NFTFactoryV2.InstanceInfoStruct,
+          } as AccessTokenInfoStruct,
           hashedCode,
         ),
       ).to.be.revertedWithCustomError(factory, 'ReferralCodeOwnerError');
@@ -520,7 +514,7 @@ describe('NFTFactoryV2', () => {
             symbol: nftSymbol,
           },
           contractURI: contractURI,
-          payingToken: ETH_ADDRESS,
+          paymentToken: ETH_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -528,7 +522,7 @@ describe('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as NFTFactoryV2.InstanceInfoStruct,
+        } as AccessTokenInfoStruct,
         hashedCode,
       );
 
@@ -561,7 +555,7 @@ describe('NFTFactoryV2', () => {
             symbol: nftSymbol,
           },
           contractURI: contractURI,
-          payingToken: ETH_ADDRESS,
+          paymentToken: ETH_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -569,7 +563,7 @@ describe('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as NFTFactoryV2.InstanceInfoStruct,
+        } as AccessTokenInfoStruct,
         hashedCode,
       );
 
@@ -597,7 +591,7 @@ describe('NFTFactoryV2', () => {
             symbol: nftSymbol,
           },
           contractURI: contractURI,
-          payingToken: ETH_ADDRESS,
+          paymentToken: ETH_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -605,7 +599,7 @@ describe('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as NFTFactoryV2.InstanceInfoStruct,
+        } as AccessTokenInfoStruct,
         hashedCode,
       );
 
@@ -633,7 +627,7 @@ describe('NFTFactoryV2', () => {
             symbol: nftSymbol,
           },
           contractURI: contractURI,
-          payingToken: ETH_ADDRESS,
+          paymentToken: ETH_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -641,7 +635,7 @@ describe('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as NFTFactoryV2.InstanceInfoStruct,
+        } as AccessTokenInfoStruct,
         hashedCode,
       );
 
@@ -669,7 +663,7 @@ describe('NFTFactoryV2', () => {
             symbol: nftSymbol,
           },
           contractURI: contractURI,
-          payingToken: ETH_ADDRESS,
+          paymentToken: ETH_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -677,7 +671,7 @@ describe('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as NFTFactoryV2.InstanceInfoStruct,
+        } as AccessTokenInfoStruct,
         hashedCode,
       );
 
@@ -705,7 +699,7 @@ describe('NFTFactoryV2', () => {
             symbol: nftSymbol,
           },
           contractURI: contractURI,
-          payingToken: ETH_ADDRESS,
+          paymentToken: ETH_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -713,7 +707,7 @@ describe('NFTFactoryV2', () => {
           feeNumerator: feeNumerator,
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as NFTFactoryV2.InstanceInfoStruct,
+        } as AccessTokenInfoStruct,
         hashedCode,
       );
 
@@ -730,14 +724,23 @@ describe('NFTFactoryV2', () => {
       let _factoryParams = factoryParams;
 
       await expect(
-        factory.connect(alice).setFactoryParameters(_factoryParams, referralPercentages),
+        factory
+          .connect(alice)
+          .setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages, 3, 500),
       ).to.be.revertedWithCustomError(factory, 'Unauthorized');
 
       referralPercentages[1] = 1;
 
-      const tx = await factory.setFactoryParameters(_factoryParams, referralPercentages);
+      const tx = await factory.setFactoryParameters(
+        _factoryParams,
+        royalties,
+        implementations,
+        referralPercentages,
+        3,
+        500,
+      );
       await expect(tx).to.emit(factory, 'FactoryParametersSet');
-      await expect(tx).to.emit(factory, 'PercentagesSet');
+      await expect(tx).to.emit(factory, 'ReferralParametersSet');
     });
   });
 
@@ -768,7 +771,7 @@ describe('NFTFactoryV2', () => {
             symbol: nftSymbol,
           },
           contractURI: contractURI,
-          payingToken: ETH_ADDRESS,
+          paymentToken: ETH_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -776,7 +779,7 @@ describe('NFTFactoryV2', () => {
           feeNumerator: BigNumber.from('500'),
           collectionExpire: BigNumber.from('86400'),
           signature: signature,
-        } as NFTFactoryV2.InstanceInfoStruct,
+        } as AccessTokenInfoStruct,
         ethers.constants.HashZero,
       );
 
@@ -788,7 +791,7 @@ describe('NFTFactoryV2', () => {
               symbol: nftSymbol,
             },
             contractURI: contractURI,
-            payingToken: ETH_ADDRESS,
+            paymentToken: ETH_ADDRESS,
             mintPrice: price,
             whitelistMintPrice: price,
             transferable: true,
@@ -796,10 +799,10 @@ describe('NFTFactoryV2', () => {
             feeNumerator: BigNumber.from('500'),
             collectionExpire: BigNumber.from('86400'),
             signature: signature,
-          } as NFTFactoryV2.InstanceInfoStruct,
+          } as AccessTokenInfoStruct,
           ethers.constants.HashZero,
         ),
-      ).to.be.revertedWithCustomError(factory, 'NFTAlreadyExists');
+      ).to.be.revertedWithCustomError(factory, 'TokenAlreadyExists');
     });
   });
 });

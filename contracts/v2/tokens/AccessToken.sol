@@ -9,9 +9,10 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {AddressHelper} from "../../utils/AddressHelper.sol";
 
 import {CreatorToken} from "../../utils/CreatorToken.sol";
-import {NFTFactoryV2} from "../factories/NFTFactoryV2.sol";
+import {Factory} from "../platform/Factory.sol";
 
 import {StaticPriceParameters, DynamicPriceParameters, InvalidSignature} from "../../Structures.sol";
+import {AccessTokenInfo} from "../Structures.sol";
 
 // ========== Errors ==========
 
@@ -53,9 +54,7 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
      * @notice A struct that contains all necessary parameters for creating an NFT collection.
      * @dev This struct is used to pass parameters between contracts during the creation of a new NFT collection.
      */
-    struct NftParameters {
-        /// @notice The address of the contract used to validate token transfers.
-        address transferValidator;
+    struct AccessTokenParameters {
         /// @notice The address of the factory contract where the NFT collection is created.
         address factory;
         /// @notice The address of the creator of the NFT collection.
@@ -65,7 +64,7 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
         /// @notice The referral code associated with the NFT collection.
         bytes32 referralCode;
         /// @notice The detailed information about the NFT collection, including its properties and configuration.
-        NFTFactoryV2.InstanceInfo info;
+        AccessTokenInfo info;
     }
 
     // ========== Events ==========
@@ -104,7 +103,7 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
     mapping(uint256 => string) public metadataUri;
 
     /// @notice The struct containing all NFT parameters for the collection.
-    NftParameters public parameters;
+    AccessTokenParameters public parameters;
 
     // ========== Constructor ==========
 
@@ -118,14 +117,17 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
      * @dev Called by the factory when a new instance is deployed.
      * @param _params Collection parameters containing information like name, symbol, fees, and more.
      */
-    function initialize(NftParameters calldata _params) external initializer {
+    function initialize(
+        AccessTokenParameters calldata _params,
+        address transferValidator_
+    ) external initializer {
         parameters = _params;
 
         if (_params.info.feeNumerator > 0) {
             _setDefaultRoyalty(_params.feeReceiver, _params.info.feeNumerator);
         }
 
-        _setTransferValidator(_params.transferValidator);
+        _setTransferValidator(transferValidator_);
 
         _initializeOwner(_params.creator);
     }
@@ -146,7 +148,7 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
         uint128 _whitelistMintPrice,
         bool autoApprove
     ) external onlyOwner {
-        parameters.info.payingToken = _payingToken;
+        parameters.info.paymentToken = _payingToken;
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
 
@@ -175,19 +177,17 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
     ) external payable {
         require(
             paramsArray.length <=
-                NFTFactoryV2(parameters.factory)
-                    .nftFactoryParameters()
-                    .maxArraySize,
+                Factory(parameters.factory).nftFactoryParameters().maxArraySize,
             WrongArraySize()
         );
 
-        NFTFactoryV2.InstanceInfo memory info = parameters.info;
+        AccessTokenInfo memory info = parameters.info;
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            NFTFactoryV2(parameters.factory)
+            Factory(parameters.factory)
                 .nftFactoryParameters()
-                .signerAddress
+                .signer
                 .checkStaticPriceParameters(receiver, paramsArray[i]);
 
             // Determine the mint price based on whitelist status
@@ -225,17 +225,15 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
     ) external payable {
         require(
             paramsArray.length <=
-                NFTFactoryV2(parameters.factory)
-                    .nftFactoryParameters()
-                    .maxArraySize,
+                Factory(parameters.factory).nftFactoryParameters().maxArraySize,
             WrongArraySize()
         );
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            NFTFactoryV2(parameters.factory)
+            Factory(parameters.factory)
                 .nftFactoryParameters()
-                .signerAddress
+                .signer
                 .checkDynamicPriceParameters(receiver, paramsArray[i]);
 
             unchecked {
@@ -337,7 +335,7 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
         uint256 tokenId,
         address to,
         string calldata tokenUri
-    ) internal {
+    ) private {
         // Ensure the total supply has not been exceeded
         require(
             totalSupply + 1 <= parameters.info.maxTotalSupply,
@@ -360,24 +358,24 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
         uint256 price,
         address expectedPayingToken
     ) private returns (uint256 amount) {
-        NftParameters memory _parameters = parameters;
+        AccessTokenParameters memory _parameters = parameters;
 
         require(
-            expectedPayingToken == _parameters.info.payingToken,
-            TokenChanged(_parameters.info.payingToken)
+            expectedPayingToken == _parameters.info.paymentToken,
+            TokenChanged(_parameters.info.paymentToken)
         );
 
         amount = expectedPayingToken == ETH_ADDRESS ? msg.value : price;
 
         require(amount == price, IncorrectETHAmountSent(amount));
 
-        NFTFactoryV2 _factory = NFTFactoryV2(_parameters.factory);
+        Factory _factory = Factory(_parameters.factory);
 
         uint256 fees;
         uint256 amountToCreator;
         unchecked {
             fees =
-                (amount * _factory.nftFactoryParameters().platformCommission) /
+                (amount * _factory.nftFactoryParameters().commissionInBps) /
                 _feeDenominator();
 
             amountToCreator = amount - fees;
@@ -401,7 +399,7 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
 
         if (expectedPayingToken == ETH_ADDRESS) {
             if (feesToPlatform > 0) {
-                _factory.nftFactoryParameters().platformAddress.safeTransferETH(
+                _factory.nftFactoryParameters().feeCollector.safeTransferETH(
                     feesToPlatform
                 );
             }
@@ -414,7 +412,7 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
             if (feesToPlatform > 0) {
                 expectedPayingToken.safeTransferFrom(
                     msg.sender,
-                    _factory.nftFactoryParameters().platformAddress,
+                    _factory.nftFactoryParameters().feeCollector,
                     feesToPlatform
                 );
             }

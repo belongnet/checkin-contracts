@@ -4,7 +4,7 @@ pragma solidity 0.8.27;
 import {Initializable} from "solady/src/utils/Initializable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
-import {NFTFactoryV2} from "./factories/NFTFactoryV2.sol";
+import {Factory} from "./platform/Factory.sol";
 
 /// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment(address account);
@@ -106,7 +106,7 @@ contract RoyaltiesReceiverV2 is Initializable {
     }
 
     function shares(address account) public view returns (uint256) {
-        NFTFactoryV2 factory = NFTFactoryV2(nftFactory);
+        Factory factory = Factory(nftFactory);
         RoyaltiesReceivers memory royaltiesReceivers = payees;
 
         if (account == royaltiesReceivers.creator) {
@@ -205,7 +205,7 @@ contract RoyaltiesReceiverV2 is Initializable {
      * @param token The ERC20 token address, or address(0) for native Ether.
      * @param account The payee's address receiving the payment.
      */
-    function _release(address token, address account) internal {
+    function _release(address token, address account) private {
         bool isNativeRelease = token == ETH_ADDRESS;
         uint256 payment = _pendingPayment(isNativeRelease, token, account);
 

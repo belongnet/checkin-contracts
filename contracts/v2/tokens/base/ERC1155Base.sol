@@ -8,6 +8,17 @@ import {EnumerableRoles} from "solady/src/auth/EnumerableRoles.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 
 contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
+    struct ERC1155Info {
+        string name;
+        string symbol;
+        address defaultAdmin;
+        address manager;
+        address minter;
+        address burner;
+        string uri;
+        bool transferable;
+    }
+
     error TokenCanNotBeTransfered();
 
     event UriSet(string uri);
@@ -20,26 +31,25 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
     uint256 public constant MINTER_ROLE = uint256(keccak256("MINTER_ROLE"));
     uint256 public constant BURNER_ROLE = uint256(keccak256("BURNER_ROLE"));
 
+    string public name;
+    string public symbol;
+
     bool public transferable;
     string private _uri;
     mapping(uint256 tokenId => string tokenUri) private _tokenUri;
 
-    function _initialize_ERC1155Base(
-        address defaultAdmin,
-        address manager,
-        address minter,
-        address burner,
-        string calldata uri_,
-        bool _transferable
-    ) internal {
-        _setOwner(defaultAdmin);
-        _setRole(defaultAdmin, DEFAULT_ADMIN_ROLE, true);
-        _setRole(manager, MANAGER_ROLE, true);
-        _setRole(minter, MINTER_ROLE, true);
-        _setRole(burner, BURNER_ROLE, true);
+    function _initialize_ERC1155Base(ERC1155Info calldata info) internal {
+        name = info.name;
+        symbol = info.symbol;
 
-        _setUri(uri_);
-        _setTransferable(_transferable);
+        _setOwner(info.defaultAdmin);
+        _setRole(info.defaultAdmin, DEFAULT_ADMIN_ROLE, true);
+        _setRole(info.manager, MANAGER_ROLE, true);
+        _setRole(info.minter, MINTER_ROLE, true);
+        _setRole(info.burner, BURNER_ROLE, true);
+
+        _setUri(info.uri);
+        _setTransferable(info.transferable);
     }
 
     function setURI(string calldata uri_) public onlyRole(MANAGER_ROLE) {
