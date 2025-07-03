@@ -54,6 +54,7 @@ struct VenueInfo {
 }
 
 struct CustomerInfo {
+    address customer;
     address venueToPayFor;
     address promoter;
     uint256 amount;
