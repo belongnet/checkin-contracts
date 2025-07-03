@@ -81,7 +81,7 @@ describe('Factory', () => {
     const Factory: ContractFactory = await ethers.getContractFactory('Factory');
     const factory: Factory = (await upgrades.deployProxy(
       Factory,
-      [factoryParams, royalties, implementations, referralPercentages, 3, 500],
+      [factoryParams, royalties, implementations, referralPercentages, 3],
       {
         unsafeAllow: ['constructor'],
       },
@@ -121,7 +121,7 @@ describe('Factory', () => {
       const { factory } = await loadFixture(fixture);
 
       await expect(
-        factory.initialize(factoryParams, royalties, implementations, referralPercentages, 3, 500),
+        factory.initialize(factoryParams, royalties, implementations, referralPercentages, 3),
       ).to.be.revertedWithCustomError(factory, 'InvalidInitialization');
     });
   });
@@ -238,7 +238,7 @@ describe('Factory', () => {
 
       const RoyaltiesReceiverV2: RoyaltiesReceiverV2 = await ethers.getContractAt('RoyaltiesReceiverV2', feeReceiver);
 
-      let payees: RoyaltiesReceiverV2.RoyaltiesReceiversStruct = await RoyaltiesReceiverV2.payees();
+      let payees: RoyaltiesReceiverV2.RoyaltiesReceiversStruct = await RoyaltiesReceiverV2.royaltiesReceivers();
 
       const shares = await Promise.all([
         RoyaltiesReceiverV2.shares(payees.creator),
@@ -724,21 +724,12 @@ describe('Factory', () => {
       let _factoryParams = factoryParams;
 
       await expect(
-        factory
-          .connect(alice)
-          .setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages, 3, 500),
+        factory.connect(alice).setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages, 3),
       ).to.be.revertedWithCustomError(factory, 'Unauthorized');
 
       referralPercentages[1] = 1;
 
-      const tx = await factory.setFactoryParameters(
-        _factoryParams,
-        royalties,
-        implementations,
-        referralPercentages,
-        3,
-        500,
-      );
+      const tx = await factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages, 3);
       await expect(tx).to.emit(factory, 'FactoryParametersSet');
       await expect(tx).to.emit(factory, 'ReferralParametersSet');
     });
