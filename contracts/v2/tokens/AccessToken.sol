@@ -10,9 +10,8 @@ import {AddressHelper} from "../../utils/AddressHelper.sol";
 
 import {CreatorToken} from "../../utils/CreatorToken.sol";
 import {Factory} from "../platform/Factory.sol";
-
-import {StaticPriceParameters, DynamicPriceParameters, InvalidSignature} from "../../Structures.sol";
-import {AccessTokenInfo} from "../Structures.sol";
+import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
+import {StaticPriceParameters, DynamicPriceParameters, AccessTokenInfo} from "../Structures.sol";
 
 // ========== Errors ==========
 
@@ -46,8 +45,8 @@ error TokenIdDoesNotExist();
  * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
  */
 contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
-    using AddressHelper for address;
     using SafeTransferLib for address;
+    using SignatureVerifier for address;
 
     /**
      * @title NftParameters
@@ -56,7 +55,7 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
      */
     struct AccessTokenParameters {
         /// @notice The address of the factory contract where the NFT collection is created.
-        address factory;
+        Factory factory;
         /// @notice The address of the creator of the NFT collection.
         address creator;
         /// @notice The address that will receive the royalties from secondary sales.
@@ -175,9 +174,9 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
         address expectedPayingToken,
         uint256 expectedMintPrice
     ) external payable {
+        Factory factory = parameters.factory;
         require(
-            paramsArray.length <=
-                Factory(parameters.factory).nftFactoryParameters().maxArraySize,
+            paramsArray.length <= factory.nftFactoryParameters().maxArraySize,
             WrongArraySize()
         );
 
@@ -185,10 +184,10 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            Factory(parameters.factory)
-                .nftFactoryParameters()
-                .signer
-                .checkStaticPriceParameters(receiver, paramsArray[i]);
+            factory.nftFactoryParameters().signer.checkStaticPriceParameters(
+                receiver,
+                paramsArray[i]
+            );
 
             // Determine the mint price based on whitelist status
             uint256 price = paramsArray[i].whitelisted
@@ -223,18 +222,18 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
         DynamicPriceParameters[] calldata paramsArray,
         address expectedPayingToken
     ) external payable {
+        Factory factory = parameters.factory;
         require(
-            paramsArray.length <=
-                Factory(parameters.factory).nftFactoryParameters().maxArraySize,
+            paramsArray.length <= factory.nftFactoryParameters().maxArraySize,
             WrongArraySize()
         );
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            Factory(parameters.factory)
-                .nftFactoryParameters()
-                .signer
-                .checkDynamicPriceParameters(receiver, paramsArray[i]);
+            factory.nftFactoryParameters().signer.checkDynamicPriceParameters(
+                receiver,
+                paramsArray[i]
+            );
 
             unchecked {
                 amountToPay += paramsArray[i].price;
@@ -369,25 +368,29 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
 
         require(amount == price, IncorrectETHAmountSent(amount));
 
-        Factory _factory = Factory(_parameters.factory);
-
         uint256 fees;
         uint256 amountToCreator;
         unchecked {
             fees =
-                (amount * _factory.nftFactoryParameters().commissionInBps) /
+                (amount *
+                    _parameters
+                        .factory
+                        .nftFactoryParameters()
+                        .commissionInBps) /
                 _feeDenominator();
 
             amountToCreator = amount - fees;
         }
 
         bytes32 referralCode = _parameters.referralCode;
-        address refferalCreator = _factory.getReferralCreator(referralCode);
+        address refferalCreator = _parameters.factory.getReferralCreator(
+            referralCode
+        );
 
         uint256 feesToPlatform = fees;
         uint256 referralFees;
         if (referralCode != bytes32(0)) {
-            referralFees = _factory.getReferralRate(
+            referralFees = _parameters.factory.getReferralRate(
                 _parameters.creator,
                 referralCode,
                 fees
@@ -399,9 +402,11 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
 
         if (expectedPayingToken == ETH_ADDRESS) {
             if (feesToPlatform > 0) {
-                _factory.nftFactoryParameters().feeCollector.safeTransferETH(
-                    feesToPlatform
-                );
+                _parameters
+                    .factory
+                    .nftFactoryParameters()
+                    .feeCollector
+                    .safeTransferETH(feesToPlatform);
             }
             if (referralFees > 0) {
                 refferalCreator.safeTransferETH(referralFees);
@@ -412,7 +417,7 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
             if (feesToPlatform > 0) {
                 expectedPayingToken.safeTransferFrom(
                     msg.sender,
-                    _factory.nftFactoryParameters().feeCollector,
+                    _parameters.factory.nftFactoryParameters().feeCollector,
                     feesToPlatform
                 );
             }

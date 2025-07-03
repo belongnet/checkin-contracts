@@ -34,3 +34,60 @@ struct AccessTokenInfo {
     /// @notice A signature provided by the backend to validate the creation of the collection.
     bytes signature;
 }
+
+struct ERC1155Info {
+    string name;
+    string symbol;
+    address defaultAdmin;
+    address manager;
+    address minter;
+    address burner;
+    string uri;
+    bool transferable;
+}
+
+struct VenueInfo {
+    address venue;
+    uint256 amount;
+    string uri;
+    bytes signature;
+}
+
+struct CustomerInfo {
+    address venueToPayFor;
+    address promoter;
+    uint256 amount;
+    bytes signature;
+}
+
+/**
+ * @title StaticPriceParameters
+ * @notice A struct for holding parameters related to minting NFTs with a static price.
+ * @dev This struct is used for static price minting operations.
+ */
+struct StaticPriceParameters {
+    /// @notice The ID of the token to be minted.
+    uint256 tokenId;
+    /// @notice A flag indicating whether the receiver is whitelisted for special pricing.
+    bool whitelisted;
+    /// @notice The URI of the metadata associated with the token being minted.
+    string tokenUri;
+    /// @notice The signature for verifying the minting request.
+    bytes signature;
+}
+
+/**
+ * @title DynamicPriceParameters
+ * @notice A struct for holding parameters related to minting NFTs with a dynamic price.
+ * @dev This struct is used for dynamic price minting operations.
+ */
+struct DynamicPriceParameters {
+    /// @notice The ID of the token to be minted.
+    uint256 tokenId;
+    /// @notice The price for minting the specific token.
+    uint256 price;
+    /// @notice The URI of the metadata associated with the token being minted.
+    string tokenUri;
+    /// @notice The signature for verifying the minting request.
+    bytes signature;
+}

@@ -7,18 +7,9 @@ import {Ownable} from "solady/src/auth/Ownable.sol";
 import {EnumerableRoles} from "solady/src/auth/EnumerableRoles.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 
-contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
-    struct ERC1155Info {
-        string name;
-        string symbol;
-        address defaultAdmin;
-        address manager;
-        address minter;
-        address burner;
-        string uri;
-        bool transferable;
-    }
+import {ERC1155Info} from "../../Structures.sol";
 
+contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
     error TokenCanNotBeTransfered();
 
     event UriSet(string uri);

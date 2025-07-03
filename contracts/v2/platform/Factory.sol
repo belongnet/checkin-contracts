@@ -3,18 +3,14 @@ pragma solidity 0.8.27;
 
 import {Initializable} from "solady/src/utils/Initializable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
-import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {LibClone} from "solady/src/utils/LibClone.sol";
-import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {IQuoter} from "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 
-import {ReferralSystemV2} from "./utils/ReferralSystemV2.sol";
+import {ReferralSystemV2} from "./extensions/ReferralSystemV2.sol";
 import {AccessToken} from "../tokens/AccessToken.sol";
 import {CreditToken} from "../tokens/CreditToken.sol";
-
 import {RoyaltiesReceiverV2} from "../RoyaltiesReceiverV2.sol";
-import {AccessTokenInfo, Metadata} from "../Structures.sol";
+import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
+import {AccessTokenInfo, Metadata, ERC1155Info} from "../Structures.sol";
 
 /**
  * @title NFT Factory Contract
@@ -22,6 +18,7 @@ import {AccessTokenInfo, Metadata} from "../Structures.sol";
  * @dev This contract allows producing NFTs, managing platform settings, and verifying signatures.
  */
 contract Factory is Initializable, Ownable, ReferralSystemV2 {
+    using SignatureVerifier for address;
     /**
      * @title NftFactoryParameters
      * @notice A struct that contains parameters related to the NFT factory, such as platform and commission details.
@@ -83,9 +80,6 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
     error TotalRoyaltiesExceed100Pecents();
 
-    /// @notice Error thrown when the signature provided is invalid.
-    error InvalidSignature();
-
     // ========== Events ==========
 
     /// @notice Event emitted when a new NFT is created.
@@ -138,16 +132,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         RoyaltiesParameters calldata _royalties,
         Implementations calldata _implementations,
         uint16[5] calldata percentages,
-        uint256 _referralCreditsAmount,
-        uint256 _affiliatePercentage
+        uint256 _referralCreditsAmount
     ) external initializer {
         _setFactoryParameters(factoryParameters, _royalties, _implementations);
 
-        _setReferralParameters(
-            percentages,
-            _referralCreditsAmount,
-            _affiliatePercentage
-        );
+        _setReferralParameters(percentages, _referralCreditsAmount);
 
         _initializeOwner(msg.sender);
     }
@@ -172,24 +161,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     ) external returns (address accessToken) {
         FactoryParameters memory factoryParameters = _factoryParameters;
 
-        // Name, symbol signed through BE, and checks if the size > 0.
-        if (
-            !SignatureCheckerLib.isValidSignatureNow(
-                factoryParameters.signer,
-                keccak256(
-                    abi.encodePacked(
-                        accessTokenInfo.metadata.name,
-                        accessTokenInfo.metadata.symbol,
-                        accessTokenInfo.contractURI,
-                        accessTokenInfo.feeNumerator,
-                        block.chainid
-                    )
-                ),
-                accessTokenInfo.signature
-            )
-        ) {
-            revert InvalidSignature();
-        }
+        factoryParameters.signer.checkAccessTokenInfo(accessTokenInfo);
 
         bytes32 hashedSalt = _metadataHash(
             accessTokenInfo.metadata.name,
@@ -219,7 +191,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
                     factoryParameters.feeCollector,
                     referrals[referralCode].creator
                 ),
-                address(this),
+                Factory(address(this)),
                 referralCode
             );
         }
@@ -230,7 +202,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         );
         AccessToken(accessToken).initialize(
             AccessToken.AccessTokenParameters({
-                factory: address(this),
+                factory: Factory(address(this)),
                 info: accessTokenInfo,
                 creator: msg.sender,
                 feeReceiver: receiver,
@@ -253,30 +225,13 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     }
 
     function produceCreditToken(
-        CreditToken.ERC1155Info memory creditTokenInfo,
-        bytes memory signature
+        ERC1155Info calldata creditTokenInfo,
+        bytes calldata signature
     ) external returns (address creditToken) {
-        if (
-            !SignatureCheckerLib.isValidSignatureNow(
-                _factoryParameters.signer,
-                keccak256(
-                    abi.encodePacked(
-                        creditTokenInfo.name,
-                        creditTokenInfo.symbol,
-                        creditTokenInfo.defaultAdmin,
-                        creditTokenInfo.manager,
-                        creditTokenInfo.minter,
-                        creditTokenInfo.burner,
-                        creditTokenInfo.uri,
-                        creditTokenInfo.transferable,
-                        block.chainid
-                    )
-                ),
-                signature
-            )
-        ) {
-            revert InvalidSignature();
-        }
+        _factoryParameters.signer.checkCreditTokenInfo(
+            signature,
+            creditTokenInfo
+        );
 
         bytes32 saltHash = _metadataHash(
             creditTokenInfo.name,
@@ -319,15 +274,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         RoyaltiesParameters calldata _royalties,
         Implementations calldata _implementations,
         uint16[5] calldata percentages,
-        uint256 _referralCreditsAmount,
-        uint256 _affiliatePercentage
+        uint256 _referralCreditsAmount
     ) external onlyOwner {
         _setFactoryParameters(factoryParameters_, _royalties, _implementations);
-        _setReferralParameters(
-            percentages,
-            _referralCreditsAmount,
-            _affiliatePercentage
-        );
+        _setReferralParameters(percentages, _referralCreditsAmount);
     }
 
     /// @notice Returns the current NFT factory parameters.

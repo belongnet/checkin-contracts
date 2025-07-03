@@ -71,14 +71,14 @@ contract RoyaltiesReceiverV2 is Initializable {
     /// @notice Total shares amount.
     uint256 public constant TOTAL_SHARES = 10000;
 
-    address public nftFactory;
+    Factory public factory;
 
     bytes32 public referralCode;
 
     /**
      * @notice List of payee addresses. Returns the address of the payee at the given index.
      */
-    RoyaltiesReceivers public payees;
+    RoyaltiesReceivers public royaltiesReceivers;
 
     /// @notice Struct for tracking native Ether releases.
     Releases private nativeReleases;
@@ -93,34 +93,33 @@ contract RoyaltiesReceiverV2 is Initializable {
 
     /**
      * @notice Initializes the contract with a list of payees and their respective shares.
-     * @param payees_ The list of payee addresses.
      */
     function initialize(
-        RoyaltiesReceivers calldata payees_,
-        address _nftFactory,
+        RoyaltiesReceivers calldata _royaltiesReceivers,
+        Factory _factory,
         bytes32 referralCode_
     ) external initializer {
-        nftFactory = _nftFactory;
-        payees = payees_;
+        factory = _factory;
+        royaltiesReceivers = _royaltiesReceivers;
         referralCode = referralCode_;
     }
 
     function shares(address account) public view returns (uint256) {
-        Factory factory = Factory(nftFactory);
-        RoyaltiesReceivers memory royaltiesReceivers = payees;
+        RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
 
-        if (account == royaltiesReceivers.creator) {
-            return factory.royaltiesParameters().amountToCreator;
+        Factory _factory = factory;
+        Factory.RoyaltiesParameters memory royaltiesParameters = _factory
+            .royaltiesParameters();
+        if (account == _royaltiesReceivers.creator) {
+            return royaltiesParameters.amountToCreator;
         } else {
-            uint256 platformShare = factory
-                .royaltiesParameters()
-                .amountToPlatform;
+            uint256 platformShare = royaltiesParameters.amountToPlatform;
             uint256 referralShare;
-            if (royaltiesReceivers.referral != address(0)) {
-                referralShare = factory.getReferralRate(
-                    royaltiesReceivers.creator,
+            if (_royaltiesReceivers.referral != address(0)) {
+                referralShare = _factory.getReferralRate(
+                    _royaltiesReceivers.creator,
                     referralCode,
-                    factory.royaltiesParameters().amountToPlatform
+                    royaltiesParameters.amountToPlatform
                 );
 
                 if (referralShare > 0) {
@@ -130,9 +129,9 @@ contract RoyaltiesReceiverV2 is Initializable {
                 }
             }
             return
-                account == royaltiesReceivers.platform
+                account == _royaltiesReceivers.platform
                     ? platformShare
-                    : account == royaltiesReceivers.referral
+                    : account == _royaltiesReceivers.referral
                         ? referralShare
                         : 0;
         }
@@ -150,13 +149,13 @@ contract RoyaltiesReceiverV2 is Initializable {
      * @param token The address of the currecny to be released (ERC20 token address or address(0) for native Ether).
      */
     function releaseAll(address token) external {
-        RoyaltiesReceivers memory royaltiesReceivers = payees;
+        RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
 
-        _release(token, royaltiesReceivers.creator);
+        _release(token, _royaltiesReceivers.creator);
 
-        _release(token, royaltiesReceivers.platform);
-        if (royaltiesReceivers.referral != address(0)) {
-            _release(token, royaltiesReceivers.referral);
+        _release(token, _royaltiesReceivers.platform);
+        if (_royaltiesReceivers.referral != address(0)) {
+            _release(token, _royaltiesReceivers.referral);
         }
     }
 
@@ -256,12 +255,13 @@ contract RoyaltiesReceiverV2 is Initializable {
     }
 
     function _onlyToPayee(address account) private view {
-        RoyaltiesReceivers memory payees_ = payees;
+        RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
 
         require(
-            payees_.creator == account ||
-                payees_.platform == account ||
-                (payees_.referral != address(0) && payees_.referral == account),
+            _royaltiesReceivers.creator == account ||
+                _royaltiesReceivers.platform == account ||
+                (_royaltiesReceivers.referral != address(0) &&
+                    _royaltiesReceivers.referral == account),
             AccountNotDuePayment(account)
         );
     }

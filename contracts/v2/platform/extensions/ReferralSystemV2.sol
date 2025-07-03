@@ -37,11 +37,7 @@ abstract contract ReferralSystemV2 {
 
     /// @notice Emitted when referral percentages are set.
     /// @param percentages The new referral percentages.
-    event ReferralParametersSet(
-        uint16[5] percentages,
-        uint256 credits,
-        uint256 affiliatePercentage
-    );
+    event ReferralParametersSet(uint16[5] percentages, uint256 credits);
 
     /// @notice Emitted when a new referral code is created.
     /// @param createdBy The address that created the referral code.
@@ -71,7 +67,6 @@ abstract contract ReferralSystemV2 {
         public usedCode;
 
     uint256 public referralCreditsAmount;
-    uint256 public affiliatePercentage;
 
     // ========== Functions ==========
 
@@ -97,19 +92,23 @@ abstract contract ReferralSystemV2 {
 
     /**
      * @notice Returns the referral rate for a user and code, based on the number of times the code was used.
-     * @param referralUser The user who used the referral code.
-     * @param code The referral code used.
-     * @param amount The amount to calculate the referral rate on.
-     * @return The calculated referral rate based on the usage of the referral code.
      */
     function getReferralRate(
         address referralUser,
         bytes32 code,
         uint256 amount
-    ) public view returns (uint256) {
-        (uint256 used, uint256 rate) = _getRate(referralUser, code, amount);
+    ) public view returns (uint256 rate) {
+        uint256 used = usedCode[referralUser][code];
+        rate = calculateRate(amount, usedToPercentage[used]);
         require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
         return rate;
+    }
+
+    function calculateRate(
+        uint256 amount,
+        uint256 percentage
+    ) public pure returns (uint256 rate) {
+        rate = (amount * percentage) / SCALING_FACTOR;
     }
 
     /**
@@ -130,10 +129,6 @@ abstract contract ReferralSystemV2 {
         bytes32 code
     ) external view returns (address[] memory) {
         return referrals[code].referralUsers;
-    }
-
-    function getVenueId(address venue) public pure returns (uint256) {
-        return uint256(uint160(venue));
     }
 
     /**
@@ -182,8 +177,7 @@ abstract contract ReferralSystemV2 {
 
     function _setReferralParameters(
         uint16[5] calldata percentages,
-        uint256 credits,
-        uint256 _affiliatePercentage
+        uint256 credits
     ) internal {
         for (uint256 i = 0; i < percentages.length; ++i) {
             require(
@@ -193,29 +187,12 @@ abstract contract ReferralSystemV2 {
             usedToPercentage[i] = percentages[i];
         }
         referralCreditsAmount = credits;
-        affiliatePercentage = _affiliatePercentage;
 
-        emit ReferralParametersSet(percentages, credits, _affiliatePercentage);
-    }
-
-    function _getRate(
-        address referralUser,
-        bytes32 code,
-        uint256 amount
-    ) internal view returns (uint256 used, uint256 rate) {
-        used = usedCode[referralUser][code];
-        rate = _calculateRate(amount, usedToPercentage[used]);
-    }
-
-    function _calculateRate(
-        uint256 amount,
-        uint256 percentage
-    ) internal pure returns (uint256 rate) {
-        rate = (amount * percentage) / SCALING_FACTOR;
+        emit ReferralParametersSet(percentages, credits);
     }
 
     // ========== Reserved Storage Space ==========
 
     /// @dev Reserved storage space to allow for layout changes in the future.
-    uint256[48] private __gap;
+    uint256[49] private __gap;
 }
