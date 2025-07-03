@@ -6,10 +6,10 @@ import {ERC2981} from "solady/src/tokens/ERC2981.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
-import {AddressHelper} from "../utils/AddressHelper.sol";
+import {AddressHelper} from "./utils/AddressHelper.sol";
 import {CreatorToken} from "../utils/CreatorToken.sol";
 import {NFTFactory, InstanceInfo} from "./factories/NFTFactory.sol";
-import {StaticPriceParameters, DynamicPriceParameters, InvalidSignature} from "../Structures.sol";
+import {StaticPriceParameters, DynamicPriceParameters, InvalidSignature} from "./Structures.sol";
 
 // ========== Errors ==========
 

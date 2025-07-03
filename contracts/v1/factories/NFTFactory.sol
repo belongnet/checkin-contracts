@@ -8,7 +8,7 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {ReferralSystem} from "./utils/ReferralSystem.sol";
 import {NFT, NftParameters} from "../NFT.sol";
 import {RoyaltiesReceiver} from "../RoyaltiesReceiver.sol";
-import {InvalidSignature} from "../../Structures.sol";
+import {InvalidSignature} from "./../Structures.sol";
 
 // ========== Errors ==========
 

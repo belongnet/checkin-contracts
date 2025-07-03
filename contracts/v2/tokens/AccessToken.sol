@@ -6,7 +6,6 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC2981} from "solady/src/tokens/ERC2981.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {AddressHelper} from "../../utils/AddressHelper.sol";
 
 import {CreatorToken} from "../../utils/CreatorToken.sol";
 import {Factory} from "../platform/Factory.sol";
