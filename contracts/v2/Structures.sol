@@ -46,9 +46,16 @@ struct ERC1155Info {
     bool transferable;
 }
 
+struct VenueRules {
+    bool rewardPromoterForBringingCustomer;
+    bool rewardPromoterForCustomerSpending;
+}
+
 struct VenueInfo {
+    VenueRules rules;
     address venue;
     uint256 amount;
+    bytes32 referralCode;
     string uri;
     bytes signature;
 }
