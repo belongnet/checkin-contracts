@@ -109,6 +109,7 @@ library SignatureVerifier {
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
+                        customerInfo.customer,
                         customerInfo.venueToPayFor,
                         customerInfo.promoter,
                         customerInfo.amount,
