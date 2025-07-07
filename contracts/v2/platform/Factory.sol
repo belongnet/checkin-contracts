@@ -131,12 +131,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         FactoryParameters calldata factoryParameters,
         RoyaltiesParameters calldata _royalties,
         Implementations calldata _implementations,
-        uint16[5] calldata percentages,
-        uint256 _referralCreditsAmount
+        uint16[5] calldata percentages
     ) external initializer {
         _setFactoryParameters(factoryParameters, _royalties, _implementations);
 
-        _setReferralParameters(percentages, _referralCreditsAmount);
+        _setReferralParameters(percentages);
 
         _initializeOwner(msg.sender);
     }
@@ -273,11 +272,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         FactoryParameters calldata factoryParameters_,
         RoyaltiesParameters calldata _royalties,
         Implementations calldata _implementations,
-        uint16[5] calldata percentages,
-        uint256 _referralCreditsAmount
+        uint16[5] calldata percentages
     ) external onlyOwner {
         _setFactoryParameters(factoryParameters_, _royalties, _implementations);
-        _setReferralParameters(percentages, _referralCreditsAmount);
+        _setReferralParameters(percentages);
     }
 
     /// @notice Returns the current NFT factory parameters.

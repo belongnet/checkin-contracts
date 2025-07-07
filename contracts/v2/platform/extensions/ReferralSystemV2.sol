@@ -37,7 +37,7 @@ abstract contract ReferralSystemV2 {
 
     /// @notice Emitted when referral percentages are set.
     /// @param percentages The new referral percentages.
-    event ReferralParametersSet(uint16[5] percentages, uint256 credits);
+    event ReferralParametersSet(uint16[5] percentages);
 
     /// @notice Emitted when a new referral code is created.
     /// @param createdBy The address that created the referral code.
@@ -65,8 +65,6 @@ abstract contract ReferralSystemV2 {
     /// @notice Maps referral users to their respective used codes and counts the number of times the code was used.
     mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed))
         public usedCode;
-
-    uint256 public referralCreditsAmount;
 
     // ========== Functions ==========
 
@@ -175,10 +173,7 @@ abstract contract ReferralSystemV2 {
         emit ReferralCodeUsed(hashedCode, referralUser);
     }
 
-    function _setReferralParameters(
-        uint16[5] calldata percentages,
-        uint256 credits
-    ) internal {
+    function _setReferralParameters(uint16[5] calldata percentages) internal {
         for (uint256 i = 0; i < percentages.length; ++i) {
             require(
                 percentages[i] <= SCALING_FACTOR,
@@ -186,9 +181,8 @@ abstract contract ReferralSystemV2 {
             );
             usedToPercentage[i] = percentages[i];
         }
-        referralCreditsAmount = credits;
 
-        emit ReferralParametersSet(percentages, credits);
+        emit ReferralParametersSet(percentages);
     }
 
     // ========== Reserved Storage Space ==========
