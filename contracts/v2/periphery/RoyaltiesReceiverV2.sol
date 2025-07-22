@@ -4,7 +4,7 @@ pragma solidity 0.8.27;
 import {Initializable} from "solady/src/utils/Initializable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
-import {Factory} from "./platform/Factory.sol";
+import {Factory} from "../platform/Factory.sol";
 
 /// @notice Thrown when an account is not due for payment.
 error AccountNotDuePayment(address account);
