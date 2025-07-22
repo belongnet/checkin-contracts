@@ -5,10 +5,13 @@ import {Initializable} from "solady/src/utils/Initializable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {MetadataReaderLib} from "solady/src/utils/MetadataReaderLib.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IQuoter} from "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 
 import {Factory} from "./Factory.sol";
+import {Escrow} from "../periphery/Escrow.sol";
+import {Staking} from "../periphery/Staking.sol";
 import {CreditToken} from "../tokens/CreditToken.sol";
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
 import {VenueRules, VenueInfo, CustomerInfo} from "../Structures.sol";
@@ -20,38 +23,54 @@ import {VenueRules, VenueInfo, CustomerInfo} from "../Structures.sol";
  */
 contract TapAndEarn is Initializable, Ownable {
     using SignatureVerifier for address;
+    using MetadataReaderLib for address;
     using SafeTransferLib for address;
 
-    struct Tokens {
+    struct Contracts {
+        Factory factory;
+        Escrow escrow;
+        Staking staking;
         CreditToken venueToken;
         CreditToken promoterToken;
     }
 
-    struct PromoterStakingTiersInfo {
-        uint256 platformFeePercentage;
-        uint256 bonusPercentage;
+    struct VenueStakingRewardInfo {
+        uint24 depositFeePercentage;
+        uint24 convenienceFee;
     }
 
-    struct PromoterStakingTiers {
-        PromoterStakingTiersInfo regularTier;
-        PromoterStakingTiersInfo bronzeTier;
-        PromoterStakingTiersInfo silverTier;
-        PromoterStakingTiersInfo goldTier;
-        PromoterStakingTiersInfo platinumTier;
+    struct PromoterStakingRewardInfo {
+        uint24 usdcPercentage;
+        uint24 longPercentage;
     }
 
-    struct VenueStakingTiers {
-        uint256 tier1DepositFeePercentage; // 10%
-        uint256 tier2DepositFeePercentage; // 5%
-        uint256 tier3DepositFeePercentage; // 2.5%
+    struct RewardsInfo {
+        VenueStakingRewardInfo venueStakingInfo;
+        PromoterStakingRewardInfo promoterStakingInfo;
+    }
+
+    struct VenueStakingRewards {
+        VenueStakingRewardInfo noStakes;
+        VenueStakingRewardInfo bronzeTier;
+        VenueStakingRewardInfo silverTier;
+        VenueStakingRewardInfo goldTier;
+        VenueStakingRewardInfo platinumTier;
+    }
+
+    struct PromoterStakingRewards {
+        PromoterStakingRewardInfo noStakes;
+        PromoterStakingRewardInfo bronzeTier;
+        PromoterStakingRewardInfo silverTier;
+        PromoterStakingRewardInfo goldTier;
+        PromoterStakingRewardInfo platinumTier;
     }
 
     struct DepositTimelocks {
-        uint256 timelock1;
-        uint256 timelock2;
-        uint256 timelock3;
-        uint256 timelock4;
-        uint256 timelock5;
+        uint24 timelock1;
+        uint24 timelock2;
+        uint24 timelock3;
+        uint24 timelock4;
+        uint24 timelock5;
     }
 
     struct PaymentsInfo {
@@ -59,8 +78,16 @@ contract TapAndEarn is Initializable, Ownable {
         address uniswapV3Router;
         address uniswapV3Quoter;
         address weth;
-        address depositToken; // eg USDC
-        address withdrawalToken; // eg LONG
+        address usdc;
+        address long;
+    }
+
+    enum StakingTiers {
+        NoStakes,
+        BronzeTier,
+        SilverTier,
+        GoldTier,
+        PlatinumTier
     }
 
     // ========== Errors ==========
@@ -68,6 +95,7 @@ contract TapAndEarn is Initializable, Ownable {
     error WrongReferralCode(bytes32 referralCode);
     error CanNotClaim(address venue, address promoter);
     error PaymentInTimelock(address venue, address promoter, uint256 amount);
+    error OnlyCorrectVenue(uint256 venueId, address venue);
 
     // ========== Events ==========
     event ParametersUpdated(
@@ -83,32 +111,36 @@ contract TapAndEarn is Initializable, Ownable {
         bytes32 referralCode
     );
 
+    event VenueRulesUpdated(
+        address indexed venue,
+        PaymentTypes paymentTypes,
+        RewardTypes rewardTypes
+    );
+
     event TiersUpdated(
-        PromoterStakingTiers promoterTiers,
-        VenueStakingTiers venueTiers
+        PromoterStakingRewards promoterRewards,
+        VenueStakingRewards venueRewards
     );
 
     // ========== State Variables ==========
 
-    Factory public factory;
+    /// @notice The scaling factor for referral percentages.
+    uint16 public constant SCALING_FACTOR = 10000;
+
+    Contracts public contracts;
 
     PaymentsInfo public paymentsInfo;
 
-    Tokens public tokens;
-
-    PromoterStakingTiers private _promoterStakingTiers;
-
-    VenueStakingTiers private _venueStakingTiers;
-
     DepositTimelocks private _depositTimelocks;
 
-    uint256 public affiliatePercentage;
+    uint8 public referralCreditsAmount;
+    uint24 public affiliatePercentage;
 
-    uint256 public referralCreditsAmount;
+    mapping(StakingTiers tier => RewardsInfo rewardInfo) public rewards;
 
     mapping(address venue => VenueRules rules) public venueRules;
 
-    mapping(address venue => mapping(bytes32 referralCode => uint256 remainingCredits))
+    mapping(address venue => uint16 remainingCredits)
         public venueAffiliateCredits;
 
     mapping(address venue => mapping(address promoter => uint256 paymentTime))
@@ -126,46 +158,64 @@ contract TapAndEarn is Initializable, Ownable {
      */
     function initialize(
         address _owner,
-        Factory _factory,
-        Tokens calldata _tokens,
+        Contracts calldata _contracts,
         PaymentsInfo calldata _paymentsInfo,
         uint256 _affiliatePercentage,
         uint256 credits
     ) external initializer {
-        factory = _factory;
+        uint256 convenienceFee = 5 * 10 ** _paymentsInfo.usdc.readDecimals(); // 5 USDC
+
+        referralCreditsAmount = 3;
 
         _setTiers(
             PromoterStakingTiers({
-                regularTier: PromoterStakingTiersInfo({
-                    platformFeePercentage: 2000, //20%
-                    bonusPercentage: 500 // 5%
+                noStakes: PromoterStakingRewardInfo({
+                    usdcPercentage: 1000, //10%
+                    longPercentage: 500 // 5%
                 }),
-                bronzeTier: PromoterStakingTiersInfo({
-                    platformFeePercentage: 1800, // 18%
-                    bonusPercentage: 600 // 6%
+                bronzeTier: PromoterStakingRewardInfo({
+                    usdcPercentage: 1000, //10%
+                    longPercentage: 400 // 4%
                 }),
-                silverTier: PromoterStakingTiersInfo({
-                    platformFeePercentage: 1500, // 15%
-                    bonusPercentage: 800 // 8%
+                silverTier: PromoterStakingRewardInfo({
+                    usdcPercentage: 1000, //10%
+                    longPercentage: 300 // 3%
                 }),
-                goldTier: PromoterStakingTiersInfo({
-                    platformFeePercentage: 1000, // 10%
-                    bonusPercentage: 1000 // 10%
+                goldTier: PromoterStakingRewardInfo({
+                    usdcPercentage: 1000, //10%
+                    longPercentage: 200 // 2%
                 }),
-                platinumTier: PromoterStakingTiersInfo({
-                    platformFeePercentage: 500, // 5%
-                    bonusPercentage: 1500 // 15%
+                platinumTier: PromoterStakingRewardInfo({
+                    usdcPercentage: 1000, //10%
+                    longPercentage: 100 // 1%
                 })
             }),
             VenueStakingTiers({
-                tier1DepositFeePercentage: 1000, // 10%
-                tier2DepositFeePercentage: 500, // 5%
-                tier3DepositFeePercentage: 250 // 2.5%
+                noStakes: VenueStakingRewardInfo({
+                    depositFeePercentage: 1000, //10%
+                    convenienceFee: convenienceFee // $5
+                }),
+                bronzeTier: VenueStakingRewardInfo({
+                    depositFeePercentage: 900, // 9%
+                    convenienceFee: convenienceFee // $5
+                }),
+                silverTier: VenueStakingRewardInfo({
+                    depositFeePercentage: 800, // 8%
+                    convenienceFee: convenienceFee // $5
+                }),
+                goldTier: VenueStakingRewardInfo({
+                    depositFeePercentage: 700, // 7%
+                    convenienceFee: convenienceFee // $5
+                }),
+                platinumTier: VenueStakingRewardInfo({
+                    depositFeePercentage: 500, // 5%
+                    convenienceFee: convenienceFee // $5
+                })
             })
         );
 
         _setParameters(
-            _tokens,
+            _contracts,
             _paymentsInfo,
             DepositTimelocks({
                 timelock1: 0, // 0 seconds
@@ -182,14 +232,14 @@ contract TapAndEarn is Initializable, Ownable {
     }
 
     function setParameters(
-        Tokens calldata _tokens,
+        Contracts calldata _contracts,
         PaymentsInfo calldata _paymentsInfo,
         DepositTimelocks memory _depositTimes,
         uint256 _affiliatePercentage,
         uint256 _credits
     ) external onlyOwner {
         _setParameters(
-            _tokens,
+            _contracts,
             _paymentsInfo,
             _depositTimes,
             _affiliatePercentage,
@@ -197,12 +247,17 @@ contract TapAndEarn is Initializable, Ownable {
         );
     }
 
+    // Approve should be: venueInfo.amount + depositFeePercentage + convenienceFee + affiliateFee
     function venueDeposit(VenueInfo calldata venueInfo) external {
-        Factory _factory = factory;
         _factory.nftFactoryParameters().signer.checkVenueInfo(venueInfo);
 
+        Contracts memory _contracts = contracts;
+        VenueStakingRewardInfo memory stakingInfo = rewards[
+            stakingTiers(_contracts.staking.balanceOf(venueInfo.venue))
+        ].venueStakingInfo;
+
         address affiliate;
-        uint256 amountToSwap;
+        uint256 affiliateFee;
         if (venueInfo.referralCode != bytes32(0)) {
             affiliate = _factory.getReferralCreator(venueInfo.referralCode);
             require(
@@ -210,36 +265,52 @@ contract TapAndEarn is Initializable, Ownable {
                 WrongReferralCode(venueInfo.referralCode)
             );
 
-            if (
-                venueAffiliateCredits[venueInfo.venue][venueInfo.referralCode] <
-                referralCreditsAmount
-            ) {
-                amountToSwap = factory.calculateRate(
-                    venueInfo.amount,
-                    affiliatePercentage
-                );
-                unchecked {
-                    ++venueAffiliateCredits[venueInfo.venue][
-                        venueInfo.referralCode
-                    ];
-                }
-            }
+            affiliateFee = calculateRate(venueInfo.amount, affiliatePercentage);
         }
 
-        venueRules[venueInfo.venue] = venueInfo.rules;
+        address feeCollector = _contracts
+            .factory
+            .nftFactoryParameters()
+            .feeCollector;
+        address usdc = paymentsInfo.usdc;
+        uint256 venueId = getVenueId(venueInfo.venue);
 
-        SafeTransferLib.safeTransferFrom(
-            paymentsInfo.depositToken,
+        if (venueAffiliateCredits[venueInfo.venue] < referralCreditsAmount) {
+            unchecked {
+                ++venueAffiliateCredits[venueInfo.venue];
+            }
+        } else {
+            usdc.safeTransferFrom(
+                venueInfo.venue,
+                feeCollector,
+                calculateRate(
+                    venueInfo.amount,
+                    stakingInfo.depositFeePercentage
+                )
+            );
+        }
+
+        _setVenueRules(venueInfo.venue, venueInfo.rules);
+
+        usdc.safeTransferFrom(
             venueInfo.venue,
             address(this),
+            stakingInfo.convenienceFee + affiliateFee
+        );
+        usdc.safeTransferFrom(
+            venueInfo.venue,
+            address(_contracts.escrow),
             venueInfo.amount
         );
 
-        _swap(affiliate, amountToSwap);
+        _swap(feeCollector, stakingInfo.convenienceFee);
+        _swap(affiliate, affiliateFee);
 
-        tokens.venueToken.mint(
+        _contracts.escrow.saveVenueDeposit(venueId, venueInfo.amount);
+
+        _contracts.venueToken.mint(
             venueInfo.venue,
-            getVenueId(venueInfo.venue),
+            venueId,
             venueInfo.amount,
             venueInfo.uri
         );
@@ -251,148 +322,198 @@ contract TapAndEarn is Initializable, Ownable {
         );
     }
 
-    function payToVenue(CustomerInfo calldata customerInfo) external {
-        factory.nftFactoryParameters().signer.checkCustomerInfo(customerInfo);
+    function updateVenueRules(VenueRules calldata rules) external {
+        uint256 venueId = getVenueId(msg.sender);
+        uint256 venueBalance = tokens.venueToken.balanceOf(msg.sender, venueId);
+        require(venueBalance > 0, OnlyCorrectVenue(venueId, msg.sender));
+        _setVenueRules(msg.sender, rules);
+    }
 
+    function payToVenue(CustomerInfo calldata customerInfo) external {
+        Contracts memory _contracts = contracts;
+        // TODO: check if venue rules == (visitBounty OR/AND spendBonusPercentage)
+        _contracts.factory.nftFactoryParameters().signer.checkCustomerInfo(
+            customerInfo
+        );
         uint256 venueId = getVenueId(customerInfo.venueToPayFor);
-        Tokens memory _tokens = tokens;
 
         venuePromoterPaymentTime[customerInfo.venueToPayFor][
             customerInfo.promoter
         ] = block.timestamp;
 
-        paymentsInfo.depositToken.safeTransferFrom(
+        // TODO: here we have to implement transferTo(venue, customerInfo.amount - rewards to promoter)
+        paymentsInfo.usdc.safeTransferFrom(
             customerInfo.customer,
             customerInfo.venueToPayFor,
             customerInfo.amount
         );
 
-        _tokens.venueToken.burn(
-            customerInfo.venueToPayFor,
-            venueId,
-            customerInfo.amount
-        );
+        // TODO: move to promoterPayments
+        // _tokens.venueToken.burn(
+        //     customerInfo.venueToPayFor,
+        //     venueId,
+        //     customerInfo.amount
+        // );
 
-        _tokens.promoterToken.mint(
-            customerInfo.promoter,
-            venueId,
-            customerInfo.amount,
-            _tokens.venueToken.uri(venueId)
-        );
+        // require(
+        //     _tokens.venueToken.balanceOf(customerInfo.venueToPayFor, venueId) >=
+        //         REWARDS_TO_PROMOTER,
+        //     "Not enough balance in venue token"
+        // );
+
+        // _tokens.promoterToken.mint(
+        //     customerInfo.promoter,
+        //     venueId,
+        //     customerInfo.amount,
+        //     _tokens.venueToken.uri(venueId)
+        // );
     }
 
-    function getThePromoterPayments(address venue, bool paymentInUsd) external {
+    function getPromoterPayments(address venue, bool paymentInUsdc) external {
         uint256 venueId = getVenueId(venue);
-        CreditToken promoterToken = tokens.promoterToken;
-        //TODO: not sure what amount should be transfered to promoter and burned in proimoterToken
-        uint256 promoterBalance = promoterToken.balanceOf(msg.sender, venueId);
+        Contracts memory _contracts = contracts;
 
+        uint256 promoterBalance = _contracts.promoterToken.balanceOf(
+            msg.sender,
+            venueId
+        );
         require(promoterBalance > 0, CanNotClaim(venue, msg.sender));
 
         require(
             block.timestamp >=
-                venuePromoterPaymentTime[venue][msg.sender] -
+                venuePromoterPaymentTime[venue][msg.sender] +
                     depositTimelocks(promoterBalance),
             PaymentInTimelock(venue, msg.sender, promoterBalance)
         );
 
-        if (paymentInUsd) {
-            paymentsInfo.depositToken.safeTransfer(msg.sender, promoterBalance);
-        } else {
-            //promoterBalance + BONUS
-            _swap(msg.sender, promoterBalance);
+        PromoterStakingRewardInfo memory stakingInfo = rewards[
+            stakingTiers(_contracts.staking.balanceOf(msg.sender))
+        ].promoterStakingInfo;
+
+        address feeCollector = _contracts
+            .factory
+            .nftFactoryParameters()
+            .feeCollector;
+
+        uint256 toPromoter = promoterBalance;
+        uint256 fees = calculateRate(
+            promoterBalance,
+            paymentInUsdc
+                ? stakingInfo.usdcPercentage
+                : stakingInfo.longPercentage
+        );
+        unchecked {
+            toPromoter -= fees;
         }
 
-        promoterToken.burn(msg.sender, venueId, promoterBalance);
+        if (paymentInUsdc) {
+            address usdc = paymentsInfo.usdc;
+
+            _contracts.escrow.distributeVenueDeposit(
+                venueId,
+                feeCollector,
+                fees
+            );
+            _contracts.escrow.distributeVenueDeposit(
+                venueId,
+                msg.sender,
+                toPromoter
+            );
+        } else {
+            _contracts.escrow.distributeVenueDeposit(
+                venueId,
+                address(this),
+                promoterBalance
+            );
+
+            _swap(feeCollector, fees);
+            _swap(msg.sender, toPromoter);
+        }
+
+        _contracts.promoterToken.burn(msg.sender, venueId, promoterBalance);
     }
 
     function emergencyCancelPayment(
         address venue,
         address promoter
     ) external onlyOwner {
+        Contracts memory _contracts = contracts;
         uint256 venueId = getVenueId(venue);
-        uint256 promoterBalance = tokens.promoterToken.balanceOf(
+        uint256 promoterBalance = _contracts.promoterToken.balanceOf(
             promoter,
             venueId
         );
         require(
             block.timestamp <
-                venuePromoterPaymentTime[venue][promoter] -
+                venuePromoterPaymentTime[venue][promoter] +
                     depositTimelocks(promoterBalance),
             PaymentInTimelock(venue, promoter, promoterBalance)
         );
 
-        Tokens memory _tokens = tokens;
-        uint256 amount = _tokens.promoterToken.balanceOf(promoter, venueId);
+        _contracts.promoterToken.burn(promoter, venueId, promoterBalance);
 
-        _tokens.promoterToken.burn(promoter, venueId, amount);
-
-        _tokens.venueToken.mint(
+        _contracts.venueToken.mint(
             venue,
             venueId,
-            amount,
-            _tokens.venueToken.uri(venueId)
+            promoterBalance,
+            _contracts.venueToken.uri(venueId)
         );
     }
 
-    function getVenueId(address venue) public pure returns (uint256) {
-        return uint256(uint160(venue));
-    }
-
-    function promoterStakingTiers(
+    function stakingTiers(
         uint256 amountStaked
-    ) public view returns (PromoterStakingTiersInfo memory) {
+    ) public view returns (StakingTiers tier) {
         if (amountStaked < 50000) {
-            return _promoterStakingTiers.regularTier;
+            return StakingTiers.NoStakes;
         } else if (amountStaked >= 50000 && amountStaked < 250000) {
-            return _promoterStakingTiers.bronzeTier;
+            return StakingTiers.BronzeTier;
         } else if (amountStaked >= 250000 && amountStaked < 500000) {
-            return _promoterStakingTiers.silverTier;
+            return StakingTiers.SilverTier;
         } else if (amountStaked >= 500000 && amountStaked < 1000000) {
-            return _promoterStakingTiers.goldTier;
+            return StakingTiers.GoldTier;
         }
-        return _promoterStakingTiers.platinumTier;
-    }
-
-    function venueStakingTiers(
-        uint256 amountStaked
-    ) public view returns (uint256 depositFeePercentage) {
-        if (amountStaked < 250000) {
-            depositFeePercentage = _venueStakingTiers.tier1DepositFeePercentage;
-        } else if (amountStaked >= 250000 && amountStaked < 500000) {
-            depositFeePercentage = _venueStakingTiers.tier2DepositFeePercentage;
-        }
-        depositFeePercentage = _venueStakingTiers.tier3DepositFeePercentage;
+        return StakingTiers.PlatinumTier;
     }
 
     function depositTimelocks(
         uint256 amount
     ) public view returns (uint256 time) {
         if (amount <= 100) {
-            time = _depositTimelocks.timelock1; // 0 seconds
+            time = _depositTimelocks.timelock1;
         } else if (amount > 100 && amount <= 500) {
-            time = _depositTimelocks.timelock2; // 1 hour
+            time = _depositTimelocks.timelock2;
         } else if (amount > 500 && amount <= 1000) {
-            time = _depositTimelocks.timelock3; // 6 hours
+            time = _depositTimelocks.timelock3;
         } else if (amount > 1000 && amount <= 5000) {
-            time = _depositTimelocks.timelock4; // 24 hours
+            time = _depositTimelocks.timelock4;
         }
-        time = _depositTimelocks.timelock5; // 48 hours
+        time = _depositTimelocks.timelock5;
+    }
+
+    function calculateRate(
+        uint256 amount,
+        uint256 percentage
+    ) public pure returns (uint256 rate) {
+        rate = (amount * percentage) / SCALING_FACTOR;
+    }
+
+    function getVenueId(address venue) public pure returns (uint256) {
+        return uint256(uint160(venue));
     }
 
     function _swap(address recipient, uint256 amount) internal {
-        if (amount == 0) {
+        if (recipient == address(0) || amount == 0) {
             return;
         }
 
         PaymentsInfo memory _paymentsInfo = paymentsInfo;
 
         bytes memory path = abi.encodePacked(
-            _paymentsInfo.depositToken,
+            _paymentsInfo.usdc,
             _paymentsInfo.uniswapPoolFees,
             _paymentsInfo.weth,
             _paymentsInfo.uniswapPoolFees,
-            _paymentsInfo.withdrawalToken
+            _paymentsInfo.long
         );
         uint256 amountOutMinimum = IQuoter(_paymentsInfo.uniswapV3Quoter)
             .quoteExactInput(path, amount);
@@ -406,7 +527,7 @@ contract TapAndEarn is Initializable, Ownable {
             });
 
         SafeTransferLib.safeApprove(
-            _paymentsInfo.depositToken,
+            _paymentsInfo.usdc,
             _paymentsInfo.uniswapV3Router,
             amount
         );
@@ -414,17 +535,19 @@ contract TapAndEarn is Initializable, Ownable {
     }
 
     function _setParameters(
-        Tokens calldata _tokens,
+        Contracts calldata _contracts,
         PaymentsInfo calldata _paymentsInfo,
         DepositTimelocks memory _depositTimes,
         uint256 _affiliatePercentage,
         uint256 _referralCreditsAmount
     ) private {
-        tokens = _tokens;
+        contracts = _contracts;
+
         paymentsInfo = _paymentsInfo;
         _depositTimelocks = _depositTimes;
         affiliatePercentage = _affiliatePercentage;
         referralCreditsAmount = _referralCreditsAmount;
+
         emit ParametersUpdated(
             _tokens,
             _paymentsInfo,
@@ -435,11 +558,28 @@ contract TapAndEarn is Initializable, Ownable {
     }
 
     function _setTiers(
-        PromoterStakingTiers memory promoterTiers,
-        VenueStakingTiers memory venueTiers
+        PromoterStakingRewards memory _promoterRewards,
+        VenueStakingRewards memory _venueRewards
     ) private {
-        _promoterStakingTiers = promoterTiers;
-        _venueStakingTiers = venueTiers;
-        emit TiersUpdated(promoterTiers, venueTiers);
+        promoterRewards[StakingTiers.NoStakes] = _promoterRewards.noStakes;
+        promoterRewards[StakingTiers.BronzeTier] = _promoterRewards.bronzeTier;
+        promoterRewards[StakingTiers.SilverTier] = _promoterRewards.silverTier;
+        promoterRewards[StakingTiers.GoldTier] = _promoterRewards.goldTier;
+        promoterRewards[StakingTiers.PlatinumTier] = _promoterRewards
+            .platinumTier;
+
+        venueRewards[StakingTiers.NoStakes] = _venueRewards.noStakes;
+        venueRewards[StakingTiers.BronzeTier] = _venueRewards.bronzeTier;
+        venueRewards[StakingTiers.SilverTier] = _venueRewards.silverTier;
+        venueRewards[StakingTiers.GoldTier] = _venueRewards.goldTier;
+        venueRewards[StakingTiers.PlatinumTier] = _venueRewards.platinumTier;
+
+        emit TiersUpdated(_promoterRewards, _venueRewards);
+    }
+
+    function _setVenueRules(address venue, VenueRules calldata rules) private {
+        venueRules[venue] = rules;
+
+        emit VenueRulesUpdated(venue, rules.paymentTypes, rules.rewardTypes);
     }
 }
