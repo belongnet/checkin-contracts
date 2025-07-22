@@ -46,43 +46,6 @@ struct ERC1155Info {
     bool transferable;
 }
 
-enum PaymentTypes {
-    NoType,
-    USDC,
-    LONG,
-    Both
-}
-
-enum RewardTypes {
-    NoType,
-    VisitBounty,
-    SpendBounty
-}
-
-struct VenueRules {
-    PaymentTypes paymentTypes;
-    RewardTypes rewardTypes;
-}
-
-struct VenueInfo {
-    VenueRules rules;
-    address venue;
-    uint256 amount;
-    bytes32 referralCode;
-    string uri;
-    bytes signature;
-}
-
-struct CustomerInfo {
-    address customer;
-    address venueToPayFor;
-    address promoter;
-    uint256 amount;
-    uint24 visitBounty;
-    uint24 spendBonusPercentage;
-    bytes signature;
-}
-
 /**
  * @title StaticPriceParameters
  * @notice A struct for holding parameters related to minting NFTs with a static price.
@@ -112,5 +75,43 @@ struct DynamicPriceParameters {
     /// @notice The URI of the metadata associated with the token being minted.
     string tokenUri;
     /// @notice The signature for verifying the minting request.
+    bytes signature;
+}
+
+enum PaymentTypes {
+    NoType,
+    USDC,
+    LONG,
+    Both
+}
+
+enum RewardTypes {
+    NoType,
+    VisitBounty,
+    SpendBounty
+}
+
+struct VenueRules {
+    PaymentTypes paymentTypes;
+    RewardTypes rewardTypes;
+}
+
+struct VenueInfo {
+    VenueRules rules;
+    address venue;
+    uint256 amount;
+    bytes32 referralCode;
+    string uri;
+    bytes signature;
+}
+
+struct CustomerInfo {
+    bool paymentInUsdc;
+    uint24 visitBounty;
+    uint24 spendBonusPercentage;
+    address customer;
+    address venueToPayFor;
+    address promoter;
+    uint256 amount;
     bytes signature;
 }
