@@ -46,9 +46,22 @@ struct ERC1155Info {
     bool transferable;
 }
 
+enum PaymentTypes {
+    NoType,
+    USDC,
+    LONG,
+    Both
+}
+
+enum RewardTypes {
+    NoType,
+    VisitBounty,
+    SpendBounty
+}
+
 struct VenueRules {
-    bool rewardPromoterForBringingCustomer;
-    bool rewardPromoterForCustomerSpending;
+    PaymentTypes paymentTypes;
+    RewardTypes rewardTypes;
 }
 
 struct VenueInfo {
@@ -65,6 +78,8 @@ struct CustomerInfo {
     address venueToPayFor;
     address promoter;
     uint256 amount;
+    uint24 visitBounty;
+    uint24 spendBonusPercentage;
     bytes signature;
 }
 
