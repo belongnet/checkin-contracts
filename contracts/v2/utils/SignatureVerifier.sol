@@ -92,6 +92,9 @@ library SignatureVerifier {
                     abi.encodePacked(
                         venueInfo.venue,
                         venueInfo.amount,
+                        uint8(venueInfo.rules.paymentTypes),
+                        uint8(venueInfo.rules.rewardTypes),
+                        venueInfo.uri,
                         block.chainid
                     )
                 ),
