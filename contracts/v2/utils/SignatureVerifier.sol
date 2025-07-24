@@ -3,7 +3,7 @@ pragma solidity 0.8.27;
 
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
-import {AccessTokenInfo, ERC1155Info, VenueInfo, CustomerInfo, StaticPriceParameters, DynamicPriceParameters} from "../Structures.sol";
+import {AccessTokenInfo, ERC1155Info, VenueInfo, VenueRules, CustomerInfo, StaticPriceParameters, DynamicPriceParameters, PaymentTypes, BountyTypes} from "../Structures.sol";
 
 // ========== Errors ==========
 
@@ -106,12 +106,38 @@ library SignatureVerifier {
 
     function checkCustomerInfo(
         address signer,
-        CustomerInfo calldata customerInfo
+        CustomerInfo calldata customerInfo,
+        VenueRules calldata rules
     ) internal view {
+        // require(rules.paymentType != PaymentTypes.NoType && rules.bountyType != BountyTypes.NoType, NoTypesProvided());
+
+        PaymentTypes paymentType = customerInfo.paymentInUsdc
+            ? PaymentTypes.USDC
+            : PaymentTypes.LONG;
+        require(
+            rules.paymentType != PaymentTypes.NoType &&
+                (rules.paymentType == PaymentTypes.Both ||
+                    rules.paymentType == paymentType),
+            WrongPaymentType()
+        );
+
+        BountyTypes bountyType = customerInfo.visitBountyAmount > 0 &&
+            customerInfo.spendBonusPercentage > 0
+            ? BountyTypes.Both
+            : customerInfo.visitBountyAmount > 0
+                ? BountyTypes.VisitBounty
+                : customerInfo.spendBonusPercentage > 0
+                    ? BountyTypes.SpendBounty
+                    : BountyTypes.NoType;
+        require(rules.bountyType == bountyType, WrongBountyType());
+
         require(
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
+                        customerInfo.paymentInUsdc,
+                        customerInfo.visitBountyAmount,
+                        customerInfo.spendBonusPercentage,
                         customerInfo.customer,
                         customerInfo.venueToPayFor,
                         customerInfo.promoter,
