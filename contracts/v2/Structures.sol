@@ -85,15 +85,16 @@ enum PaymentTypes {
     Both
 }
 
-enum RewardTypes {
+enum BountyTypes {
     NoType,
     VisitBounty,
-    SpendBounty
+    SpendBounty,
+    Both
 }
 
 struct VenueRules {
-    PaymentTypes paymentTypes;
-    RewardTypes rewardTypes;
+    PaymentTypes paymentType;
+    BountyTypes bountyType;
 }
 
 struct VenueInfo {
@@ -107,8 +108,9 @@ struct VenueInfo {
 
 struct CustomerInfo {
     bool paymentInUsdc;
-    uint24 visitBounty;
+    uint24 visitBountyAmount;
     uint24 spendBonusPercentage;
+    //
     address customer;
     address venueToPayFor;
     address promoter;
