@@ -36,7 +36,7 @@ contract TapAndEarn is Initializable, Ownable {
 
     struct VenueStakingRewardInfo {
         uint24 depositFeePercentage;
-        uint24 convenienceFee;
+        uint24 convenienceFeeAmount;
     }
 
     struct PromoterStakingRewardInfo {
@@ -138,13 +138,13 @@ contract TapAndEarn is Initializable, Ownable {
 
     mapping(StakingTiers tier => RewardsInfo rewardInfo) public rewards;
 
-    mapping(address venue => VenueRules rules) public venueRules;
+    struct VenueInfo {
+        VenueRules rules;
+        uint16 remainingCredits;
+        // mapping(address promoter => uint256[] paymentTimes) venuePromoterPaymentTime;
+    }
 
-    mapping(address venue => uint16 remainingCredits)
-        public venueAffiliateCredits;
-
-    mapping(address venue => mapping(address promoter => uint256 paymentTime))
-        public venuePromoterPaymentTime;
+    mapping(address venue => VenueInfo info) public venuesInfo;
 
     // ========== Functions ==========
 
@@ -159,57 +159,54 @@ contract TapAndEarn is Initializable, Ownable {
     function initialize(
         address _owner,
         Contracts calldata _contracts,
-        PaymentsInfo calldata _paymentsInfo,
-        uint256 _affiliatePercentage,
-        uint256 credits
+        PaymentsInfo calldata _paymentsInfo
     ) external initializer {
-        uint256 convenienceFee = 5 * 10 ** _paymentsInfo.usdc.readDecimals(); // 5 USDC
-
-        referralCreditsAmount = 3;
+        uint256 convenienceFeeAmount = 5 *
+            10 ** _paymentsInfo.usdc.readDecimals(); // 5 USDC
 
         _setTiers(
             PromoterStakingTiers({
                 noStakes: PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
-                    longPercentage: 500 // 5%
+                    longPercentage: 800 // 8%
                 }),
                 bronzeTier: PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
-                    longPercentage: 400 // 4%
+                    longPercentage: 700 // 7%
                 }),
                 silverTier: PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
-                    longPercentage: 300 // 3%
+                    longPercentage: 600 // 6%
                 }),
                 goldTier: PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
-                    longPercentage: 200 // 2%
+                    longPercentage: 500 // 5%
                 }),
                 platinumTier: PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
-                    longPercentage: 100 // 1%
+                    longPercentage: 400 // 4%
                 })
             }),
             VenueStakingTiers({
                 noStakes: VenueStakingRewardInfo({
                     depositFeePercentage: 1000, //10%
-                    convenienceFee: convenienceFee // $5
+                    convenienceFeeAmount: convenienceFeeAmount // $5
                 }),
                 bronzeTier: VenueStakingRewardInfo({
                     depositFeePercentage: 900, // 9%
-                    convenienceFee: convenienceFee // $5
+                    convenienceFeeAmount: convenienceFeeAmount // $5
                 }),
                 silverTier: VenueStakingRewardInfo({
                     depositFeePercentage: 800, // 8%
-                    convenienceFee: convenienceFee // $5
+                    convenienceFeeAmount: convenienceFeeAmount // $5
                 }),
                 goldTier: VenueStakingRewardInfo({
                     depositFeePercentage: 700, // 7%
-                    convenienceFee: convenienceFee // $5
+                    convenienceFeeAmount: convenienceFeeAmount // $5
                 }),
                 platinumTier: VenueStakingRewardInfo({
                     depositFeePercentage: 500, // 5%
-                    convenienceFee: convenienceFee // $5
+                    convenienceFeeAmount: convenienceFeeAmount // $5
                 })
             })
         );
@@ -224,8 +221,8 @@ contract TapAndEarn is Initializable, Ownable {
                 timelock4: 24 hours, // 24 hours
                 timelock5: 48 hours // 48 hours
             }),
-            _affiliatePercentage,
-            credits
+            1000,
+            3
         );
 
         _initializeOwner(_owner);
@@ -275,9 +272,11 @@ contract TapAndEarn is Initializable, Ownable {
         address usdc = paymentsInfo.usdc;
         uint256 venueId = getVenueId(venueInfo.venue);
 
-        if (venueAffiliateCredits[venueInfo.venue] < referralCreditsAmount) {
+        if (
+            venuesInfo[venueInfo.venue].remainingCredits < referralCreditsAmount
+        ) {
             unchecked {
-                ++venueAffiliateCredits[venueInfo.venue];
+                ++venuesInfo[venueInfo.venue].remainingCredits;
             }
         } else {
             usdc.safeTransferFrom(
@@ -331,42 +330,51 @@ contract TapAndEarn is Initializable, Ownable {
 
     function payToVenue(CustomerInfo calldata customerInfo) external {
         Contracts memory _contracts = contracts;
-        // TODO: check if venue rules == (visitBounty OR/AND spendBonusPercentage)
+        VenueRules memory rules = venuesInfo[customerInfo.venueToPayFor].rules;
+
         _contracts.factory.nftFactoryParameters().signer.checkCustomerInfo(
-            customerInfo
+            customerInfo,
+            rules
         );
+
         uint256 venueId = getVenueId(customerInfo.venueToPayFor);
 
-        venuePromoterPaymentTime[customerInfo.venueToPayFor][
-            customerInfo.promoter
-        ] = block.timestamp;
+        if (customerInfo.paymentInUsdc) {
+            //TODO: assume that payment only in USDC now
+            uint256 rewardsToPromoter = rules.visitBountyAmount +
+                calculateRate(customerInfo.amount, rules.spendBountyPercentage);
+            uint256 venueBalance = _contracts.venueToken.balanceOf(
+                customerInfo.venueToPayFor,
+                venueId
+            );
+            require(
+                venueBalance >= rewardsToPromoter,
+                NotEnoughBalance(venueBalance, rewardsToPromoter)
+            );
 
-        // TODO: here we have to implement transferTo(venue, customerInfo.amount - rewards to promoter)
-        paymentsInfo.usdc.safeTransferFrom(
-            customerInfo.customer,
-            customerInfo.venueToPayFor,
-            customerInfo.amount
-        );
+            // venuePromoterPaymentTime[customerInfo.venueToPayFor][
+            //     customerInfo.promoter
+            // ].push(block.timestamp);
 
-        // TODO: move to promoterPayments
-        // _tokens.venueToken.burn(
-        //     customerInfo.venueToPayFor,
-        //     venueId,
-        //     customerInfo.amount
-        // );
+            paymentsInfo.usdc.safeTransferFrom(
+                customerInfo.customer,
+                customerInfo.venueToPayFor,
+                customerInfo.amount
+            );
 
-        // require(
-        //     _tokens.venueToken.balanceOf(customerInfo.venueToPayFor, venueId) >=
-        //         REWARDS_TO_PROMOTER,
-        //     "Not enough balance in venue token"
-        // );
+            _contracts.venueToken.burn(
+                customerInfo.venueToPayFor,
+                venueId,
+                rewardsToPromoter
+            );
 
-        // _tokens.promoterToken.mint(
-        //     customerInfo.promoter,
-        //     venueId,
-        //     customerInfo.amount,
-        //     _tokens.venueToken.uri(venueId)
-        // );
+            _contracts.promoterToken.mint(
+                customerInfo.promoter,
+                venueId,
+                rewardsToPromoter,
+                _tokens.venueToken.uri(venueId)
+            );
+        } else {}
     }
 
     function getPromoterPayments(address venue, bool paymentInUsdc) external {
@@ -379,12 +387,13 @@ contract TapAndEarn is Initializable, Ownable {
         );
         require(promoterBalance > 0, CanNotClaim(venue, msg.sender));
 
-        require(
-            block.timestamp >=
-                venuePromoterPaymentTime[venue][msg.sender] +
-                    depositTimelocks(promoterBalance),
-            PaymentInTimelock(venue, msg.sender, promoterBalance)
-        );
+        // uint256[] memory times = venuePromoterPaymentTime[venue][msg.sender];
+        // for (uint256 i = 0; i < times.length; ++i) {
+        //     require(
+        //         block.timestamp >= times + depositTimelocks(promoterBalance),
+        //         PaymentInTimelock(venue, msg.sender, promoterBalance)
+        //     );
+        // }
 
         PromoterStakingRewardInfo memory stakingInfo = rewards[
             stakingTiers(_contracts.staking.balanceOf(msg.sender))
@@ -578,7 +587,7 @@ contract TapAndEarn is Initializable, Ownable {
     }
 
     function _setVenueRules(address venue, VenueRules calldata rules) private {
-        venueRules[venue] = rules;
+        venuesInfo[venueInfo.venue].rules = rules;
 
         emit VenueRulesUpdated(venue, rules.paymentTypes, rules.rewardTypes);
     }
