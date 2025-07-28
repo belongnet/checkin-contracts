@@ -12,6 +12,10 @@ error InvalidSignature();
 
 error EmptyMetadata(string name, string symbol);
 
+error WrongPaymentType();
+
+error WrongBountyType();
+
 // ========== Library ==========
 
 /// @title AddressHelper Library
@@ -67,12 +71,7 @@ library SignatureVerifier {
                     abi.encodePacked(
                         creditTokenInfo.name,
                         creditTokenInfo.symbol,
-                        creditTokenInfo.defaultAdmin,
-                        creditTokenInfo.manager,
-                        creditTokenInfo.minter,
-                        creditTokenInfo.burner,
-                        creditTokenInfo.uri,
-                        creditTokenInfo.transferable,
+                        creditTokenInfo.uri
                         block.chainid
                     )
                 ),
@@ -91,9 +90,6 @@ library SignatureVerifier {
                 keccak256(
                     abi.encodePacked(
                         venueInfo.venue,
-                        venueInfo.amount,
-                        uint8(venueInfo.rules.paymentTypes),
-                        uint8(venueInfo.rules.rewardTypes),
                         venueInfo.uri,
                         block.chainid
                     )
