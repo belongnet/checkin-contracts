@@ -78,6 +78,22 @@ struct DynamicPriceParameters {
     bytes signature;
 }
 
+enum StakingTiers {
+    NoStakes,
+    BronzeTier,
+    SilverTier,
+    GoldTier,
+    PlatinumTier
+}
+
+enum TimelockTiers {
+    NoTimelock,
+    Timelock1,
+    Timelock2,
+    Timelock3,
+    Timelock4
+}
+
 enum PaymentTypes {
     NoType,
     USDC,
