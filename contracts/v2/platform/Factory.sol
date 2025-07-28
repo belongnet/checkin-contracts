@@ -8,7 +8,7 @@ import {LibClone} from "solady/src/utils/LibClone.sol";
 import {ReferralSystemV2} from "./extensions/ReferralSystemV2.sol";
 import {AccessToken} from "../tokens/AccessToken.sol";
 import {CreditToken} from "../tokens/CreditToken.sol";
-import {RoyaltiesReceiverV2} from "../RoyaltiesReceiverV2.sol";
+import {RoyaltiesReceiverV2} from "../periphery/RoyaltiesReceiverV2.sol";
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
 import {AccessTokenInfo, Metadata, ERC1155Info} from "../Structures.sol";
 
