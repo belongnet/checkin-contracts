@@ -13,35 +13,60 @@ contract Escrow is Initializable, ERC4626, Ownable {
 
     error NotTapAndEarn();
 
+    struct VenueDeposits {
+        uint256 usdcDeposits;
+        uint256 longDeposits;
+    }
+
     TapAndEarn public tapAndEarn;
-    mapping(uint256 venueId => uint256 deposit) public venueDeposits;
+    mapping(address venue => VenueDeposits deposits) public venueDeposits;
 
     modifier onlyTapEarn() {
         require(msg.sender == address(tapAndEarn), NotTapAndEarn());
         _;
     }
 
-    function saveVenueDeposit(
-        uint256 venueId,
-        uint256 deposited
+    function venueDeposit(
+        address venue,
+        uint256 depositedUSDCs,
+        uint256 depositedLONGs
     ) external onlyTapEarn {
-        venueDeposits[venueId] = deposited;
+        venueDeposits[venue] = VenueDeposits({
+            usdcDeposits: depositedUSDCs,
+            longDeposits: depositedLONGs
+        });
+        // TODO: emit
+    }
+
+    function distributeLONGDiscount(
+        address venue,
+        uint256 amount
+    ) external onlyTapEarn {
+        uint256 longDeposits = venueDeposits[venue].longDeposits;
+        require(longDeposits >= amount, NotEnoughLONGs(longDeposits, amount));
+
+        unchecked {
+            longDeposits -= amount;
+        }
+        venueDeposits[venue].longDeposits = longDeposits;
+
+        tapAndEarn.paymentsInfo().long.safeTransfer(venue, amount);
         // TODO: emit
     }
 
     function distributeVenueDeposit(
-        uint256 venueId,
+        address venue,
         address to,
         uint256 amount
     ) external onlyTapEarn {
-        uint256 deposited = venueDeposits[venue];
-        require(amount <= deposited, NotEnoughFunds());
+        uint256 usdcDeposits = venueDeposits[venue].usdcDeposits;
+        require(amount <= usdcDeposits, NotEnoughFunds());
 
         unchecked {
-            deposited -= amount;
+            usdcDeposits -= amount;
         }
 
-        venueDeposits[venue] = deposited;
+        venueDeposits[venue].usdcDeposits = usdcDeposits;
 
         tapAndEarn.paymentsInfo().usdc.safeTransfer(promoter, amount);
         // TODO: emit
