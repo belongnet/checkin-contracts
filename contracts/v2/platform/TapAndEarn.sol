@@ -14,7 +14,9 @@ import {Escrow} from "../periphery/Escrow.sol";
 import {Staking} from "../periphery/Staking.sol";
 import {CreditToken} from "../tokens/CreditToken.sol";
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
-import {VenueRules, VenueInfo, CustomerInfo} from "../Structures.sol";
+import {Helper} from "../utils/Helper.sol";
+
+import {TimelockTiers, StakingTiers, VenueRules, VenueInfo, CustomerInfo} from "../Structures.sol";
 
 /**
  * @title NFT Factory Contract
@@ -469,48 +471,10 @@ contract TapAndEarn is Initializable, Ownable {
         );
     }
 
-    function stakingTiers(
-        uint256 amountStaked
-    ) public view returns (StakingTiers tier) {
-        if (amountStaked < 50000) {
-            return StakingTiers.NoStakes;
-        } else if (amountStaked >= 50000 && amountStaked < 250000) {
-            return StakingTiers.BronzeTier;
-        } else if (amountStaked >= 250000 && amountStaked < 500000) {
-            return StakingTiers.SilverTier;
-        } else if (amountStaked >= 500000 && amountStaked < 1000000) {
-            return StakingTiers.GoldTier;
-        }
-        return StakingTiers.PlatinumTier;
-    }
-
-    function depositTimelocks(
+    function _swap(
+        address recipient,
         uint256 amount
-    ) public view returns (uint256 time) {
-        if (amount <= 100) {
-            time = _depositTimelocks.timelock1;
-        } else if (amount > 100 && amount <= 500) {
-            time = _depositTimelocks.timelock2;
-        } else if (amount > 500 && amount <= 1000) {
-            time = _depositTimelocks.timelock3;
-        } else if (amount > 1000 && amount <= 5000) {
-            time = _depositTimelocks.timelock4;
-        }
-        time = _depositTimelocks.timelock5;
-    }
-
-    function calculateRate(
-        uint256 amount,
-        uint256 percentage
-    ) public pure returns (uint256 rate) {
-        rate = (amount * percentage) / SCALING_FACTOR;
-    }
-
-    function getVenueId(address venue) public pure returns (uint256) {
-        return uint256(uint160(venue));
-    }
-
-    function _swap(address recipient, uint256 amount) internal {
+    ) internal returns (uint256 swapped) {
         if (recipient == address(0) || amount == 0) {
             return;
         }
