@@ -30,6 +30,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
     error RoyaltiesReceiverAddressMismatch();
     error AccessTokenAddressMismatch();
+    error CreditTokenAddressMismatch();
 
     // ========== Events ==========
 
@@ -262,19 +263,24 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             creditTokenInfo
         );
 
-        bytes32 saltHash = _metadataHash(
+        bytes32 hashedSalt = _metadataHash(
             creditTokenInfo.name,
             creditTokenInfo.symbol
         );
 
         require(
-            _creditTokenInstanceInfo[saltHash].creditToken == address(0),
+            _creditTokenInstanceInfo[hashedSalt].creditToken == address(0),
             TokenAlreadyExists()
         );
 
-        creditToken = LibClone.cloneDeterministic(
-            _currentImplementations.creditToken,
-            saltHash
+        address creditTokenImplementation = _currentImplementations.creditToken;
+        address predictedCreditToken = creditTokenImplementation
+            .predictDeterministicAddress(hashedSalt, address(this));
+
+        creditToken = creditTokenImplementation.cloneDeterministic(hashedSalt);
+        require(
+            predictedCreditToken == creditToken,
+            CreditTokenAddressMismatch()
         );
         CreditToken(creditToken).initialize(creditTokenInfo);
 
@@ -286,9 +292,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
                 symbol: creditTokenInfo.symbol
             });
 
-        _creditTokenInstanceInfo[saltHash] = creditTokenInstanceInfo;
+        _creditTokenInstanceInfo[hashedSalt] = creditTokenInstanceInfo;
 
-        emit CreditTokenCreated(saltHash, creditTokenInstanceInfo);
+        emit CreditTokenCreated(hashedSalt, creditTokenInstanceInfo);
     }
 
     /**
