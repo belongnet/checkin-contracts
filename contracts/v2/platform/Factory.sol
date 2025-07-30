@@ -194,7 +194,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         address receiver;
         _setReferralUser(referralCode, msg.sender);
         if (accessTokenInfo.feeNumerator > 0) {
-            receiver = currentImplementations.royaltiesReceiver.clone();
+            receiver = currentImplementations
+                .royaltiesReceiver
+                .cloneDeterministic(hashedSalt);
             require(
                 predictedRoyaltiesReceiver == receiver,
                 RoyaltiesReceiverAddressMismatch()
