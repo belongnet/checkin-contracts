@@ -27,7 +27,7 @@ library SignatureVerifier {
     function checkAccessTokenInfo(
         address signer,
         AccessTokenInfo memory accessTokenInfo
-    ) internal view {
+    ) external view {
         require(
             bytes(accessTokenInfo.name).length > 0 &&
                 bytes(accessTokenInfo.symbol).length > 0,
@@ -55,7 +55,7 @@ library SignatureVerifier {
         address signer,
         bytes calldata signature,
         ERC1155Info calldata creditTokenInfo
-    ) internal view {
+    ) external view {
         require(
             bytes(creditTokenInfo.name).length > 0 &&
                 bytes(creditTokenInfo.symbol).length > 0,
@@ -81,7 +81,7 @@ library SignatureVerifier {
     function checkVenueInfo(
         address signer,
         VenueInfo calldata venueInfo
-    ) internal view {
+    ) external view {
         require(
             signer.isValidSignatureNow(
                 keccak256(
@@ -101,7 +101,7 @@ library SignatureVerifier {
         address signer,
         CustomerInfo calldata customerInfo,
         VenueRules memory rules
-    ) internal view {
+    ) external view {
         // require(rules.paymentType != PaymentTypes.NoType && rules.bountyType != BountyTypes.NoType, NoTypesProvided());
 
         PaymentTypes paymentType = customerInfo.paymentInUSDC
@@ -147,7 +147,7 @@ library SignatureVerifier {
     function checkPromoterPaymentDistribution(
         address signer,
         PromoterInfo memory promoterInfo
-    ) internal view {
+    ) external view {
         require(
             signer.isValidSignatureNow(
                 keccak256(
@@ -175,7 +175,7 @@ library SignatureVerifier {
         address signer,
         address receiver,
         DynamicPriceParameters calldata params
-    ) internal view {
+    ) external view {
         require(
             signer.isValidSignatureNow(
                 keccak256(
@@ -204,7 +204,7 @@ library SignatureVerifier {
         address signer,
         address receiver,
         StaticPriceParameters calldata params
-    ) internal view {
+    ) external view {
         require(
             signer.isValidSignatureNow(
                 keccak256(
