@@ -36,7 +36,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Event emitted when a new NFT is created.
     /// @param _hash The keccak256 hash of the NFT's name and symbol.
     /// @param info The information about the created NFT instance.
-    event NFTCreated(bytes32 indexed _hash, AccessTokenInstanceInfo info);
+    event AccessTokenCreated(
+        bytes32 indexed _hash,
+        AccessTokenInstanceInfo info
+    );
 
     event CreditTokenCreated(
         bytes32 indexed _hash,
@@ -247,7 +250,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
         _accessTokenInstanceInfo[hashedSalt] = accessTokenInstanceInfo;
 
-        emit NFTCreated(hashedSalt, accessTokenInstanceInfo);
+        emit AccessTokenCreated(hashedSalt, accessTokenInstanceInfo);
     }
 
     function produceCreditToken(
