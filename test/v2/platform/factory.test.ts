@@ -171,10 +171,8 @@ describe('Factory', () => {
         { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
-
       const emptyNameSignature = EthCrypto.sign(signer.privateKey, emptyNameMessage);
       fakeInfo.signature = emptyNameSignature;
-
       await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero)).to.be.revertedWithCustomError(
         factory,
         'InvalidSignature',
@@ -187,10 +185,8 @@ describe('Factory', () => {
         { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId },
       ]);
-
       const emptySymbolSignature = EthCrypto.sign(signer.privateKey, emptySymbolMessage);
       fakeInfo.signature = emptySymbolSignature;
-
       await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero)).to.be.revertedWithCustomError(
         factory,
         'InvalidSignature',
@@ -203,15 +199,25 @@ describe('Factory', () => {
         { type: 'uint96' as any, value: feeNumerator },
         { type: 'uint256', value: chainId + 1 },
       ]);
-
       const badSignature = EthCrypto.sign(signer.privateKey, badMessage);
       fakeInfo.signature = badSignature;
-
       await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero)).to.be.revertedWithCustomError(
         factory,
         'InvalidSignature',
       );
       fakeInfo.signature = signature;
+
+      fakeInfo.name = '';
+      await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero))
+        .to.be.revertedWithCustomError(factory, 'EmptyMetadata')
+        .withArgs(fakeInfo.name, fakeInfo.symbol);
+      fakeInfo.name = nftName;
+
+      fakeInfo.symbol = '';
+      await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero))
+        .to.be.revertedWithCustomError(factory, 'EmptyMetadata')
+        .withArgs(fakeInfo.name, fakeInfo.symbol);
+      fakeInfo.symbol = nftSymbol;
 
       const tx = await factory.connect(alice).produce(info, ethers.constants.HashZero);
 
@@ -423,6 +429,8 @@ describe('Factory', () => {
         transferable: true,
       };
 
+      const fakeInfo = ctInfo;
+
       const message = EthCrypto.hash.keccak256([
         { type: 'string', value: nftName },
         { type: 'string', value: nftSymbol },
@@ -439,10 +447,9 @@ describe('Factory', () => {
         { type: 'uint256', value: chainId },
       ]);
       const emptyNameSignature = EthCrypto.sign(signer.privateKey, emptyNameMessage);
-      await expect(factory.connect(alice).produceCreditToken(ctInfo, emptyNameSignature)).to.be.revertedWithCustomError(
-        factory,
-        'InvalidSignature',
-      );
+      await expect(
+        factory.connect(alice).produceCreditToken(fakeInfo, emptyNameSignature),
+      ).to.be.revertedWithCustomError(factory, 'InvalidSignature');
 
       const emptySymbolMessage = EthCrypto.hash.keccak256([
         { type: 'string', value: nftName },
@@ -466,6 +473,18 @@ describe('Factory', () => {
         factory,
         'InvalidSignature',
       );
+
+      fakeInfo.name = '';
+      await expect(factory.connect(alice).produceCreditToken(fakeInfo, emptyNameSignature))
+        .to.be.revertedWithCustomError(factory, 'EmptyMetadata')
+        .withArgs(fakeInfo.name, fakeInfo.symbol);
+      fakeInfo.name = nftName;
+
+      fakeInfo.symbol = '';
+      await expect(factory.connect(alice).produceCreditToken(fakeInfo, emptyNameSignature))
+        .to.be.revertedWithCustomError(factory, 'EmptyMetadata')
+        .withArgs(fakeInfo.name, fakeInfo.symbol);
+      fakeInfo.symbol = nftSymbol;
 
       const tx = await factory.connect(alice).produceCreditToken(ctInfo, signature);
 
