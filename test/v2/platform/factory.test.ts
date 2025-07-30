@@ -8,14 +8,14 @@ import {
   RoyaltiesReceiverV2,
   CreditToken,
   AccessToken,
-} from '../../typechain-types';
+} from '../../../typechain-types';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
-import { PromiseOrValue } from '../../typechain-types/common';
+import { PromiseOrValue } from '../../../typechain-types/common';
 import {
   AccessTokenInfoStruct,
   AccessTokenInfoStructOutput,
-} from '../../typechain-types/contracts/v2/platform/Factory';
+} from '../../../typechain-types/contracts/v2/platform/Factory';
 
 describe('Factory', () => {
   const PLATFORM_COMISSION = '10';
@@ -111,6 +111,10 @@ describe('Factory', () => {
       expect((await factory.nftFactoryParameters()).defaultPaymentToken).to.be.equal(ETH_ADDRESS);
       expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(factoryParams.maxArraySize);
       expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(validator.address);
+
+      expect((await factory.implementations()).accessToken).to.be.equal(implementations.accessToken);
+      expect((await factory.implementations()).creditToken).to.be.equal(implementations.creditToken);
+      expect((await factory.implementations()).royaltiesReceiver).to.be.equal(implementations.royaltiesReceiver);
 
       referralPercentages.forEach(async (pecentage: any, i: PromiseOrValue<BigNumberish>) => {
         expect(await factory.usedToPercentage(i)).to.be.equal(pecentage);
@@ -726,8 +730,16 @@ describe('Factory', () => {
       await expect(
         factory.connect(alice).setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages),
       ).to.be.revertedWithCustomError(factory, 'Unauthorized');
-
       referralPercentages[1] = 1;
+
+      royalties.amountToCreator = 9000;
+      royalties.amountToPlatform = 1001;
+      await expect(
+        factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages),
+      ).to.be.revertedWithCustomError(factory, 'TotalRoyaltiesExceed100Pecents');
+
+      royalties.amountToCreator = 9000;
+      royalties.amountToPlatform = 1000;
 
       const tx = await factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages);
       await expect(tx).to.emit(factory, 'FactoryParametersSet');
