@@ -86,14 +86,6 @@ enum StakingTiers {
     PlatinumTier
 }
 
-enum TimelockTiers {
-    NoTimelock,
-    Timelock1,
-    Timelock2,
-    Timelock3,
-    Timelock4
-}
-
 enum PaymentTypes {
     NoType,
     USDC,
@@ -125,7 +117,7 @@ struct VenueInfo {
 struct CustomerInfo {
     bool paymentInUsdc;
     uint24 visitBountyAmount;
-    uint24 spendBonusPercentage;
+    uint24 spendBountyPercentage;
     //
     address customer;
     address venueToPayFor;
