@@ -148,10 +148,8 @@ describe('Factory', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       const info: AccessTokenInfoStruct = {
-        metadata: {
-          name: nftName,
-          symbol: nftSymbol,
-        },
+        name: nftName,
+        symbol: nftSymbol,
         contractURI: contractURI,
         paymentToken: ETH_ADDRESS,
         mintPrice: price,
@@ -221,8 +219,8 @@ describe('Factory', () => {
       const nftInstanceInfo = await factory.getNftInstanceInfo(nftName, nftSymbol);
       const accessToken = nftInstanceInfo.accessToken;
       expect(accessToken).to.not.be.equal(ZERO_ADDRESS);
-      expect(nftInstanceInfo.metadata.name).to.be.equal(nftName);
-      expect(nftInstanceInfo.metadata.symbol).to.be.equal(nftSymbol);
+      expect(nftInstanceInfo.name).to.be.equal(nftName);
+      expect(nftInstanceInfo.symbol).to.be.equal(nftSymbol);
       expect(nftInstanceInfo.creator).to.be.equal(alice.address);
 
       console.log('instanceAddress = ', accessToken);
@@ -285,10 +283,8 @@ describe('Factory', () => {
 
       await factory.connect(alice).produce(
         {
-          metadata: {
-            name: nftName1,
-            symbol: nftSymbol1,
-          },
+          name: nftName1,
+          symbol: nftSymbol1,
           contractURI: contractURI1,
           paymentToken: ZERO_ADDRESS,
           mintPrice: price1,
@@ -314,10 +310,8 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          metadata: {
-            name: nftName2,
-            symbol: nftSymbol2,
-          },
+          name: nftName2,
+          symbol: nftSymbol2,
           contractURI: contractURI2,
           paymentToken: ETH_ADDRESS,
           mintPrice: price2,
@@ -343,10 +337,8 @@ describe('Factory', () => {
 
       await factory.connect(charlie).produce(
         {
-          metadata: {
-            name: nftName3,
-            symbol: nftSymbol3,
-          },
+          name: nftName3,
+          symbol: nftSymbol3,
           contractURI: contractURI3,
           paymentToken: ETH_ADDRESS,
           mintPrice: price3,
@@ -469,10 +461,8 @@ describe('Factory', () => {
       await expect(
         factory.connect(alice).produce(
           {
-            metadata: {
-              name: nftName,
-              symbol: nftSymbol,
-            },
+            name: nftName,
+            symbol: nftSymbol,
             contractURI: contractURI,
             paymentToken: ETH_ADDRESS,
             mintPrice: price,
@@ -490,10 +480,8 @@ describe('Factory', () => {
       await expect(
         factory.connect(alice).produce(
           {
-            metadata: {
-              name: nftName,
-              symbol: nftSymbol,
-            },
+            name: nftName,
+            symbol: nftSymbol,
             contractURI: contractURI,
             paymentToken: ETH_ADDRESS,
             mintPrice: price,
@@ -510,10 +498,8 @@ describe('Factory', () => {
 
       const tx = await factory.connect(bob).produce(
         {
-          metadata: {
-            name: nftName,
-            symbol: nftSymbol,
-          },
+          name: nftName,
+          symbol: nftSymbol,
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -551,10 +537,8 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          metadata: {
-            name: nftName,
-            symbol: nftSymbol,
-          },
+          name: nftName,
+          symbol: nftSymbol,
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -587,10 +571,8 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          metadata: {
-            name: nftName,
-            symbol: nftSymbol,
-          },
+          name: nftName,
+          symbol: nftSymbol,
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -623,10 +605,8 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          metadata: {
-            name: nftName,
-            symbol: nftSymbol,
-          },
+          name: nftName,
+          symbol: nftSymbol,
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -659,10 +639,8 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          metadata: {
-            name: nftName,
-            symbol: nftSymbol,
-          },
+          name: nftName,
+          symbol: nftSymbol,
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -695,10 +673,8 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          metadata: {
-            name: nftName,
-            symbol: nftSymbol,
-          },
+          name: nftName,
+          symbol: nftSymbol,
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -765,10 +741,8 @@ describe('Factory', () => {
 
       await factory.connect(alice).produce(
         {
-          metadata: {
-            name: nftName,
-            symbol: nftSymbol,
-          },
+          name: nftName,
+          symbol: nftSymbol,
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -785,10 +759,8 @@ describe('Factory', () => {
       await expect(
         factory.connect(alice).produce(
           {
-            metadata: {
-              name: nftName,
-              symbol: nftSymbol,
-            },
+            name: nftName,
+            symbol: nftSymbol,
             contractURI: contractURI,
             paymentToken: ETH_ADDRESS,
             mintPrice: price,

@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.27;
 
-struct Metadata {
-    /// @notice The name of the NFT collection.
-    string name;
-    /// @notice The symbol representing the NFT collection.
-    string symbol;
-}
-
 /**
  * @title InstanceInfo
  * @notice A struct that holds detailed information about an individual NFT collection, such as name, symbol, and pricing.
@@ -28,7 +21,10 @@ struct AccessTokenInfo {
     uint256 whitelistMintPrice;
     /// @notice The expiration time (as a timestamp) for the collection.
     uint256 collectionExpire;
-    Metadata metadata;
+    /// @notice The name of the NFT collection.
+    string name;
+    /// @notice The symbol representing the NFT collection.
+    string symbol;
     /// @notice The contract URI for the NFT collection, used for metadata.
     string contractURI;
     /// @notice A signature provided by the backend to validate the creation of the collection.

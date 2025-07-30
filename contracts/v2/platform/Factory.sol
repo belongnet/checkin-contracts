@@ -10,7 +10,7 @@ import {AccessToken} from "../tokens/AccessToken.sol";
 import {CreditToken} from "../tokens/CreditToken.sol";
 import {RoyaltiesReceiverV2} from "../periphery/RoyaltiesReceiverV2.sol";
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
-import {AccessTokenInfo, Metadata, ERC1155Info} from "../Structures.sol";
+import {AccessTokenInfo, ERC1155Info} from "../Structures.sol";
 
 /**
  * @title NFT Factory Contract
@@ -83,7 +83,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         address accessToken;
         /// @notice The address of the Royalties Receiver contract instance.
         address royaltiesReceiver;
-        Metadata metadata;
+        /// @notice The name of the NFT collection.
+        string name;
+        /// @notice The symbol representing the NFT collection.
+        string symbol;
     }
 
     struct CreditTokenInstanceInfo {
@@ -91,7 +94,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         address creator;
         /// @notice The address of the NFT contract instance.
         address creditToken;
-        Metadata metadata;
+        /// @notice The name of the NFT collection.
+        string name;
+        /// @notice The symbol representing the NFT collection.
+        string symbol;
     }
 
     struct RoyaltiesParameters {
@@ -168,8 +174,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         factoryParameters.signer.checkAccessTokenInfo(accessTokenInfo);
 
         bytes32 hashedSalt = _metadataHash(
-            accessTokenInfo.metadata.name,
-            accessTokenInfo.metadata.symbol
+            accessTokenInfo.name,
+            accessTokenInfo.symbol
         );
 
         require(
@@ -234,8 +240,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             memory accessTokenInstanceInfo = AccessTokenInstanceInfo({
                 creator: msg.sender,
                 accessToken: accessToken,
-                metadata: accessTokenInfo.metadata,
-                royaltiesReceiver: receiver
+                royaltiesReceiver: receiver,
+                name: accessTokenInfo.name,
+                symbol: accessTokenInfo.symbol
             });
 
         _accessTokenInstanceInfo[hashedSalt] = accessTokenInstanceInfo;
@@ -272,10 +279,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             memory creditTokenInstanceInfo = CreditTokenInstanceInfo({
                 creator: msg.sender,
                 creditToken: creditToken,
-                metadata: Metadata({
-                    name: creditTokenInfo.name,
-                    symbol: creditTokenInfo.symbol
-                })
+                name: creditTokenInfo.name,
+                symbol: creditTokenInfo.symbol
             });
 
         _creditTokenInstanceInfo[saltHash] = creditTokenInstanceInfo;

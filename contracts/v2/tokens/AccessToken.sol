@@ -273,13 +273,13 @@ contract AccessToken is
     /// @notice Returns the name of the token collection.
     /// @return The name of the token.
     function name() public view override returns (string memory) {
-        return parameters.info.metadata.name;
+        return parameters.info.name;
     }
 
     /// @notice Returns the symbol of the token collection.
     /// @return The symbol of the token.
     function symbol() public view override returns (string memory) {
-        return parameters.info.metadata.symbol;
+        return parameters.info.symbol;
     }
 
     /**

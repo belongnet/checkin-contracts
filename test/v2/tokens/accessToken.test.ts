@@ -121,10 +121,8 @@ describe('AccessToken', () => {
     const signature2 = EthCrypto.sign(signer.privateKey, message2);
 
     instanceInfoETH = {
-      metadata: {
-        name: nftName,
-        symbol: nftSymbol,
-      },
+      name: nftName,
+      symbol: nftSymbol,
       contractURI,
       paymentToken: ETH_ADDRESS,
       mintPrice: eth_price,
@@ -137,10 +135,8 @@ describe('AccessToken', () => {
     };
 
     instanceInfoToken = {
-      metadata: {
-        name: nftName + '2',
-        symbol: nftSymbol + '2',
-      },
+      name: nftName + '2',
+      symbol: nftSymbol + '2',
       contractURI,
       paymentToken: erc20Example.address,
       mintPrice: token_price,
@@ -215,8 +211,8 @@ describe('AccessToken', () => {
       );
 
       let [, , feeReceiver, , infoReturned] = await nft_eth.parameters();
-      expect(infoReturned.metadata.name).to.be.equal(instanceInfoETH.metadata.name);
-      expect(infoReturned.metadata.symbol).to.be.equal(instanceInfoETH.metadata.symbol);
+      expect(infoReturned.name).to.be.equal(instanceInfoETH.name);
+      expect(infoReturned.symbol).to.be.equal(instanceInfoETH.symbol);
       expect(infoReturned.contractURI).to.be.equal(instanceInfoETH.contractURI);
       expect(infoReturned.paymentToken).to.be.equal(instanceInfoETH.paymentToken);
       expect(infoReturned.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
@@ -225,8 +221,8 @@ describe('AccessToken', () => {
       expect(feeReceiver).to.be.equal(receiver_eth.address);
 
       expect((await nft_eth.parameters()).factory).to.be.equal(factory.address);
-      expect(await nft_eth.name()).to.be.equal(instanceInfoETH.metadata.name);
-      expect(await nft_eth.symbol()).to.be.equal(instanceInfoETH.metadata.symbol);
+      expect(await nft_eth.name()).to.be.equal(instanceInfoETH.name);
+      expect(await nft_eth.symbol()).to.be.equal(instanceInfoETH.symbol);
       expect((await nft_eth.parameters()).info.paymentToken).to.be.equal(instanceInfoETH.paymentToken);
       expect((await nft_eth.parameters()).info.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
       expect((await nft_eth.parameters()).info.whitelistMintPrice).to.be.equal(instanceInfoETH.whitelistMintPrice);
@@ -1146,10 +1142,8 @@ describe('AccessToken', () => {
         {
           factory: factory.address,
           info: {
-            metadata: {
-              name: 'InstanceName',
-              symbol: 'INNME',
-            },
+            name: 'InstanceName',
+            symbol: 'INNME',
             contractURI: 'ipfs://tbd',
             paymentToken: erc20Example.address,
             mintPrice: 100,
@@ -1215,10 +1209,8 @@ describe('AccessToken', () => {
         {
           factory: factory.address,
           info: {
-            metadata: {
-              name: 'InstanceName',
-              symbol: 'INNME',
-            },
+            name: 'InstanceName',
+            symbol: 'INNME',
             contractURI: 'ipfs://tbd',
             paymentToken: erc20Example.address,
             mintPrice: ethers.utils.parseEther('100'),
@@ -1648,10 +1640,8 @@ describe('AccessToken', () => {
         {
           factory: factory.address,
           info: {
-            metadata: {
-              name: nftName,
-              symbol: nftSymbol,
-            },
+            name: nftName,
+            symbol: nftSymbol,
             contractURI,
             paymentToken: ETH_ADDRESS,
             mintPrice: eth_price,
