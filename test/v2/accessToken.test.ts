@@ -89,7 +89,7 @@ describe('AccessToken', () => {
     const Factory: ContractFactory = await ethers.getContractFactory('Factory');
     const factory: Factory = (await upgrades.deployProxy(
       Factory,
-      [factoryParams, royalties, implementations, referralPercentages, 3],
+      [factoryParams, royalties, implementations, referralPercentages],
       {
         unsafeAllow: ['constructor'],
       },
@@ -315,7 +315,7 @@ describe('AccessToken', () => {
 
       const factory: Factory = (await upgrades.deployProxy(
         Factory,
-        [factoryParams, royalties, implementations, referralPercentages, 3],
+        [factoryParams, royalties, implementations, referralPercentages],
         {
           unsafeAllow: ['constructor'],
         },
@@ -323,7 +323,7 @@ describe('AccessToken', () => {
       await factory.deployed();
 
       factoryParams.transferValidator = bob.address;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages, 3);
+      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       const hashedCode = EthCrypto.hash.keccak256([
         { type: 'address', value: bob.address },
@@ -379,7 +379,7 @@ describe('AccessToken', () => {
 
       const factory: Factory = (await upgrades.deployProxy(
         Factory,
-        [factoryParams, royalties, implementations, referralPercentages, 3],
+        [factoryParams, royalties, implementations, referralPercentages],
         {
           unsafeAllow: ['constructor'],
         },
@@ -387,7 +387,7 @@ describe('AccessToken', () => {
       await factory.deployed();
 
       factoryParams.transferValidator = ZERO_ADDRESS;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages, 3);
+      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       const hashedCode = EthCrypto.hash.keccak256([
         { type: 'address', value: bob.address },
@@ -662,7 +662,6 @@ describe('AccessToken', () => {
         royalties,
         implementations,
         referralPercentages,
-        3,
       );
       await expect(
         nft_eth.connect(alice).mintStaticPrice(
@@ -689,7 +688,7 @@ describe('AccessToken', () => {
         ),
       ).to.be.revertedWithCustomError(nft_eth, 'WrongArraySize');
       factoryParams.maxArraySize = 20;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages, 3);
+      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       await expect(
         nft_eth.connect(alice).mintStaticPrice(
@@ -842,7 +841,6 @@ describe('AccessToken', () => {
         royalties,
         implementations,
         referralPercentages,
-        3,
       );
       await expect(
         nft_eth.connect(alice).mintDynamicPrice(
@@ -880,7 +878,6 @@ describe('AccessToken', () => {
         royalties,
         implementations,
         referralPercentages,
-        3,
       );
 
       await nft_eth.connect(alice).mintDynamicPrice(
@@ -992,7 +989,7 @@ describe('AccessToken', () => {
       const { factory, nft_erc20, alice, erc20Example, signer } = await loadFixture(fixture);
 
       factoryParams.commissionInBps = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages, 3);
+      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1032,7 +1029,7 @@ describe('AccessToken', () => {
       const { factory, nft_erc20, alice, erc20Example, signer, bob } = await loadFixture(fixture);
 
       factoryParams.commissionInBps = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages, 3);
+      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1074,7 +1071,7 @@ describe('AccessToken', () => {
       const { factory, nft_erc20, alice, erc20Example, signer, bob } = await loadFixture(fixture);
 
       factoryParams.commissionInBps = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages, 3);
+      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1143,7 +1140,7 @@ describe('AccessToken', () => {
       const { factory, receiver_erc20, validator, Nft, alice, erc20Example, signer, bob } = await loadFixture(fixture);
 
       factoryParams.commissionInBps = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages, 3);
+      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1449,7 +1446,7 @@ describe('AccessToken', () => {
       await erc20Example.connect(alice).approve(nft_erc20.address, ethers.constants.MaxUint256);
 
       factoryParams.commissionInBps = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages, 3);
+      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1537,7 +1534,7 @@ describe('AccessToken', () => {
       const { alice, nft_eth, signer, factory, owner } = await loadFixture(fixture);
 
       factoryParams.commissionInBps = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages, 3);
+      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       const NFT_721_BASE_URI = 'test.com/';
 

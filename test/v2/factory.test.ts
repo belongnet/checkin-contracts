@@ -81,7 +81,7 @@ describe('Factory', () => {
     const Factory: ContractFactory = await ethers.getContractFactory('Factory');
     const factory: Factory = (await upgrades.deployProxy(
       Factory,
-      [factoryParams, royalties, implementations, referralPercentages, 3],
+      [factoryParams, royalties, implementations, referralPercentages],
       {
         unsafeAllow: ['constructor'],
       },
@@ -121,7 +121,7 @@ describe('Factory', () => {
       const { factory } = await loadFixture(fixture);
 
       await expect(
-        factory.initialize(factoryParams, royalties, implementations, referralPercentages, 3),
+        factory.initialize(factoryParams, royalties, implementations, referralPercentages),
       ).to.be.revertedWithCustomError(factory, 'InvalidInitialization');
     });
   });
@@ -724,12 +724,12 @@ describe('Factory', () => {
       let _factoryParams = factoryParams;
 
       await expect(
-        factory.connect(alice).setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages, 3),
+        factory.connect(alice).setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages),
       ).to.be.revertedWithCustomError(factory, 'Unauthorized');
 
       referralPercentages[1] = 1;
 
-      const tx = await factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages, 3);
+      const tx = await factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages);
       await expect(tx).to.emit(factory, 'FactoryParametersSet');
       await expect(tx).to.emit(factory, 'ReferralParametersSet');
     });
