@@ -8,10 +8,24 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {TapAndEarn} from "../platform/TapAndEarn.sol";
 import {VenueInfo} from "../Structures.sol";
 
-contract Escrow is Initializable, ERC4626, Ownable {
+contract Escrow is Initializable, Ownable {
     using SafeTransferLib for address;
 
     error NotTapAndEarn();
+    error NotEnoughLONGs(uint256 longDeposits, uint256 amount);
+    error NotEnoughUSDCs(uint256 usdcDeposits, uint256 amount);
+
+    event VenueDepositsUpdated(
+        address indexed venue,
+        uint256 usdcDeposits,
+        uint256 longDeposits
+    );
+    event DistributedLONGDiscount(address indexed venue, uint256 amount);
+    event DistributedVenueDeposit(
+        address indexed venue,
+        address indexed to,
+        uint256 amount
+    );
 
     struct VenueDeposits {
         uint256 usdcDeposits;
@@ -35,7 +49,8 @@ contract Escrow is Initializable, ERC4626, Ownable {
             usdcDeposits: depositedUSDCs,
             longDeposits: depositedLONGs
         });
-        // TODO: emit
+
+        emit VenueDepositsUpdated(venue, depositedUSDCs, depositedLONGs);
     }
 
     function distributeLONGDiscount(
@@ -51,7 +66,13 @@ contract Escrow is Initializable, ERC4626, Ownable {
         venueDeposits[venue].longDeposits = longDeposits;
 
         tapAndEarn.paymentsInfo().long.safeTransfer(venue, amount);
-        // TODO: emit
+
+        emit VenueDepositsUpdated(
+            venue,
+            venueDeposits[venue].usdcDeposits,
+            longDeposits
+        );
+        emit DistributedLONGDiscount(venue, amount);
     }
 
     function distributeVenueDeposit(
@@ -60,7 +81,7 @@ contract Escrow is Initializable, ERC4626, Ownable {
         uint256 amount
     ) external onlyTapEarn {
         uint256 usdcDeposits = venueDeposits[venue].usdcDeposits;
-        require(amount <= usdcDeposits, NotEnoughFunds());
+        require(amount <= usdcDeposits, NotEnoughUSDCs(usdcDeposits, amount));
 
         unchecked {
             usdcDeposits -= amount;
@@ -68,7 +89,13 @@ contract Escrow is Initializable, ERC4626, Ownable {
 
         venueDeposits[venue].usdcDeposits = usdcDeposits;
 
-        tapAndEarn.paymentsInfo().usdc.safeTransfer(promoter, amount);
-        // TODO: emit
+        tapAndEarn.paymentsInfo().usdc.safeTransfer(to, amount);
+
+        emit VenueDepositsUpdated(
+            venue,
+            usdcDeposits,
+            venueDeposits[venue].longDeposits
+        );
+        emit DistributedVenueDeposit(venue, to, amount);
     }
 }
