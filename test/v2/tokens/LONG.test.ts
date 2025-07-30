@@ -38,7 +38,7 @@ describe('LONG', () => {
     });
   });
 
-  describe('Mint Burn', () => {
+  describe('Mint Burn Pause', () => {
     it('mint() only with MINTER_ROLE', async () => {
       const { long, admin, minter } = await loadFixture(fixture);
 
@@ -52,7 +52,7 @@ describe('LONG', () => {
     });
 
     it('burn() only with BURNER_ROLE', async () => {
-      const { long, admin, pauser, minter, burner } = await loadFixture(fixture);
+      const { long, admin, minter, burner } = await loadFixture(fixture);
 
       await long.connect(minter).mint(admin.address, 1000);
 
@@ -63,6 +63,32 @@ describe('LONG', () => {
       const tx = await long.connect(burner)['burn(address,uint256)'](admin.address, 1000);
 
       await expect(tx).to.emit(long, 'Transfer').withArgs(admin.address, ethers.constants.AddressZero, 1000);
+    });
+
+    it('pause() only with PAUSER_ROLE', async () => {
+      const { long, admin, pauser } = await loadFixture(fixture);
+
+      await expect(long.connect(admin).pause())
+        .to.be.revertedWithCustomError(long, 'AccessControlUnauthorizedAccount')
+        .withArgs(admin.address, await long.PAUSER_ROLE());
+
+      const pause = await long.connect(pauser).pause();
+
+      await expect(pause).to.emit(long, 'Paused').withArgs(pauser.address);
+    });
+
+    it('unpause() only with PAUSER_ROLE', async () => {
+      const { long, admin, pauser } = await loadFixture(fixture);
+
+      await long.connect(pauser).pause();
+
+      await expect(long.connect(admin).unpause())
+        .to.be.revertedWithCustomError(long, 'AccessControlUnauthorizedAccount')
+        .withArgs(admin.address, await long.PAUSER_ROLE());
+
+      const unpause = await long.connect(pauser).unpause();
+
+      await expect(unpause).to.emit(long, 'Unpaused').withArgs(pauser.address);
     });
   });
 });
