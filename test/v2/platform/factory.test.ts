@@ -131,9 +131,9 @@ describe('Factory', () => {
     it('should correct deploy AccessToken instance', async () => {
       const { factory, validator, alice, signer } = await loadFixture(fixture);
 
-      const nftName = 'Name 1';
-      const nftSymbol = 'S1';
-      const contractURI = 'contractURI/123';
+      const nftName = 'AccessToken 1';
+      const nftSymbol = 'AT1';
+      const contractURI = 'contractURI/AccessToken123';
       const price = ethers.utils.parseEther('0.05');
       const feeNumerator = 500;
 
@@ -258,15 +258,15 @@ describe('Factory', () => {
     it('should correctly deploy several AccessToken nfts', async () => {
       const { factory, alice, bob, charlie, signer } = await loadFixture(fixture);
 
-      const nftName1 = 'Name 1';
-      const nftName2 = 'Name 2';
-      const nftName3 = 'Name 3';
-      const nftSymbol1 = 'S1';
-      const nftSymbol2 = 'S2';
-      const nftSymbol3 = 'S3';
-      const contractURI1 = 'contractURI1/123';
-      const contractURI2 = 'contractURI2/123';
-      const contractURI3 = 'contractURI3/123';
+      const nftName1 = 'AccessToken 1';
+      const nftName2 = 'AccessToken 2';
+      const nftName3 = 'AccessToken 3';
+      const nftSymbol1 = 'AT1';
+      const nftSymbol2 = 'AT2';
+      const nftSymbol3 = 'AT3';
+      const contractURI1 = 'contractURI1/AccessToken123';
+      const contractURI2 = 'contractURI2/AccessToken123';
+      const contractURI3 = 'contractURI3/AccessToken123';
       const price1 = ethers.utils.parseEther('0.01');
       const price2 = ethers.utils.parseEther('0.02');
       const price3 = ethers.utils.parseEther('0.03');
@@ -443,8 +443,8 @@ describe('Factory', () => {
       await factory.connect(alice).createReferralCode();
 
       let nftName = 'Name';
-      let nftSymbol = 'S';
-      const contractURI = 'contractURI/123';
+      let nftSymbol = 'AT';
+      const contractURI = 'contractURI/AccessToken123';
       const price = ethers.utils.parseEther('0.01');
       const feeNumerator = 500;
 
@@ -724,9 +724,9 @@ describe('Factory', () => {
     it('produce() params check', async () => {
       const { factory, alice, signer } = await loadFixture(fixture);
 
-      const nftName = 'Name 1';
-      const nftSymbol = 'S1';
-      const contractURI = 'contractURI/123';
+      const nftName = 'AccessToken 1';
+      const nftSymbol = 'AT1';
+      const contractURI = 'contractURI/AccessToken123';
       const price = ethers.utils.parseEther('0.05');
 
       const message = EthCrypto.hash.keccak256([
