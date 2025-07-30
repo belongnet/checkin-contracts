@@ -71,7 +71,7 @@ library SignatureVerifier {
                     abi.encodePacked(
                         creditTokenInfo.name,
                         creditTokenInfo.symbol,
-                        creditTokenInfo.uri
+                        creditTokenInfo.uri,
                         block.chainid
                     )
                 ),
@@ -103,7 +103,7 @@ library SignatureVerifier {
     function checkCustomerInfo(
         address signer,
         CustomerInfo calldata customerInfo,
-        VenueRules calldata rules
+        VenueRules memory rules
     ) internal view {
         // require(rules.paymentType != PaymentTypes.NoType && rules.bountyType != BountyTypes.NoType, NoTypesProvided());
 
@@ -118,11 +118,11 @@ library SignatureVerifier {
         );
 
         BountyTypes bountyType = customerInfo.visitBountyAmount > 0 &&
-            customerInfo.spendBonusPercentage > 0
+            customerInfo.spendBountyPercentage > 0
             ? BountyTypes.Both
             : customerInfo.visitBountyAmount > 0
                 ? BountyTypes.VisitBounty
-                : customerInfo.spendBonusPercentage > 0
+                : customerInfo.spendBountyPercentage > 0
                     ? BountyTypes.SpendBounty
                     : BountyTypes.NoType;
         require(rules.bountyType == bountyType, WrongBountyType());
@@ -133,7 +133,7 @@ library SignatureVerifier {
                     abi.encodePacked(
                         customerInfo.paymentInUsdc,
                         customerInfo.visitBountyAmount,
-                        customerInfo.spendBonusPercentage,
+                        customerInfo.spendBountyPercentage,
                         customerInfo.customer,
                         customerInfo.venueToPayFor,
                         customerInfo.promoter,
