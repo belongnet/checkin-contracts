@@ -40,25 +40,21 @@ describe('Factory', () => {
     const validator: MockTransferValidator = (await Validator.deploy(true)) as MockTransferValidator;
     await validator.deployed();
 
-    const NFTImplementation: ContractFactory = await ethers.getContractFactory('AccessToken');
-    const nft: AccessToken = (await NFTImplementation.deploy()) as AccessToken;
-    await nft.deployed();
+    const AccessToken: ContractFactory = await ethers.getContractFactory('AccessToken');
+    const accessToken: AccessToken = (await AccessToken.deploy()) as AccessToken;
+    await accessToken.deployed();
 
     const RRImplementation: ContractFactory = await ethers.getContractFactory('RoyaltiesReceiverV2');
     const rr: RoyaltiesReceiverV2 = (await RRImplementation.deploy()) as RoyaltiesReceiverV2;
     await rr.deployed();
 
-    const VenueToken: ContractFactory = await ethers.getContractFactory('CreditToken');
-    const venueToken: CreditToken = (await VenueToken.deploy()) as CreditToken;
-    await venueToken.deployed();
-
-    const ReferralToken: ContractFactory = await ethers.getContractFactory('CreditToken');
-    const referralToken: CreditToken = (await ReferralToken.deploy()) as CreditToken;
-    await referralToken.deployed();
+    const CreditToken: ContractFactory = await ethers.getContractFactory('CreditToken');
+    const creditToken: CreditToken = (await CreditToken.deploy()) as CreditToken;
+    await creditToken.deployed();
 
     implementations = {
-      accessToken: nft.address,
-      creditToken: venueToken.address,
+      accessToken: accessToken.address,
+      creditToken: creditToken.address,
       royaltiesReceiver: rr.address,
     };
 
@@ -92,7 +88,7 @@ describe('Factory', () => {
       factory,
       validator,
       erc20Example,
-      venueToken,
+      creditToken,
       owner,
       alice,
       bob,
