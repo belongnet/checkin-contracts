@@ -15,6 +15,7 @@ import { PromiseOrValue } from '../../../typechain-types/common';
 import {
   AccessTokenInfoStruct,
   AccessTokenInfoStructOutput,
+  ERC1155InfoStruct,
 } from '../../../typechain-types/contracts/v2/platform/Factory';
 import { getPercentage } from '../helpers/getPercentage';
 
@@ -400,6 +401,244 @@ describe('Factory', () => {
       expect(infoReturned.contractURI).to.be.equal(contractURI3);
       expect(creator).to.be.equal(charlie.address);
       expect(feeReceiver).not.to.be.equal(ZERO_ADDRESS);
+    });
+  });
+
+  describe('Deploy CreditToken', () => {
+    it('should correct deploy CreditToken instance', async () => {
+      const { factory, alice, signer } = await loadFixture(fixture);
+
+      const nftName = 'CreditToken 1';
+      const nftSymbol = 'CT1';
+      const uri = 'contractURI/CreditToken123';
+
+      const ctInfo: ERC1155InfoStruct = {
+        name: nftName,
+        symbol: nftSymbol,
+        defaultAdmin: alice.address,
+        manager: alice.address,
+        minter: alice.address,
+        burner: alice.address,
+        uri: uri,
+        transferable: true,
+      };
+
+      const message = EthCrypto.hash.keccak256([
+        { type: 'string', value: nftName },
+        { type: 'string', value: nftSymbol },
+        { type: 'string', value: uri },
+        { type: 'uint256', value: chainId },
+      ]);
+
+      const signature = EthCrypto.sign(signer.privateKey, message);
+
+      const emptyNameMessage = EthCrypto.hash.keccak256([
+        { type: 'string', value: '' },
+        { type: 'string', value: nftSymbol },
+        { type: 'string', value: uri },
+        { type: 'uint256', value: chainId },
+      ]);
+      const emptyNameSignature = EthCrypto.sign(signer.privateKey, emptyNameMessage);
+      await expect(factory.connect(alice).produceCreditToken(ctInfo, emptyNameSignature)).to.be.revertedWithCustomError(
+        factory,
+        'InvalidSignature',
+      );
+
+      const emptySymbolMessage = EthCrypto.hash.keccak256([
+        { type: 'string', value: nftName },
+        { type: 'string', value: '' },
+        { type: 'string', value: uri },
+        { type: 'uint256', value: chainId },
+      ]);
+      const emptySymbolSignature = EthCrypto.sign(signer.privateKey, emptySymbolMessage);
+      await expect(
+        factory.connect(alice).produceCreditToken(ctInfo, emptySymbolSignature),
+      ).to.be.revertedWithCustomError(factory, 'InvalidSignature');
+
+      const badMessage = EthCrypto.hash.keccak256([
+        { type: 'string', value: nftName },
+        { type: 'string', value: nftSymbol },
+        { type: 'string', value: uri },
+        { type: 'uint256', value: chainId + 1 },
+      ]);
+      const badSignature = EthCrypto.sign(signer.privateKey, badMessage);
+      await expect(factory.connect(alice).produceCreditToken(ctInfo, badSignature)).to.be.revertedWithCustomError(
+        factory,
+        'InvalidSignature',
+      );
+
+      const tx = await factory.connect(alice).produceCreditToken(ctInfo, signature);
+
+      await expect(tx).to.emit(factory, 'CreditTokenCreated');
+      const nftInstanceInfo = await factory.getCreditTokenInstanceInfo(nftName, nftSymbol);
+      expect(nftInstanceInfo.creditToken).to.not.be.equal(ZERO_ADDRESS);
+      expect(nftInstanceInfo.name).to.be.equal(nftName);
+      expect(nftInstanceInfo.symbol).to.be.equal(nftSymbol);
+      expect(nftInstanceInfo.defaultAdmin).to.be.equal(alice.address);
+      expect(nftInstanceInfo.manager).to.be.equal(alice.address);
+      expect(nftInstanceInfo.minter).to.be.equal(alice.address);
+      expect(nftInstanceInfo.burner).to.be.equal(alice.address);
+
+      console.log('instanceAddress = ', nftInstanceInfo.creditToken);
+
+      const nft: CreditToken = await ethers.getContractAt('CreditToken', nftInstanceInfo.creditToken);
+
+      expect(await nft.name()).to.be.equal(nftName);
+      expect(await nft.symbol()).to.be.equal(nftSymbol);
+      expect(await nft['uri()']()).to.be.equal(uri);
+      expect(await nft.transferable()).to.be.true;
+      expect(await nft.hasRole(alice.address, await nft.DEFAULT_ADMIN_ROLE())).to.be.true;
+      expect(await nft.hasRole(alice.address, await nft.MANAGER_ROLE())).to.be.true;
+      expect(await nft.hasRole(alice.address, await nft.MINTER_ROLE())).to.be.true;
+      expect(await nft.hasRole(alice.address, await nft.BURNER_ROLE())).to.be.true;
+    });
+
+    it('should correctly deploy several CreditToken nfts', async () => {
+      const { factory, alice, bob, charlie, signer } = await loadFixture(fixture);
+
+      const nftName1 = 'CreditToken 1';
+      const nftName2 = 'CreditToken 2';
+      const nftName3 = 'CreditToken 3';
+      const nftSymbol1 = 'CT1';
+      const nftSymbol2 = 'CT2';
+      const nftSymbol3 = 'CT3';
+      const uri1 = 'contractURI1/CreditToken123';
+      const uri2 = 'contractURI2/CreditToken123';
+      const uri3 = 'contractURI3/CreditToken123';
+
+      const message1 = EthCrypto.hash.keccak256([
+        { type: 'string', value: nftName1 },
+        { type: 'string', value: nftSymbol1 },
+        { type: 'string', value: uri1 },
+        { type: 'uint256', value: chainId },
+      ]);
+
+      const signature1 = EthCrypto.sign(signer.privateKey, message1);
+
+      await factory.connect(alice).produceCreditToken(
+        {
+          name: nftName1,
+          symbol: nftSymbol1,
+          defaultAdmin: alice.address,
+          manager: alice.address,
+          minter: alice.address,
+          burner: alice.address,
+          uri: uri1,
+          transferable: true,
+        } as ERC1155InfoStruct,
+        signature1,
+      );
+
+      const message2 = EthCrypto.hash.keccak256([
+        { type: 'string', value: nftName2 },
+        { type: 'string', value: nftSymbol2 },
+        { type: 'string', value: uri2 },
+        { type: 'uint256', value: chainId },
+      ]);
+
+      const signature2 = EthCrypto.sign(signer.privateKey, message2);
+
+      await factory.connect(bob).produceCreditToken(
+        {
+          name: nftName2,
+          symbol: nftSymbol2,
+          defaultAdmin: bob.address,
+          manager: bob.address,
+          minter: bob.address,
+          burner: bob.address,
+          uri: uri2,
+          transferable: true,
+        } as ERC1155InfoStruct,
+        signature2,
+      );
+
+      const message3 = EthCrypto.hash.keccak256([
+        { type: 'string', value: nftName3 },
+        { type: 'string', value: nftSymbol3 },
+        { type: 'string', value: uri3 },
+        { type: 'uint256', value: chainId },
+      ]);
+
+      const signature3 = EthCrypto.sign(signer.privateKey, message3);
+
+      await factory.connect(bob).produceCreditToken(
+        {
+          name: nftName3,
+          symbol: nftSymbol3,
+          defaultAdmin: charlie.address,
+          manager: charlie.address,
+          minter: charlie.address,
+          burner: charlie.address,
+          uri: uri3,
+          transferable: true,
+        } as ERC1155InfoStruct,
+        signature3,
+      );
+
+      const instanceInfo1 = await factory.getCreditTokenInstanceInfo(nftName1, nftSymbol1);
+      const instanceInfo2 = await factory.getCreditTokenInstanceInfo(nftName2, nftSymbol2);
+      const instanceInfo3 = await factory.getCreditTokenInstanceInfo(nftName3, nftSymbol3);
+
+      expect(instanceInfo1.creditToken).to.not.be.equal(ZERO_ADDRESS);
+      expect(instanceInfo1.name).to.be.equal(nftName1);
+      expect(instanceInfo1.symbol).to.be.equal(nftSymbol1);
+      expect(instanceInfo1.defaultAdmin).to.be.equal(alice.address);
+      expect(instanceInfo1.manager).to.be.equal(alice.address);
+      expect(instanceInfo1.minter).to.be.equal(alice.address);
+      expect(instanceInfo1.burner).to.be.equal(alice.address);
+
+      expect(instanceInfo2.creditToken).to.not.be.equal(ZERO_ADDRESS);
+      expect(instanceInfo2.name).to.be.equal(nftName2);
+      expect(instanceInfo2.symbol).to.be.equal(nftSymbol2);
+      expect(instanceInfo2.defaultAdmin).to.be.equal(bob.address);
+      expect(instanceInfo2.manager).to.be.equal(bob.address);
+      expect(instanceInfo2.minter).to.be.equal(bob.address);
+      expect(instanceInfo2.burner).to.be.equal(bob.address);
+
+      expect(instanceInfo3.creditToken).to.not.be.equal(ZERO_ADDRESS);
+      expect(instanceInfo3.name).to.be.equal(nftName3);
+      expect(instanceInfo3.symbol).to.be.equal(nftSymbol3);
+      expect(instanceInfo3.defaultAdmin).to.be.equal(charlie.address);
+      expect(instanceInfo3.manager).to.be.equal(charlie.address);
+      expect(instanceInfo3.minter).to.be.equal(charlie.address);
+      expect(instanceInfo3.burner).to.be.equal(charlie.address);
+
+      console.log('instanceAddress1 = ', instanceInfo1.creditToken);
+      console.log('instanceAddress2 = ', instanceInfo2.creditToken);
+      console.log('instanceAddress3 = ', instanceInfo3.creditToken);
+
+      const nft1: CreditToken = await ethers.getContractAt('CreditToken', instanceInfo1.creditToken);
+
+      expect(await nft1.name()).to.be.equal(nftName1);
+      expect(await nft1.symbol()).to.be.equal(nftSymbol1);
+      expect(await nft1['uri()']()).to.be.equal(uri1);
+      expect(await nft1.transferable()).to.be.true;
+      expect(await nft1.hasRole(alice.address, await nft1.DEFAULT_ADMIN_ROLE())).to.be.true;
+      expect(await nft1.hasRole(alice.address, await nft1.MANAGER_ROLE())).to.be.true;
+      expect(await nft1.hasRole(alice.address, await nft1.MINTER_ROLE())).to.be.true;
+      expect(await nft1.hasRole(alice.address, await nft1.BURNER_ROLE())).to.be.true;
+
+      const nft2: CreditToken = await ethers.getContractAt('CreditToken', instanceInfo2.creditToken);
+
+      expect(await nft2.name()).to.be.equal(nftName2);
+      expect(await nft2.symbol()).to.be.equal(nftSymbol2);
+      expect(await nft2['uri()']()).to.be.equal(uri2);
+      expect(await nft2.transferable()).to.be.true;
+      expect(await nft2.hasRole(bob.address, await nft2.DEFAULT_ADMIN_ROLE())).to.be.true;
+      expect(await nft2.hasRole(bob.address, await nft2.MANAGER_ROLE())).to.be.true;
+      expect(await nft2.hasRole(bob.address, await nft2.MINTER_ROLE())).to.be.true;
+      expect(await nft2.hasRole(bob.address, await nft2.BURNER_ROLE())).to.be.true;
+
+      const nft3: CreditToken = await ethers.getContractAt('CreditToken', instanceInfo3.creditToken);
+
+      expect(await nft3.name()).to.be.equal(nftName3);
+      expect(await nft3.symbol()).to.be.equal(nftSymbol3);
+      expect(await nft3['uri()']()).to.be.equal(uri3);
+      expect(await nft3.transferable()).to.be.true;
+      expect(await nft3.hasRole(charlie.address, await nft3.DEFAULT_ADMIN_ROLE())).to.be.true;
+      expect(await nft3.hasRole(charlie.address, await nft3.MANAGER_ROLE())).to.be.true;
+      expect(await nft3.hasRole(charlie.address, await nft3.MINTER_ROLE())).to.be.true;
+      expect(await nft3.hasRole(charlie.address, await nft3.BURNER_ROLE())).to.be.true;
     });
   });
 
