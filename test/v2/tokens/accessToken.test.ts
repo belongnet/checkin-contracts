@@ -8,6 +8,8 @@ import {
   RoyaltiesReceiverV2,
   AccessToken,
   CreditToken,
+  SignatureVerifier,
+  Helper,
 } from '../../../typechain-types';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
@@ -40,6 +42,14 @@ describe('AccessToken', () => {
     const [owner, alice, bob, charlie, pete] = await ethers.getSigners();
     const signer = EthCrypto.createIdentity();
 
+    const SignatureVerifier: ContractFactory = await ethers.getContractFactory('SignatureVerifier');
+    const signatureVerifier: SignatureVerifier = (await SignatureVerifier.deploy()) as SignatureVerifier;
+    await signatureVerifier.deployed();
+
+    const Helper: ContractFactory = await ethers.getContractFactory('Helper');
+    const helper: Helper = (await Helper.deploy()) as Helper;
+    await helper.deployed();
+
     const Validator: ContractFactory = await ethers.getContractFactory('MockTransferValidator');
     const validator: MockTransferValidator = (await Validator.deploy(true)) as MockTransferValidator;
     await validator.deployed();
@@ -48,7 +58,9 @@ describe('AccessToken', () => {
     const erc20Example: WETHMock = (await Erc20Example.deploy()) as WETHMock;
     await erc20Example.deployed();
 
-    const AccessToken: ContractFactory = await ethers.getContractFactory('AccessToken');
+    const AccessToken: ContractFactory = await ethers.getContractFactory('AccessToken', {
+      libraries: { SignatureVerifier: signatureVerifier.address },
+    });
     const accessToken: AccessToken = (await AccessToken.deploy()) as AccessToken;
     await accessToken.deployed();
 
@@ -82,12 +94,15 @@ describe('AccessToken', () => {
 
     referralPercentages = [0, 5000, 3000, 1500, 500];
 
-    const Factory: ContractFactory = await ethers.getContractFactory('Factory');
+    const Factory: ContractFactory = await ethers.getContractFactory('Factory', {
+      libraries: { SignatureVerifier: signatureVerifier.address },
+    });
     const factory: Factory = (await upgrades.deployProxy(
       Factory,
       [factoryParams, royalties, implementations, referralPercentages],
       {
         unsafeAllow: ['constructor'],
+        unsafeAllowLinkedLibraries: true,
       },
     )) as Factory;
     await factory.deployed();
@@ -151,7 +166,9 @@ describe('AccessToken', () => {
     await factory.connect(alice).produce(instanceInfoETH, hashedCode);
     await factory.connect(alice).produce(instanceInfoToken, hashedCode);
 
-    const Nft = await ethers.getContractFactory('AccessToken');
+    const Nft = await ethers.getContractFactory('AccessToken', {
+      libraries: { SignatureVerifier: signatureVerifier.address },
+    });
     const RoyaltiesReceiverV2 = await ethers.getContractFactory('RoyaltiesReceiverV2');
 
     const nft_eth: AccessToken = await ethers.getContractAt(
@@ -183,6 +200,8 @@ describe('AccessToken', () => {
     );
 
     return {
+      signatureVerifier,
+      helper,
       factory,
       nft_eth,
       receiver_eth,
@@ -310,6 +329,7 @@ describe('AccessToken', () => {
         [factoryParams, royalties, implementations, referralPercentages],
         {
           unsafeAllow: ['constructor'],
+          unsafeAllowLinkedLibraries: true,
         },
       )) as Factory;
       await factory.deployed();
@@ -374,6 +394,7 @@ describe('AccessToken', () => {
         [factoryParams, royalties, implementations, referralPercentages],
         {
           unsafeAllow: ['constructor'],
+          unsafeAllowLinkedLibraries: true,
         },
       )) as Factory;
       await factory.deployed();
@@ -757,7 +778,7 @@ describe('AccessToken', () => {
     });
 
     it('Should mint correctly dynamic prices', async () => {
-      const { nft_eth, alice, signer } = await loadFixture(fixture);
+      const { signatureVerifier, nft_eth, alice, signer } = await loadFixture(fixture);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -787,7 +808,7 @@ describe('AccessToken', () => {
             value: ethers.utils.parseEther('0.01'),
           },
         ),
-      ).to.be.revertedWithCustomError(nft_eth, 'InvalidSignature');
+      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
 
       await nft_eth.connect(alice).mintDynamicPrice(
         alice.address,
@@ -1269,7 +1290,7 @@ describe('AccessToken', () => {
     });
 
     it('Should fail with wrong signer', async () => {
-      const { alice, nft_eth } = await loadFixture(fixture);
+      const { signatureVerifier, alice, nft_eth } = await loadFixture(fixture);
 
       const NFT_721_BASE_URI = 'test.com/';
 
@@ -1297,7 +1318,7 @@ describe('AccessToken', () => {
           ethers.utils.parseEther('0.03'),
           { value: ethers.utils.parseEther('0.03') },
         ),
-      ).to.be.revertedWithCustomError(nft_eth, 'InvalidSignature');
+      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
     });
 
     it('Should fail with wrong mint price', async () => {

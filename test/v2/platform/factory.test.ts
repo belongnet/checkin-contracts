@@ -8,6 +8,8 @@ import {
   RoyaltiesReceiverV2,
   CreditToken,
   AccessToken,
+  Helper,
+  SignatureVerifier,
 } from '../../../typechain-types';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
@@ -34,6 +36,14 @@ describe('Factory', () => {
     const [owner, alice, bob, charlie] = await ethers.getSigners();
     const signer = EthCrypto.createIdentity();
 
+    const SignatureVerifier: ContractFactory = await ethers.getContractFactory('SignatureVerifier');
+    const signatureVerifier: SignatureVerifier = (await SignatureVerifier.deploy()) as SignatureVerifier;
+    await signatureVerifier.deployed();
+
+    const Helper: ContractFactory = await ethers.getContractFactory('Helper');
+    const helper: Helper = (await Helper.deploy()) as Helper;
+    await helper.deployed();
+
     const Erc20Example: ContractFactory = await ethers.getContractFactory('WETHMock');
     const erc20Example: WETHMock = (await Erc20Example.deploy()) as WETHMock;
     await erc20Example.deployed();
@@ -42,7 +52,9 @@ describe('Factory', () => {
     const validator: MockTransferValidator = (await Validator.deploy(true)) as MockTransferValidator;
     await validator.deployed();
 
-    const AccessToken: ContractFactory = await ethers.getContractFactory('AccessToken');
+    const AccessToken: ContractFactory = await ethers.getContractFactory('AccessToken', {
+      libraries: { SignatureVerifier: signatureVerifier.address },
+    });
     const accessToken: AccessToken = (await AccessToken.deploy()) as AccessToken;
     await accessToken.deployed();
 
@@ -76,17 +88,22 @@ describe('Factory', () => {
 
     referralPercentages = [0, 5000, 3000, 1500, 500];
 
-    const Factory: ContractFactory = await ethers.getContractFactory('Factory');
+    const Factory: ContractFactory = await ethers.getContractFactory('Factory', {
+      libraries: { SignatureVerifier: signatureVerifier.address },
+    });
     const factory: Factory = (await upgrades.deployProxy(
       Factory,
       [factoryParams, royalties, implementations, referralPercentages],
       {
         unsafeAllow: ['constructor'],
+        unsafeAllowLinkedLibraries: true,
       },
     )) as Factory;
     await factory.deployed();
 
     return {
+      signatureVerifier,
+      helper,
       factory,
       validator,
       erc20Example,
@@ -130,7 +147,7 @@ describe('Factory', () => {
 
   describe('Deploy AccessToken', () => {
     it('should correct deploy AccessToken instance', async () => {
-      const { factory, validator, alice, signer } = await loadFixture(fixture);
+      const { signatureVerifier, factory, validator, alice, signer } = await loadFixture(fixture);
 
       const nftName = 'AccessToken 1';
       const nftSymbol = 'AT1';
@@ -174,7 +191,7 @@ describe('Factory', () => {
       const emptyNameSignature = EthCrypto.sign(signer.privateKey, emptyNameMessage);
       fakeInfo.signature = emptyNameSignature;
       await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero)).to.be.revertedWithCustomError(
-        factory,
+        signatureVerifier,
         'InvalidSignature',
       );
 
@@ -188,7 +205,7 @@ describe('Factory', () => {
       const emptySymbolSignature = EthCrypto.sign(signer.privateKey, emptySymbolMessage);
       fakeInfo.signature = emptySymbolSignature;
       await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero)).to.be.revertedWithCustomError(
-        factory,
+        signatureVerifier,
         'InvalidSignature',
       );
 
@@ -202,20 +219,20 @@ describe('Factory', () => {
       const badSignature = EthCrypto.sign(signer.privateKey, badMessage);
       fakeInfo.signature = badSignature;
       await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero)).to.be.revertedWithCustomError(
-        factory,
+        signatureVerifier,
         'InvalidSignature',
       );
       fakeInfo.signature = signature;
 
       fakeInfo.name = '';
       await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero))
-        .to.be.revertedWithCustomError(factory, 'EmptyMetadata')
+        .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
         .withArgs(fakeInfo.name, fakeInfo.symbol);
       fakeInfo.name = nftName;
 
       fakeInfo.symbol = '';
       await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero))
-        .to.be.revertedWithCustomError(factory, 'EmptyMetadata')
+        .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
         .withArgs(fakeInfo.name, fakeInfo.symbol);
       fakeInfo.symbol = nftSymbol;
 
@@ -412,7 +429,7 @@ describe('Factory', () => {
 
   describe('Deploy CreditToken', () => {
     it('should correct deploy CreditToken instance', async () => {
-      const { factory, alice, signer } = await loadFixture(fixture);
+      const { signatureVerifier, factory, alice, signer } = await loadFixture(fixture);
 
       const nftName = 'CreditToken 1';
       const nftSymbol = 'CT1';
@@ -449,7 +466,7 @@ describe('Factory', () => {
       const emptyNameSignature = EthCrypto.sign(signer.privateKey, emptyNameMessage);
       await expect(
         factory.connect(alice).produceCreditToken(fakeInfo, emptyNameSignature),
-      ).to.be.revertedWithCustomError(factory, 'InvalidSignature');
+      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
 
       const emptySymbolMessage = EthCrypto.hash.keccak256([
         { type: 'string', value: nftName },
@@ -460,7 +477,7 @@ describe('Factory', () => {
       const emptySymbolSignature = EthCrypto.sign(signer.privateKey, emptySymbolMessage);
       await expect(
         factory.connect(alice).produceCreditToken(ctInfo, emptySymbolSignature),
-      ).to.be.revertedWithCustomError(factory, 'InvalidSignature');
+      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
 
       const badMessage = EthCrypto.hash.keccak256([
         { type: 'string', value: nftName },
@@ -470,19 +487,19 @@ describe('Factory', () => {
       ]);
       const badSignature = EthCrypto.sign(signer.privateKey, badMessage);
       await expect(factory.connect(alice).produceCreditToken(ctInfo, badSignature)).to.be.revertedWithCustomError(
-        factory,
+        signatureVerifier,
         'InvalidSignature',
       );
 
       fakeInfo.name = '';
       await expect(factory.connect(alice).produceCreditToken(fakeInfo, emptyNameSignature))
-        .to.be.revertedWithCustomError(factory, 'EmptyMetadata')
+        .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
         .withArgs(fakeInfo.name, fakeInfo.symbol);
       fakeInfo.name = nftName;
 
       fakeInfo.symbol = '';
       await expect(factory.connect(alice).produceCreditToken(fakeInfo, emptyNameSignature))
-        .to.be.revertedWithCustomError(factory, 'EmptyMetadata')
+        .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
         .withArgs(fakeInfo.name, fakeInfo.symbol);
       fakeInfo.symbol = nftSymbol;
 
