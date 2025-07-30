@@ -94,8 +94,14 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     }
 
     struct CreditTokenInstanceInfo {
-        /// @notice The address of the creator of the NFT collection.
-        address creator;
+        /// @notice The address of the default admin of the collection.
+        address defaultAdmin;
+        /// @notice The address of the manager of the collection.
+        address manager;
+        /// @notice The address of the minter of the collection.
+        address minter;
+        /// @notice The address of the burner of the collection.
+        address burner;
         /// @notice The address of the NFT contract instance.
         address creditToken;
         /// @notice The name of the NFT collection.
@@ -286,7 +292,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
         CreditTokenInstanceInfo
             memory creditTokenInstanceInfo = CreditTokenInstanceInfo({
-                creator: msg.sender,
+                defaultAdmin: creditTokenInfo.defaultAdmin,
+                manager: creditTokenInfo.manager,
+                minter: creditTokenInfo.minter,
+                burner: creditTokenInfo.burner,
                 creditToken: creditToken,
                 name: creditTokenInfo.name,
                 symbol: creditTokenInfo.symbol
