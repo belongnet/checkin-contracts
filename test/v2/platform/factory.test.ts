@@ -491,6 +491,11 @@ describe('Factory', () => {
       expect(await nft.hasRole(alice.address, await nft.MANAGER_ROLE())).to.be.true;
       expect(await nft.hasRole(alice.address, await nft.MINTER_ROLE())).to.be.true;
       expect(await nft.hasRole(alice.address, await nft.BURNER_ROLE())).to.be.true;
+
+      await expect(factory.connect(alice).produceCreditToken(ctInfo, signature)).to.be.revertedWithCustomError(
+        factory,
+        'TokenAlreadyExists',
+      );
     });
 
     it('should correctly deploy several CreditToken nfts', async () => {
