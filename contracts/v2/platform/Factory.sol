@@ -182,12 +182,22 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             ? factoryParameters.defaultPaymentToken
             : accessTokenInfo.paymentToken;
 
-        address receiver;
+        Implementations memory currentImplementations = _currentImplementations;
 
+        address predictedRoyaltiesReceiver = currentImplementations
+            .royaltiesReceiver
+            .predictDeterministicAddress(hashedSalt, address(this));
+        address predictedAccessToken = currentImplementations
+            .accessToken
+            .predictDeterministicAddressERC1967(hashedSalt, address(this));
+
+        address receiver;
         _setReferralUser(referralCode, msg.sender);
         if (accessTokenInfo.feeNumerator > 0) {
-            receiver = LibClone.clone(
-                _currentImplementations.royaltiesReceiver
+            receiver = currentImplementations.royaltiesReceiver.clone();
+            require(
+                predictedRoyaltiesReceiver == receiver,
+                RoyaltiesReceiverAddressMismatch()
             );
             RoyaltiesReceiverV2(payable(receiver)).initialize(
                 RoyaltiesReceiverV2.RoyaltiesReceivers(
@@ -200,9 +210,12 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             );
         }
 
-        accessToken = LibClone.cloneDeterministic(
-            _currentImplementations.accessToken,
-            hashedSalt
+        accessToken = currentImplementations
+            .accessToken
+            .deployDeterministicERC1967(hashedSalt);
+        require(
+            predictedAccessToken == accessToken,
+            AccessTokenAddressMismatch()
         );
         AccessToken(accessToken).initialize(
             AccessToken.AccessTokenParameters({

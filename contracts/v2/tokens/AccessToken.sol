@@ -2,6 +2,7 @@
 pragma solidity 0.8.27;
 
 import {Initializable} from "solady/src/utils/Initializable.sol";
+import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC2981} from "solady/src/tokens/ERC2981.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
@@ -307,6 +308,12 @@ contract AccessToken is
         }
     }
 
+    /// @notice Returns the address of the current implementation.
+    /// @return implementation address.
+    function selfImplementation() external view virtual returns (address) {
+        return _selfImplementation();
+    }
+
     /// @dev Returns true if this contract implements the interface defined by `interfaceId`.
     /// See: https://eips.ethereum.org/EIPS/eip-165
     /// This function call must use less than 30000 gas.
@@ -462,4 +469,9 @@ contract AccessToken is
             _validateTransfer(msg.sender, from, to, id);
         }
     }
+
+    /// @dev Authorizes an upgrade to a new implementation. Only ADMIN or owner.
+    function _authorizeUpgrade(
+        address /*newImplementation*/
+    ) internal override onlyOwner {}
 }
