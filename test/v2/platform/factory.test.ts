@@ -212,20 +212,18 @@ describe('Factory', () => {
       );
       fakeInfo.signature = signature;
 
-      await factory.connect(alice).produce(info, ethers.constants.HashZero);
+      const tx = await factory.connect(alice).produce(info, ethers.constants.HashZero);
 
-      const hash = ethers.utils.solidityKeccak256(['string', 'string'], [nftName, nftSymbol]);
-
+      await expect(tx).to.emit(factory, 'AccessTokenCreated');
       const nftInstanceInfo = await factory.getNftInstanceInfo(nftName, nftSymbol);
-      const accessToken = nftInstanceInfo.accessToken;
-      expect(accessToken).to.not.be.equal(ZERO_ADDRESS);
+      expect(nftInstanceInfo.accessToken).to.not.be.equal(ZERO_ADDRESS);
       expect(nftInstanceInfo.name).to.be.equal(nftName);
       expect(nftInstanceInfo.symbol).to.be.equal(nftSymbol);
       expect(nftInstanceInfo.creator).to.be.equal(alice.address);
 
-      console.log('instanceAddress = ', accessToken);
+      console.log('instanceAddress = ', nftInstanceInfo.accessToken);
 
-      const nft = await ethers.getContractAt('AccessToken', accessToken);
+      const nft = await ethers.getContractAt('AccessToken', nftInstanceInfo.accessToken);
       const [factoryAddress, creator, feeReceiver, , infoReturned] = await nft.parameters();
 
       expect(await nft.getTransferValidator()).to.be.equal(validator.address);
@@ -360,16 +358,16 @@ describe('Factory', () => {
       expect(instanceInfo2.accessToken).to.not.be.equal(ZERO_ADDRESS);
       expect(instanceInfo3.accessToken).to.not.be.equal(ZERO_ADDRESS);
 
-      expect(instanceInfo1.metadata.name).to.be.equal(nftName1);
-      expect(instanceInfo1.metadata.symbol).to.be.equal(nftSymbol1);
+      expect(instanceInfo1.name).to.be.equal(nftName1);
+      expect(instanceInfo1.symbol).to.be.equal(nftSymbol1);
       expect(instanceInfo1.creator).to.be.equal(alice.address);
 
-      expect(instanceInfo2.metadata.name).to.be.equal(nftName2);
-      expect(instanceInfo2.metadata.symbol).to.be.equal(nftSymbol2);
+      expect(instanceInfo2.name).to.be.equal(nftName2);
+      expect(instanceInfo2.symbol).to.be.equal(nftSymbol2);
       expect(instanceInfo2.creator).to.be.equal(bob.address);
 
-      expect(instanceInfo3.metadata.name).to.be.equal(nftName3);
-      expect(instanceInfo3.metadata.symbol).to.be.equal(nftSymbol3);
+      expect(instanceInfo3.name).to.be.equal(nftName3);
+      expect(instanceInfo3.symbol).to.be.equal(nftSymbol3);
       expect(instanceInfo3.creator).to.be.equal(charlie.address);
 
       console.log('instanceAddress1 = ', instanceInfo1.accessToken);
