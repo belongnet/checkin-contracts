@@ -30,59 +30,6 @@ contract TapAndEarn is Initializable, Ownable {
     using SafeTransferLib for address;
     using Helper for *;
 
-    struct Storage {
-        Contracts contracts;
-        PaymentsInfo paymentsInfo;
-        Fees fees;
-    }
-
-    struct Contracts {
-        Factory factory;
-        Escrow escrow;
-        Staking staking;
-        CreditToken venueToken;
-        CreditToken promoterToken;
-        address longPF;
-    }
-
-    struct Fees {
-        uint8 referralCreditsAmount;
-        uint24 affiliatePercentage;
-        uint24 longCustomerDiscountPercentage;
-        uint24 platformSubsidyPercentage;
-        uint24 processingFeePercentage;
-    }
-
-    struct PaymentsInfo {
-        uint24 uniswapPoolFees;
-        address uniswapV3Router;
-        address uniswapV3Quoter;
-        address weth;
-        address usdc;
-        address long;
-    }
-
-    struct GeneralVenueInfo {
-        VenueRules rules;
-        uint16 remainingCredits;
-        // mapping(address promoter => uint256[] paymentTimes) venuePromoterPaymentTime;
-    }
-
-    struct VenueStakingRewardInfo {
-        uint24 depositFeePercentage;
-        uint24 convenienceFeeAmount;
-    }
-
-    struct PromoterStakingRewardInfo {
-        uint24 usdcPercentage;
-        uint24 longPercentage;
-    }
-
-    struct RewardsInfo {
-        VenueStakingRewardInfo venueStakingInfo;
-        PromoterStakingRewardInfo promoterStakingInfo;
-    }
-
     // ========== Errors ==========
 
     error WrongReferralCode(bytes32 referralCode);
@@ -130,6 +77,58 @@ contract TapAndEarn is Initializable, Ownable {
         uint256 amountIn,
         uint256 amountOut
     );
+
+    struct Storage {
+        Contracts contracts;
+        PaymentsInfo paymentsInfo;
+        Fees fees;
+    }
+
+    struct Contracts {
+        Factory factory;
+        Escrow escrow;
+        Staking staking;
+        CreditToken venueToken;
+        CreditToken promoterToken;
+        address longPF;
+    }
+
+    struct Fees {
+        uint8 referralCreditsAmount;
+        uint24 affiliatePercentage;
+        uint24 longCustomerDiscountPercentage;
+        uint24 platformSubsidyPercentage;
+        uint24 processingFeePercentage;
+    }
+
+    struct PaymentsInfo {
+        uint24 uniswapPoolFees;
+        address uniswapV3Router;
+        address uniswapV3Quoter;
+        address weth;
+        address usdc;
+        address long;
+    }
+
+    struct GeneralVenueInfo {
+        VenueRules rules;
+        uint16 remainingCredits;
+    }
+
+    struct VenueStakingRewardInfo {
+        uint24 depositFeePercentage;
+        uint24 convenienceFeeAmount;
+    }
+
+    struct PromoterStakingRewardInfo {
+        uint24 usdcPercentage;
+        uint24 longPercentage;
+    }
+
+    struct RewardsInfo {
+        VenueStakingRewardInfo venueStakingInfo;
+        PromoterStakingRewardInfo promoterStakingInfo;
+    }
 
     // ========== State Variables ==========
 

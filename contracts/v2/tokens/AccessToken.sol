@@ -12,58 +12,46 @@ import {Factory} from "../platform/Factory.sol";
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
 import {StaticPriceParameters, DynamicPriceParameters, AccessTokenInfo} from "../Structures.sol";
 
-// ========== Errors ==========
-
-/// @notice Error thrown when insufficient ETH is sent for a minting transaction.
-/// @param ETHsent The amount of ETH sent.
-error IncorrectETHAmountSent(uint256 ETHsent);
-
-/// @notice Error thrown when the mint price changes unexpectedly.
-/// @param currentPrice The actual current mint price.
-error PriceChanged(uint256 currentPrice);
-
-/// @notice Error thrown when the paying token changes unexpectedly.
-/// @param currentPayingToken The actual current paying token.
-error TokenChanged(address currentPayingToken);
-
-/// @notice Error thrown when an array exceeds the maximum allowed size.
-error WrongArraySize();
-
-/// @notice Thrown when an unauthorized transfer attempt is made.
-error NotTransferable();
-
-/// @notice Error thrown when the total supply limit is reached.
-error TotalSupplyLimitReached();
-
-/// @notice Error thrown when the token id is not exist.
-error TokenIdDoesNotExist();
-
 /**
  * @title AccessToken Contract
  * @notice Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
  * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
  */
-contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
+contract AccessToken is
+    Initializable,
+    UUPSUpgradeable,
+    ERC721,
+    ERC2981,
+    Ownable,
+    CreatorToken
+{
     using SafeTransferLib for address;
     using SignatureVerifier for address;
+    // ========== Errors ==========
 
-    /**
-     * @title NftParameters
-     * @notice A struct that contains all necessary parameters for creating an NFT collection.
-     * @dev This struct is used to pass parameters between contracts during the creation of a new NFT collection.
-     */
-    struct AccessTokenParameters {
-        /// @notice The address of the factory contract where the NFT collection is created.
-        Factory factory;
-        /// @notice The address of the creator of the NFT collection.
-        address creator;
-        /// @notice The address that will receive the royalties from secondary sales.
-        address feeReceiver;
-        /// @notice The referral code associated with the NFT collection.
-        bytes32 referralCode;
-        /// @notice The detailed information about the NFT collection, including its properties and configuration.
-        AccessTokenInfo info;
-    }
+    /// @notice Error thrown when insufficient ETH is sent for a minting transaction.
+    /// @param ETHsent The amount of ETH sent.
+    error IncorrectETHAmountSent(uint256 ETHsent);
+
+    /// @notice Error thrown when the mint price changes unexpectedly.
+    /// @param currentPrice The actual current mint price.
+    error PriceChanged(uint256 currentPrice);
+
+    /// @notice Error thrown when the paying token changes unexpectedly.
+    /// @param currentPayingToken The actual current paying token.
+    error TokenChanged(address currentPayingToken);
+
+    /// @notice Error thrown when an array exceeds the maximum allowed size.
+    error WrongArraySize();
+
+    /// @notice Thrown when an unauthorized transfer attempt is made.
+    error NotTransferable();
+
+    /// @notice Error thrown when the total supply limit is reached.
+    error TotalSupplyLimitReached();
+
+    /// @notice Error thrown when the token id is not exist.
+    error TokenIdDoesNotExist();
 
     // ========== Events ==========
 
@@ -84,6 +72,24 @@ contract AccessToken is Initializable, ERC721, ERC2981, Ownable, CreatorToken {
         uint256 newWLPrice,
         bool autoApproved
     );
+
+    /**
+     * @title NftParameters
+     * @notice A struct that contains all necessary parameters for creating an NFT collection.
+     * @dev This struct is used to pass parameters between contracts during the creation of a new NFT collection.
+     */
+    struct AccessTokenParameters {
+        /// @notice The address of the factory contract where the NFT collection is created.
+        Factory factory;
+        /// @notice The address of the creator of the NFT collection.
+        address creator;
+        /// @notice The address that will receive the royalties from secondary sales.
+        address feeReceiver;
+        /// @notice The referral code associated with the NFT collection.
+        bytes32 referralCode;
+        /// @notice The detailed information about the NFT collection, including its properties and configuration.
+        AccessTokenInfo info;
+    }
 
     // ========== State Variables ==========
 

@@ -17,9 +17,10 @@ contract LONG is
     AccessControl,
     ERC20Permit
 {
+    error Unauthorized();
+
     address internal constant SUPERCHAIN_TOKEN_BRIDGE =
         0x4200000000000000000000000000000000000028;
-    error Unauthorized();
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");

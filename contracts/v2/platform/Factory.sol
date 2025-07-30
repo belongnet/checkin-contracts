@@ -19,6 +19,38 @@ import {AccessTokenInfo, Metadata, ERC1155Info} from "../Structures.sol";
  */
 contract Factory is Initializable, Ownable, ReferralSystemV2 {
     using SignatureVerifier for address;
+    using LibClone for address;
+
+    // ========== Errors ==========
+
+    /// @notice Error thrown when an NFT with the same name and symbol already exists.
+    error TokenAlreadyExists();
+
+    error TotalRoyaltiesExceed100Pecents();
+
+    error RoyaltiesReceiverAddressMismatch();
+    error AccessTokenAddressMismatch();
+
+    // ========== Events ==========
+
+    /// @notice Event emitted when a new NFT is created.
+    /// @param _hash The keccak256 hash of the NFT's name and symbol.
+    /// @param info The information about the created NFT instance.
+    event NFTCreated(bytes32 indexed _hash, AccessTokenInstanceInfo info);
+
+    event CreditTokenCreated(
+        bytes32 indexed _hash,
+        CreditTokenInstanceInfo info
+    );
+
+    /// @notice Event emitted when the new factory parameters set.
+
+    event FactoryParametersSet(
+        FactoryParameters factoryParameters,
+        RoyaltiesParameters royalties,
+        Implementations implementations
+    );
+
     /**
      * @title NftFactoryParameters
      * @notice A struct that contains parameters related to the NFT factory, such as platform and commission details.
@@ -72,33 +104,6 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         address creditToken;
         address royaltiesReceiver;
     }
-
-    // ========== Errors ==========
-
-    /// @notice Error thrown when an NFT with the same name and symbol already exists.
-    error TokenAlreadyExists();
-
-    error TotalRoyaltiesExceed100Pecents();
-
-    // ========== Events ==========
-
-    /// @notice Event emitted when a new NFT is created.
-    /// @param _hash The keccak256 hash of the NFT's name and symbol.
-    /// @param info The information about the created NFT instance.
-    event NFTCreated(bytes32 indexed _hash, AccessTokenInstanceInfo info);
-
-    event CreditTokenCreated(
-        bytes32 indexed _hash,
-        CreditTokenInstanceInfo info
-    );
-
-    /// @notice Event emitted when the new factory parameters set.
-
-    event FactoryParametersSet(
-        FactoryParameters factoryParameters,
-        RoyaltiesParameters royalties,
-        Implementations implementations
-    );
 
     // ========== State Variables ==========
 

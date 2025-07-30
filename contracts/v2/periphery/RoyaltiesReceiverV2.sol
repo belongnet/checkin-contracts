@@ -6,12 +6,6 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 import {Factory} from "../platform/Factory.sol";
 
-/// @notice Thrown when an account is not due for payment.
-error AccountNotDuePayment(address account);
-
-/// @notice Thrown when transfer is not to a payee.
-error OnlyToPayee();
-
 /**
  * @title RoyaltiesReceiver
  * @notice A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
@@ -22,13 +16,11 @@ error OnlyToPayee();
 contract RoyaltiesReceiverV2 is Initializable {
     using SafeTransferLib for address;
 
-    /// @notice Struct for tracking total released amounts and account-specific released amounts.
-    struct Releases {
-        /// @notice The total amount of funds released from the contract.
-        uint256 totalReleased;
-        /// @notice A mapping to track the released amount per payee account.
-        mapping(address => uint256) released;
-    }
+    /// @notice Thrown when an account is not due for payment.
+    error AccountNotDuePayment(address account);
+
+    /// @notice Thrown when transfer is not to a payee.
+    error OnlyToPayee();
 
     /// @notice Emitted when a new payee is added to the contract.
     /// @param account The address of the new payee.
@@ -49,6 +41,14 @@ contract RoyaltiesReceiverV2 is Initializable {
     /// @param from The address sending the Ether.
     /// @param amount The amount of Ether received.
     event PaymentReceived(address indexed from, uint256 amount);
+
+    /// @notice Struct for tracking total released amounts and account-specific released amounts.
+    struct Releases {
+        /// @notice The total amount of funds released from the contract.
+        uint256 totalReleased;
+        /// @notice A mapping to track the released amount per payee account.
+        mapping(address => uint256) released;
+    }
 
     /**
      * @title RoyaltiesReceivers

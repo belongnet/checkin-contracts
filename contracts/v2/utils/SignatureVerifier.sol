@@ -5,17 +5,6 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 import {AccessTokenInfo, ERC1155Info, VenueInfo, VenueRules, CustomerInfo, PromoterInfo, StaticPriceParameters, DynamicPriceParameters, PaymentTypes, BountyTypes} from "../Structures.sol";
 
-// ========== Errors ==========
-
-/// @notice Error thrown when the signature provided is invalid.
-error InvalidSignature();
-
-error EmptyMetadata(string name, string symbol);
-
-error WrongPaymentType();
-
-error WrongBountyType();
-
 // ========== Library ==========
 
 /// @title AddressHelper Library
@@ -23,6 +12,17 @@ error WrongBountyType();
 /// @dev This library relies on SignatureCheckerLib to verify the validity of a signature for provided parameters.
 library SignatureVerifier {
     using SignatureCheckerLib for address;
+
+    // ========== Errors ==========
+
+    /// @notice Error thrown when the signature provided is invalid.
+    error InvalidSignature();
+
+    error EmptyMetadata(string name, string symbol);
+
+    error WrongPaymentType();
+
+    error WrongBountyType();
 
     function checkAccessTokenInfo(
         address signer,

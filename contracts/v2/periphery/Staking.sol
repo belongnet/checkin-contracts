@@ -8,14 +8,21 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 contract Staking is ERC4626, Ownable {
     using SafeTransferLib for address;
 
+    error MinStakePeriodShouldBeGreaterThanZero();
+    error MinStakePeriodNotMet();
+    error ZeroBalance();
+
+    event MinStakePeriodSet(uint256 period);
+    event EmergencyUnstake(
+        address indexed staker,
+        uint256 shares,
+        uint256 assets
+    );
+
     struct Stake {
         uint256 amount;
         uint256 timestamp;
     }
-
-    error MinStakePeriodShouldBeGreaterThanZero();
-    error MinStakePeriodNotMet();
-    error ZeroBalance();
 
     uint16 public constant SCALING_FACTOR = 10000;
 
@@ -45,6 +52,7 @@ contract Staking is ERC4626, Ownable {
     function setMinStakePeriod(uint256 period) external onlyOwner {
         require(period > 0, MinStakePeriodShouldBeGreaterThanZero());
         minStakePeriod = period;
+        emit MinStakePeriodSet(period);
     }
 
     /// Emergency unstake — burns all shares, returns 90%, sends 10% to treasury
@@ -65,6 +73,8 @@ contract Staking is ERC4626, Ownable {
 
         LONG.safeTransfer(msg.sender, payout);
         LONG.safeTransfer(treasury, penalty);
+
+        emit EmergencyUnstake(msg.sender, shares, assets);
     }
 
     /// @dev To be overridden to return the address of the underlying asset.

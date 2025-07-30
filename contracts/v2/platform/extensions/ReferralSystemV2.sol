@@ -7,14 +7,6 @@ pragma solidity 0.8.27;
  * @dev This abstract contract allows contracts that inherit it to implement referral code-based rewards and tracking.
  */
 abstract contract ReferralSystemV2 {
-    /// @notice Struct for managing a referral code and its users.
-    struct ReferralCode {
-        /// @notice The creator of the referral code.
-        address creator;
-        /// @notice The list of users who have used the referral code.
-        address[] referralUsers;
-    }
-
     // ========== Errors ==========
 
     /// @notice Error thrown when a referral code already exists for the creator.
@@ -48,6 +40,14 @@ abstract contract ReferralSystemV2 {
     /// @param code The referral code that was used.
     /// @param usedBy The address that used the referral code.
     event ReferralCodeUsed(bytes32 indexed code, address indexed usedBy);
+
+    /// @notice Struct for managing a referral code and its users.
+    struct ReferralCode {
+        /// @notice The creator of the referral code.
+        address creator;
+        /// @notice The list of users who have used the referral code.
+        address[] referralUsers;
+    }
 
     // ========== Constants ==========
 
