@@ -8,14 +8,14 @@ import {
   RoyaltiesReceiverV2,
   AccessToken,
   CreditToken,
-} from '../../typechain-types';
+} from '../../../typechain-types';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
 import {
   DynamicPriceParametersStruct,
   StaticPriceParametersStruct,
-} from '../../typechain-types/contracts/v2/tokens/AccessToken';
-import { AccessTokenInfoStruct } from '../../typechain-types/contracts/v2/platform/Factory';
+} from '../../../typechain-types/contracts/v2/tokens/AccessToken';
+import { AccessTokenInfoStruct } from '../../../typechain-types/contracts/v2/platform/Factory';
 
 describe('AccessToken', () => {
   const PLATFORM_COMISSION = '100';
@@ -48,25 +48,21 @@ describe('AccessToken', () => {
     const erc20Example: WETHMock = (await Erc20Example.deploy()) as WETHMock;
     await erc20Example.deployed();
 
-    const NFTImplementation: ContractFactory = await ethers.getContractFactory('AccessToken');
-    const nft: AccessToken = (await NFTImplementation.deploy()) as AccessToken;
-    await nft.deployed();
+    const AccessToken: ContractFactory = await ethers.getContractFactory('AccessToken');
+    const accessToken: AccessToken = (await AccessToken.deploy()) as AccessToken;
+    await accessToken.deployed();
 
     const RRImplementation: ContractFactory = await ethers.getContractFactory('RoyaltiesReceiverV2');
     const rr: RoyaltiesReceiverV2 = (await RRImplementation.deploy()) as RoyaltiesReceiverV2;
     await rr.deployed();
 
-    const VenueToken: ContractFactory = await ethers.getContractFactory('CreditToken');
-    const venueToken: CreditToken = (await VenueToken.deploy()) as CreditToken;
-    await venueToken.deployed();
-
-    const ReferralToken: ContractFactory = await ethers.getContractFactory('CreditToken');
-    const referralToken: CreditToken = (await ReferralToken.deploy()) as CreditToken;
-    await referralToken.deployed();
+    const CreditToken: ContractFactory = await ethers.getContractFactory('CreditToken');
+    const creditToken: CreditToken = (await CreditToken.deploy()) as CreditToken;
+    await creditToken.deployed();
 
     implementations = {
-      accessToken: nft.address,
-      creditToken: venueToken.address,
+      accessToken: accessToken.address,
+      creditToken: creditToken.address,
       royaltiesReceiver: rr.address,
     };
 
@@ -198,7 +194,7 @@ describe('AccessToken', () => {
       receiver_erc20,
       validator,
       erc20Example,
-      venueToken,
+      creditToken,
       owner,
       alice,
       bob,
