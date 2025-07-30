@@ -16,6 +16,7 @@ import {
   AccessTokenInfoStruct,
   AccessTokenInfoStructOutput,
 } from '../../../typechain-types/contracts/v2/platform/Factory';
+import { getPercentage } from '../helpers/getPercentage';
 
 describe('Factory', () => {
   const PLATFORM_COMISSION = '10';
@@ -804,7 +805,3 @@ describe('Factory', () => {
     });
   });
 });
-
-function getPercentage(amount: BigNumberish, percentage: BigNumberish): BigNumberish {
-  return BigNumber.from(amount).mul(BigNumber.from(percentage)).div(10000);
-}
