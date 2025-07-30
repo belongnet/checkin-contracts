@@ -126,8 +126,8 @@ describe('Factory', () => {
     });
   });
 
-  describe('Deploy NFT', () => {
-    it('should correct deploy NFT instance', async () => {
+  describe('Deploy AccessToken', () => {
+    it('should correct deploy AccessToken instance', async () => {
       const { factory, validator, alice, signer } = await loadFixture(fixture);
 
       const nftName = 'Name 1';
@@ -256,7 +256,7 @@ describe('Factory', () => {
       expect(shares[2]).to.eq(0);
     });
 
-    it('should correctly deploy several NFT nfts', async () => {
+    it('should correctly deploy several AccessToken nfts', async () => {
       const { factory, alice, bob, charlie, signer } = await loadFixture(fixture);
 
       const nftName1 = 'Name 1';
@@ -412,7 +412,7 @@ describe('Factory', () => {
     });
   });
 
-  describe('Deploy NFT', () => {
+  describe('Referrals', () => {
     it('Can create referral code', async () => {
       const { factory, alice } = await loadFixture(fixture);
 
@@ -433,7 +433,7 @@ describe('Factory', () => {
     });
 
     it('Can set referral', async () => {
-      const { factory, signer, owner, alice, bob } = await loadFixture(fixture);
+      const { factory, signer, alice, bob } = await loadFixture(fixture);
 
       const hashedCode = EthCrypto.hash.keccak256([
         { type: 'address', value: alice.address },
@@ -717,7 +717,7 @@ describe('Factory', () => {
     });
   });
 
-  describe('Works properly', () => {
+  describe('Set functions', () => {
     it('Can set params', async () => {
       const { factory, alice } = await loadFixture(fixture);
 
@@ -745,9 +745,8 @@ describe('Factory', () => {
 
   describe('Errors', () => {
     it('produce() params check', async () => {
-      const { factory, owner, alice, signer } = await loadFixture(fixture);
+      const { factory, alice, signer } = await loadFixture(fixture);
 
-      const uri = 'test.com';
       const nftName = 'Name 1';
       const nftSymbol = 'S1';
       const contractURI = 'contractURI/123';
