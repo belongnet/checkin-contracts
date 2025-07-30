@@ -71,13 +71,6 @@ library Helper {
         return _standardize(token.readDecimals(), amount);
     }
 
-    function _standardize(
-        uint8 decimals,
-        uint256 amount
-    ) private pure returns (uint256) {
-        return amount.fullMulDiv(BPS, 10 ** decimals);
-    }
-
     function unstandardize(
         address token,
         uint256 amount
@@ -117,5 +110,12 @@ library Helper {
         } catch {
             decimals = DECIMALS_BY_DEFAULT;
         }
+    }
+
+    function _standardize(
+        uint8 decimals,
+        uint256 amount
+    ) private pure returns (uint256) {
+        return amount.fullMulDiv(BPS, 10 ** decimals);
     }
 }
