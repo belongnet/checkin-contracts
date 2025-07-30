@@ -3,7 +3,7 @@ pragma solidity 0.8.27;
 
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
-import {AccessTokenInfo, ERC1155Info, VenueInfo, VenueRules, CustomerInfo, StaticPriceParameters, DynamicPriceParameters, PaymentTypes, BountyTypes} from "../Structures.sol";
+import {AccessTokenInfo, ERC1155Info, VenueInfo, VenueRules, CustomerInfo, PromoterInfo, StaticPriceParameters, DynamicPriceParameters, PaymentTypes, BountyTypes} from "../Structures.sol";
 
 // ========== Errors ==========
 
@@ -107,7 +107,7 @@ library SignatureVerifier {
     ) internal view {
         // require(rules.paymentType != PaymentTypes.NoType && rules.bountyType != BountyTypes.NoType, NoTypesProvided());
 
-        PaymentTypes paymentType = customerInfo.paymentInUsdc
+        PaymentTypes paymentType = customerInfo.paymentInUSDC
             ? PaymentTypes.USDC
             : PaymentTypes.LONG;
         require(
@@ -131,7 +131,7 @@ library SignatureVerifier {
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
-                        customerInfo.paymentInUsdc,
+                        customerInfo.paymentInUSDC,
                         customerInfo.visitBountyAmount,
                         customerInfo.spendBountyPercentage,
                         customerInfo.customer,
@@ -142,6 +142,26 @@ library SignatureVerifier {
                     )
                 ),
                 customerInfo.signature
+            ),
+            InvalidSignature()
+        );
+    }
+
+    function checkPromoterPaymentDistribution(
+        address signer,
+        PromoterInfo memory promoterInfo
+    ) internal view {
+        require(
+            signer.isValidSignatureNow(
+                keccak256(
+                    abi.encodePacked(
+                        promoterInfo.promoter,
+                        promoterInfo.venue,
+                        promoterInfo.amountInUSD,
+                        block.chainid
+                    )
+                ),
+                promoterInfo.signature
             ),
             InvalidSignature()
         );
