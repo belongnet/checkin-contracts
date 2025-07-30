@@ -5,7 +5,7 @@ import {MetadataReaderLib} from "solady/src/utils/MetadataReaderLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 import {ILONGPriceFeed} from "../interfaces/ILONGPriceFeed.sol";
-import {StakingTiers, TimelockTiers} from "../Structures.sol";
+import {StakingTiers} from "../Structures.sol";
 
 library Helper {
     /// @dev Used for precise calculations.
@@ -25,20 +25,6 @@ library Helper {
     /// @notice The scaling factor for referral percentages.
     uint16 public constant SCALING_FACTOR = 10000;
 
-    function standardize(
-        address token,
-        uint256 amount
-    ) external view returns (uint256) {
-        return amount.fullMulDiv(BPS, 10 ** token.readDecimals());
-    }
-
-    function unstandardize(
-        address token,
-        uint256 amount
-    ) external view returns (uint256) {
-        return amount.fullMulDiv(10 ** token.readDecimals(), BPS);
-    }
-
     function calculateRate(
         uint256 percentage,
         uint256 amount
@@ -48,7 +34,7 @@ library Helper {
 
     function stakingTiers(
         uint256 amountStaked
-    ) external view returns (StakingTiers tier) {
+    ) external pure returns (StakingTiers tier) {
         if (amountStaked < 50000) {
             return StakingTiers.NoStakes;
         } else if (amountStaked >= 50000 && amountStaked < 250000) {
@@ -61,21 +47,6 @@ library Helper {
         return StakingTiers.PlatinumTier;
     }
 
-    function depositTimelocks(
-        uint256 amount
-    ) external view returns (uint256 time) {
-        if (amount <= 100) {
-            time = TimelockTiers.NoTimelock;
-        } else if (amount > 100 && amount <= 500) {
-            time = TimelockTiers.Timelock1;
-        } else if (amount > 500 && amount <= 1000) {
-            time = TimelockTiers.Timelock2;
-        } else if (amount > 1000 && amount <= 5000) {
-            time = TimelockTiers.Timelock3;
-        }
-        time = TimelockTiers.Timelock4;
-    }
-
     function getVenueId(address venue) external pure returns (uint256) {
         return uint256(uint160(venue));
     }
@@ -86,13 +57,37 @@ library Helper {
         uint256 amount
     ) external view returns (uint256 priceAmount) {
         (uint256 tokenPriceInUsd, uint8 pfDecimals) = _getPrice(tokenPriceFeed);
-        uint256 standardizedPrice = _standardize(tokenPriceInUsd, pfDecimals);
-        priceAmount = standardizedPrice * amount;
+        // Calculate USD value: (amount * price) / 10^priceFeedDecimals
+        uint256 usdValue = amount.fullMulDiv(tokenPriceInUsd, 10 ** pfDecimals);
+
+        // Standardize the USD value to 27 decimals
+        priceAmount = standardize(token, usdValue);
+    }
+
+    function standardize(
+        address token,
+        uint256 amount
+    ) public view returns (uint256) {
+        return _standardize(token.readDecimals(), amount);
+    }
+
+    function _standardize(
+        uint8 decimals,
+        uint256 amount
+    ) private pure returns (uint256) {
+        return amount.fullMulDiv(BPS, 10 ** decimals);
+    }
+
+    function unstandardize(
+        address token,
+        uint256 amount
+    ) public view returns (uint256) {
+        return amount.fullMulDiv(10 ** token.readDecimals(), BPS);
     }
 
     function _getPrice(
         address priceFeed
-    ) external view returns (uint256 price, uint8 decimals) {
+    ) private view returns (uint256 price, uint8 decimals) {
         int256 intAnswer;
         try ILONGPriceFeed(priceFeed).latestRoundData() returns (
             uint80,
