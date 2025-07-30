@@ -115,7 +115,7 @@ struct VenueInfo {
 }
 
 struct CustomerInfo {
-    bool paymentInUsdc;
+    bool paymentInUSDC;
     uint24 visitBountyAmount;
     uint24 spendBountyPercentage;
     //
@@ -123,5 +123,13 @@ struct CustomerInfo {
     address venueToPayFor;
     address promoter;
     uint256 amount;
+    bytes signature;
+}
+
+struct PromoterInfo {
+    bool paymentInUSDC;
+    address promoter;
+    address venue;
+    uint256 amountInUSD;
     bytes signature;
 }
