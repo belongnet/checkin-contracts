@@ -10,13 +10,17 @@ contract Staking is ERC4626, Ownable {
 
     error MinStakePeriodShouldBeGreaterThanZero();
     error MinStakePeriodNotMet();
-    error ZeroBalance();
+    error PenaltyTooHigh();
 
     event MinStakePeriodSet(uint256 period);
-    event EmergencyUnstake(
-        address indexed staker,
-        uint256 shares,
-        uint256 assets
+    event PenaltyPecentSet(uint256 percent);
+    event TreasurySet(address treasury);
+    event EmergencyWithdraw(
+        address indexed by,
+        address indexed to,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
     );
 
     struct Stake {
@@ -25,27 +29,18 @@ contract Staking is ERC4626, Ownable {
     }
 
     uint16 public constant SCALING_FACTOR = 10000;
-
-    address private LONG;
-    string private _name;
-    string private _symbol;
+    address private immutable LONG;
 
     address public treasury;
 
     uint256 public minStakePeriod = 1 days;
-    uint256 public penaltyPercent = 1000;
+    uint256 public penaltyPercentage = 1000;
 
     mapping(address staker => Stake[] times) public stakes;
 
-    constructor(
-        address _owner,
-        address long,
-        string memory name_,
-        string memory symbol_
-    ) {
+    constructor(address _owner, address _treasury, address long) {
         LONG = long;
-        _name = name_;
-        _symbol = symbol_;
+        _setTreasury(_treasury);
         _initializeOwner(_owner);
     }
 
@@ -55,26 +50,60 @@ contract Staking is ERC4626, Ownable {
         emit MinStakePeriodSet(period);
     }
 
-    /// Emergency unstake — burns all shares, returns 90%, sends 10% to treasury
-    function emergencyUnstake() external {
-        uint256 shares = balanceOf(msg.sender);
-        require(shares > 0, ZeroBalance());
+    function setpenaltyPercentage(uint256 newPercent) external onlyOwner {
+        require(newPercent <= SCALING_FACTOR, PenaltyTooHigh());
+        penaltyPercentage = newPercent;
+        emit PenaltyPecentSet(newPercent);
+    }
 
-        uint256 assets = previewRedeem(shares);
-        uint256 penalty = (assets * penaltyPercent) / SCALING_FACTOR;
+    function setTreasury(address _treasury) external onlyOwner {
+        _setTreasury(_treasury);
+    }
+
+    function emergencyWithdraw(
+        uint256 assets,
+        address to,
+        address _owner
+    ) external returns (uint256 shares) {
+        if (assets > maxWithdraw(_owner)) revert WithdrawMoreThanMax();
+        shares = previewWithdraw(assets);
+        _emergencyWithdraw(msg.sender, to, _owner, assets, shares);
+    }
+
+    function emergencyRedeem(
+        uint256 shares,
+        address to,
+        address _owner
+    ) external returns (uint256 assets) {
+        if (shares > maxRedeem(_owner)) revert RedeemMoreThanMax();
+        assets = previewRedeem(shares);
+        _emergencyWithdraw(msg.sender, to, _owner, assets, shares);
+    }
+
+    /// Emergency unstake — burns all shares, returns 90%, sends 10% to treasury
+    function _emergencyWithdraw(
+        address by,
+        address to,
+        address _owner,
+        uint256 assets,
+        uint256 shares
+    ) internal {
+        uint256 penalty = (assets * penaltyPercentage) / SCALING_FACTOR;
         uint256 payout;
         unchecked {
             payout = assets - penalty;
         }
 
-        _burn(msg.sender, shares);
+        if (by != _owner) _spendAllowance(_owner, by, shares);
 
-        delete stakes[msg.sender]; // Wipe stake history
+        _removeAnyAssetsFor(_owner, assets);
+        _burn(_owner, shares);
 
-        LONG.safeTransfer(msg.sender, payout);
+        LONG.safeTransfer(to, payout);
         LONG.safeTransfer(treasury, penalty);
 
-        emit EmergencyUnstake(msg.sender, shares, assets);
+        emit EmergencyWithdraw(by, to, _owner, assets, shares);
+        emit Withdraw(by, to, _owner, assets, shares);
     }
 
     /// @dev To be overridden to return the address of the underlying asset.
@@ -86,29 +115,35 @@ contract Staking is ERC4626, Ownable {
     }
 
     /// @dev Returns the name of the token.
-    function name() public view override returns (string memory) {
-        return _name;
+    function name() public pure override returns (string memory) {
+        return "LONG Staking";
     }
 
     /// @dev Returns the symbol of the token.
-    function symbol() public view override returns (string memory) {
-        return _symbol;
+    function symbol() public pure override returns (string memory) {
+        return "sLONG";
     }
 
-    function _afterDeposit(uint256 assets, uint256) internal override {
+    function _afterDeposit(
+        uint256 assets,
+        uint256 /*shares*/
+    ) internal override {
         stakes[msg.sender].push(
             Stake({amount: assets, timestamp: block.timestamp})
         );
     }
 
-    function _beforeWithdraw(uint256 assets, uint256) internal override {
-        Stake[] storage userStakes = stakes[msg.sender];
+    function _beforeWithdraw(
+        uint256 assets,
+        uint256 /*shares*/
+    ) internal override {
+        Stake[] memory userStakes = stakes[msg.sender];
+        uint256 _minStakePeriod = minStakePeriod;
 
         uint256 unlocked = 0;
         for (uint256 i = 0; i < userStakes.length; ++i) {
-            if (block.timestamp >= userStakes[i].timestamp + minStakePeriod) {
+            if (block.timestamp >= userStakes[i].timestamp + _minStakePeriod) {
                 unlocked += userStakes[i].amount;
-                return;
             }
         }
 
@@ -116,16 +151,19 @@ contract Staking is ERC4626, Ownable {
             revert MinStakePeriodNotMet();
         }
 
-        // Remove used unlocked stakes (FIFO order)
+        _removeUnlockedAssetsFor(msg.sender, assets);
+    }
+
+    // Remove used unlocked stakes (FIFO order)
+    function _removeUnlockedAssetsFor(address staker, uint256 assets) internal {
+        Stake[] storage userStakes = stakes[staker];
         uint256 remaining = assets;
         for (uint256 i = 0; i < userStakes.length && remaining > 0; ) {
             if (block.timestamp >= userStakes[i].timestamp + minStakePeriod) {
                 if (userStakes[i].amount <= remaining) {
                     remaining -= userStakes[i].amount;
-                    // Delete by swapping with the last
                     userStakes[i] = userStakes[userStakes.length - 1];
                     userStakes.pop();
-                    // don't increment i — we just moved a new item to i
                 } else {
                     userStakes[i].amount -= remaining;
                     remaining = 0;
@@ -135,5 +173,27 @@ contract Staking is ERC4626, Ownable {
                 ++i;
             }
         }
+    }
+
+    // Remove any stakes (FIFO order, ignoring lock)
+    function _removeAnyAssetsFor(address staker, uint256 assets) internal {
+        Stake[] storage userStakes = stakes[staker];
+        uint256 remaining = assets;
+        for (uint256 i = 0; i < userStakes.length && remaining > 0; ) {
+            if (userStakes[i].amount <= remaining) {
+                remaining -= userStakes[i].amount;
+                userStakes[i] = userStakes[userStakes.length - 1];
+                userStakes.pop();
+            } else {
+                userStakes[i].amount -= remaining;
+                remaining = 0;
+                ++i;
+            }
+        }
+    }
+
+    function _setTreasury(address _treasury) internal {
+        treasury = _treasury;
+        emit TreasurySet(_treasury);
     }
 }
