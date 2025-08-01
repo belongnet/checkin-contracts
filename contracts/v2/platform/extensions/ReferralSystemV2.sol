@@ -16,7 +16,8 @@ abstract contract ReferralSystemV2 {
 
     /// @notice Error thrown when a user tries to add themselves as their own referrer, or
     /// thrown when a referral code is used that does not have an owner.
-    error ReferralCodeOwnerError();
+    error ReferralCreatorNotExists();
+    error ReferralUserIsReferralCreator();
 
     /// @notice Error thrown when a user attempts to get a referral rate for a code they haven't used.
     /// @param referralUser The address of the user who did not use the code.
@@ -109,6 +110,13 @@ abstract contract ReferralSystemV2 {
         rate = (amount * percentage) / SCALING_FACTOR;
     }
 
+    function getReferralCodeByCreator(
+        address creator
+    ) public view returns (bytes32) {
+        return
+            keccak256(abi.encodePacked(creator, address(this), block.chainid));
+    }
+
     /**
      * @notice Returns the creator of a given referral code.
      * @param code The referral code to get the creator for.
@@ -145,9 +153,10 @@ abstract contract ReferralSystemV2 {
 
         ReferralCode memory referral = referrals[hashedCode];
 
+        require(referral.creator != address(0), ReferralCreatorNotExists());
         require(
-            referral.creator != address(0) && referralUser != referral.creator,
-            ReferralCodeOwnerError()
+            referralUser != referral.creator,
+            ReferralUserIsReferralCreator()
         );
 
         // Check if the user is already in the array
