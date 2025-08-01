@@ -1,14 +1,13 @@
-import { ethers, upgrades } from 'hardhat';
+import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
-import { BigNumber, BigNumberish, ContractFactory } from 'ethers';
+import { BigNumber, BigNumberish } from 'ethers';
 import {
   WETHMock,
-  MockTransferValidator,
+  MockTransferValidatorV2,
   Factory,
   RoyaltiesReceiverV2,
   CreditToken,
   AccessToken,
-  Helper,
   SignatureVerifier,
 } from '../../../typechain-types';
 import { expect } from 'chai';
@@ -20,9 +19,17 @@ import {
   ERC1155InfoStruct,
 } from '../../../typechain-types/contracts/v2/platform/Factory';
 import { getPercentage } from '../helpers/getPercentage';
+import {
+  deployAccessTokenImplementation,
+  deployCreditTokenImplementation,
+  deployFactory,
+  deployMockTransferValidatorV2,
+  deployRoyaltiesReceiverV2Implementation,
+  deploySignatureVerifier,
+  deployWETHMock,
+} from '../helpers/deployFixtures';
 
 describe('Factory', () => {
-  const PLATFORM_COMISSION = '10';
   const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const chainId = 31337;
@@ -36,35 +43,12 @@ describe('Factory', () => {
     const [owner, alice, bob, charlie] = await ethers.getSigners();
     const signer = EthCrypto.createIdentity();
 
-    const SignatureVerifier: ContractFactory = await ethers.getContractFactory('SignatureVerifier');
-    const signatureVerifier: SignatureVerifier = (await SignatureVerifier.deploy()) as SignatureVerifier;
-    await signatureVerifier.deployed();
-
-    const Helper: ContractFactory = await ethers.getContractFactory('Helper');
-    const helper: Helper = (await Helper.deploy()) as Helper;
-    await helper.deployed();
-
-    const Erc20Example: ContractFactory = await ethers.getContractFactory('WETHMock');
-    const erc20Example: WETHMock = (await Erc20Example.deploy()) as WETHMock;
-    await erc20Example.deployed();
-
-    const Validator: ContractFactory = await ethers.getContractFactory('MockTransferValidatorV2');
-    const validator: MockTransferValidator = (await Validator.deploy(true)) as MockTransferValidator;
-    await validator.deployed();
-
-    const AccessToken: ContractFactory = await ethers.getContractFactory('AccessToken', {
-      libraries: { SignatureVerifier: signatureVerifier.address },
-    });
-    const accessToken: AccessToken = (await AccessToken.deploy()) as AccessToken;
-    await accessToken.deployed();
-
-    const RRImplementation: ContractFactory = await ethers.getContractFactory('RoyaltiesReceiverV2');
-    const rr: RoyaltiesReceiverV2 = (await RRImplementation.deploy()) as RoyaltiesReceiverV2;
-    await rr.deployed();
-
-    const CreditToken: ContractFactory = await ethers.getContractFactory('CreditToken');
-    const creditToken: CreditToken = (await CreditToken.deploy()) as CreditToken;
-    await creditToken.deployed();
+    const signatureVerifier: SignatureVerifier = await deploySignatureVerifier();
+    const erc20Example: WETHMock = await deployWETHMock();
+    const validator: MockTransferValidatorV2 = await deployMockTransferValidatorV2();
+    const accessToken: AccessToken = await deployAccessTokenImplementation(signatureVerifier.address);
+    const rr: RoyaltiesReceiverV2 = await deployRoyaltiesReceiverV2Implementation();
+    const creditToken: CreditToken = await deployCreditTokenImplementation();
 
     implementations = {
       accessToken: accessToken.address,
@@ -81,29 +65,23 @@ describe('Factory', () => {
       transferValidator: validator.address,
       feeCollector: owner.address,
       signer: signer.address,
-      commissionInBps: PLATFORM_COMISSION,
+      commissionInBps: 100,
       defaultPaymentToken: ETH_ADDRESS,
       maxArraySize: 10,
     };
 
     referralPercentages = [0, 5000, 3000, 1500, 500];
 
-    const Factory: ContractFactory = await ethers.getContractFactory('Factory', {
-      libraries: { SignatureVerifier: signatureVerifier.address },
-    });
-    const factory: Factory = (await upgrades.deployProxy(
-      Factory,
-      [factoryParams, royalties, implementations, referralPercentages],
-      {
-        unsafeAllow: ['constructor'],
-        unsafeAllowLinkedLibraries: true,
-      },
-    )) as Factory;
-    await factory.deployed();
+    const factory: Factory = await deployFactory(
+      owner.address,
+      signer.address,
+      signatureVerifier.address,
+      validator.address,
+      implementations,
+    );
 
     return {
       signatureVerifier,
-      helper,
       factory,
       validator,
       erc20Example,
@@ -121,7 +99,7 @@ describe('Factory', () => {
       const { factory, owner, signer, validator } = await loadFixture(fixture);
 
       expect((await factory.nftFactoryParameters()).feeCollector).to.be.equal(owner.address);
-      expect((await factory.nftFactoryParameters()).commissionInBps).to.be.equal(+PLATFORM_COMISSION);
+      expect((await factory.nftFactoryParameters()).commissionInBps).to.be.equal(factoryParams.commissionInBps);
       expect((await factory.nftFactoryParameters()).signer).to.be.equal(signer.address);
       expect((await factory.nftFactoryParameters()).defaultPaymentToken).to.be.equal(ETH_ADDRESS);
       expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(factoryParams.maxArraySize);
@@ -753,7 +731,7 @@ describe('Factory', () => {
           } as AccessTokenInfoStruct,
           hashedCodeFalse,
         ),
-      ).to.be.revertedWithCustomError(factory, 'ReferralCodeOwnerError');
+      ).to.be.revertedWithCustomError(factory, 'ReferralCreatorNotExists');
 
       await expect(
         factory.connect(alice).produce(
@@ -772,7 +750,7 @@ describe('Factory', () => {
           } as AccessTokenInfoStruct,
           hashedCode,
         ),
-      ).to.be.revertedWithCustomError(factory, 'ReferralCodeOwnerError');
+      ).to.be.revertedWithCustomError(factory, 'ReferralUserIsReferralCreator');
 
       const tx = await factory.connect(bob).produce(
         {

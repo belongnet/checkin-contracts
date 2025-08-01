@@ -1,25 +1,20 @@
 import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
-import { ContractFactory } from 'ethers';
 import { expect } from 'chai';
 import { LONG, Staking } from '../../../typechain-types';
 import { getPercentage } from '../helpers/getPercentage';
+import { deployLONG, deployStaking } from '../helpers/deployFixtures';
 
 describe('Staking', () => {
   async function fixture() {
-    const [admin, pauser, minter, burner, user1, user2] = await ethers.getSigners();
-    const [] = await ethers.getSigners();
+    const [admin, treasury, pauser, minter, burner, user1, user2] = await ethers.getSigners();
 
-    const LONG: ContractFactory = await ethers.getContractFactory('LONG');
-    const long: LONG = (await LONG.deploy(admin.address, pauser.address, minter.address, burner.address)) as LONG;
-    await long.deployed();
-
-    const Staking: ContractFactory = await ethers.getContractFactory('Staking');
-    const staking: Staking = (await Staking.deploy(admin.address, admin.address, long.address)) as Staking;
-    await staking.deployed();
+    const long: LONG = await deployLONG(admin.address, pauser.address, minter.address, burner.address);
+    const staking: Staking = await deployStaking(admin.address, treasury.address, long.address);
 
     return {
       admin,
+      treasury,
       pauser,
       minter,
       burner,
@@ -231,7 +226,7 @@ describe('Staking', () => {
     });
 
     it('emergencyWithdraw()', async () => {
-      const { staking, long, admin, minter, user1 } = await loadFixture(fixture);
+      const { staking, long, admin, treasury, minter, user1 } = await loadFixture(fixture);
 
       const amount = ethers.utils.parseEther('1000');
 
@@ -257,13 +252,13 @@ describe('Staking', () => {
         .withArgs(user1.address, user1.address, user1.address, amount, amount);
       expect(await staking.balanceOf(user1.address)).to.eq(0);
       expect(await long.balanceOf(staking.address)).to.eq(0);
-      expect(await long.balanceOf(admin.address)).to.eq(penalty);
+      expect(await long.balanceOf(treasury.address)).to.eq(penalty);
       expect(await long.balanceOf(user1.address)).to.eq(payout);
       await expect(staking.stakes(user1.address, 0)).to.be.reverted;
     });
 
     it('emergencyWithdraw() 2 deposits', async () => {
-      const { staking, long, admin, minter, user1 } = await loadFixture(fixture);
+      const { staking, long, admin, treasury, minter, user1 } = await loadFixture(fixture);
 
       const amount = ethers.utils.parseEther('10000');
 
@@ -286,13 +281,13 @@ describe('Staking', () => {
         .withArgs(user1.address, user1.address, user1.address, amount, amount);
       expect(await staking.balanceOf(user1.address)).to.eq(0);
       expect(await long.balanceOf(staking.address)).to.eq(0);
-      expect(await long.balanceOf(admin.address)).to.eq(penalty);
+      expect(await long.balanceOf(treasury.address)).to.eq(penalty);
       expect(await long.balanceOf(user1.address)).to.eq(payout);
       await expect(staking.stakes(user1.address, 0)).to.be.reverted;
     });
 
     it('emergencyWithdraw() half of deposit', async () => {
-      const { staking, long, admin, minter, user1 } = await loadFixture(fixture);
+      const { staking, long, admin, treasury, minter, user1 } = await loadFixture(fixture);
 
       const fullAmount = ethers.utils.parseEther('10000');
       const amount = fullAmount.div(2);
@@ -315,13 +310,13 @@ describe('Staking', () => {
         .withArgs(user1.address, user1.address, user1.address, amount, amount);
       expect(await staking.balanceOf(user1.address)).to.eq(fullAmount.div(2));
       expect(await long.balanceOf(staking.address)).to.eq(fullAmount.div(2));
-      expect(await long.balanceOf(admin.address)).to.eq(penalty);
+      expect(await long.balanceOf(treasury.address)).to.eq(penalty);
       expect(await long.balanceOf(user1.address)).to.eq(payout);
       await expect((await staking.stakes(user1.address, 0)).amount).to.eq(fullAmount.div(2));
     });
 
     it('emergencyRedeem()', async () => {
-      const { staking, long, admin, minter, user1, user2 } = await loadFixture(fixture);
+      const { staking, long, admin, treasury, minter, user1, user2 } = await loadFixture(fixture);
 
       const amount = ethers.utils.parseEther('1000');
 
@@ -351,13 +346,13 @@ describe('Staking', () => {
         .withArgs(user1.address, user1.address, user1.address, amount, amount);
       expect(await staking.balanceOf(user1.address)).to.eq(0);
       expect(await long.balanceOf(staking.address)).to.eq(0);
-      expect(await long.balanceOf(admin.address)).to.eq(penalty);
+      expect(await long.balanceOf(treasury.address)).to.eq(penalty);
       expect(await long.balanceOf(user1.address)).to.eq(payout);
       await expect(staking.stakes(user1.address, 0)).to.be.reverted;
     });
 
     it('emergencyRedeem() 2 deposits', async () => {
-      const { staking, long, admin, minter, user1 } = await loadFixture(fixture);
+      const { staking, long, admin, treasury, minter, user1 } = await loadFixture(fixture);
 
       const amount = ethers.utils.parseEther('10000');
 
@@ -380,13 +375,13 @@ describe('Staking', () => {
         .withArgs(user1.address, user1.address, user1.address, amount, amount);
       expect(await staking.balanceOf(user1.address)).to.eq(0);
       expect(await long.balanceOf(staking.address)).to.eq(0);
-      expect(await long.balanceOf(admin.address)).to.eq(penalty);
+      expect(await long.balanceOf(treasury.address)).to.eq(penalty);
       expect(await long.balanceOf(user1.address)).to.eq(payout);
       await expect(staking.stakes(user1.address, 0)).to.be.reverted;
     });
 
     it('emergencyRedeem() half of deposit', async () => {
-      const { staking, long, admin, minter, user1 } = await loadFixture(fixture);
+      const { staking, long, admin, treasury, minter, user1 } = await loadFixture(fixture);
 
       const fullAmount = ethers.utils.parseEther('10000');
       const amount = fullAmount.div(2);
@@ -409,7 +404,7 @@ describe('Staking', () => {
         .withArgs(user1.address, user1.address, user1.address, amount, amount);
       expect(await staking.balanceOf(user1.address)).to.eq(fullAmount.div(2));
       expect(await long.balanceOf(staking.address)).to.eq(fullAmount.div(2));
-      expect(await long.balanceOf(admin.address)).to.eq(penalty);
+      expect(await long.balanceOf(treasury.address)).to.eq(penalty);
       expect(await long.balanceOf(user1.address)).to.eq(payout);
       await expect((await staking.stakes(user1.address, 0)).amount).to.eq(fullAmount.div(2));
     });
