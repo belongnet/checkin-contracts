@@ -22,12 +22,11 @@ import {
   deployAccessTokenImplementation,
   deployCreditTokenImplementation,
   deployFactory,
-  deployMockTransferValidatorV2,
   deployRoyaltiesReceiverV2Implementation,
-  deploySignatureVerifier,
-  deployWETHMock,
   TokenMetadata,
 } from '../helpers/deployFixtures';
+import { deploySignatureVerifier } from '../helpers/deployLibraries';
+import { deployMockTransferValidatorV2, deployWETHMock } from '../helpers/deployMockFixtures';
 
 describe('AccessToken', () => {
   const PLATFORM_COMISSION = '100';

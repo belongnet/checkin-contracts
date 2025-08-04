@@ -15,12 +15,12 @@ import {
   deployAccessTokenImplementation,
   deployCreditTokenImplementation,
   deployFactory,
-  deployMockTransferValidatorV2,
   deployRoyaltiesReceiverV2Implementation,
-  deploySignatureVerifier,
   deployLONG,
   deployCreditTokens,
 } from '../helpers/deployFixtures';
+import { deploySignatureVerifier } from '../helpers/deployLibraries';
+import { deployMockTransferValidatorV2 } from '../helpers/deployMockFixtures';
 
 describe('CreditToken', () => {
   let implementations: Factory.ImplementationsStruct;
