@@ -2,14 +2,12 @@ import { BigNumberish, BigNumber as BN, BytesLike, ContractFactory } from 'ether
 import {
   AccessToken,
   CreditToken,
+  Escrow,
   Factory,
-  Helper,
   LONG,
-  MockTransferValidatorV2,
   RoyaltiesReceiverV2,
-  SignatureVerifier,
   Staking,
-  WETHMock,
+  TapAndEarn,
 } from '../../../typechain-types';
 import { ethers, upgrades } from 'hardhat';
 import EthCrypto from 'eth-crypto';
@@ -18,36 +16,6 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { AccessTokenInfoStruct } from '../../../typechain-types/contracts/v2/platform/Factory';
 
 export type TokenMetadata = { name: string; symbol: string; uri: string };
-
-export async function deploySignatureVerifier(): Promise<SignatureVerifier> {
-  const SignatureVerifier: ContractFactory = await ethers.getContractFactory('SignatureVerifier');
-  const signatureVerifier: SignatureVerifier = (await SignatureVerifier.deploy()) as SignatureVerifier;
-  await signatureVerifier.deployed();
-  return signatureVerifier;
-}
-
-export async function deployHelper(): Promise<Helper> {
-  const Helper: ContractFactory = await ethers.getContractFactory('Helper');
-  const helper: Helper = (await Helper.deploy()) as Helper;
-  await helper.deployed();
-  return helper;
-}
-
-export async function deployWETHMock(): Promise<WETHMock> {
-  const WETHMock: ContractFactory = await ethers.getContractFactory('WETHMock');
-  const wethMock: WETHMock = (await WETHMock.deploy()) as WETHMock;
-  await wethMock.deployed();
-  return wethMock;
-}
-
-export async function deployMockTransferValidatorV2(): Promise<MockTransferValidatorV2> {
-  const MockTransferValidatorV2: ContractFactory = await ethers.getContractFactory('MockTransferValidatorV2');
-  const mockTransferValidatorV2: MockTransferValidatorV2 = (await MockTransferValidatorV2.deploy(
-    true,
-  )) as MockTransferValidatorV2;
-  await mockTransferValidatorV2.deployed();
-  return mockTransferValidatorV2;
-}
 
 export async function deployAccessTokenImplementation(signatureVerifier: string): Promise<AccessToken> {
   const AccessToken: ContractFactory = await ethers.getContractFactory('AccessToken', {
@@ -266,4 +234,41 @@ export async function deployStaking(owner: string, treasury: string, long: strin
   const staking: Staking = (await Staking.deploy(owner, treasury, long)) as Staking;
   await staking.deployed();
   return staking;
+}
+
+export async function deployTapAndEarn(
+  signatureVerifier: string,
+  helper: string,
+  owner: string,
+  long: string,
+  paymentsInfo: TapAndEarn.PaymentsInfoStruct = {
+    uniswapPoolFees: 3000,
+    uniswapV3Router: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
+    uniswapV3Quoter: '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6',
+    weth: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    long: long,
+  },
+): Promise<TapAndEarn> {
+  const TapAndEarn: ContractFactory = await ethers.getContractFactory('TapAndEarn', {
+    libraries: { SignatureVerifier: signatureVerifier, Helper: helper },
+  });
+  const tapAndEarn: TapAndEarn = (await upgrades.deployProxy(TapAndEarn, [owner, paymentsInfo], {
+    unsafeAllow: ['constructor'],
+    unsafeAllowLinkedLibraries: true,
+  })) as TapAndEarn;
+  await tapAndEarn.deployed();
+
+  return tapAndEarn;
+}
+
+export async function deployEscrow(tapEarn: string): Promise<Escrow> {
+  const Escrow: ContractFactory = await ethers.getContractFactory('Escrow');
+  const escrow: Escrow = (await upgrades.deployProxy(Escrow, [tapEarn], {
+    unsafeAllow: ['constructor'],
+    unsafeAllowLinkedLibraries: true,
+  })) as Escrow;
+  await escrow.deployed();
+
+  return escrow;
 }
