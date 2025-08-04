@@ -78,7 +78,8 @@ contract TapAndEarn is Initializable, Ownable {
         uint256 amountOut
     );
 
-    struct Storage {
+    // Structs
+    struct TapAndEarnStorage {
         Contracts contracts;
         PaymentsInfo paymentsInfo;
         Fees fees;
@@ -132,7 +133,7 @@ contract TapAndEarn is Initializable, Ownable {
 
     // ========== State Variables ==========
 
-    Storage public tapEarnStorage;
+    TapAndEarnStorage public tapEarnStorage;
 
     mapping(address venue => GeneralVenueInfo info) public generalVenueInfo;
 
@@ -249,7 +250,7 @@ contract TapAndEarn is Initializable, Ownable {
 
     // Approve should be: venueInfo.amount + depositFeePercentage + convenienceFee + affiliateFee
     function venueDeposit(VenueInfo calldata venueInfo) external {
-        Storage memory _storage = tapEarnStorage;
+        TapAndEarnStorage memory _storage = tapEarnStorage;
 
         _storage.contracts.factory.nftFactoryParameters().signer.checkVenueInfo(
             venueInfo
@@ -338,7 +339,7 @@ contract TapAndEarn is Initializable, Ownable {
     }
 
     function payToVenue(CustomerInfo calldata customerInfo) external {
-        Storage memory _storage = tapEarnStorage;
+        TapAndEarnStorage memory _storage = tapEarnStorage;
         VenueRules memory rules = generalVenueInfo[customerInfo.venueToPayFor]
             .rules;
 
@@ -432,7 +433,7 @@ contract TapAndEarn is Initializable, Ownable {
     function distributePromoterPayments(
         PromoterInfo memory promoterInfo
     ) external {
-        Storage memory _storage = tapEarnStorage;
+        TapAndEarnStorage memory _storage = tapEarnStorage;
 
         _storage
             .contracts
@@ -514,7 +515,7 @@ contract TapAndEarn is Initializable, Ownable {
         address venue,
         address promoter
     ) external onlyOwner {
-        Storage memory _storage = tapEarnStorage;
+        TapAndEarnStorage memory _storage = tapEarnStorage;
 
         uint256 venueId = venue.getVenueId();
         uint256 promoterBalance = _storage.contracts.promoterToken.balanceOf(
