@@ -240,15 +240,7 @@ export async function deployTapAndEarn(
   signatureVerifier: string,
   helper: string,
   owner: string,
-  long: string,
-  paymentsInfo: TapAndEarn.PaymentsInfoStruct = {
-    uniswapPoolFees: 3000,
-    uniswapV3Router: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
-    uniswapV3Quoter: '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6',
-    weth: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-    usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-    long: long,
-  },
+  paymentsInfo: TapAndEarn.PaymentsInfoStruct,
 ): Promise<TapAndEarn> {
   const TapAndEarn: ContractFactory = await ethers.getContractFactory('TapAndEarn', {
     libraries: { SignatureVerifier: signatureVerifier, Helper: helper },
