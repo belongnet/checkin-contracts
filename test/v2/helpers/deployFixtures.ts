@@ -168,6 +168,8 @@ export async function deployAccessToken(
 }
 
 export async function deployCreditTokens(
+  transferableVenue: boolean,
+  transferablePromoter: boolean,
   factory: Factory,
   signer: {
     privateKey: string;
@@ -181,7 +183,7 @@ export async function deployCreditTokens(
   chainId: string | Number | BigNumber = 31337,
   venueTokenMetadata: TokenMetadata = {
     name: 'VenueToken',
-    symbol: 'VNE',
+    symbol: 'VET',
     uri: 'contractURI/VenueToken',
   },
   promoterTokenMetadata: TokenMetadata = {
@@ -218,7 +220,7 @@ export async function deployCreditTokens(
       minter: minter.address,
       burner: burner.address,
       uri: venueTokenMetadata.uri,
-      transferable: true,
+      transferable: transferableVenue,
     },
     venueTokenSignature,
   );
@@ -232,7 +234,7 @@ export async function deployCreditTokens(
       minter: minter.address,
       burner: burner.address,
       uri: promoterTokenMetadata.uri,
-      transferable: true,
+      transferable: transferablePromoter,
     },
     promoterTokenSignature,
   );
