@@ -38,13 +38,13 @@ contract TapAndEarn is Initializable, Ownable {
     error NotEnoughBalance(uint256 requiredAmount, uint256 availableBalance);
 
     // ========== Events ==========
-    event ParametersUpdated(
-        Contracts contracts,
+    event ParametersSet(
         PaymentsInfo paymentsInfo,
         Fees fees,
         RewardsInfo[5] rewards
     );
-    event VenueRulesUpdated(address indexed venue, VenueRules rules);
+    event VenueRulesSet(address indexed venue, VenueRules rules);
+    event ContractsSet(Contracts contracts);
 
     event VenuePaidDeposit(
         address indexed venue,
@@ -150,7 +150,6 @@ contract TapAndEarn is Initializable, Ownable {
      */
     function initialize(
         address _owner,
-        Contracts calldata _contracts,
         PaymentsInfo calldata _paymentsInfo
     ) external initializer {
         uint24 convenienceFeeAmount = uint24(
@@ -210,7 +209,6 @@ contract TapAndEarn is Initializable, Ownable {
         ];
 
         _setParameters(
-            _contracts,
             _paymentsInfo,
             Fees({
                 referralCreditsAmount: 3,
@@ -226,12 +224,17 @@ contract TapAndEarn is Initializable, Ownable {
     }
 
     function setParameters(
-        Contracts calldata _contracts,
         PaymentsInfo calldata _paymentsInfo,
         Fees calldata _fees,
         RewardsInfo[5] memory _stakingRewards
     ) external onlyOwner {
-        _setParameters(_contracts, _paymentsInfo, _fees, _stakingRewards);
+        _setParameters(_paymentsInfo, _fees, _stakingRewards);
+    }
+
+    function setContracts(Contracts calldata _contracts) external onlyOwner {
+        tapEarnStorage.contracts = _contracts;
+
+        emit ContractsSet(_contracts);
     }
 
     function updateVenueRules(VenueRules calldata rules) external {
@@ -588,12 +591,10 @@ contract TapAndEarn is Initializable, Ownable {
     }
 
     function _setParameters(
-        Contracts calldata _contracts,
         PaymentsInfo calldata _paymentsInfo,
         Fees memory _fees,
         RewardsInfo[5] memory _stakingRewards
     ) private {
-        tapEarnStorage.contracts = _contracts;
         tapEarnStorage.paymentsInfo = _paymentsInfo;
         tapEarnStorage.fees = _fees;
 
@@ -601,17 +602,12 @@ contract TapAndEarn is Initializable, Ownable {
             stakingRewards[StakingTiers(i)] = _stakingRewards[i];
         }
 
-        emit ParametersUpdated(
-            _contracts,
-            _paymentsInfo,
-            _fees,
-            _stakingRewards
-        );
+        emit ParametersSet(_paymentsInfo, _fees, _stakingRewards);
     }
 
     function _setVenueRules(address venue, VenueRules calldata rules) private {
         generalVenueInfo[venue].rules = rules;
 
-        emit VenueRulesUpdated(venue, rules);
+        emit VenueRulesSet(venue, rules);
     }
 }
