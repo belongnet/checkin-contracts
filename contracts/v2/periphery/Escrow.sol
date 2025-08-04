@@ -35,6 +35,20 @@ contract Escrow is Initializable, Ownable {
     TapAndEarn public tapAndEarn;
     mapping(address venue => VenueDeposits deposits) public venueDeposits;
 
+    // ========== Functions ==========
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @notice Initializes the contract with NFT factory parameters and referral percentages.
+     */
+    function initialize(TapAndEarn _tapAndEarn) external initializer {
+        tapAndEarn = _tapAndEarn;
+    }
+
     modifier onlyTapEarn() {
         require(msg.sender == address(tapAndEarn), NotTapAndEarn());
         _;
