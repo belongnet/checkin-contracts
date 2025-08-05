@@ -1,178 +1,259 @@
-import { ethers, upgrades } from 'hardhat';
+import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
-import { ContractFactory } from 'ethers';
 import EthCrypto from 'eth-crypto';
 import {
   AccessToken,
   CreditToken,
+  Escrow,
   Factory,
   Helper,
-  LONG,
-  MockTransferValidator,
+  IERC20Metadata,
+  MockTransferValidatorV2,
   RoyaltiesReceiverV2,
   SignatureVerifier,
   Staking,
+  TapAndEarn,
 } from '../../../typechain-types';
-import { getPercentage } from '../helpers/getPercentage';
+import {
+  deployCreditTokens,
+  deployAccessTokenImplementation,
+  deployCreditTokenImplementation,
+  deployFactory,
+  deployRoyaltiesReceiverV2Implementation,
+  deployStaking,
+  deployTapAndEarn,
+  deployEscrow,
+} from '../helpers/deployFixtures';
+import { getSignerFromAddress, getToken, startSimulateMainnet, stopSimulateMainnet } from '../helpers/forkHelpers';
+import { deployHelper, deploySignatureVerifier } from '../helpers/deployLibraries';
+import { deployMockTransferValidatorV2, deployPriceFeeds } from '../helpers/deployMockFixtures';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { expect } from 'chai';
 
-describe.skip('TapAndEarn', () => {
+enum StakingTiers {
+  NoStakes,
+  BronzeTier,
+  SilverTier,
+  GoldTier,
+  PlatinumTier,
+}
+
+describe.only('TapAndEarn', () => {
+  const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+  const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+  const ENA_ADDRESS = '0x57e114B691Db790C35207b2e685D4A43181e6061'; //used instead of LONG
+
+  const USDC_WHALE_ADDRESS = '0x28C6c06298d514Db089934071355E5743bf21d60';
+  const WETH_WHALE_ADDRESS = '0x57757E3D981446D585Af0D9Ae4d7DF6D64647806';
+  const ENA_WHALE_ADDRESS = '0xc4E512313dD1cE0795f88eC5229778eDf1FDF79B';
+
+  const UNISWAP_ROUTER_ADDRESS = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
+  const UNISWAP_QUOTER_ADDRESS = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6';
+  const POOL_FEE = 3000;
+
   const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const chainId = 31337;
 
+  const paymentsInfo: TapAndEarn.PaymentsInfoStruct = {
+    uniswapPoolFees: POOL_FEE,
+    uniswapV3Router: UNISWAP_ROUTER_ADDRESS,
+    uniswapV3Quoter: UNISWAP_QUOTER_ADDRESS,
+    weth: WETH_ADDRESS,
+    usdc: USDC_ADDRESS,
+    long: ENA_ADDRESS,
+  };
+  let implementations: Factory.ImplementationsStruct, contracts: TapAndEarn.ContractsStruct;
+
+  let WETH_whale: SignerWithAddress, USDC_whale: SignerWithAddress, ENA_whale: SignerWithAddress;
+  let WETH: IERC20Metadata, USDC: IERC20Metadata, ENA: IERC20Metadata;
+
+  before(startSimulateMainnet);
+
+  after(stopSimulateMainnet);
+
   async function fixture() {
-    const [admin, pauser, minter, burner, user1, user2] = await ethers.getSigners();
+    const [admin, treasury, manager, minter, burner, pauser, referral] = await ethers.getSigners();
     const signer = EthCrypto.createIdentity();
 
-    const SignatureVerifier: ContractFactory = await ethers.getContractFactory('SignatureVerifier');
-    const signatureVerifier: SignatureVerifier = (await SignatureVerifier.deploy()) as SignatureVerifier;
-    await signatureVerifier.deployed();
+    WETH_whale = await getSignerFromAddress(WETH_WHALE_ADDRESS);
+    USDC_whale = await getSignerFromAddress(USDC_WHALE_ADDRESS);
+    ENA_whale = await getSignerFromAddress(ENA_WHALE_ADDRESS);
 
-    const Helper: ContractFactory = await ethers.getContractFactory('Helper');
-    const helper: Helper = (await Helper.deploy()) as Helper;
-    await helper.deployed();
+    WETH = await getToken(WETH_ADDRESS);
+    USDC = await getToken(USDC_ADDRESS);
+    ENA = await getToken(ENA_ADDRESS);
 
-    const Validator: ContractFactory = await ethers.getContractFactory('MockTransferValidatorV2');
-    const validator: MockTransferValidator = (await Validator.deploy(true)) as MockTransferValidator;
-    await validator.deployed();
+    const signatureVerifier: SignatureVerifier = await deploySignatureVerifier();
+    const validator: MockTransferValidatorV2 = await deployMockTransferValidatorV2();
+    const accessTokenImplementation: AccessToken = await deployAccessTokenImplementation(signatureVerifier.address);
+    const royaltiesReceiverV2Implementation: RoyaltiesReceiverV2 = await deployRoyaltiesReceiverV2Implementation();
+    const creditTokenImplementation: CreditToken = await deployCreditTokenImplementation();
 
-    const AccessToken: ContractFactory = await ethers.getContractFactory('AccessToken', {
-      libraries: { SignatureVerifier: signatureVerifier.address },
-    });
-    const accessToken: AccessToken = (await AccessToken.deploy()) as AccessToken;
-    await accessToken.deployed();
+    implementations = {
+      accessToken: accessTokenImplementation.address,
+      creditToken: creditTokenImplementation.address,
+      royaltiesReceiver: royaltiesReceiverV2Implementation.address,
+    };
 
-    const RRImplementation: ContractFactory = await ethers.getContractFactory('RoyaltiesReceiverV2');
-    const rr: RoyaltiesReceiverV2 = (await RRImplementation.deploy()) as RoyaltiesReceiverV2;
-    await rr.deployed();
+    const factory: Factory = await deployFactory(
+      treasury.address,
+      signer.address,
+      signatureVerifier.address,
+      validator.address,
+      implementations,
+    );
 
-    const CreditToken: ContractFactory = await ethers.getContractFactory('CreditToken');
-    const creditToken: CreditToken = (await CreditToken.deploy()) as CreditToken;
-    await creditToken.deployed();
+    const helper: Helper = await deployHelper();
+    const staking: Staking = await deployStaking(admin.address, treasury.address, ENA_ADDRESS);
 
-    const Factory: ContractFactory = await ethers.getContractFactory('Factory', {
-      libraries: { SignatureVerifier: signatureVerifier.address },
-    });
-    const factory: Factory = (await upgrades.deployProxy(
-      Factory,
-      [
-        {
-          transferValidator: validator.address,
-          feeCollector: admin.address,
-          signer: signer.address,
-          commissionInBps: '10',
-          defaultPaymentToken: ETH_ADDRESS,
-          maxArraySize: 10,
-        },
-        {
-          accessToken: accessToken.address,
-          creditToken: creditToken.address,
-          royaltiesReceiver: rr.address,
-        },
-        {
-          amountToCreator: 8000,
-          amountToPlatform: 2000,
-        },
-        [0, 5000, 3000, 1500, 500],
-      ],
-      {
-        unsafeAllow: ['constructor'],
-        unsafeAllowLinkedLibraries: true,
-      },
-    )) as Factory;
-    await factory.deployed();
+    const referralCode = EthCrypto.hash.keccak256([
+      { type: 'address', value: referral.address },
+      { type: 'address', value: factory.address },
+      { type: 'uint256', value: chainId },
+    ]);
 
-    const LONG: ContractFactory = await ethers.getContractFactory('LONG');
-    const long: LONG = (await LONG.deploy(admin.address, pauser.address, minter.address, burner.address)) as LONG;
-    await long.deployed();
+    await factory.connect(referral).createReferralCode();
 
-    const Staking: ContractFactory = await ethers.getContractFactory('Staking');
-    const staking: Staking = (await Staking.deploy(admin.address, admin.address, long.address)) as Staking;
-    await staking.deployed();
+    const tapEarn: TapAndEarn = await deployTapAndEarn(
+      signatureVerifier.address,
+      helper.address,
+      admin.address,
+      paymentsInfo,
+    );
 
-    const { promoterToken, venueToken } = await deployCreditTokens();
-
-    return {
+    const escrow: Escrow = await deployEscrow(tapEarn.address);
+    const { pf1, pf2, pf3 } = await deployPriceFeeds();
+    const { venueToken, promoterToken } = await deployCreditTokens(
+      true,
+      false,
+      factory,
+      signer,
       admin,
-      pauser,
+      manager,
       minter,
       burner,
-      user1,
-      user2,
-      signer,
+    );
+
+    contracts = {
+      factory: factory.address,
+      escrow: escrow.address,
+      staking: staking.address,
+      venueToken: venueToken.address,
+      promoterToken: promoterToken.address,
+      longPF: pf1.address,
+    };
+
+    await tapEarn.setContracts(contracts);
+
+    return {
       signatureVerifier,
       helper,
       factory,
-      long,
       staking,
-      promoterToken,
       venueToken,
+      promoterToken,
+      tapEarn,
+      escrow,
+      pf1,
+      pf2,
+      pf3,
+      admin,
+      treasury,
+      manager,
+      minter,
+      burner,
+      pauser,
+      referral,
+      signer,
+      referralCode,
     };
   }
 
   describe('Deployment', () => {
     it('Should be deployed correctly', async () => {
-      const { staking, long, admin } = await loadFixture(fixture);
+      const { tapEarn, escrow, pf1, pf2, pf3, admin } = await loadFixture(fixture);
+
+      expect(tapEarn.address).to.be.properAddress;
+      expect(escrow.address).to.be.properAddress;
+      expect(pf1.address).to.be.properAddress;
+      expect(pf2.address).to.be.properAddress;
+      expect(pf3.address).to.be.properAddress;
+
+      expect(await tapEarn.owner()).to.eq(admin.address);
+      const tapEarnStorage = await tapEarn.tapEarnStorage();
+      expect(tapEarnStorage.contracts).to.deep.eq(contracts);
+      expect(tapEarnStorage.paymentsInfo).to.deep.eq(paymentsInfo);
+      expect(tapEarnStorage.fees).to.deep.eq({
+        referralCreditsAmount: 3,
+        affiliatePercentage: 1000, // 10%
+        longCustomerDiscountPercentage: 300, // 3%
+        platformSubsidyPercentage: 300, // 3%
+        processingFeePercentage: 250, // 3%
+      });
+
+      const convenienceFeeAmount = 5000000;
+      const usdcPercentage = 1000;
+
+      const stakingRewardsInfo: TapAndEarn.RewardsInfoStruct[] = [
+        {
+          venueStakingInfo: {
+            depositFeePercentage: 1000,
+            convenienceFeeAmount,
+          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          promoterStakingInfo: {
+            usdcPercentage,
+            longPercentage: 800,
+          } as TapAndEarn.PromoterStakingRewardInfoStruct,
+        } as TapAndEarn.RewardsInfoStruct,
+        {
+          venueStakingInfo: {
+            depositFeePercentage: 900,
+            convenienceFeeAmount,
+          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          promoterStakingInfo: {
+            usdcPercentage,
+            longPercentage: 700,
+          } as TapAndEarn.PromoterStakingRewardInfoStruct,
+        } as TapAndEarn.RewardsInfoStruct,
+        {
+          venueStakingInfo: {
+            depositFeePercentage: 800,
+            convenienceFeeAmount,
+          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          promoterStakingInfo: {
+            usdcPercentage,
+            longPercentage: 600,
+          } as TapAndEarn.PromoterStakingRewardInfoStruct,
+        } as TapAndEarn.RewardsInfoStruct,
+        {
+          venueStakingInfo: {
+            depositFeePercentage: 700,
+            convenienceFeeAmount,
+          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          promoterStakingInfo: {
+            usdcPercentage,
+            longPercentage: 500,
+          } as TapAndEarn.PromoterStakingRewardInfoStruct,
+        } as TapAndEarn.RewardsInfoStruct,
+        {
+          venueStakingInfo: {
+            depositFeePercentage: 500,
+            convenienceFeeAmount,
+          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          promoterStakingInfo: {
+            usdcPercentage,
+            longPercentage: 400,
+          } as TapAndEarn.PromoterStakingRewardInfoStruct,
+        } as TapAndEarn.RewardsInfoStruct,
+      ];
+
+      for (let tierValue = 0; tierValue < stakingRewardsInfo.length; tierValue++) {
+        const result = await tapEarn.stakingRewards(tierValue);
+
+        expect(result).to.deep.eq(stakingRewardsInfo[tierValue]);
+      }
+
+      expect(await escrow.tapAndEarn()).to.eq(tapEarn.address);
     });
   });
-
-  async function deployCreditTokens(): Promise<{ venueToken: CreditToken; promoterToken: CreditToken }> {
-    const { factory, admin, signer } = await loadFixture(fixture);
-
-    const venueTokenName = 'VenueToken';
-    const venueTokenSymbol = 'VNE';
-    const venueTokenUri = 'contractURI/VenueToken';
-    const venueTokenMessage = EthCrypto.hash.keccak256([
-      { type: 'string', value: venueTokenName },
-      { type: 'string', value: venueTokenSymbol },
-      { type: 'string', value: venueTokenUri },
-      { type: 'uint256', value: chainId },
-    ]);
-    const venueTokenSignature = EthCrypto.sign(signer.privateKey, venueTokenMessage);
-
-    const promoterTokenName = 'PromoterToken';
-    const promoterTokenSymbol = 'PMT';
-    const promoterTokenUri = 'contractURI/PromoterToken';
-    const promoterTokenMessage = EthCrypto.hash.keccak256([
-      { type: 'string', value: promoterTokenName },
-      { type: 'string', value: promoterTokenSymbol },
-      { type: 'string', value: promoterTokenUri },
-      { type: 'uint256', value: chainId },
-    ]);
-    const promoterTokenSignature = EthCrypto.sign(signer.privateKey, promoterTokenMessage);
-
-    await factory.connect(admin).produceCreditToken(
-      {
-        name: venueTokenName,
-        symbol: venueTokenSymbol,
-        defaultAdmin: admin.address,
-        manager: admin.address,
-        minter: admin.address,
-        burner: admin.address,
-        uri: venueTokenUri,
-        transferable: true,
-      },
-      venueTokenSignature,
-    );
-
-    const venueTokenInstanceInfo = await factory.getCreditTokenInstanceInfo(venueTokenName, venueTokenSymbol);
-    const venueToken: CreditToken = await ethers.getContractAt('CreditToken', venueTokenInstanceInfo.creditToken);
-
-    await factory.connect(admin).produceCreditToken(
-      {
-        name: promoterTokenName,
-        symbol: promoterTokenSymbol,
-        defaultAdmin: admin.address,
-        manager: admin.address,
-        minter: admin.address,
-        burner: admin.address,
-        uri: promoterTokenUri,
-        transferable: true,
-      },
-      promoterTokenSignature,
-    );
-
-    const promoterTokenInstanceInfo = await factory.getCreditTokenInstanceInfo(promoterTokenName, promoterTokenSymbol);
-    const promoterToken: CreditToken = await ethers.getContractAt('CreditToken', promoterTokenInstanceInfo.creditToken);
-    return { venueToken, promoterToken };
-  }
 });
