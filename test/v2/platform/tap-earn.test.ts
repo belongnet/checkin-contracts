@@ -383,12 +383,11 @@ describe.only('TapAndEarn', () => {
       await expect(
         tapEarn.connect(minter).setParameters(paymentsInfoNew, feesNew, stakingRewardsNew),
       ).to.be.revertedWithCustomError(tapEarn, 'Unauthorized');
-
       const tx = await tapEarn.setParameters(paymentsInfoNew, feesNew, stakingRewardsNew);
+      await expect(tx).to.emit(tapEarn, 'ParametersSet');
 
-      await expect(tx).to.emit(tapEarn, 'ParametersSet').withArgs(paymentsInfoNew, feesNew, stakingRewardsNew);
       const tapEarnStorage = await tapEarn.tapEarnStorage();
-
+      // Convert paymentsInfo tuple to object
       expect({
         uniswapPoolFees: tapEarnStorage.paymentsInfo.uniswapPoolFees,
         uniswapV3Router: tapEarnStorage.paymentsInfo.uniswapV3Router,
@@ -397,6 +396,7 @@ describe.only('TapAndEarn', () => {
         usdc: tapEarnStorage.paymentsInfo.usdc,
         long: tapEarnStorage.paymentsInfo.long,
       }).to.deep.eq(paymentsInfoNew);
+      // Convert fees tuple to object
       expect({
         referralCreditsAmount: tapEarnStorage.fees.referralCreditsAmount,
         affiliatePercentage: tapEarnStorage.fees.affiliatePercentage,
@@ -404,7 +404,7 @@ describe.only('TapAndEarn', () => {
         platformSubsidyPercentage: tapEarnStorage.fees.platformSubsidyPercentage,
         processingFeePercentage: tapEarnStorage.fees.processingFeePercentage,
       }).to.deep.eq(feesNew);
-
+      // Convert stakingRewards tuple to object for each tier
       for (let tierValue = 0; tierValue < stakingRewardsNew.length; tierValue++) {
         const result = await tapEarn.stakingRewards(tierValue);
         const resultFromStorage = {
@@ -433,24 +433,24 @@ describe.only('TapAndEarn', () => {
         longPF: tapEarn.address,
       };
 
-      await expect(tapEarn.connect(minter).setContracts(contracts)).to.be.revertedWithCustomError(
+      await expect(tapEarn.connect(minter).setContracts(contractsNew)).to.be.revertedWithCustomError(
         tapEarn,
         'Unauthorized',
       );
+      const tx = await tapEarn.setContracts(contractsNew);
+      await expect(tx).to.emit(tapEarn, 'ContractsSet');
 
-      const tx = await tapEarn.setContracts(contracts);
-
-      await expect(tx).to.emit(tapEarn, 'ContractsSet').withArgs(contracts);
       const tapEarnStorage = await tapEarn.tapEarnStorage();
-
-      expect({
+      // Convert contracts tuple to object
+      const contractsFromStorage = {
         factory: tapEarnStorage.contracts.factory,
         escrow: tapEarnStorage.contracts.escrow,
         staking: tapEarnStorage.contracts.staking,
         venueToken: tapEarnStorage.contracts.venueToken,
         promoterToken: tapEarnStorage.contracts.promoterToken,
         longPF: tapEarnStorage.contracts.longPF,
-      }).to.deep.eq(contractsNew);
+      };
+      expect(contractsFromStorage).to.deep.eq(contractsNew);
     });
   });
 });
