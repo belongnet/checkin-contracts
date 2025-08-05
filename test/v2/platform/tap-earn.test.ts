@@ -172,7 +172,6 @@ describe.only('TapAndEarn', () => {
   describe('Deployment', () => {
     it('Should be deployed correctly', async () => {
       const { tapEarn, escrow, pf1, pf2, pf3, admin } = await loadFixture(fixture);
-
       expect(tapEarn.address).to.be.properAddress;
       expect(escrow.address).to.be.properAddress;
       expect(pf1.address).to.be.properAddress;
@@ -180,21 +179,56 @@ describe.only('TapAndEarn', () => {
       expect(pf3.address).to.be.properAddress;
 
       expect(await tapEarn.owner()).to.eq(admin.address);
+
       const tapEarnStorage = await tapEarn.tapEarnStorage();
-      expect(tapEarnStorage.contracts).to.deep.eq(contracts);
-      expect(tapEarnStorage.paymentsInfo).to.deep.eq(paymentsInfo);
-      expect(tapEarnStorage.fees).to.deep.eq({
+
+      // Convert contracts tuple to object
+      const contractsFromStorage = {
+        factory: tapEarnStorage.contracts.factory,
+        escrow: tapEarnStorage.contracts.escrow,
+        staking: tapEarnStorage.contracts.staking,
+        venueToken: tapEarnStorage.contracts.venueToken,
+        promoterToken: tapEarnStorage.contracts.promoterToken,
+        longPF: tapEarnStorage.contracts.longPF,
+      };
+      expect(contractsFromStorage).to.deep.eq(contracts);
+
+      // Convert paymentsInfo tuple to object
+      const paymentsInfoFromStorage = {
+        uniswapPoolFees: tapEarnStorage.paymentsInfo.uniswapPoolFees,
+        uniswapV3Router: tapEarnStorage.paymentsInfo.uniswapV3Router,
+        uniswapV3Quoter: tapEarnStorage.paymentsInfo.uniswapV3Quoter,
+        weth: tapEarnStorage.paymentsInfo.weth,
+        usdc: tapEarnStorage.paymentsInfo.usdc,
+        long: tapEarnStorage.paymentsInfo.long,
+      };
+      expect(paymentsInfoFromStorage).to.deep.eq(paymentsInfo);
+
+      // Convert fees tuple to object
+      const feesFromStorage = {
+        referralCreditsAmount: tapEarnStorage.fees.referralCreditsAmount,
+        affiliatePercentage: tapEarnStorage.fees.affiliatePercentage,
+        longCustomerDiscountPercentage: tapEarnStorage.fees.longCustomerDiscountPercentage,
+        platformSubsidyPercentage: tapEarnStorage.fees.platformSubsidyPercentage,
+        processingFeePercentage: tapEarnStorage.fees.processingFeePercentage,
+      };
+      expect(feesFromStorage).to.deep.eq({
         referralCreditsAmount: 3,
-        affiliatePercentage: 1000, // 10%
-        longCustomerDiscountPercentage: 300, // 3%
-        platformSubsidyPercentage: 300, // 3%
-        processingFeePercentage: 250, // 3%
+        affiliatePercentage: 1000,
+        longCustomerDiscountPercentage: 300,
+        platformSubsidyPercentage: 300,
+        processingFeePercentage: 250,
       });
 
       const convenienceFeeAmount = 5000000;
       const usdcPercentage = 1000;
-
-      const stakingRewardsInfo: TapAndEarn.RewardsInfoStruct[] = [
+      const stakingRewardsInfo: [
+        TapAndEarn.RewardsInfoStruct,
+        TapAndEarn.RewardsInfoStruct,
+        TapAndEarn.RewardsInfoStruct,
+        TapAndEarn.RewardsInfoStruct,
+        TapAndEarn.RewardsInfoStruct,
+      ] = [
         {
           venueStakingInfo: {
             depositFeePercentage: 1000,
@@ -249,11 +283,174 @@ describe.only('TapAndEarn', () => {
 
       for (let tierValue = 0; tierValue < stakingRewardsInfo.length; tierValue++) {
         const result = await tapEarn.stakingRewards(tierValue);
-
-        expect(result).to.deep.eq(stakingRewardsInfo[tierValue]);
+        const resultFromStorage = {
+          venueStakingInfo: {
+            depositFeePercentage: result.venueStakingInfo.depositFeePercentage,
+            convenienceFeeAmount: result.venueStakingInfo.convenienceFeeAmount,
+          },
+          promoterStakingInfo: {
+            usdcPercentage: result.promoterStakingInfo.usdcPercentage,
+            longPercentage: result.promoterStakingInfo.longPercentage,
+          },
+        };
+        expect(resultFromStorage).to.deep.eq(stakingRewardsInfo[tierValue]);
       }
 
       expect(await escrow.tapAndEarn()).to.eq(tapEarn.address);
+    });
+  });
+
+  describe('Set functions', () => {
+    it('setParameters() can be set only by the owner', async () => {
+      const { tapEarn, minter } = await loadFixture(fixture);
+
+      const paymentsInfoNew = {
+        uniswapPoolFees: 5000,
+        uniswapV3Router: UNISWAP_ROUTER_ADDRESS,
+        uniswapV3Quoter: UNISWAP_QUOTER_ADDRESS,
+        weth: WETH_ADDRESS,
+        usdc: USDC_ADDRESS,
+        long: ENA_ADDRESS,
+      };
+      const feesNew = {
+        referralCreditsAmount: 1,
+        affiliatePercentage: 100,
+        longCustomerDiscountPercentage: 100,
+        platformSubsidyPercentage: 100,
+        processingFeePercentage: 100,
+      };
+      const convenienceFeeAmountNew = 1000000;
+      const usdcPercentageNew = 100;
+      const stakingRewardsNew: [
+        TapAndEarn.RewardsInfoStruct,
+        TapAndEarn.RewardsInfoStruct,
+        TapAndEarn.RewardsInfoStruct,
+        TapAndEarn.RewardsInfoStruct,
+        TapAndEarn.RewardsInfoStruct,
+      ] = [
+        {
+          venueStakingInfo: {
+            depositFeePercentage: 1000,
+            convenienceFeeAmount: convenienceFeeAmountNew,
+          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          promoterStakingInfo: {
+            usdcPercentage: usdcPercentageNew,
+            longPercentage: 800,
+          } as TapAndEarn.PromoterStakingRewardInfoStruct,
+        } as TapAndEarn.RewardsInfoStruct,
+        {
+          venueStakingInfo: {
+            depositFeePercentage: 900,
+            convenienceFeeAmount: convenienceFeeAmountNew,
+          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          promoterStakingInfo: {
+            usdcPercentage: usdcPercentageNew,
+            longPercentage: 700,
+          } as TapAndEarn.PromoterStakingRewardInfoStruct,
+        } as TapAndEarn.RewardsInfoStruct,
+        {
+          venueStakingInfo: {
+            depositFeePercentage: 800,
+            convenienceFeeAmount: convenienceFeeAmountNew,
+          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          promoterStakingInfo: {
+            usdcPercentage: usdcPercentageNew,
+            longPercentage: 600,
+          } as TapAndEarn.PromoterStakingRewardInfoStruct,
+        } as TapAndEarn.RewardsInfoStruct,
+        {
+          venueStakingInfo: {
+            depositFeePercentage: 700,
+            convenienceFeeAmount: convenienceFeeAmountNew,
+          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          promoterStakingInfo: {
+            usdcPercentage: usdcPercentageNew,
+            longPercentage: 500,
+          } as TapAndEarn.PromoterStakingRewardInfoStruct,
+        } as TapAndEarn.RewardsInfoStruct,
+        {
+          venueStakingInfo: {
+            depositFeePercentage: 500,
+            convenienceFeeAmount: convenienceFeeAmountNew,
+          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          promoterStakingInfo: {
+            usdcPercentage: usdcPercentageNew,
+            longPercentage: 400,
+          } as TapAndEarn.PromoterStakingRewardInfoStruct,
+        } as TapAndEarn.RewardsInfoStruct,
+      ];
+
+      await expect(
+        tapEarn.connect(minter).setParameters(paymentsInfoNew, feesNew, stakingRewardsNew),
+      ).to.be.revertedWithCustomError(tapEarn, 'Unauthorized');
+
+      const tx = await tapEarn.setParameters(paymentsInfoNew, feesNew, stakingRewardsNew);
+
+      await expect(tx).to.emit(tapEarn, 'ParametersSet').withArgs(paymentsInfoNew, feesNew, stakingRewardsNew);
+      const tapEarnStorage = await tapEarn.tapEarnStorage();
+
+      expect({
+        uniswapPoolFees: tapEarnStorage.paymentsInfo.uniswapPoolFees,
+        uniswapV3Router: tapEarnStorage.paymentsInfo.uniswapV3Router,
+        uniswapV3Quoter: tapEarnStorage.paymentsInfo.uniswapV3Quoter,
+        weth: tapEarnStorage.paymentsInfo.weth,
+        usdc: tapEarnStorage.paymentsInfo.usdc,
+        long: tapEarnStorage.paymentsInfo.long,
+      }).to.deep.eq(paymentsInfoNew);
+      expect({
+        referralCreditsAmount: tapEarnStorage.fees.referralCreditsAmount,
+        affiliatePercentage: tapEarnStorage.fees.affiliatePercentage,
+        longCustomerDiscountPercentage: tapEarnStorage.fees.longCustomerDiscountPercentage,
+        platformSubsidyPercentage: tapEarnStorage.fees.platformSubsidyPercentage,
+        processingFeePercentage: tapEarnStorage.fees.processingFeePercentage,
+      }).to.deep.eq(feesNew);
+
+      for (let tierValue = 0; tierValue < stakingRewardsNew.length; tierValue++) {
+        const result = await tapEarn.stakingRewards(tierValue);
+        const resultFromStorage = {
+          venueStakingInfo: {
+            depositFeePercentage: result.venueStakingInfo.depositFeePercentage,
+            convenienceFeeAmount: result.venueStakingInfo.convenienceFeeAmount,
+          },
+          promoterStakingInfo: {
+            usdcPercentage: result.promoterStakingInfo.usdcPercentage,
+            longPercentage: result.promoterStakingInfo.longPercentage,
+          },
+        };
+        expect(resultFromStorage).to.deep.eq(stakingRewardsNew[tierValue]);
+      }
+    });
+
+    it('setContracts() can be set only by the owner', async () => {
+      const { tapEarn, minter } = await loadFixture(fixture);
+
+      const contractsNew = {
+        factory: tapEarn.address,
+        escrow: tapEarn.address,
+        staking: tapEarn.address,
+        venueToken: tapEarn.address,
+        promoterToken: tapEarn.address,
+        longPF: tapEarn.address,
+      };
+
+      await expect(tapEarn.connect(minter).setContracts(contracts)).to.be.revertedWithCustomError(
+        tapEarn,
+        'Unauthorized',
+      );
+
+      const tx = await tapEarn.setContracts(contracts);
+
+      await expect(tx).to.emit(tapEarn, 'ContractsSet').withArgs(contracts);
+      const tapEarnStorage = await tapEarn.tapEarnStorage();
+
+      expect({
+        factory: tapEarnStorage.contracts.factory,
+        escrow: tapEarnStorage.contracts.escrow,
+        staking: tapEarnStorage.contracts.staking,
+        venueToken: tapEarnStorage.contracts.venueToken,
+        promoterToken: tapEarnStorage.contracts.promoterToken,
+        longPF: tapEarnStorage.contracts.longPF,
+      }).to.deep.eq(contractsNew);
     });
   });
 });
