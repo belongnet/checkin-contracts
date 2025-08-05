@@ -36,6 +36,13 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
+      forking: {
+        url: `https://eth.llamarpc.com`,
+        blockNumber: 23068383,
+      },
+      throwOnCallFailures: false,
+      accounts: { accountsBalance: '10000000000000000000000000' },
+      initialBaseFeePerGas: 0,
       allowUnlimitedContractSize: false,
     },
     // 'ethereum': {
