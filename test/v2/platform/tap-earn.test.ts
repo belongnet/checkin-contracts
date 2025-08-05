@@ -29,14 +29,7 @@ import { deployHelper, deploySignatureVerifier } from '../helpers/deployLibrarie
 import { deployMockTransferValidatorV2, deployPriceFeeds } from '../helpers/deployMockFixtures';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
-
-enum StakingTiers {
-  NoStakes,
-  BronzeTier,
-  SilverTier,
-  GoldTier,
-  PlatinumTier,
-}
+import { VenueInfoStruct, VenueRulesStruct } from '../../../typechain-types/contracts/v2/platform/TapAndEarn';
 
 describe.only('TapAndEarn', () => {
   const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
@@ -67,8 +60,9 @@ describe.only('TapAndEarn', () => {
   let WETH_whale: SignerWithAddress, USDC_whale: SignerWithAddress, ENA_whale: SignerWithAddress;
   let WETH: IERC20Metadata, USDC: IERC20Metadata, ENA: IERC20Metadata;
 
-  before(startSimulateMainnet);
+  let convenienceFeeAmount: number;
 
+  before(startSimulateMainnet);
   after(stopSimulateMainnet);
 
   async function fixture() {
@@ -145,6 +139,8 @@ describe.only('TapAndEarn', () => {
 
     await tapEarn.setContracts(contracts);
 
+    convenienceFeeAmount = 5 * 10 ** (await USDC.decimals());
+
     return {
       signatureVerifier,
       helper,
@@ -220,7 +216,6 @@ describe.only('TapAndEarn', () => {
         processingFeePercentage: 250,
       });
 
-      const convenienceFeeAmount = 5000000;
       const usdcPercentage = 1000;
       const stakingRewardsInfo: [
         TapAndEarn.RewardsInfoStruct,
@@ -451,6 +446,50 @@ describe.only('TapAndEarn', () => {
         longPF: tapEarnStorage.contracts.longPF,
       };
       expect(contractsFromStorage).to.deep.eq(contractsNew);
+    });
+  });
+
+  describe('Venue flow', () => {
+    it.only('venueDeposit() (first deposit) (w/o referral) (no stakes)', async () => {
+      const { tapEarn, escrow, venueToken, helper, signer } = await loadFixture(fixture);
+
+      const uri = 'uriuri';
+      const amount = 100 * 10 ** (await USDC.decimals());
+      const venue = USDC_whale.address;
+      const message = ethers.utils.solidityKeccak256(['address', 'string', 'uint256'], [venue, uri, chainId]);
+      const signature = EthCrypto.sign(signer.privateKey, message);
+
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 1, bountyType: 1 } as VenueRulesStruct,
+        venue,
+        amount,
+        referralCode: ethers.constants.HashZero,
+        uri,
+        signature: signature,
+      };
+
+      const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
+
+      const willBeTaken = amount + convenienceFeeAmount;
+
+      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+
+      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+
+      const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
+
+      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx)
+        .to.emit(escrow, 'VenueDepositsUpdated')
+        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
+      expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
+      expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
+      expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
+
+      const USDC_balance_after = await USDC.balanceOf(USDC_whale.address);
+      expect(USDC_balance_before.sub(willBeTaken)).to.eq(USDC_balance_after);
     });
   });
 });
