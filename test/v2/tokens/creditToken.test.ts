@@ -57,9 +57,9 @@ describe('CreditToken', () => {
       factory,
       signer,
       admin,
-      manager,
-      minter,
-      burner,
+      manager.address,
+      minter.address,
+      burner.address,
     );
 
     return {
