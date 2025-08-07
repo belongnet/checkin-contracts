@@ -67,7 +67,7 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
         uint256 amount
     ) public onlyRole(BURNER_ROLE) {
         _setTokenUri(tokenId, "");
-        _mint(from, tokenId, amount, "0x");
+        _burn(from, tokenId, amount);
     }
 
     function _setUri(string calldata uri_) private {
@@ -97,7 +97,7 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
         uint256[] memory amounts,
         bytes memory data
     ) internal override {
-        if(from != address(0)) {
+        if (from != address(0)) {
             require(transferable, TokenCanNotBeTransfered());
         }
 
