@@ -35,13 +35,13 @@ library Helper {
     function stakingTiers(
         uint256 amountStaked
     ) external pure returns (StakingTiers tier) {
-        if (amountStaked < 50000) {
+        if (amountStaked < 50000e18) {
             return StakingTiers.NoStakes;
-        } else if (amountStaked >= 50000 && amountStaked < 250000) {
+        } else if (amountStaked >= 50000e18 && amountStaked < 250000e18) {
             return StakingTiers.BronzeTier;
-        } else if (amountStaked >= 250000 && amountStaked < 500000) {
+        } else if (amountStaked >= 250000e18 && amountStaked < 500000e18) {
             return StakingTiers.SilverTier;
-        } else if (amountStaked >= 500000 && amountStaked < 1000000) {
+        } else if (amountStaked >= 500000e18 && amountStaked < 1000000e18) {
             return StakingTiers.GoldTier;
         }
         return StakingTiers.PlatinumTier;
