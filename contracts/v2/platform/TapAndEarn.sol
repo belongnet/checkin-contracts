@@ -37,7 +37,6 @@ contract TapAndEarn is Initializable, Ownable {
     error NotAVenue();
     error NotEnoughBalance(uint256 requiredAmount, uint256 availableBalance);
     error WrongPaymentTypeProvided();
-    error WrongBountyTypeProvided();
 
     // ========== Events ==========
     event ParametersSet(
@@ -240,18 +239,15 @@ contract TapAndEarn is Initializable, Ownable {
         emit ContractsSet(_contracts);
     }
 
-    function updateVenueRules(PaymentTypes paymentType) external {
+    function updateVenueRules(VenueRules calldata rules) external {
         uint256 venueId = msg.sender.getVenueId();
         uint256 venueBalance = tapEarnStorage.contracts.venueToken.balanceOf(
             msg.sender,
             venueId
         );
         require(venueBalance > 0, NotAVenue());
-        VenueRules memory rules = VenueRules({
-            paymentType: paymentType,
-            bountyType: BountyTypes(0)
-        });
-        _setVenueRules(msg.sender, rules, address(0));
+
+        _setVenueRules(msg.sender, rules);
     }
 
     // Approve should be: venueInfo.amount + depositFeePercentage + convenienceFee + affiliateFee
@@ -304,7 +300,7 @@ contract TapAndEarn is Initializable, Ownable {
             );
         }
 
-        _setVenueRules(venueInfo.venue, venueInfo.rules, affiliate);
+        _setVenueRules(venueInfo.venue, venueInfo.rules);
 
         _storage.paymentsInfo.usdc.safeTransferFrom(
             venueInfo.venue,
@@ -391,7 +387,6 @@ contract TapAndEarn is Initializable, Ownable {
                 venueId,
                 rewardsToPromoter
             );
-
             _storage.contracts.promoterToken.mint(
                 customerInfo.promoter,
                 venueId,
@@ -611,23 +606,12 @@ contract TapAndEarn is Initializable, Ownable {
         emit ParametersSet(_paymentsInfo, _fees, _stakingRewards);
     }
 
-    function _setVenueRules(
-        address venue,
-        VenueRules memory rules,
-        address affiliate
-    ) private {
-        if (affiliate != address(0)) {
-            require(
-                rules.bountyType != BountyTypes.NoType,
-                WrongBountyTypeProvided()
-            );
-            generalVenueInfo[venue].rules.bountyType = rules.bountyType;
-        }
+    function _setVenueRules(address venue, VenueRules memory rules) private {
         require(
             rules.paymentType != PaymentTypes.NoType,
             WrongPaymentTypeProvided()
         );
-        generalVenueInfo[venue].rules.paymentType = rules.paymentType;
+        generalVenueInfo[venue].rules = rules;
 
         emit VenueRulesSet(venue, rules);
     }
