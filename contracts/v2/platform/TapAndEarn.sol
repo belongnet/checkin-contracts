@@ -17,7 +17,7 @@ import {ILONGPriceFeed} from "../interfaces/ILONGPriceFeed.sol";
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
 import {Helper} from "../utils/Helper.sol";
 
-import {StakingTiers, VenueRules, VenueInfo, CustomerInfo, PromoterInfo} from "../Structures.sol";
+import {StakingTiers, VenueRules, PaymentTypes, BountyTypes, VenueInfo, CustomerInfo, PromoterInfo} from "../Structures.sol";
 
 /**
  * @title NFT Factory Contract
@@ -34,8 +34,10 @@ contract TapAndEarn is Initializable, Ownable {
 
     error WrongReferralCode(bytes32 referralCode);
     error CanNotClaim(address venue, address promoter);
-    error OnlyCorrectVenue(uint256 venueId, address venue);
+    error NotAVenue();
     error NotEnoughBalance(uint256 requiredAmount, uint256 availableBalance);
+    error WrongPaymentTypeProvided();
+    error WrongBountyTypeProvided();
 
     // ========== Events ==========
     event ParametersSet(
@@ -238,14 +240,18 @@ contract TapAndEarn is Initializable, Ownable {
         emit ContractsSet(_contracts);
     }
 
-    function updateVenueRules(VenueRules calldata rules) external {
+    function updateVenueRules(PaymentTypes paymentType) external {
         uint256 venueId = msg.sender.getVenueId();
         uint256 venueBalance = tapEarnStorage.contracts.venueToken.balanceOf(
             msg.sender,
             venueId
         );
-        require(venueBalance > 0, OnlyCorrectVenue(venueId, msg.sender));
-        _setVenueRules(msg.sender, rules);
+        require(venueBalance > 0, NotAVenue());
+        VenueRules memory rules = VenueRules({
+            paymentType: paymentType,
+            bountyType: BountyTypes(0)
+        });
+        _setVenueRules(msg.sender, rules, address(0));
     }
 
     // Approve should be: venueInfo.amount + depositFeePercentage + convenienceFee + affiliateFee
@@ -298,13 +304,14 @@ contract TapAndEarn is Initializable, Ownable {
             );
         }
 
-        _setVenueRules(venueInfo.venue, venueInfo.rules);
+        _setVenueRules(venueInfo.venue, venueInfo.rules, affiliate);
 
         _storage.paymentsInfo.usdc.safeTransferFrom(
             venueInfo.venue,
             address(this),
             stakingInfo.convenienceFeeAmount + affiliateFee
         );
+
         _storage.paymentsInfo.usdc.safeTransferFrom(
             venueInfo.venue,
             address(_storage.contracts.escrow),
@@ -352,31 +359,46 @@ contract TapAndEarn is Initializable, Ownable {
 
         uint256 venueId = customerInfo.venueToPayFor.getVenueId();
 
-        uint256 rewardsToPromoter = customerInfo.paymentInUSDC
-            ? customerInfo.visitBountyAmount +
-                customerInfo.spendBountyPercentage.calculateRate(
-                    customerInfo.amount
-                )
-            : _storage.paymentsInfo.usdc.unstandardize(
-                // standardization
-                _storage.paymentsInfo.usdc.standardize(
-                    customerInfo.visitBountyAmount
-                ) +
+        if (customerInfo.promoter != address(0)) {
+            uint256 rewardsToPromoter = customerInfo.paymentInUSDC
+                ? customerInfo.visitBountyAmount +
                     customerInfo.spendBountyPercentage.calculateRate(
-                        _storage.paymentsInfo.long.getStandardizedPrice(
-                            _storage.contracts.longPF,
-                            customerInfo.amount
-                        )
+                        customerInfo.amount
                     )
+                : _storage.paymentsInfo.usdc.unstandardize(
+                    // standardization
+                    _storage.paymentsInfo.usdc.standardize(
+                        customerInfo.visitBountyAmount
+                    ) +
+                        customerInfo.spendBountyPercentage.calculateRate(
+                            _storage.paymentsInfo.long.getStandardizedPrice(
+                                _storage.contracts.longPF,
+                                customerInfo.amount
+                            )
+                        )
+                );
+            uint256 venueBalance = _storage.contracts.venueToken.balanceOf(
+                customerInfo.venueToPayFor,
+                venueId
             );
-        uint256 venueBalance = _storage.contracts.venueToken.balanceOf(
-            customerInfo.venueToPayFor,
-            venueId
-        );
-        require(
-            venueBalance >= rewardsToPromoter,
-            NotEnoughBalance(rewardsToPromoter, venueBalance)
-        );
+            require(
+                venueBalance >= rewardsToPromoter,
+                NotEnoughBalance(rewardsToPromoter, venueBalance)
+            );
+
+            _storage.contracts.venueToken.burn(
+                customerInfo.venueToPayFor,
+                venueId,
+                rewardsToPromoter
+            );
+
+            _storage.contracts.promoterToken.mint(
+                customerInfo.promoter,
+                venueId,
+                rewardsToPromoter,
+                _storage.contracts.venueToken.uri(venueId)
+            );
+        }
 
         if (customerInfo.paymentInUSDC) {
             _storage.paymentsInfo.usdc.safeTransferFrom(
@@ -406,19 +428,6 @@ contract TapAndEarn is Initializable, Ownable {
                     )
             );
         }
-
-        _storage.contracts.venueToken.burn(
-            customerInfo.venueToPayFor,
-            venueId,
-            rewardsToPromoter
-        );
-
-        _storage.contracts.promoterToken.mint(
-            customerInfo.promoter,
-            venueId,
-            rewardsToPromoter,
-            _storage.contracts.venueToken.uri(venueId)
-        );
 
         emit CustomerPaid(
             customerInfo.customer,
@@ -579,11 +588,7 @@ contract TapAndEarn is Initializable, Ownable {
                 amountOutMinimum: amountOutMinimum
             });
 
-        SafeTransferLib.safeApprove(
-            _paymentsInfo.usdc,
-            _paymentsInfo.uniswapV3Router,
-            amount
-        );
+        _paymentsInfo.usdc.safeApprove(_paymentsInfo.uniswapV3Router, amount);
         swapped = ISwapRouter(_paymentsInfo.uniswapV3Router).exactInput(
             swapParams
         );
@@ -606,8 +611,23 @@ contract TapAndEarn is Initializable, Ownable {
         emit ParametersSet(_paymentsInfo, _fees, _stakingRewards);
     }
 
-    function _setVenueRules(address venue, VenueRules calldata rules) private {
-        generalVenueInfo[venue].rules = rules;
+    function _setVenueRules(
+        address venue,
+        VenueRules memory rules,
+        address affiliate
+    ) private {
+        if (affiliate != address(0)) {
+            require(
+                rules.bountyType != BountyTypes.NoType,
+                WrongBountyTypeProvided()
+            );
+            generalVenueInfo[venue].rules.bountyType = rules.bountyType;
+        }
+        require(
+            rules.paymentType != PaymentTypes.NoType,
+            WrongPaymentTypeProvided()
+        );
+        generalVenueInfo[venue].rules.paymentType = rules.paymentType;
 
         emit VenueRulesSet(venue, rules);
     }
