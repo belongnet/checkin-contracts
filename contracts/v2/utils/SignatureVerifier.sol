@@ -87,6 +87,7 @@ library SignatureVerifier {
                 keccak256(
                     abi.encodePacked(
                         venueInfo.venue,
+                        venueInfo.referralCode,
                         venueInfo.uri,
                         block.chainid
                     )
@@ -114,15 +115,18 @@ library SignatureVerifier {
             WrongPaymentType()
         );
 
-        BountyTypes bountyType = customerInfo.visitBountyAmount > 0 &&
-            customerInfo.spendBountyPercentage > 0
-            ? BountyTypes.Both
-            : customerInfo.visitBountyAmount > 0
-                ? BountyTypes.VisitBounty
-                : customerInfo.spendBountyPercentage > 0
-                    ? BountyTypes.SpendBounty
-                    : BountyTypes.NoType;
-        require(rules.bountyType == bountyType, WrongBountyType());
+        if (customerInfo.promoter != address(0)) {
+            BountyTypes bountyType = customerInfo.visitBountyAmount > 0 &&
+                customerInfo.spendBountyPercentage > 0
+                ? BountyTypes.Both
+                : customerInfo.visitBountyAmount > 0
+                    ? BountyTypes.VisitBounty
+                    : customerInfo.spendBountyPercentage > 0
+                        ? BountyTypes.SpendBounty
+                        : BountyTypes.NoType;
+
+            require(rules.bountyType == bountyType, WrongBountyType());
+        }
 
         require(
             signer.isValidSignatureNow(
