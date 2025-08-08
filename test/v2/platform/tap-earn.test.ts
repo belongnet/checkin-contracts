@@ -32,12 +32,12 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
 import {
   CustomerInfoStruct,
+  PromoterInfoStruct,
   VenueInfoStruct,
   VenueRulesStruct,
 } from '../../../typechain-types/contracts/v2/platform/TapAndEarn';
-import { tap } from 'lodash';
 
-describe.only('TapAndEarn', () => {
+describe('TapAndEarn', () => {
   const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
   const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
   const ENA_ADDRESS = '0x57e114B691Db790C35207b2e685D4A43181e6061'; //used instead of LONG
@@ -1901,7 +1901,7 @@ describe.only('TapAndEarn', () => {
     });
   });
 
-  describe.only('Customer flow long payment', () => {
+  describe('Customer flow long payment', () => {
     it('payToVenue() (w/o promoter)', async () => {
       const { tapEarn, escrow, helper, signer } = await loadFixture(fixture);
 
@@ -2922,6 +2922,555 @@ describe.only('TapAndEarn', () => {
       expect(
         promoterBalance_promoterToken_before.add(rewardsToPromoter.add(await customerInfo.visitBountyAmount)),
       ).to.eq(promoterBalance_promoterToken_after);
+    });
+  });
+
+  describe('Promoter flow usdc', () => {
+    it('distributePromoterPayments() (full amount)', async () => {
+      const { tapEarn, helper, escrow, promoterToken, referral, signer, treasury, referralCode } = await loadFixture(
+        fixture,
+      );
+
+      const uri = 'uriuri';
+      const venueAmount = 100 * 10 ** (await USDC.decimals());
+      const venue = USDC_whale.address;
+      const venueMessage = ethers.utils.solidityKeccak256(
+        ['address', 'bytes32', 'string', 'uint256'],
+        [venue, referralCode, uri, chainId],
+      );
+      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
+      let venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 3, bountyType: 3 } as VenueRulesStruct,
+        venue,
+        amount: venueAmount,
+        referralCode,
+        uri,
+        signature: venueSignature,
+      };
+
+      const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
+      const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
+      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+
+      const customerAmount = 5 * 10 ** (await USDC.decimals());
+      const customerMessage = ethers.utils.solidityKeccak256(
+        ['bool', 'uint24', 'uint24', 'address', 'address', 'address', 'uint256', 'uint256'],
+        [
+          true, // paymentInUSDC
+          1 * 10 ** (await USDC.decimals()), // visitBountyAmount (uint24, adjust to uint256 if needed)
+          1000, // spendBountyPercentage (uint24, adjust to uint256 if needed)
+          ENA_whale.address, // customer
+          USDC_whale.address, // venueToPayFor
+          referral.address, // promoter
+          customerAmount, // amount
+          chainId, // block.chainid
+        ],
+      );
+      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDC: true,
+        visitBountyAmount: 1 * 10 ** (await USDC.decimals()),
+        spendBountyPercentage: 1000,
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoter: referral.address,
+        amount: customerAmount,
+        signature: customerSignature,
+      };
+
+      await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+
+      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+
+      const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
+        referral.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+
+      const promoterMessage = ethers.utils.solidityKeccak256(
+        ['address', 'address', 'uint256', 'uint256'],
+        [
+          referral.address, // promoter
+          USDC_whale.address, // venue
+          promoterBalance_promoterToken_before, // amountInUSD
+          chainId, // block.chainid
+        ],
+      );
+      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
+      const promoterInfo: PromoterInfoStruct = {
+        paymentInUSDC: true,
+        promoter: referral.address,
+        venue: USDC_whale.address,
+        amountInUSD: promoterBalance_promoterToken_before,
+        signature: promoterSignature,
+      };
+
+      let toPromoter = promoterBalance_promoterToken_before;
+      const platformFees = await helper.calculateRate(1000, toPromoter);
+      toPromoter = toPromoter.sub(platformFees);
+
+      const escrowBalance_before = await USDC.balanceOf(escrow.address);
+      const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
+      const promoterBalance_before = await USDC.balanceOf(referral.address);
+
+      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+
+      const escrowBalance_after = await USDC.balanceOf(escrow.address);
+      const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
+      const promoterBalance_after = await USDC.balanceOf(referral.address);
+      const promoterBalance_promoterToken_after = await promoterToken.balanceOf(
+        referral.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+
+      await expect(tx)
+        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before, true);
+
+      expect(escrowBalance_before.sub(promoterBalance_promoterToken_before)).to.eq(escrowBalance_after);
+      expect(feeReceiverBalance_before.add(platformFees)).to.eq(feeReceiverBalance_after);
+      expect(promoterBalance_before.add(toPromoter)).to.eq(promoterBalance_after);
+      expect(promoterBalance_promoterToken_before.sub(promoterBalance_promoterToken_before)).to.eq(
+        promoterBalance_promoterToken_after,
+      );
+    });
+
+    it('distributePromoterPayments() (partial amount)', async () => {
+      const { tapEarn, helper, escrow, promoterToken, referral, signer, treasury, referralCode } = await loadFixture(
+        fixture,
+      );
+
+      const uri = 'uriuri';
+      const venueAmount = 100 * 10 ** (await USDC.decimals());
+      const venue = USDC_whale.address;
+      const venueMessage = ethers.utils.solidityKeccak256(
+        ['address', 'bytes32', 'string', 'uint256'],
+        [venue, referralCode, uri, chainId],
+      );
+      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
+      let venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 3, bountyType: 3 } as VenueRulesStruct,
+        venue,
+        amount: venueAmount,
+        referralCode,
+        uri,
+        signature: venueSignature,
+      };
+
+      const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
+      const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
+      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+
+      const customerAmount = 5 * 10 ** (await USDC.decimals());
+      const customerMessage = ethers.utils.solidityKeccak256(
+        ['bool', 'uint24', 'uint24', 'address', 'address', 'address', 'uint256', 'uint256'],
+        [
+          true, // paymentInUSDC
+          1 * 10 ** (await USDC.decimals()), // visitBountyAmount (uint24, adjust to uint256 if needed)
+          1000, // spendBountyPercentage (uint24, adjust to uint256 if needed)
+          ENA_whale.address, // customer
+          USDC_whale.address, // venueToPayFor
+          referral.address, // promoter
+          customerAmount, // amount
+          chainId, // block.chainid
+        ],
+      );
+      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDC: true,
+        visitBountyAmount: 1 * 10 ** (await USDC.decimals()),
+        spendBountyPercentage: 1000,
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoter: referral.address,
+        amount: customerAmount,
+        signature: customerSignature,
+      };
+
+      await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+
+      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+
+      const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
+        referral.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+
+      const promoterMessage = ethers.utils.solidityKeccak256(
+        ['address', 'address', 'uint256', 'uint256'],
+        [
+          referral.address, // promoter
+          USDC_whale.address, // venue
+          promoterBalance_promoterToken_before.div(2), // amountInUSD
+          chainId, // block.chainid
+        ],
+      );
+      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
+      const promoterInfo: PromoterInfoStruct = {
+        paymentInUSDC: true,
+        promoter: referral.address,
+        venue: USDC_whale.address,
+        amountInUSD: promoterBalance_promoterToken_before.div(2),
+        signature: promoterSignature,
+      };
+
+      let toPromoter = promoterBalance_promoterToken_before.div(2);
+      const platformFees = await helper.calculateRate(1000, toPromoter);
+      toPromoter = toPromoter.sub(platformFees);
+
+      const escrowBalance_before = await USDC.balanceOf(escrow.address);
+      const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
+      const promoterBalance_before = await USDC.balanceOf(referral.address);
+
+      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+
+      const escrowBalance_after = await USDC.balanceOf(escrow.address);
+      const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
+      const promoterBalance_after = await USDC.balanceOf(referral.address);
+      const promoterBalance_promoterToken_after = await promoterToken.balanceOf(
+        referral.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+
+      await expect(tx)
+        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before.div(2), true);
+
+      expect(escrowBalance_before.sub(promoterBalance_promoterToken_before.div(2))).to.eq(escrowBalance_after);
+      expect(feeReceiverBalance_before.add(platformFees)).to.eq(feeReceiverBalance_after);
+      expect(promoterBalance_before.add(toPromoter)).to.eq(promoterBalance_after);
+      expect(promoterBalance_promoterToken_before.sub(promoterBalance_promoterToken_before.div(2))).to.eq(
+        promoterBalance_promoterToken_after,
+      );
+    });
+  });
+
+  describe('Promoter flow long', () => {
+    it('distributePromoterPayments() (full amount)', async () => {
+      const { tapEarn, helper, escrow, promoterToken, referral, signer, treasury, referralCode } = await loadFixture(
+        fixture,
+      );
+
+      const uri = 'uriuri';
+      const venueAmount = 100 * 10 ** (await USDC.decimals());
+      const venue = USDC_whale.address;
+      const venueMessage = ethers.utils.solidityKeccak256(
+        ['address', 'bytes32', 'string', 'uint256'],
+        [venue, referralCode, uri, chainId],
+      );
+      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
+      let venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 3, bountyType: 3 } as VenueRulesStruct,
+        venue,
+        amount: venueAmount,
+        referralCode,
+        uri,
+        signature: venueSignature,
+      };
+
+      const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
+      const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
+      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+
+      const customerAmount = 5 * 10 ** (await USDC.decimals());
+      const customerMessage = ethers.utils.solidityKeccak256(
+        ['bool', 'uint24', 'uint24', 'address', 'address', 'address', 'uint256', 'uint256'],
+        [
+          true, // paymentInUSDC
+          1 * 10 ** (await USDC.decimals()), // visitBountyAmount (uint24, adjust to uint256 if needed)
+          1000, // spendBountyPercentage (uint24, adjust to uint256 if needed)
+          ENA_whale.address, // customer
+          USDC_whale.address, // venueToPayFor
+          referral.address, // promoter
+          customerAmount, // amount
+          chainId, // block.chainid
+        ],
+      );
+      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDC: true,
+        visitBountyAmount: 1 * 10 ** (await USDC.decimals()),
+        spendBountyPercentage: 1000,
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoter: referral.address,
+        amount: customerAmount,
+        signature: customerSignature,
+      };
+
+      await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+
+      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+
+      const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
+        referral.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+
+      const promoterMessage = ethers.utils.solidityKeccak256(
+        ['address', 'address', 'uint256', 'uint256'],
+        [
+          referral.address, // promoter
+          USDC_whale.address, // venue
+          promoterBalance_promoterToken_before, // amountInUSD
+          chainId, // block.chainid
+        ],
+      );
+      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
+      const promoterInfo: PromoterInfoStruct = {
+        paymentInUSDC: false,
+        promoter: referral.address,
+        venue: USDC_whale.address,
+        amountInUSD: promoterBalance_promoterToken_before,
+        signature: promoterSignature,
+      };
+
+      let toPromoter = promoterBalance_promoterToken_before;
+      const platformFees = await helper.calculateRate(800, toPromoter);
+      toPromoter = toPromoter.sub(platformFees);
+
+      const escrowBalance_before = await USDC.balanceOf(escrow.address);
+      const feeReceiverBalance_before = await ENA.balanceOf(treasury.address);
+      const promoterBalance_before = await ENA.balanceOf(referral.address);
+      console.log(feeReceiverBalance_before);
+      console.log(promoterBalance_before);
+      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+
+      const escrowBalance_after = await USDC.balanceOf(escrow.address);
+      const feeReceiverBalance_after = await ENA.balanceOf(treasury.address);
+      const promoterBalance_after = await ENA.balanceOf(referral.address);
+      const promoterBalance_promoterToken_after = await promoterToken.balanceOf(
+        referral.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+      console.log(feeReceiverBalance_after);
+      console.log(promoterBalance_after);
+
+      await expect(tx)
+        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before, false);
+
+      expect(escrowBalance_before.sub(promoterBalance_promoterToken_before)).to.eq(escrowBalance_after);
+      expect(feeReceiverBalance_before).to.be.lt(feeReceiverBalance_after);
+      expect(promoterBalance_before).to.be.lt(promoterBalance_after);
+      expect(promoterBalance_promoterToken_before.sub(promoterBalance_promoterToken_before)).to.eq(
+        promoterBalance_promoterToken_after,
+      );
+    });
+
+    it('distributePromoterPayments() (partial amount)', async () => {
+      const { tapEarn, helper, escrow, promoterToken, referral, signer, treasury, referralCode } = await loadFixture(
+        fixture,
+      );
+
+      const uri = 'uriuri';
+      const venueAmount = 100 * 10 ** (await USDC.decimals());
+      const venue = USDC_whale.address;
+      const venueMessage = ethers.utils.solidityKeccak256(
+        ['address', 'bytes32', 'string', 'uint256'],
+        [venue, referralCode, uri, chainId],
+      );
+      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
+      let venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 3, bountyType: 3 } as VenueRulesStruct,
+        venue,
+        amount: venueAmount,
+        referralCode,
+        uri,
+        signature: venueSignature,
+      };
+
+      const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
+      const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
+      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+
+      const customerAmount = 5 * 10 ** (await USDC.decimals());
+      const customerMessage = ethers.utils.solidityKeccak256(
+        ['bool', 'uint24', 'uint24', 'address', 'address', 'address', 'uint256', 'uint256'],
+        [
+          true, // paymentInUSDC
+          1 * 10 ** (await USDC.decimals()), // visitBountyAmount (uint24, adjust to uint256 if needed)
+          1000, // spendBountyPercentage (uint24, adjust to uint256 if needed)
+          ENA_whale.address, // customer
+          USDC_whale.address, // venueToPayFor
+          referral.address, // promoter
+          customerAmount, // amount
+          chainId, // block.chainid
+        ],
+      );
+      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDC: true,
+        visitBountyAmount: 1 * 10 ** (await USDC.decimals()),
+        spendBountyPercentage: 1000,
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoter: referral.address,
+        amount: customerAmount,
+        signature: customerSignature,
+      };
+
+      await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+
+      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+
+      const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
+        referral.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+
+      const promoterMessage = ethers.utils.solidityKeccak256(
+        ['address', 'address', 'uint256', 'uint256'],
+        [
+          referral.address, // promoter
+          USDC_whale.address, // venue
+          promoterBalance_promoterToken_before.div(2), // amountInUSD
+          chainId, // block.chainid
+        ],
+      );
+      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
+      const promoterInfo: PromoterInfoStruct = {
+        paymentInUSDC: false,
+        promoter: referral.address,
+        venue: USDC_whale.address,
+        amountInUSD: promoterBalance_promoterToken_before.div(2),
+        signature: promoterSignature,
+      };
+
+      let toPromoter = promoterBalance_promoterToken_before.div(2);
+      const platformFees = await helper.calculateRate(800, toPromoter);
+      toPromoter = toPromoter.sub(platformFees);
+
+      const escrowBalance_before = await USDC.balanceOf(escrow.address);
+      const feeReceiverBalance_before = await ENA.balanceOf(treasury.address);
+      const promoterBalance_before = await ENA.balanceOf(referral.address);
+      console.log(feeReceiverBalance_before);
+      console.log(promoterBalance_before);
+      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+
+      const escrowBalance_after = await USDC.balanceOf(escrow.address);
+      const feeReceiverBalance_after = await ENA.balanceOf(treasury.address);
+      const promoterBalance_after = await ENA.balanceOf(referral.address);
+      const promoterBalance_promoterToken_after = await promoterToken.balanceOf(
+        referral.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+      console.log(feeReceiverBalance_after);
+      console.log(promoterBalance_after);
+
+      await expect(tx)
+        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before.div(2), false);
+
+      expect(escrowBalance_before.sub(promoterBalance_promoterToken_before.div(2))).to.eq(escrowBalance_after);
+      expect(feeReceiverBalance_before).to.be.lt(feeReceiverBalance_after);
+      expect(promoterBalance_before).to.be.lt(promoterBalance_after);
+      expect(promoterBalance_promoterToken_before.sub(promoterBalance_promoterToken_before.div(2))).to.eq(
+        promoterBalance_promoterToken_after,
+      );
+    });
+  });
+
+  describe('Manager flow', () => {
+    it('payToVenue() (both payment) (w/ promoter) (both bounties) then emergencyCancelPayment()', async () => {
+      const { tapEarn, helper, venueToken, promoterToken, referral, signer, referralCode } = await loadFixture(fixture);
+
+      const uri = 'uriuri';
+      const venueAmount = 100 * 10 ** (await USDC.decimals());
+      const venue = USDC_whale.address;
+      const venueMessage = ethers.utils.solidityKeccak256(
+        ['address', 'bytes32', 'string', 'uint256'],
+        [venue, referralCode, uri, chainId],
+      );
+      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
+      let venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 3, bountyType: 3 } as VenueRulesStruct,
+        venue,
+        amount: venueAmount,
+        referralCode,
+        uri,
+        signature: venueSignature,
+      };
+
+      const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
+      const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
+      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+
+      const customerAmount = 5 * 10 ** (await USDC.decimals());
+      const customerMessage = ethers.utils.solidityKeccak256(
+        ['bool', 'uint24', 'uint24', 'address', 'address', 'address', 'uint256', 'uint256'],
+        [
+          true, // paymentInUSDC
+          1 * 10 ** (await USDC.decimals()), // visitBountyAmount (uint24, adjust to uint256 if needed)
+          1000, // spendBountyPercentage (uint24, adjust to uint256 if needed)
+          ENA_whale.address, // customer
+          USDC_whale.address, // venueToPayFor
+          referral.address, // promoter
+          customerAmount, // amount
+          chainId, // block.chainid
+        ],
+      );
+      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDC: true,
+        visitBountyAmount: 1 * 10 ** (await USDC.decimals()),
+        spendBountyPercentage: 1000,
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoter: referral.address,
+        amount: customerAmount,
+        signature: customerSignature,
+      };
+
+      await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+
+      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+
+      const venueBalance_venueToken_before = await venueToken.balanceOf(
+        USDC_whale.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+      const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
+        referral.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+
+      const tx = await tapEarn.emergencyCancelPayment(USDC_whale.address, referral.address);
+
+      const venueBalance_venueToken_after = await venueToken.balanceOf(
+        USDC_whale.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+      const promoterBalance_promoterToken_after = await promoterToken.balanceOf(
+        referral.address,
+        await helper.getVenueId(USDC_whale.address),
+      );
+
+      await expect(tx)
+        .to.emit(tapEarn, 'PromoterPaymentCancelled')
+        .withArgs(USDC_whale.address, referral.address, promoterBalance_promoterToken_before);
+
+      expect(venueBalance_venueToken_before.add(promoterBalance_promoterToken_before)).to.eq(
+        venueBalance_venueToken_after,
+      );
+      expect(promoterBalance_promoterToken_before.sub(promoterBalance_promoterToken_before)).to.eq(
+        promoterBalance_promoterToken_after,
+      );
     });
   });
 });
