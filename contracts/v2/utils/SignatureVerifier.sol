@@ -103,8 +103,6 @@ library SignatureVerifier {
         CustomerInfo calldata customerInfo,
         VenueRules memory rules
     ) external view {
-        // require(rules.paymentType != PaymentTypes.NoType && rules.bountyType != BountyTypes.NoType, NoTypesProvided());
-
         PaymentTypes paymentType = customerInfo.paymentInUSDC
             ? PaymentTypes.USDC
             : PaymentTypes.LONG;
@@ -119,13 +117,19 @@ library SignatureVerifier {
             BountyTypes bountyType = customerInfo.visitBountyAmount > 0 &&
                 customerInfo.spendBountyPercentage > 0
                 ? BountyTypes.Both
-                : customerInfo.visitBountyAmount > 0
+                : customerInfo.visitBountyAmount > 0 &&
+                    customerInfo.spendBountyPercentage == 0
                     ? BountyTypes.VisitBounty
-                    : customerInfo.spendBountyPercentage > 0
+                    : customerInfo.visitBountyAmount == 0 &&
+                        customerInfo.spendBountyPercentage > 0
                         ? BountyTypes.SpendBounty
                         : BountyTypes.NoType;
 
-            require(rules.bountyType == bountyType, WrongBountyType());
+            require(
+                rules.bountyType == bountyType &&
+                    bountyType != BountyTypes.NoType,
+                WrongBountyType()
+            );
         }
 
         require(
