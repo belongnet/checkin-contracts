@@ -97,7 +97,7 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
         uint256[] memory amounts,
         bytes memory data
     ) internal override {
-        if (from != address(0)) {
+        if (from != address(0) && to != address(0)) {
             require(transferable, TokenCanNotBeTransfered());
         }
 

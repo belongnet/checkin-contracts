@@ -150,14 +150,15 @@ describe('CreditToken', () => {
       const venueTokenBurn = await venueToken.connect(burner).burn(admin.address, 1, 1000);
       const promoterTokenBurn = await promoterToken.connect(burner).burn(admin.address, 1, 1000);
 
+      console.log((await venueTokenBurn.wait()).events[1].args);
       expect(await venueToken['uri(uint256)'](1)).to.eq('');
       expect(await promoterToken['uri(uint256)'](1)).to.eq('');
       await expect(venueTokenBurn)
         .to.emit(venueToken, 'TransferSingle')
-        .withArgs(burner.address, ethers.constants.AddressZero, admin.address, 1, 1000);
+        .withArgs(burner.address, admin.address, ethers.constants.AddressZero, 1, 1000);
       await expect(promoterTokenBurn)
         .to.emit(promoterToken, 'TransferSingle')
-        .withArgs(burner.address, ethers.constants.AddressZero, admin.address, 1, 1000);
+        .withArgs(burner.address, admin.address, ethers.constants.AddressZero, 1, 1000);
       await expect(venueTokenBurn).to.emit(venueToken, 'TokenUriSet').withArgs(1, '');
       await expect(promoterTokenBurn).to.emit(promoterToken, 'TokenUriSet').withArgs(1, '');
     });
