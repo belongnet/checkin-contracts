@@ -1,6 +1,6 @@
-import { ethers, upgrades } from 'hardhat';
+import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
-import { BigNumber, ContractFactory } from 'ethers';
+import { BigNumber } from 'ethers';
 import {
   WETHMock,
   Factory,

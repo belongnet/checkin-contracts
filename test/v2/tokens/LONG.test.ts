@@ -8,7 +8,7 @@ describe('LONG', () => {
   async function fixture() {
     const [admin, pauser, minter, burner] = await ethers.getSigners();
 
-    const LONG: LONG = await deployLONG(admin.address, pauser.address, minter.address, burner.address);
+    const LONG: LONG = await deployLONG(admin.address, ethers.utils.parseEther('1000'), admin.address, pauser.address);
 
     return {
       admin,

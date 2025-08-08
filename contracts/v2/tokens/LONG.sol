@@ -27,8 +27,7 @@ contract LONG is
         address mintTo,
         uint256 amountToMint,
         address defaultAdmin,
-        address pauser,
-        address burner
+        address pauser
     ) ERC20("LONG", "LONG") ERC20Permit("LONG") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(PAUSER_ROLE, pauser);
