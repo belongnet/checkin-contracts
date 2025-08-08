@@ -177,6 +177,11 @@ describe('CreditToken', () => {
       expect(await venueToken.balanceOf(admin.address, 1)).to.eq(0);
       expect(await venueToken.balanceOf(minter.address, 1)).to.eq(1000);
 
+      await expect(promoterToken.connect(admin).setTransferable(false)).to.be.revertedWithCustomError(
+        promoterToken,
+        'EnumerableRolesUnauthorized',
+      );
+
       const venueTokenBurn = await venueToken.connect(manager).setTransferable(false);
       const promoterTokenBurn = await promoterToken.connect(manager).setTransferable(true);
 
