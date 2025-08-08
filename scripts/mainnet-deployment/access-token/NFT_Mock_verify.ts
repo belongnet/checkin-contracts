@@ -1,15 +1,13 @@
-import { ethers } from "hardhat";
-import { ContractFactory } from "ethers";
-import { NFT } from "../../typechain-types";
-import dotenv from "dotenv";
+import { verifyContract } from '../../helpers/verify';
+import dotenv from 'dotenv';
 dotenv.config();
 
+const nft_address = process.env.NFT_MOCK;
 async function deploy() {
-  console.log("Deploying:");
+  console.log('Deploying:');
 
-  console.log("NFT:");
-  const NFT: ContractFactory = await ethers.getContractFactory("NFT");
-  const nft: NFT = await NFT.deploy(
+  console.log('NFTFactory:');
+  verifyContract(nft_address!, [
     {
       transferValidator: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
       factory: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
@@ -29,14 +27,14 @@ async function deploy() {
         whitelistMintPrice: Number(0),
         collectionExpire: Number(0),
         contractURI: '0000',
-        signature: '0x7698e843a10f030c70588cf485a6aed9f2fb1dcfbf78eeab0c92ea114ff1ac511b003b0724da54f0aa172b88bc19826d88333770559a86ab9b2a1199e44a152d1b'
-      }
+        signature:
+          '0x7698e843a10f030c70588cf485a6aed9f2fb1dcfbf78eeab0c92ea114ff1ac511b003b0724da54f0aa172b88bc19826d88333770559a86ab9b2a1199e44a152d1b',
+      },
     },
-  ) as NFT;
-  await nft.deployed();
+  ]);
 
-  console.log("Deployed to:", nft.address);
-  console.log("Done.");
+  console.log('Verified:', nft_address);
+  console.log('Done.');
 }
 
 deploy();
