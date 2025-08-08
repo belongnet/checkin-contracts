@@ -22,19 +22,17 @@ contract LONG is
     address internal constant SUPERCHAIN_TOKEN_BRIDGE =
         0x4200000000000000000000000000000000000028;
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
     constructor(
+        address mintTo,
+        uint256 amountToMint,
         address defaultAdmin,
         address pauser,
-        address minter,
         address burner
     ) ERC20("LONG", "LONG") ERC20Permit("LONG") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(PAUSER_ROLE, pauser);
-        _grantRole(MINTER_ROLE, minter);
-        _grantRole(BURNER_ROLE, burner);
+        _mint(mintTo, amountToMint);
     }
 
     /**
@@ -54,16 +52,7 @@ contract LONG is
         _unpause();
     }
 
-    function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
-        _mint(to, amount);
-    }
-
-    function burn(address from, uint256 amount) public onlyRole(BURNER_ROLE) {
-        _burn(from, amount);
-    }
-
     // The following functions are overrides required by Solidity.
-
     function _update(
         address from,
         address to,
