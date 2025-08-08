@@ -3,7 +3,7 @@ pragma solidity ^0.8.27;
 
 contract LONGPriceFeedMockV1 {
     function latestAnswer() external pure returns (int256) {
-        return 310000000000;
+        return 50000000;
     }
 }
 
@@ -19,7 +19,7 @@ contract LONGPriceFeedMockV2 {
             uint80 answeredInRound
         )
     {
-        return (0, 300000000000, 0, 0, 0);
+        return (0, 50000000, 0, 0, 0);
     }
 }
 
