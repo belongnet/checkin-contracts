@@ -471,10 +471,11 @@ contract TapAndEarn is Initializable, Ownable {
             .nftFactoryParameters()
             .feeCollector;
 
-        uint256 toPromoter = promoterBalance;
-        uint256 plaformFees = promoterInfo.paymentInUSDC
+        uint256 toPromoter = promoterInfo.amountInUSD;
+        uint24 percentage = promoterInfo.paymentInUSDC
             ? stakingInfo.usdcPercentage
-            : stakingInfo.longPercentage.calculateRate(promoterBalance);
+            : stakingInfo.longPercentage;
+        uint256 plaformFees = percentage.calculateRate(toPromoter);
         unchecked {
             toPromoter -= plaformFees;
         }
@@ -494,7 +495,7 @@ contract TapAndEarn is Initializable, Ownable {
             _storage.contracts.escrow.distributeVenueDeposit(
                 promoterInfo.venue,
                 address(this),
-                promoterBalance
+                promoterInfo.amountInUSD
             );
 
             _swap(feeCollector, plaformFees);
@@ -504,7 +505,7 @@ contract TapAndEarn is Initializable, Ownable {
         _storage.contracts.promoterToken.burn(
             promoterInfo.promoter,
             venueId,
-            promoterBalance
+            promoterInfo.amountInUSD
         );
 
         emit PromoterPaymentsDistributed(
