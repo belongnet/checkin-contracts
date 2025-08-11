@@ -3,7 +3,7 @@ import { ethers, upgrades } from 'hardhat';
 import { waitForNextBlock } from '../../../helpers/wait';
 import { verifyContract } from '../../../helpers/verify';
 
-const UPGRADE = false;
+const UPGRADE = true;
 const VERIFY = true;
 
 async function main() {
