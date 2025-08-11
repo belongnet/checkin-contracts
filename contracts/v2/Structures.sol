@@ -1,36 +1,40 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.27;
 
-/**
- * @title InstanceInfo
- * @notice A struct that holds detailed information about an individual NFT collection, such as name, symbol, and pricing.
- * @dev This struct is used to store key metadata and configuration information for each NFT collection.
- */
+/// @title AccessTokenInfo
+/// @notice Initialization/configuration data for an AccessToken (ERC-721) collection.
+/// @dev
+/// - `paymentToken` can be a token address or the ETH pseudo-address
+///   (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE).
+/// - `feeNumerator` is used for ERC-2981 royalty configuration.
+/// - `signature` is validated off-chain by a platform signer.
 struct AccessTokenInfo {
-    /// @notice The address of the ERC20 token used for payments, or ETH (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) for Ether.
+    /// @notice ERC-20 used for payments, or ETH pseudo-address for native ETH.
     address paymentToken;
-    /// @notice The royalty fraction for platform and creator royalties, expressed as a numerator.
+    /// @notice ERC-2981 royalty numerator (denominator defined by receiver).
     uint96 feeNumerator;
-    /// @notice A boolean flag indicating whether the tokens in the collection are transferable.
+    /// @notice Whether transfers between users are allowed.
     bool transferable;
-    /// @notice The maximum total supply of tokens in the collection.
+    /// @notice Collection-wide supply cap.
     uint256 maxTotalSupply;
-    /// @notice The price to mint a token in the collection.
+    /// @notice Public mint price.
     uint256 mintPrice;
-    /// @notice The price to mint a token for whitelisted users in the collection.
+    /// @notice Whitelist mint price.
     uint256 whitelistMintPrice;
-    /// @notice The expiration time (as a timestamp) for the collection.
+    /// @notice Optional collection expiration timestamp (seconds since epoch).
     uint256 collectionExpire;
-    /// @notice The name of the NFT collection.
+    /// @notice Collection name.
     string name;
-    /// @notice The symbol representing the NFT collection.
+    /// @notice Collection symbol.
     string symbol;
-    /// @notice The contract URI for the NFT collection, used for metadata.
+    /// @notice Contract-level metadata URI.
     string contractURI;
-    /// @notice A signature provided by the backend to validate the creation of the collection.
+    /// @notice Backend signature authorizing creation with the provided fields.
     bytes signature;
 }
 
+/// @title ERC1155Info
+/// @notice Initialization/configuration data for a CreditToken (ERC-1155) collection.
 struct ERC1155Info {
     string name;
     string symbol;
@@ -42,38 +46,34 @@ struct ERC1155Info {
     bool transferable;
 }
 
-/**
- * @title StaticPriceParameters
- * @notice A struct for holding parameters related to minting NFTs with a static price.
- * @dev This struct is used for static price minting operations.
- */
+/// @title StaticPriceParameters
+/// @notice Mint payload for static-priced mints validated by a platform signer.
 struct StaticPriceParameters {
-    /// @notice The ID of the token to be minted.
+    /// @notice Token id to mint.
     uint256 tokenId;
-    /// @notice A flag indicating whether the receiver is whitelisted for special pricing.
+    /// @notice Whether receiver is eligible for whitelist pricing.
     bool whitelisted;
-    /// @notice The URI of the metadata associated with the token being minted.
+    /// @notice Token metadata URI.
     string tokenUri;
-    /// @notice The signature for verifying the minting request.
+    /// @notice Backend signature validating the payload.
     bytes signature;
 }
 
-/**
- * @title DynamicPriceParameters
- * @notice A struct for holding parameters related to minting NFTs with a dynamic price.
- * @dev This struct is used for dynamic price minting operations.
- */
+/// @title DynamicPriceParameters
+/// @notice Mint payload for dynamic-priced mints validated by a platform signer.
 struct DynamicPriceParameters {
-    /// @notice The ID of the token to be minted.
+    /// @notice Token id to mint.
     uint256 tokenId;
-    /// @notice The price for minting the specific token.
+    /// @notice Explicit price for this mint.
     uint256 price;
-    /// @notice The URI of the metadata associated with the token being minted.
+    /// @notice Token metadata URI.
     string tokenUri;
-    /// @notice The signature for verifying the minting request.
+    /// @notice Backend signature validating the payload.
     bytes signature;
 }
 
+/// @title StakingTiers
+/// @notice Tier levels derived from staked LONG balance.
 enum StakingTiers {
     NoStakes,
     BronzeTier,
@@ -82,6 +82,8 @@ enum StakingTiers {
     PlatinumTier
 }
 
+/// @title PaymentTypes
+/// @notice Venue-allowed payment currencies.
 enum PaymentTypes {
     NoType,
     USDC,
@@ -89,6 +91,8 @@ enum PaymentTypes {
     Both
 }
 
+/// @title BountyTypes
+/// @notice Allowed promoter bounty schemes.
 enum BountyTypes {
     NoType,
     VisitBounty,
@@ -96,11 +100,15 @@ enum BountyTypes {
     Both
 }
 
+/// @title VenueRules
+/// @notice Venue-level configuration for payment and bounty types.
 struct VenueRules {
     PaymentTypes paymentType;
     BountyTypes bountyType;
 }
 
+/// @title VenueInfo
+/// @notice Signed payload authorizing a venue deposit and metadata update.
 struct VenueInfo {
     VenueRules rules;
     address venue;
@@ -110,11 +118,13 @@ struct VenueInfo {
     bytes signature;
 }
 
+/// @title CustomerInfo
+/// @notice Signed payload authorizing a customer payment to a venue (and optional promoter attribution).
 struct CustomerInfo {
     bool paymentInUSDC;
     uint24 visitBountyAmount;
     uint24 spendBountyPercentage;
-    //
+    // Actors and amounts
     address customer;
     address venueToPayFor;
     address promoter;
@@ -122,6 +132,8 @@ struct CustomerInfo {
     bytes signature;
 }
 
+/// @title PromoterInfo
+/// @notice Signed payload authorizing distribution of promoter payouts in USDC or LONG.
 struct PromoterInfo {
     bool paymentInUSDC;
     address promoter;
