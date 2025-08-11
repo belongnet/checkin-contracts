@@ -29,7 +29,7 @@ describe('CreditToken', () => {
     const [admin, manager, minter, burner, pauser] = await ethers.getSigners();
     const signer = EthCrypto.createIdentity();
 
-    const LONG: LONG = await deployLONG(admin.address, pauser.address, minter.address, burner.address);
+    const LONG: LONG = await deployLONG(admin.address, admin.address, pauser.address);
 
     const signatureVerifier: SignatureVerifier = await deploySignatureVerifier();
     const validator: MockTransferValidatorV2 = await deployMockTransferValidatorV2();

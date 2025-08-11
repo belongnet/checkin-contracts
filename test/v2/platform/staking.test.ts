@@ -9,12 +9,7 @@ describe('Staking', () => {
   async function fixture() {
     const [admin, treasury, pauser, minter, burner, user1, user2] = await ethers.getSigners();
 
-    const long: LONG = await deployLONG(
-      admin.address,
-      ethers.utils.parseEther('750000000'),
-      admin.address,
-      pauser.address,
-    );
+    const long: LONG = await deployLONG(admin.address, admin.address, pauser.address);
     const staking: Staking = await deployStaking(admin.address, treasury.address, long.address);
 
     return {
