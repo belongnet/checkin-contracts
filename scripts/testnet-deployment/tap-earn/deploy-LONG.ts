@@ -1,9 +1,9 @@
-import { Staking } from '../../../typechain-types';
+import { LONG } from '../../../typechain-types';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import { deployLONG } from '../../../test/v2/helpers/deployFixtures';
 import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
-import { deployStaking } from '../../../helpers/deployFixtures';
 
 dotenv.config();
 
@@ -27,52 +27,55 @@ async function deploy() {
   }
 
   if (DEPLOY) {
-    console.log('Deploying Staking contract...');
-
+    console.log('Deploying: ');
     // Read addresses from environment variables
-    const owner = process.env.OWNER_ADDRESS;
-    const treasury = process.env.TREASURY_ADDRESS;
-    const long = process.env.LONG_ADDRESS;
+    const mintToAddress = process.env.MINT_LONG_TO;
+    const amountToMint = process.env.LONG_AMOUNT_TO_MINT;
+    const adminAddress = process.env.ADMIN_ADDRESS;
+    const pauserAddress = process.env.PAUSER_ADDRESS;
 
     // Validate environment variables
-    if (!owner || !treasury || !long) {
-      throw new Error('Missing required environment variables: OWNER_ADDRESS, TREASURY_ADDRESS, LONG_ADDRESS');
+    if (!mintToAddress || !amountToMint || !adminAddress || !pauserAddress) {
+      throw new Error(
+        'Missing required environment variables: MINT_LONG_TO, LONG_AMOUNT_TO_MINT, ADMIN_ADDRESS, PAUSER_ADDRESS',
+      );
     }
 
     // Validate addresses
-    for (const addr of [owner, treasury, long]) {
+    for (const addr of [mintToAddress, amountToMint, adminAddress, pauserAddress]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
 
-    const staking: Staking = await deployStaking(owner, treasury, long);
+    console.log('Deploying LONG contract...');
+    const long: LONG = await deployLONG(mintToAddress, adminAddress, pauserAddress);
 
     // Update deployments object
     deployments = {
       ...deployments,
-      Staking: {
-        address: staking.address,
-        parameters: [owner, treasury, long],
+      LONG: {
+        address: long.address,
+        parameters: [mintToAddress, adminAddress, pauserAddress],
       },
     };
 
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
-    console.log('Deployed Staking to: ', staking.address);
+    console.log('Deployed LONG to: ', long.address);
     console.log('Done.');
   }
 
   if (VERIFY) {
-    console.log('Verification:');
+    console.log('Verification: ');
     try {
-      if (!deployments.Staking?.address || !deployments.Staking?.parameters) {
-        throw new Error('No Staking deployment data found for verification.');
+      if (!deployments.LONG?.address || !deployments.LONG?.parameters) {
+        throw new Error('No LONG deployment data found for verification.');
       }
-      await verifyContract(deployments.Staking.address, deployments.Staking.parameters);
-      console.log('Staking verification successful.');
+      await verifyContract(deployments.LONG.address, deployments.LONG.parameters);
+      console.log('LONG verification successful.');
     } catch (error) {
-      console.error('Staking verification failed: ', error);
+      console.error('LONG verification failed: ', error);
     }
     console.log('Done.');
   }

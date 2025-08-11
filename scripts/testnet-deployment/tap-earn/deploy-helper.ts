@@ -1,9 +1,9 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
+import { verifyContract } from './verify';
 import { ethers } from 'hardhat';
-import { verifyContract } from '../../../helpers/verify';
-import { Helper } from '../../../typechain-types';
-import { deployHelper } from '../../../helpers/deployLibraries';
+import { deployHelper } from '../../test/v2/helpers/deployLibraries';
+import { Helper } from '../../typechain-types';
 
 dotenv.config();
 

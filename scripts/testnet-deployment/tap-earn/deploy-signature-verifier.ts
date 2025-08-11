@@ -1,10 +1,9 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { ethers } from 'hardhat';
+import { SignatureVerifier } from '../../../typechain-types';
+import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { verifyContract } from '../../../helpers/verify';
-import { Helper } from '../../../typechain-types';
-import { deployHelper } from '../../../helpers/deployLibraries';
-
 dotenv.config();
 
 const DEPLOY = true;
@@ -29,33 +28,33 @@ async function deploy() {
   if (DEPLOY) {
     console.log('Deploying: ');
 
-    console.log('Deploying Helper contract...');
-    const helper: Helper = await deployHelper();
+    console.log('Deploying SignatureVerifier contract...');
+    const signatureVerifier: SignatureVerifier = await deploySignatureVerifier();
 
     // Update deployments object
     deployments = {
       ...deployments,
-      Helper: {
-        address: helper.address,
+      SigantureVerifier: {
+        address: signatureVerifier.address,
       },
     };
 
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
-    console.log('Deployed Helper to: ', helper.address);
+    console.log('Deployed SignatureVerifier to: ', signatureVerifier.address);
     console.log('Done.');
   }
 
   if (VERIFY) {
     console.log('Verification: ');
     try {
-      if (!deployments.Helper?.address) {
-        throw new Error('No Helper deployment data found for verification.');
+      if (!deployments.SigantureVerifier?.address) {
+        throw new Error('No SignatureVerifier deployment data found for verification.');
       }
-      await verifyContract(deployments.Helper.address);
-      console.log('Helper verification successful.');
+      await verifyContract(deployments.SigantureVerifier.address);
+      console.log('SigantureVerifier verification successful.');
     } catch (error) {
-      console.error('Helper verification failed:', error);
+      console.error('SigantureVerifier verification failed:', error);
     }
     console.log('Done.');
   }

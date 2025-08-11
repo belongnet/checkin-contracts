@@ -49,8 +49,7 @@ describe('AccessToken', () => {
   const tokenPurchasePrice = 10000;
 
   let instanceInfoETH: AccessTokenInfoStruct = {
-    name: AccessTokenEthMetadata.name,
-    symbol: AccessTokenEthMetadata.symbol,
+    metadata: { name: AccessTokenEthMetadata.name, symbol: AccessTokenEthMetadata.symbol },
     contractURI: AccessTokenEthMetadata.uri,
     paymentToken: ETH_ADDRESS,
     mintPrice: ethPurchasePrice,
@@ -62,8 +61,7 @@ describe('AccessToken', () => {
     signature: '0x',
   };
   let instanceInfoToken: AccessTokenInfoStruct = {
-    name: AccessTokenTokenMetadata.name,
-    symbol: AccessTokenTokenMetadata.symbol,
+    metadata: { name: AccessTokenTokenMetadata.name, symbol: AccessTokenTokenMetadata.symbol },
     contractURI: AccessTokenTokenMetadata.uri,
     paymentToken: '',
     mintPrice: tokenPurchasePrice,
@@ -104,10 +102,10 @@ describe('AccessToken', () => {
 
     factoryParams = {
       transferValidator: validator.address,
-      feeCollector: owner.address,
-      signer: signer.address,
-      commissionInBps: PLATFORM_COMISSION,
-      defaultPaymentToken: ETH_ADDRESS,
+      platformAddress: owner.address,
+      signerAddress: signer.address,
+      platformCommission: PLATFORM_COMISSION,
+      defaultPaymentCurrency: ETH_ADDRESS,
       maxArraySize: 10,
     };
 
@@ -201,8 +199,8 @@ describe('AccessToken', () => {
       } = await loadFixture(fixture);
 
       let [, , feeReceiver, , infoReturned] = await accessTokenEth.parameters();
-      expect(infoReturned.name).to.be.equal(instanceInfoETH.name);
-      expect(infoReturned.symbol).to.be.equal(instanceInfoETH.symbol);
+      expect(infoReturned.metadata.name).to.be.equal(instanceInfoETH.metadata.name);
+      expect(infoReturned.metadata.symbol).to.be.equal(instanceInfoETH.metadata.symbol);
       expect(infoReturned.contractURI).to.be.equal(instanceInfoETH.contractURI);
       expect(infoReturned.paymentToken).to.be.equal(instanceInfoETH.paymentToken);
       expect(infoReturned.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
@@ -211,8 +209,8 @@ describe('AccessToken', () => {
       expect(feeReceiver).to.be.equal(royaltiesReceiverEth.address);
 
       expect((await accessTokenEth.parameters()).factory).to.be.equal(factory.address);
-      expect(await accessTokenEth.name()).to.be.equal(instanceInfoETH.name);
-      expect(await accessTokenEth.symbol()).to.be.equal(instanceInfoETH.symbol);
+      expect(await accessTokenEth.name()).to.be.equal(instanceInfoETH.metadata.name);
+      expect(await accessTokenEth.symbol()).to.be.equal(instanceInfoETH.metadata.symbol);
       expect((await accessTokenEth.parameters()).info.paymentToken).to.be.equal(instanceInfoETH.paymentToken);
       expect((await accessTokenEth.parameters()).info.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
       expect((await accessTokenEth.parameters()).info.whitelistMintPrice).to.be.equal(
@@ -626,10 +624,10 @@ describe('AccessToken', () => {
       await factory.setFactoryParameters(
         {
           transferValidator: validator.address,
-          feeCollector: owner.address,
-          signer: signer.address,
-          commissionInBps: PLATFORM_COMISSION,
-          defaultPaymentToken: ETH_ADDRESS,
+          platformAddress: owner.address,
+          signerAddress: signer.address,
+          platformCommission: PLATFORM_COMISSION,
+          defaultPaymentCurrency: ETH_ADDRESS,
           maxArraySize: 1,
         } as Factory.FactoryParametersStruct,
         royalties,
@@ -803,10 +801,10 @@ describe('AccessToken', () => {
       await factory.setFactoryParameters(
         {
           transferValidator: validator.address,
-          feeCollector: owner.address,
-          signer: signer.address,
-          commissionInBps: PLATFORM_COMISSION,
-          defaultPaymentToken: ETH_ADDRESS,
+          platformAddress: owner.address,
+          signerAddress: signer.address,
+          platformCommission: PLATFORM_COMISSION,
+          defaultPaymentCurrency: ETH_ADDRESS,
           maxArraySize: 1,
         } as Factory.FactoryParametersStruct,
         royalties,
@@ -839,10 +837,10 @@ describe('AccessToken', () => {
       await factory.setFactoryParameters(
         {
           transferValidator: validator.address,
-          feeCollector: owner.address,
-          signer: signer.address,
-          commissionInBps: PLATFORM_COMISSION,
-          defaultPaymentToken: ETH_ADDRESS,
+          platformAddress: owner.address,
+          signerAddress: signer.address,
+          platformCommission: PLATFORM_COMISSION,
+          defaultPaymentCurrency: ETH_ADDRESS,
           maxArraySize: 20,
         } as Factory.FactoryParametersStruct,
         royalties,
@@ -955,7 +953,7 @@ describe('AccessToken', () => {
     it('Should mint correctly with erc20 token without fee', async () => {
       const { factory, accessTokenERC20, creator, erc20Example, signer } = await loadFixture(fixture);
 
-      factoryParams.commissionInBps = 0;
+      factoryParams.platformCommission = 0;
       await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice);
@@ -991,7 +989,7 @@ describe('AccessToken', () => {
     it('Should transfer if transferable', async () => {
       const { factory, accessTokenERC20, creator, erc20Example, signer, referral } = await loadFixture(fixture);
 
-      factoryParams.commissionInBps = 0;
+      factoryParams.platformCommission = 0;
       await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice);
@@ -1029,7 +1027,7 @@ describe('AccessToken', () => {
     it('Should transfer if transferable - multiple tokens', async () => {
       const { factory, accessTokenERC20, creator, erc20Example, signer, referral } = await loadFixture(fixture);
 
-      factoryParams.commissionInBps = 0;
+      factoryParams.platformCommission = 0;
       await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice * 2);
@@ -1094,7 +1092,7 @@ describe('AccessToken', () => {
     it("Shouldn't transfer if not transferable", async () => {
       const { factory, creator, erc20Example, signer, referral } = await loadFixture(fixture);
 
-      factoryParams.commissionInBps = 0;
+      factoryParams.platformCommission = 0;
       await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       AccessTokenEthMetadata.name += '1';
@@ -1356,7 +1354,7 @@ describe('AccessToken', () => {
       await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice);
       await erc20Example.connect(creator).approve(accessTokenERC20.address, ethers.constants.MaxUint256);
 
-      factoryParams.commissionInBps = 0;
+      factoryParams.platformCommission = 0;
       await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       const message = EthCrypto.hash.keccak256([
@@ -1422,12 +1420,12 @@ describe('AccessToken', () => {
         erc20Example.address,
         tokenPurchasePrice,
       );
-      expect((await factory.nftFactoryParameters()).feeCollector).to.be.equal(owner.address);
+      expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(owner.address);
       const endBalanceOwner = await erc20Example.balanceOf(owner.address);
       const endBalanceReferral = await erc20Example.balanceOf(referral.address);
 
       const fullFees = BigNumber.from(tokenPurchasePrice)
-        .mul((await factory.nftFactoryParameters()).commissionInBps)
+        .mul((await factory.nftFactoryParameters()).platformCommission)
         .div(10000);
       const feesToReferralCreator = await factory.getReferralRate(creator.address, referralCode, fullFees);
       const feesToPlatform = fullFees.sub(feesToReferralCreator);
@@ -1439,7 +1437,7 @@ describe('AccessToken', () => {
     it('Should withdraw all funds when contract has 0 commission - ETH', async () => {
       const { creator, accessTokenEth, signer, factory, owner } = await loadFixture(fixture);
 
-      factoryParams.commissionInBps = 0;
+      factoryParams.platformCommission = 0;
       await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
 
       const message = EthCrypto.hash.keccak256([
@@ -1510,7 +1508,7 @@ describe('AccessToken', () => {
           value: ethPurchasePrice,
         },
       );
-      expect((await factory.nftFactoryParameters()).feeCollector).to.be.equal(owner.address);
+      expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(owner.address);
       const endBalanceOwner = await owner.getBalance();
       const endBalanceReferral = await referral.getBalance();
       const endBalanceCreator = await creator.getBalance();
@@ -1593,7 +1591,7 @@ describe('AccessToken', () => {
         gasLimit: 1000000,
       };
 
-      const feeCollector = (await factory.nftFactoryParameters()).feeCollector;
+      const platformAddress = (await factory.nftFactoryParameters()).platformAddress;
 
       await owner.sendTransaction(tx);
 
@@ -1621,7 +1619,7 @@ describe('AccessToken', () => {
       // NFT was sold for ERC20
 
       creatorBalanceBefore = await erc20Example.balanceOf(creator.address);
-      platformBalanceBefore = await erc20Example.balanceOf(feeCollector);
+      platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
 
       await erc20Example.connect(owner).mint(royaltiesReceiver.address, ethers.utils.parseEther('1'));
 
@@ -1636,7 +1634,7 @@ describe('AccessToken', () => {
       );
 
       creatorBalanceAfter = await erc20Example.balanceOf(creator.address);
-      platformBalanceAfter = await erc20Example.balanceOf(feeCollector);
+      platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
 
       expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.8'));
       expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.2'));
@@ -1676,7 +1674,7 @@ describe('AccessToken', () => {
       // NFT was sold for ERC20 2
 
       creatorBalanceBefore = await erc20Example.balanceOf(creator.address);
-      platformBalanceBefore = await erc20Example.balanceOf(feeCollector);
+      platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
 
       await erc20Example.connect(owner).mint(royaltiesReceiver.address, ethers.utils.parseEther('1'));
 
@@ -1691,7 +1689,7 @@ describe('AccessToken', () => {
       );
 
       creatorBalanceAfter = await erc20Example.balanceOf(creator.address);
-      platformBalanceAfter = await erc20Example.balanceOf(feeCollector);
+      platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
 
       expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(0);
       expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.2'));
@@ -1699,7 +1697,7 @@ describe('AccessToken', () => {
       // NFT was sold for ERC20 3
 
       creatorBalanceBefore = await erc20Example.balanceOf(creator.address);
-      platformBalanceBefore = await erc20Example.balanceOf(feeCollector);
+      platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
 
       await expect(
         royaltiesReceiver.connect(referral).release(erc20Example.address, charlie.address),
@@ -1715,7 +1713,7 @@ describe('AccessToken', () => {
       );
 
       creatorBalanceAfter = await erc20Example.balanceOf(creator.address);
-      platformBalanceAfter = await erc20Example.balanceOf(feeCollector);
+      platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
 
       expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(0);
       expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(0);
@@ -1788,7 +1786,7 @@ describe('AccessToken', () => {
         gasLimit: 1000000,
       };
 
-      const feeCollector = (await factory.nftFactoryParameters()).feeCollector;
+      const platformAddress = (await factory.nftFactoryParameters()).platformAddress;
 
       await owner.sendTransaction(tx);
 
@@ -1820,7 +1818,7 @@ describe('AccessToken', () => {
       expect(referralBalanceAfter.sub(referralBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.06'));
 
       creatorBalanceBefore = await erc20Example.balanceOf(creator.address);
-      platformBalanceBefore = await erc20Example.balanceOf(feeCollector);
+      platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
       referralBalanceBefore = await erc20Example.balanceOf(referral.address);
 
       await erc20Example.connect(owner).mint(royaltiesReceiverEth.address, ethers.utils.parseEther('1'));
@@ -1839,7 +1837,7 @@ describe('AccessToken', () => {
       );
 
       creatorBalanceAfter = await erc20Example.balanceOf(creator.address);
-      platformBalanceAfter = await erc20Example.balanceOf(feeCollector);
+      platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
       referralBalanceAfter = await erc20Example.balanceOf(referral.address);
 
       expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.8'));

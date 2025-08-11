@@ -41,14 +41,14 @@ export async function deployCreditTokenImplementation(): Promise<CreditToken> {
 }
 
 export async function deployFactory(
-  feeCollector: string,
-  signer: string,
+  platformAddress: string,
+  signerAddress: string,
   signatureVerifier: string,
   validator: string,
   implementations: Factory.ImplementationsStruct,
   factoryParams?: Factory.FactoryParametersStruct,
-  commissionInBps: BigNumberish = 100,
-  defaultPaymentToken: string = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+  platformCommission: BigNumberish = 100,
+  defaultPaymentCurrency: string = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
   maxArraySize: BigNumberish = 10,
   royalties: Factory.RoyaltiesParametersStruct = {
     amountToCreator: 8000,
@@ -59,10 +59,10 @@ export async function deployFactory(
   if (factoryParams === undefined) {
     factoryParams = {
       transferValidator: validator,
-      feeCollector,
-      signer,
-      commissionInBps,
-      defaultPaymentToken,
+      platformAddress,
+      signerAddress,
+      platformCommission,
+      defaultPaymentCurrency,
       maxArraySize,
     };
   }
@@ -112,8 +112,7 @@ export async function deployAccessToken(
   const signature = EthCrypto.sign(signer.privateKey, message);
 
   const instanceInfo: AccessTokenInfoStruct = {
-    name: tokenMetadata.name,
-    symbol: tokenMetadata.symbol,
+    metadata: { name: tokenMetadata.name, symbol: tokenMetadata.symbol },
     contractURI: tokenMetadata.uri,
     paymentToken,
     mintPrice,
@@ -127,10 +126,10 @@ export async function deployAccessToken(
 
   await factoryContract.connect(creator).produce(instanceInfo, referralCode);
 
-  const getNftInstanceInfo = await factoryContract.getNftInstanceInfo(tokenMetadata.name, tokenMetadata.symbol);
+  const getNftInstanceInfo = await factoryContract.nftInstanceInfo(tokenMetadata.name, tokenMetadata.symbol);
 
   return {
-    accessToken: await ethers.getContractAt('AccessToken', getNftInstanceInfo.accessToken),
+    accessToken: await ethers.getContractAt('AccessToken', getNftInstanceInfo.nftAddress),
     royaltiesReceiver: await ethers.getContractAt('RoyaltiesReceiverV2', getNftInstanceInfo.royaltiesReceiver),
   };
 }

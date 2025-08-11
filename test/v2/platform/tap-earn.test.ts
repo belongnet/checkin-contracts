@@ -24,12 +24,7 @@ import {
   deployTapAndEarn,
   deployEscrow,
 } from '../../../helpers/deployFixtures';
-import {
-  getSignerFromAddress,
-  getToken,
-  startSimulateMainnet,
-  stopSimulateMainnet,
-} from '../../../helpers/fork';
+import { getSignerFromAddress, getToken, startSimulateMainnet, stopSimulateMainnet } from '../../../helpers/fork';
 import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2, deployPriceFeeds } from '../../../helpers/deployMockFixtures';
 import { expect } from 'chai';

@@ -62,10 +62,10 @@ describe('Factory', () => {
 
     factoryParams = {
       transferValidator: validator.address,
-      feeCollector: owner.address,
-      signer: signer.address,
-      commissionInBps: 100,
-      defaultPaymentToken: ETH_ADDRESS,
+      platformAddress: owner.address,
+      signerAddress: signer.address,
+      platformCommission: 100,
+      defaultPaymentCurrency: ETH_ADDRESS,
       maxArraySize: 10,
     };
 
@@ -97,10 +97,10 @@ describe('Factory', () => {
     it('should correct initialize', async () => {
       const { factory, owner, signer, validator } = await loadFixture(fixture);
 
-      expect((await factory.nftFactoryParameters()).feeCollector).to.be.equal(owner.address);
-      expect((await factory.nftFactoryParameters()).commissionInBps).to.be.equal(factoryParams.commissionInBps);
-      expect((await factory.nftFactoryParameters()).signer).to.be.equal(signer.address);
-      expect((await factory.nftFactoryParameters()).defaultPaymentToken).to.be.equal(ETH_ADDRESS);
+      expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(owner.address);
+      expect((await factory.nftFactoryParameters()).platformCommission).to.be.equal(factoryParams.platformCommission);
+      expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(signer.address);
+      expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(ETH_ADDRESS);
       expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(factoryParams.maxArraySize);
       expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(validator.address);
 
@@ -143,8 +143,7 @@ describe('Factory', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       const info: AccessTokenInfoStruct = {
-        name: nftName,
-        symbol: nftSymbol,
+        metadata: { name: nftName, symbol: nftSymbol },
         contractURI: contractURI,
         paymentToken: ETH_ADDRESS,
         mintPrice: price,
@@ -201,30 +200,30 @@ describe('Factory', () => {
       );
       fakeInfo.signature = signature;
 
-      fakeInfo.name = '';
+      fakeInfo.metadata.name = '';
       await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero))
         .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
-        .withArgs(fakeInfo.name, fakeInfo.symbol);
-      fakeInfo.name = nftName;
+        .withArgs(fakeInfo.metadata.name, fakeInfo.metadata.symbol);
+      fakeInfo.metadata.name = nftName;
 
-      fakeInfo.symbol = '';
+      fakeInfo.metadata.symbol = '';
       await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero))
         .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
-        .withArgs(fakeInfo.name, fakeInfo.symbol);
-      fakeInfo.symbol = nftSymbol;
+        .withArgs(fakeInfo.metadata.name, fakeInfo.metadata.symbol);
+      fakeInfo.metadata.symbol = nftSymbol;
 
       const tx = await factory.connect(alice).produce(info, ethers.constants.HashZero);
 
       await expect(tx).to.emit(factory, 'AccessTokenCreated');
-      const nftInstanceInfo = await factory.getNftInstanceInfo(nftName, nftSymbol);
-      expect(nftInstanceInfo.accessToken).to.not.be.equal(ZERO_ADDRESS);
-      expect(nftInstanceInfo.name).to.be.equal(nftName);
-      expect(nftInstanceInfo.symbol).to.be.equal(nftSymbol);
+      const nftInstanceInfo = await factory.nftInstanceInfo(nftName, nftSymbol);
+      expect(nftInstanceInfo.nftAddress).to.not.be.equal(ZERO_ADDRESS);
+      expect(nftInstanceInfo.metadata.name).to.be.equal(nftName);
+      expect(nftInstanceInfo.metadata.symbol).to.be.equal(nftSymbol);
       expect(nftInstanceInfo.creator).to.be.equal(alice.address);
 
-      console.log('instanceAddress = ', nftInstanceInfo.accessToken);
+      console.log('instanceAddress = ', nftInstanceInfo.nftAddress);
 
-      const nft = await ethers.getContractAt('AccessToken', nftInstanceInfo.accessToken);
+      const nft = await ethers.getContractAt('AccessToken', nftInstanceInfo.nftAddress);
       const [factoryAddress, creator, feeReceiver, , infoReturned] = await nft.parameters();
 
       expect(await nft.getTransferValidator()).to.be.equal(validator.address);
@@ -247,7 +246,7 @@ describe('Factory', () => {
       ]);
 
       expect(payees.creator).to.eq(alice.address);
-      expect(payees.platform).to.eq((await factory.nftFactoryParameters()).feeCollector);
+      expect(payees.platform).to.eq((await factory.nftFactoryParameters()).platformAddress);
       expect(payees.referral).to.eq(ZERO_ADDRESS);
       expect(shares[0]).to.eq(8000);
       expect(shares[1]).to.eq(2000);
@@ -282,8 +281,7 @@ describe('Factory', () => {
 
       await factory.connect(alice).produce(
         {
-          name: nftName1,
-          symbol: nftSymbol1,
+          metadata: { name: nftName1, symbol: nftSymbol1 },
           contractURI: contractURI1,
           paymentToken: ZERO_ADDRESS,
           mintPrice: price1,
@@ -309,8 +307,7 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          name: nftName2,
-          symbol: nftSymbol2,
+          metadata: { name: nftName2, symbol: nftSymbol2 },
           contractURI: contractURI2,
           paymentToken: ETH_ADDRESS,
           mintPrice: price2,
@@ -336,8 +333,7 @@ describe('Factory', () => {
 
       await factory.connect(charlie).produce(
         {
-          name: nftName3,
-          symbol: nftSymbol3,
+          metadata: { name: nftName3, symbol: nftSymbol3 },
           contractURI: contractURI3,
           paymentToken: ETH_ADDRESS,
           mintPrice: price3,
@@ -351,31 +347,31 @@ describe('Factory', () => {
         ethers.constants.HashZero,
       );
 
-      const instanceInfo1 = await factory.getNftInstanceInfo(nftName1, nftSymbol1);
-      const instanceInfo2 = await factory.getNftInstanceInfo(nftName2, nftSymbol2);
-      const instanceInfo3 = await factory.getNftInstanceInfo(nftName3, nftSymbol3);
+      const instanceInfo1 = await factory.nftInstanceInfo(nftName1, nftSymbol1);
+      const instanceInfo2 = await factory.nftInstanceInfo(nftName2, nftSymbol2);
+      const instanceInfo3 = await factory.nftInstanceInfo(nftName3, nftSymbol3);
 
-      expect(instanceInfo1.accessToken).to.not.be.equal(ZERO_ADDRESS);
-      expect(instanceInfo2.accessToken).to.not.be.equal(ZERO_ADDRESS);
-      expect(instanceInfo3.accessToken).to.not.be.equal(ZERO_ADDRESS);
+      expect(instanceInfo1.nftAddress).to.not.be.equal(ZERO_ADDRESS);
+      expect(instanceInfo2.nftAddress).to.not.be.equal(ZERO_ADDRESS);
+      expect(instanceInfo3.nftAddress).to.not.be.equal(ZERO_ADDRESS);
 
-      expect(instanceInfo1.name).to.be.equal(nftName1);
-      expect(instanceInfo1.symbol).to.be.equal(nftSymbol1);
+      expect(instanceInfo1.metadata.name).to.be.equal(nftName1);
+      expect(instanceInfo1.metadata.symbol).to.be.equal(nftSymbol1);
       expect(instanceInfo1.creator).to.be.equal(alice.address);
 
-      expect(instanceInfo2.name).to.be.equal(nftName2);
-      expect(instanceInfo2.symbol).to.be.equal(nftSymbol2);
+      expect(instanceInfo2.metadata.name).to.be.equal(nftName2);
+      expect(instanceInfo2.metadata.symbol).to.be.equal(nftSymbol2);
       expect(instanceInfo2.creator).to.be.equal(bob.address);
 
-      expect(instanceInfo3.name).to.be.equal(nftName3);
-      expect(instanceInfo3.symbol).to.be.equal(nftSymbol3);
+      expect(instanceInfo3.metadata.name).to.be.equal(nftName3);
+      expect(instanceInfo3.metadata.symbol).to.be.equal(nftSymbol3);
       expect(instanceInfo3.creator).to.be.equal(charlie.address);
 
-      console.log('instanceAddress1 = ', instanceInfo1.accessToken);
-      console.log('instanceAddress2 = ', instanceInfo2.accessToken);
-      console.log('instanceAddress3 = ', instanceInfo3.accessToken);
+      console.log('instanceAddress1 = ', instanceInfo1.nftAddress);
+      console.log('instanceAddress2 = ', instanceInfo2.nftAddress);
+      console.log('instanceAddress3 = ', instanceInfo3.nftAddress);
 
-      const nft1 = await ethers.getContractAt('AccessToken', instanceInfo1.accessToken);
+      const nft1 = await ethers.getContractAt('AccessToken', instanceInfo1.nftAddress);
       let [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft1.parameters();
       expect(infoReturned.paymentToken).to.be.equal(ETH_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
@@ -384,7 +380,7 @@ describe('Factory', () => {
       expect(creator).to.be.equal(alice.address);
       expect(feeReceiver).not.to.be.equal(ZERO_ADDRESS);
 
-      const nft2 = await ethers.getContractAt('AccessToken', instanceInfo2.accessToken);
+      const nft2 = await ethers.getContractAt('AccessToken', instanceInfo2.nftAddress);
       [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft2.parameters();
       expect(infoReturned.paymentToken).to.be.equal(ETH_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
@@ -393,7 +389,7 @@ describe('Factory', () => {
       expect(creator).to.be.equal(bob.address);
       expect(feeReceiver).to.be.equal(ZERO_ADDRESS);
 
-      const nft3 = await ethers.getContractAt('AccessToken', instanceInfo3.accessToken);
+      const nft3 = await ethers.getContractAt('AccessToken', instanceInfo3.nftAddress);
       [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft3.parameters();
       expect(infoReturned.paymentToken).to.be.equal(ETH_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
@@ -716,8 +712,7 @@ describe('Factory', () => {
       await expect(
         factory.connect(alice).produce(
           {
-            name: nftName,
-            symbol: nftSymbol,
+            metadata: { name: nftName, symbol: nftSymbol },
             contractURI: contractURI,
             paymentToken: ETH_ADDRESS,
             mintPrice: price,
@@ -735,8 +730,7 @@ describe('Factory', () => {
       await expect(
         factory.connect(alice).produce(
           {
-            name: nftName,
-            symbol: nftSymbol,
+            metadata: { name: nftName, symbol: nftSymbol },
             contractURI: contractURI,
             paymentToken: ETH_ADDRESS,
             mintPrice: price,
@@ -753,8 +747,7 @@ describe('Factory', () => {
 
       const tx = await factory.connect(bob).produce(
         {
-          name: nftName,
-          symbol: nftSymbol,
+          metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -792,8 +785,7 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          name: nftName,
-          symbol: nftSymbol,
+          metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -826,8 +818,7 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          name: nftName,
-          symbol: nftSymbol,
+          metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -860,8 +851,7 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          name: nftName,
-          symbol: nftSymbol,
+          metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -894,8 +884,7 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          name: nftName,
-          symbol: nftSymbol,
+          metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -928,8 +917,7 @@ describe('Factory', () => {
 
       await factory.connect(bob).produce(
         {
-          name: nftName,
-          symbol: nftSymbol,
+          metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -996,8 +984,7 @@ describe('Factory', () => {
 
       await factory.connect(alice).produce(
         {
-          name: nftName,
-          symbol: nftSymbol,
+          metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
           paymentToken: ETH_ADDRESS,
           mintPrice: price,
@@ -1014,8 +1001,7 @@ describe('Factory', () => {
       await expect(
         factory.connect(alice).produce(
           {
-            name: nftName,
-            symbol: nftSymbol,
+            metadata: { name: nftName, symbol: nftSymbol },
             contractURI: contractURI,
             paymentToken: ETH_ADDRESS,
             mintPrice: price,

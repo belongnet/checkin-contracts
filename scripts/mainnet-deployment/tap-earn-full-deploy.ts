@@ -2,9 +2,9 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import { verifyContract } from '../../helpers/verify';
 import { ethers } from 'hardhat';
-import { deployHelper, deploySignatureVerifier } from '../../test/v2/helpers/deployLibraries';
-import { deployLONG, deployStaking, deployEscrow, deployTapAndEarn } from '../../test/v2/helpers/deployFixtures';
 import { Helper, SignatureVerifier, LONG, Staking, Escrow, TapAndEarn } from '../../typechain-types';
+import { deployHelper, deploySignatureVerifier } from '../../helpers/deployLibraries';
+import { deployEscrow, deployLONG, deployStaking, deployTapAndEarn } from '../../helpers/deployFixtures';
 dotenv.config();
 const DEPLOY = true;
 const VERIFY = true;
@@ -95,7 +95,7 @@ async function deploy() {
     if (isNaN(parseInt(amountToMint)) || parseInt(amountToMint) <= 0) {
       throw new Error(`Invalid LONG_AMOUNT_TO_MINT: ${amountToMint}`);
     }
-    const long: LONG = await deployLONG(mintToAddress, amountToMint, adminAddress, pauserAddress);
+    const long: LONG = await deployLONG(mintToAddress, adminAddress, pauserAddress);
     deployments.LONG = {
       address: long.address,
       parameters: [mintToAddress, amountToMint, adminAddress, pauserAddress],
