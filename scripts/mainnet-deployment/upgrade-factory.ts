@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { ethers, upgrades } from 'hardhat';
-import { waitForNextBlock } from '../../../helpers/wait';
-import { verifyContract } from '../../../helpers/verify';
+import { waitForNextBlock } from '../../helpers/wait';
+import { verifyContract } from '../../helpers/verify';
 
 const UPGRADE = true;
 const VERIFY = true;
@@ -21,13 +21,47 @@ async function main() {
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
+
   if (UPGRADE) {
+    console.log('Upgrading Factory contract...');
+
+    // Read addresses from environment variables
+    const SignatureVerifier = deployments.SignatureVerifier.address;
+    const Factory = deployments.Factory.proxy;
+    const accessToken = deployments.AccessTokenImplementation.address;
+    const royaltiesReceiver = deployments.RoyaltiesReceiverV2Implementation.address;
+    const creditToken = deployments.CreditTokenImplementation.address;
+
+    // Validate environment variables
+    if (!SignatureVerifier || !Factory || !accessToken || !royaltiesReceiver || !creditToken) {
+      throw new Error(
+        'Missing required environment variable: SignatureVerifier, Factory, AccessTokenImplementation, RoyaltiesReceiverV2Implementation, CreditTokenImplementation',
+      );
+    }
+
+    // Validate address
+    if (!ethers.utils.isAddress(SignatureVerifier)) {
+      throw new Error(`Invalid address: ${SignatureVerifier}`);
+    }
+    if (!ethers.utils.isAddress(Factory)) {
+      throw new Error(`Invalid address: ${Factory}`);
+    }
+    if (!ethers.utils.isAddress(accessToken)) {
+      throw new Error(`Invalid address: ${accessToken}`);
+    }
+    if (!ethers.utils.isAddress(royaltiesReceiver)) {
+      throw new Error(`Invalid address: ${royaltiesReceiver}`);
+    }
+    if (!ethers.utils.isAddress(creditToken)) {
+      throw new Error(`Invalid address: ${creditToken}`);
+    }
+
     const FactoryV2 = await ethers.getContractFactory('Factory', {
-      libraries: { SignatureVerifier: deployments.SignatureVerifier.address },
+      libraries: { SignatureVerifier },
     });
 
     // (Optional) pre-check: will fail if layout breaks
-    await upgrades.validateUpgrade(deployments.Factory.proxy, FactoryV2, {
+    await upgrades.validateUpgrade(Factory, FactoryV2, {
       kind: 'transparent',
       unsafeAllow: ['constructor'],
       unsafeAllowLinkedLibraries: true,
@@ -35,12 +69,12 @@ async function main() {
 
     const royalties = { amountToCreator: 8000, amountToPlatform: 2000 };
     const implementations = {
-      accessToken: deployments.AccessTokenImplementation.address,
-      creditToken: deployments.CreditTokenImplementation.address,
-      royaltiesReceiver: deployments.RoyaltiesReceiverV2Implementation.address,
+      accessToken,
+      creditToken,
+      royaltiesReceiver,
     };
 
-    const upgraded = await upgrades.upgradeProxy(deployments.Factory.proxy, FactoryV2, {
+    const upgraded = await upgrades.upgradeProxy(Factory, FactoryV2, {
       kind: 'transparent',
       call: { fn: 'upgradeToV2', args: [royalties, implementations] },
       unsafeAllow: ['constructor'],
@@ -50,8 +84,8 @@ async function main() {
     await waitForNextBlock();
 
     const newImpl = await upgrades.erc1967.getImplementationAddress(upgraded.address);
-    console.log('Upgraded proxy still at:', upgraded.address);
-    console.log('new impl:', await upgrades.erc1967.getImplementationAddress(upgraded.address));
+    console.log('Upgraded proxy still at: ', upgraded.address);
+    console.log('New implementation at: ', newImpl);
 
     // Update deployments object
     deployments = {
@@ -61,6 +95,7 @@ async function main() {
         implementation: newImpl,
       },
     };
+    console.log('Done.');
   }
 
   if (VERIFY) {
