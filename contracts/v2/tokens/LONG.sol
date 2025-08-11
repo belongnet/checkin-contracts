@@ -9,6 +9,12 @@ import {ERC20Pausable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {ERC20Bridgeable} from "./base/ERC20Bridgeable.sol";
 
+/// @title LONG
+/// @notice ERC-20 token with burn, pause, permit, and bridge authorization for Superchain deployments.
+/// @dev
+/// - Mints a fixed initial supply to `mintTo` in the constructor.
+/// - `pause`/`unpause` restricted to `PAUSER_ROLE`.
+/// - Enforces bridge calls to come only from the predeployed `SuperchainTokenBridge`.
 contract LONG is
     ERC20,
     ERC20Bridgeable,
@@ -17,12 +23,20 @@ contract LONG is
     AccessControl,
     ERC20Permit
 {
+    /// @notice Revert used by bridge guard and role checks.
     error Unauthorized();
 
+    /// @notice Predeployed SuperchainTokenBridge address (only this may call bridge hooks).
     address internal constant SUPERCHAIN_TOKEN_BRIDGE =
         0x4200000000000000000000000000000000000028;
+
+    /// @notice Role identifier for pausing/unpausing transfers.
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
+    /// @notice Deploys LONG and mints initial supply to `mintTo`; sets admin and pauser roles.
+    /// @param mintTo Recipient of the initial token supply.
+    /// @param defaultAdmin Address granted `DEFAULT_ADMIN_ROLE`.
+    /// @param pauser Address granted `PAUSER_ROLE`.
     constructor(
         address mintTo,
         address defaultAdmin,
@@ -33,24 +47,26 @@ contract LONG is
         _mint(mintTo, 750000000 * 10 ** decimals());
     }
 
-    /**
-     * @dev Checks if the caller is the predeployed SuperchainTokenBridge. Reverts otherwise.
-     *
-     * IMPORTANT: The predeployed SuperchainTokenBridge is only available on chains in the Superchain.
-     */
+    /// @notice Bridge guard: ensures only the canonical Superchain bridge may call.
+    /// @dev Overridden from `ERC20Bridgeable`.
+    /// @param caller The caller address to validate.
     function _checkTokenBridge(address caller) internal pure override {
         if (caller != SUPERCHAIN_TOKEN_BRIDGE) revert Unauthorized();
     }
 
+    /// @notice Pause token transfers and approvals.
+    /// @dev Callable by addresses holding `PAUSER_ROLE`.
     function pause() public onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
+    /// @notice Unpause token transfers and approvals.
+    /// @dev Callable by addresses holding `PAUSER_ROLE`.
     function unpause() public onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
-    // The following functions are overrides required by Solidity.
+    /// @inheritdoc ERC20
     function _update(
         address from,
         address to,
@@ -59,6 +75,8 @@ contract LONG is
         super._update(from, to, value);
     }
 
+    /// @inheritdoc ERC20Bridgeable
+    /// @inheritdoc AccessControl
     function supportsInterface(
         bytes4 interfaceId
     ) public view override(ERC20Bridgeable, AccessControl) returns (bool) {
