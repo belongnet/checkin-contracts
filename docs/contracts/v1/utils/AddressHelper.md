@@ -17,7 +17,7 @@ _This library relies on SignatureCheckerLib to verify the validity of a signatur
 ### checkDynamicPriceParameters
 
 ```solidity
-function checkDynamicPriceParameters(address signer, struct DynamicPriceParameters params) internal view
+function checkDynamicPriceParameters(address signer, address receiver, struct DynamicPriceParameters params) internal view
 ```
 
 Verifies the validity of a signature for dynamic price minting parameters.
@@ -29,12 +29,13 @@ _Encodes and hashes the dynamic price parameters, then verifies the signature ag
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | The address expected to have signed the provided parameters. |
+| receiver | address |  |
 | params | struct DynamicPriceParameters | A struct containing parameters for dynamic price minting, including receiver, tokenId, tokenUri, price, and signature. |
 
 ### checkStaticPriceParameters
 
 ```solidity
-function checkStaticPriceParameters(address signer, struct StaticPriceParameters params) internal view
+function checkStaticPriceParameters(address signer, address receiver, struct StaticPriceParameters params) internal view
 ```
 
 Verifies the validity of a signature for static price minting parameters.
@@ -46,5 +47,6 @@ _Encodes and hashes the static price parameters, then verifies the signature aga
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | The address expected to have signed the provided parameters. |
+| receiver | address |  |
 | params | struct StaticPriceParameters | A struct containing parameters for static price minting, including receiver, tokenId, tokenUri, whitelisted status, and signature. |
 

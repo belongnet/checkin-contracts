@@ -8,6 +8,68 @@ error NFTAlreadyExists()
 
 Error thrown when an NFT with the same name and symbol already exists.
 
+## NftFactoryParameters
+
+A struct that contains parameters related to the NFT factory, such as platform and commission details.
+
+_This struct is used to store key configuration information for the NFT factory._
+
+```solidity
+struct NftFactoryParameters {
+  address platformAddress;
+  address signerAddress;
+  address defaultPaymentCurrency;
+  uint256 platformCommission;
+  uint256 maxArraySize;
+  address transferValidator;
+}
+```
+
+## NftMetadata
+
+```solidity
+struct NftMetadata {
+  string name;
+  string symbol;
+}
+```
+
+## InstanceInfo
+
+A struct that holds detailed information about an individual NFT collection, such as name, symbol, and pricing.
+
+_This struct is used to store key metadata and configuration information for each NFT collection._
+
+```solidity
+struct InstanceInfo {
+  address payingToken;
+  uint96 feeNumerator;
+  bool transferable;
+  uint256 maxTotalSupply;
+  uint256 mintPrice;
+  uint256 whitelistMintPrice;
+  uint256 collectionExpire;
+  struct NftMetadata metadata;
+  string contractURI;
+  bytes signature;
+}
+```
+
+## NftInstanceInfo
+
+A simplified struct that holds only the basic information of the NFT collection, such as name, symbol, and creator.
+
+_This struct is used for lightweight storage of NFT collection metadata._
+
+```solidity
+struct NftInstanceInfo {
+  address creator;
+  address nftAddress;
+  address royaltiesReceiver;
+  struct NftMetadata metadata;
+}
+```
+
 ## NFTFactory
 
 A factory contract to create new NFT instances with specific parameters.

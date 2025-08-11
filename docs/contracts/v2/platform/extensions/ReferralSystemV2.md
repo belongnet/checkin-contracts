@@ -1,6 +1,12 @@
 # Solidity API
 
-## ReferralCodeExists
+## ReferralSystemV2
+
+Provides referral system functionality, including creating referral codes, setting users, and managing referral percentages.
+
+_This abstract contract allows contracts that inherit it to implement referral code-based rewards and tracking._
+
+### ReferralCodeExists
 
 ```solidity
 error ReferralCodeExists(address referralCreator, bytes32 hashedCode)
@@ -8,23 +14,29 @@ error ReferralCodeExists(address referralCreator, bytes32 hashedCode)
 
 Error thrown when a referral code already exists for the creator.
 
-### Parameters
+#### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | referralCreator | address | The address of the creator who already has a referral code. |
 | hashedCode | bytes32 | The existing referral code. |
 
-## ReferralCodeOwnerError
+### ReferralCreatorNotExists
 
 ```solidity
-error ReferralCodeOwnerError()
+error ReferralCreatorNotExists()
 ```
 
 Error thrown when a user tries to add themselves as their own referrer, or
 thrown when a referral code is used that does not have an owner.
 
-## ReferralCodeNotUsedByUser
+### ReferralUserIsReferralCreator
+
+```solidity
+error ReferralUserIsReferralCreator()
+```
+
+### ReferralCodeNotUsedByUser
 
 ```solidity
 error ReferralCodeNotUsedByUser(address referralUser, bytes32 code)
@@ -32,23 +44,23 @@ error ReferralCodeNotUsedByUser(address referralUser, bytes32 code)
 
 Error thrown when a user attempts to get a referral rate for a code they haven't used.
 
-### Parameters
+#### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | referralUser | address | The address of the user who did not use the code. |
 | code | bytes32 | The referral code the user has not used. |
 
-## ReferralSystem
-
-Provides referral system functionality, including creating referral codes, setting users, and managing referral percentages.
-
-_This abstract contract allows contracts that inherit it to implement referral code-based rewards and tracking._
-
-### PercentagesSet
+### PecentageExceedsMax
 
 ```solidity
-event PercentagesSet(uint16[5] percentages)
+error PecentageExceedsMax(uint16 percentage)
+```
+
+### ReferralParametersSet
+
+```solidity
+event ReferralParametersSet(uint16[5] percentages)
 ```
 
 Emitted when referral percentages are set.
@@ -89,6 +101,17 @@ Emitted when a referral code is used.
 | code | bytes32 | The referral code that was used. |
 | usedBy | address | The address that used the referral code. |
 
+### ReferralCode
+
+Struct for managing a referral code and its users.
+
+```solidity
+struct ReferralCode {
+  address creator;
+  address[] referralUsers;
+}
+```
+
 ### SCALING_FACTOR
 
 ```solidity
@@ -108,7 +131,7 @@ Maps the number of times a referral code was used to the corresponding percentag
 ### referrals
 
 ```solidity
-mapping(bytes32 => struct ReferralCode) referrals
+mapping(bytes32 => struct ReferralSystemV2.ReferralCode) referrals
 ```
 
 Maps referral codes to their respective details (creator and users).
@@ -137,60 +160,25 @@ _The referral code is a hash of the caller's address._
 | ---- | ---- | ----------- |
 | hashedCode | bytes32 | The created referral code. |
 
-### _setReferralUser
-
-```solidity
-function _setReferralUser(bytes32 hashedCode, address referralUser) internal
-```
-
-Sets a referral user for a given referral code.
-
-_Internal function that tracks how many times the user has used the code._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| hashedCode | bytes32 | The referral code. |
-| referralUser | address | The address of the user being referred. |
-
-### _setReferralPercentages
-
-```solidity
-function _setReferralPercentages(uint16[5] percentages) internal
-```
-
-Sets the referral percentages based on the number of times a code is used.
-
-_Internal function to set referral percentages._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| percentages | uint16[5] | An array containing the referral percentages for initial, second, third, and default use. |
-
 ### getReferralRate
 
 ```solidity
-function getReferralRate(address referralUser, bytes32 code, uint256 amount) external view returns (uint256)
+function getReferralRate(address referralUser, bytes32 code, uint256 amount) public view returns (uint256 rate)
 ```
 
 Returns the referral rate for a user and code, based on the number of times the code was used.
 
-#### Parameters
+### calculateRate
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| referralUser | address | The user who used the referral code. |
-| code | bytes32 | The referral code used. |
-| amount | uint256 | The amount to calculate the referral rate on. |
+```solidity
+function calculateRate(uint256 amount, uint256 percentage) public pure returns (uint256 rate)
+```
 
-#### Return Values
+### getReferralCodeByCreator
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The calculated referral rate based on the usage of the referral code. |
+```solidity
+function getReferralCodeByCreator(address creator) public view returns (bytes32)
+```
 
 ### getReferralCreator
 
@@ -232,9 +220,26 @@ Returns the list of users who used a given referral code.
 | ---- | ---- | ----------- |
 | [0] | address[] | An array of addresses that used the referral code. |
 
-### _getRate
+### _setReferralUser
 
 ```solidity
-function _getRate(address referralUser, bytes32 code, uint256 amount) internal view returns (uint256 used, uint256 rate)
+function _setReferralUser(bytes32 hashedCode, address referralUser) internal
+```
+
+Sets a referral user for a given referral code.
+
+_Internal function that tracks how many times the user has used the code._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| hashedCode | bytes32 | The referral code. |
+| referralUser | address | The address of the user being referred. |
+
+### _setReferralParameters
+
+```solidity
+function _setReferralParameters(uint16[5] percentages) internal
 ```
 

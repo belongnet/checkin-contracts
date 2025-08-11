@@ -16,6 +16,17 @@ error OnlyToPayee()
 
 Thrown when transfer is not to a payee.
 
+## Releases
+
+Struct for tracking total released amounts and account-specific released amounts.
+
+```solidity
+struct Releases {
+  uint256 totalReleased;
+  mapping(address => uint256) released;
+}
+```
+
 ## RoyaltiesReceiver
 
 A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.

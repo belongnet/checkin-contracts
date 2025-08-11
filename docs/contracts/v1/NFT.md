@@ -74,6 +74,23 @@ error TokenIdDoesNotExist()
 
 Error thrown when the token id is not exist.
 
+## NftParameters
+
+A struct that contains all necessary parameters for creating an NFT collection.
+
+_This struct is used to pass parameters between contracts during the creation of a new NFT collection._
+
+```solidity
+struct NftParameters {
+  address transferValidator;
+  address factory;
+  address creator;
+  address feeReceiver;
+  bytes32 referralCode;
+  struct InstanceInfo info;
+}
+```
+
 ## NFT
 
 Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
@@ -183,7 +200,7 @@ _Can only be called by the contract owner._
 ### mintStaticPrice
 
 ```solidity
-function mintStaticPrice(struct StaticPriceParameters[] paramsArray, address expectedPayingToken, uint256 expectedMintPrice) external payable
+function mintStaticPrice(address receiver, struct StaticPriceParameters[] paramsArray, address expectedPayingToken, uint256 expectedMintPrice) external payable
 ```
 
 Mints new NFTs with static prices to specified addresses.
@@ -194,6 +211,7 @@ _Requires signatures from trusted addresses and validates against whitelist stat
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
+| receiver | address |  |
 | paramsArray | struct StaticPriceParameters[] | An array of parameters for each mint (receiver, tokenId, tokenUri, whitelisted). |
 | expectedPayingToken | address | The expected token used for payments. |
 | expectedMintPrice | uint256 | The expected price for the minting operation. |
@@ -201,7 +219,7 @@ _Requires signatures from trusted addresses and validates against whitelist stat
 ### mintDynamicPrice
 
 ```solidity
-function mintDynamicPrice(struct DynamicPriceParameters[] paramsArray, address expectedPayingToken) external payable
+function mintDynamicPrice(address receiver, struct DynamicPriceParameters[] paramsArray, address expectedPayingToken) external payable
 ```
 
 Mints new NFTs with dynamic prices to specified addresses.
@@ -212,6 +230,7 @@ _Requires signatures from trusted addresses and validates against whitelist stat
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
+| receiver | address |  |
 | paramsArray | struct DynamicPriceParameters[] | An array of parameters for each mint (receiver, tokenId, tokenUri, price). |
 | expectedPayingToken | address | The expected token used for payments. |
 
