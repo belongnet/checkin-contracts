@@ -25,13 +25,12 @@ contract LONG is
 
     constructor(
         address mintTo,
-        uint256 amountToMint,
         address defaultAdmin,
         address pauser
     ) ERC20("LONG", "LONG") ERC20Permit("LONG") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(PAUSER_ROLE, pauser);
-        _mint(mintTo, amountToMint);
+        _mint(mintTo, 750000000 * 10 ** decimals());
     }
 
     /**

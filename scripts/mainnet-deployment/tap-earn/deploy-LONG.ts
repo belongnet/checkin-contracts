@@ -49,14 +49,14 @@ async function deploy() {
     }
 
     console.log('Deploying LONG contract...');
-    const long: LONG = await deployLONG(mintToAddress, amountToMint, adminAddress, pauserAddress);
+    const long: LONG = await deployLONG(mintToAddress, adminAddress, pauserAddress);
 
     // Update deployments object
     deployments = {
       ...deployments,
       LONG: {
         address: long.address,
-        parameters: [mintToAddress, amountToMint, adminAddress, pauserAddress],
+        parameters: [mintToAddress, adminAddress, pauserAddress],
       },
     };
 

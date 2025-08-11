@@ -222,9 +222,9 @@ export async function deployCreditTokens(
   };
 }
 
-export async function deployLONG(mintTo: string, amount: BigNumberish, admin: string, pauser: string): Promise<LONG> {
+export async function deployLONG(mintTo: string, admin: string, pauser: string): Promise<LONG> {
   const LONG: ContractFactory = await ethers.getContractFactory('LONG');
-  const long: LONG = (await LONG.deploy(mintTo, amount, admin, pauser)) as LONG;
+  const long: LONG = (await LONG.deploy(mintTo, admin, pauser)) as LONG;
   await long.deployed();
   return long;
 }

@@ -8,7 +8,7 @@ describe('LONG', () => {
   async function fixture() {
     const [admin, pauser, minter, burner] = await ethers.getSigners();
 
-    const LONG: LONG = await deployLONG(admin.address, ethers.utils.parseEther('1000'), admin.address, pauser.address);
+    const LONG: LONG = await deployLONG(admin.address, admin.address, pauser.address);
 
     return {
       admin,
@@ -21,7 +21,7 @@ describe('LONG', () => {
 
   describe('Deployment', () => {
     it('Should be deployed correctly', async () => {
-      const { LONG, admin, pauser, minter, burner } = await loadFixture(fixture);
+      const { LONG, admin, pauser } = await loadFixture(fixture);
 
       expect(LONG.address).to.be.properAddress;
 
