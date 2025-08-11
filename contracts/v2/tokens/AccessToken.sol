@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.27;
 
 import {Initializable} from "solady/src/utils/Initializable.sol";
@@ -13,11 +13,15 @@ import {Factory} from "../platform/Factory.sol";
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
 import {StaticPriceParameters, DynamicPriceParameters, AccessTokenInfo} from "../Structures.sol";
 
-/**
- * @title AccessToken Contract
- * @notice Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
- * @dev This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling.
- */
+/// @title AccessToken
+/// @notice Upgradeable ERC-721 collection with royalty support, signature-gated minting,
+///         optional auto-approval for a transfer validator, and platform/referral fee routing.
+/// @dev
+/// - Deployed via `Factory` using UUPS (Solady) upgradeability.
+/// - Royalties use ERC-2981 with a fee receiver deployed by the factory when `feeNumerator > 0`.
+/// - Payments can be in ETH or an ERC-20 token; platform fee and referral split are applied.
+/// - Transfer validation is enforced via `CreatorToken` when transfers are enabled.
+/// - `mintStaticPrice` and `mintDynamicPrice` are signature-gated (see `SignatureVerifier`).
 contract AccessToken is
     Initializable,
     UUPSUpgradeable,
@@ -28,45 +32,46 @@ contract AccessToken is
 {
     using SafeTransferLib for address;
     using SignatureVerifier for address;
-    // ========== Errors ==========
 
-    /// @notice Error thrown when insufficient ETH is sent for a minting transaction.
-    /// @param ETHsent The amount of ETH sent.
+    // ============================== Errors ==============================
+
+    /// @notice Sent when the provided ETH amount is not equal to the required price.
+    /// @param ETHsent Amount of ETH sent with the transaction.
     error IncorrectETHAmountSent(uint256 ETHsent);
 
-    /// @notice Error thrown when the mint price changes unexpectedly.
-    /// @param currentPrice The actual current mint price.
+    /// @notice Sent when the expected mint price no longer matches the effective price.
+    /// @param currentPrice The effective price computed by the contract.
     error PriceChanged(uint256 currentPrice);
 
-    /// @notice Error thrown when the paying token changes unexpectedly.
-    /// @param currentPayingToken The actual current paying token.
+    /// @notice Sent when the expected paying token differs from the configured token.
+    /// @param currentPayingToken The currently configured paying token.
     error TokenChanged(address currentPayingToken);
 
-    /// @notice Error thrown when an array exceeds the maximum allowed size.
+    /// @notice Sent when a provided array exceeds the max allowed size from factory parameters.
     error WrongArraySize();
 
-    /// @notice Thrown when an unauthorized transfer attempt is made.
+    /// @notice Sent when a transfer is attempted while transfers are disabled or not allowed.
     error NotTransferable();
 
-    /// @notice Error thrown when the total supply limit is reached.
+    /// @notice Sent when minting would exceed the collection total supply.
     error TotalSupplyLimitReached();
 
-    /// @notice Error thrown when the token id is not exist.
+    /// @notice Sent when querying a token that has not been minted.
     error TokenIdDoesNotExist();
 
-    // ========== Events ==========
+    // ============================== Events ==============================
 
-    /// @notice Event emitted when a payment is made to the PricePoint.
-    /// @param sender The address that made the payment.
-    /// @param paymentCurrency The currency used for the payment.
-    /// @param value The amount of the payment.
+    /// @notice Emitted after a successful mint payment.
+    /// @param sender Payer address.
+    /// @param paymentCurrency ETH pseudo-address or ERC-20 token used for payment.
+    /// @param value Amount paid (wei for ETH; token units for ERC-20).
     event Paid(address indexed sender, address paymentCurrency, uint256 value);
 
-    /// @notice Emitted when the paying token and prices are updated.
-    /// @param newToken The address of the new paying token.
-    /// @param newPrice The new mint price.
-    /// @param newWLPrice The new whitelist mint price.
-    /// @param autoApproved The new value of the automatic approval flag.
+    /// @notice Emitted when mint parameters are updated by the owner.
+    /// @param newToken Paying token address.
+    /// @param newPrice Public mint price (token units or wei).
+    /// @param newWLPrice Whitelist mint price (token units or wei).
+    /// @param autoApproved Whether the transfer validator is auto-approved for all holders.
     event NftParametersChanged(
         address newToken,
         uint256 newPrice,
@@ -74,54 +79,52 @@ contract AccessToken is
         bool autoApproved
     );
 
-    /**
-     * @title NftParameters
-     * @notice A struct that contains all necessary parameters for creating an NFT collection.
-     * @dev This struct is used to pass parameters between contracts during the creation of a new NFT collection.
-     */
+    // ============================== Types ==============================
+
+    /// @notice Parameters used to initialize a newly deployed AccessToken collection.
+    /// @dev Populated by the factory at creation and stored immutably in `parameters`.
     struct AccessTokenParameters {
-        /// @notice The address of the factory contract where the NFT collection is created.
+        /// @notice Factory that deployed the collection; provides global settings and signer.
         Factory factory;
-        /// @notice The address of the creator of the NFT collection.
+        /// @notice Creator (initial owner) of the collection.
         address creator;
-        /// @notice The address that will receive the royalties from secondary sales.
+        /// @notice Receiver of ERC-2981 royalties (if any).
         address feeReceiver;
-        /// @notice The referral code associated with the NFT collection.
+        /// @notice Referral code attached to this collection (optional).
         bytes32 referralCode;
-        /// @notice The detailed information about the NFT collection, including its properties and configuration.
+        /// @notice Collection info (name, symbol, prices, supply cap, payment token, etc.).
         AccessTokenInfo info;
     }
 
-    // ========== State Variables ==========
+    // ============================== State ==============================
 
-    /// @notice The constant address representing ETH.
+    /// @notice Pseudo-address used to represent ETH in payment flows.
     address public constant ETH_ADDRESS =
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    /// @notice The current total supply of tokens.
+    /// @notice Number of tokens minted so far.
     uint256 public totalSupply;
 
-    /// @notice If true, the collection's transfer validator is automatically approved to transfer token holders' tokens.
+    /// @notice If true, the configured transfer validator is auto-approved for all holders.
     bool private autoApproveTransfersFromValidator;
 
-    /// @notice Mapping of token ID to its metadata URI.
+    /// @notice Token ID → metadata URI mapping.
     mapping(uint256 => string) public metadataUri;
 
-    /// @notice The struct containing all NFT parameters for the collection.
+    /// @notice Immutable-like parameters set during initialization.
     AccessTokenParameters public parameters;
 
-    // ========== Constructor ==========
+    // ============================== Initialization ==============================
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    // constructor() {
-    //     _disableInitializers();
-    // }
+    constructor() {
+        _disableInitializers();
+    }
 
-    /**
-     * @notice Deploys the contract with the given collection parameters and transfer validator.
-     * @dev Called by the factory when a new instance is deployed.
-     * @param _params Collection parameters containing information like name, symbol, fees, and more.
-     */
+    /// @notice Initializes the collection configuration and sets royalty and validator settings.
+    /// @dev Called exactly once by the factory when deploying the collection proxy.
+    /// @param _params AccessToken initialization parameters (see `AccessTokenParameters`).
+    /// @param transferValidator_ Transfer validator contract (approved depending on `autoApprove` flag).
     function initialize(
         AccessTokenParameters calldata _params,
         address transferValidator_
@@ -137,16 +140,13 @@ contract AccessToken is
         _initializeOwner(_params.creator);
     }
 
-    // ========== Functions ==========
+    // ============================== Admin ==============================
 
-    /**
-     * @notice Sets a new paying token and mint prices for the collection.
-     * @dev Can only be called by the contract owner.
-     * @param _payingToken The new paying token address.
-     * @param _mintPrice The new mint price.
-     * @param _whitelistMintPrice The new whitelist mint price.
-     * @param autoApprove If true, the transfer validator will be automatically approved for all token holders.
-     */
+    /// @notice Owner-only: updates paying token and mint prices; toggles auto-approval of validator.
+    /// @param _payingToken New paying token (use `ETH_ADDRESS` for ETH).
+    /// @param _mintPrice New public mint price.
+    /// @param _whitelistMintPrice New whitelist mint price.
+    /// @param autoApprove If true, `isApprovedForAll` auto-approves the transfer validator.
     function setNftParameters(
         address _payingToken,
         uint128 _mintPrice,
@@ -167,13 +167,17 @@ contract AccessToken is
         );
     }
 
-    /**
-     * @notice Mints new NFTs with static prices to specified addresses.
-     * @dev Requires signatures from trusted addresses and validates against whitelist status.
-     * @param paramsArray An array of parameters for each mint (receiver, tokenId, tokenUri, whitelisted).
-     * @param expectedPayingToken The expected token used for payments.
-     * @param expectedMintPrice The expected price for the minting operation.
-     */
+    // ============================== Minting ==============================
+
+    /// @notice Signature-gated batch mint with static prices (public or whitelist).
+    /// @dev
+    /// - Validates each entry via factory signer (`checkStaticPriceParameters`).
+    /// - Computes total due based on whitelist flags and charges payer in ETH or ERC-20.
+    /// - Reverts if `paramsArray.length` exceeds factory’s `maxArraySize`.
+    /// @param receiver Address that will receive all minted tokens.
+    /// @param paramsArray Array of static price mint parameters (id, uri, whitelist flag).
+    /// @param expectedPayingToken Expected paying token for sanity check.
+    /// @param expectedMintPrice Expected total price (reverts if mismatched).
     function mintStaticPrice(
         address receiver,
         StaticPriceParameters[] calldata paramsArray,
@@ -195,7 +199,6 @@ contract AccessToken is
                 paramsArray[i]
             );
 
-            // Determine the mint price based on whitelist status
             uint256 price = paramsArray[i].whitelisted
                 ? info.whitelistMintPrice
                 : info.mintPrice;
@@ -217,12 +220,14 @@ contract AccessToken is
         );
     }
 
-    /**
-     * @notice Mints new NFTs with dynamic prices to specified addresses.
-     * @dev Requires signatures from trusted addresses and validates against whitelist status.
-     * @param paramsArray An array of parameters for each mint (receiver, tokenId, tokenUri, price).
-     * @param expectedPayingToken The expected token used for payments.
-     */
+    /// @notice Signature-gated batch mint with per-item dynamic prices.
+    /// @dev
+    /// - Validates each entry via factory signer (`checkDynamicPriceParameters`).
+    /// - Sums prices provided in the payload and charges payer accordingly.
+    /// - Reverts if `paramsArray.length` exceeds factory’s `maxArraySize`.
+    /// @param receiver Address that will receive all minted tokens.
+    /// @param paramsArray Array of dynamic price mint parameters (id, uri, price).
+    /// @param expectedPayingToken Expected paying token for sanity check.
     function mintDynamicPrice(
         address receiver,
         DynamicPriceParameters[] calldata paramsArray,
@@ -255,11 +260,11 @@ contract AccessToken is
         _pay(amountToPay, expectedPayingToken);
     }
 
-    /**
-     * @notice Returns the metadata URI for a specific token ID.
-     * @param _tokenId The ID of the token.
-     * @return The metadata URI associated with the given token ID.
-     */
+    // ============================== Views ==============================
+
+    /// @notice Returns metadata URI for a given token ID.
+    /// @param _tokenId Token ID to query.
+    /// @return The token URI string.
     function tokenURI(
         uint256 _tokenId
     ) public view override returns (string memory) {
@@ -270,33 +275,27 @@ contract AccessToken is
         return metadataUri[_tokenId];
     }
 
-    /// @notice Returns the name of the token collection.
-    /// @return The name of the token.
+    /// @notice Collection name.
     function name() public view override returns (string memory) {
         return parameters.info.name;
     }
 
-    /// @notice Returns the symbol of the token collection.
-    /// @return The symbol of the token.
+    /// @notice Collection symbol.
     function symbol() public view override returns (string memory) {
         return parameters.info.symbol;
     }
 
-    /**
-     * @notice Returns the contract URI for the collection.
-     * @return The contract URI.
-     */
+    /// @notice Contract-level metadata URI for marketplaces.
+    /// @return The contract URI.
     function contractURI() external view returns (string memory) {
         return parameters.info.contractURI;
     }
 
-    /**
-     * @notice Checks if an operator is approved to manage all tokens of a given owner.
-     * @dev Overrides the default behavior to automatically approve the transfer validator if enabled.
-     * @param _owner The owner of the tokens.
-     * @param operator The operator trying to manage the tokens.
-     * @return isApproved Whether the operator is approved for all tokens of the owner.
-     */
+    /// @notice Checks operator approval for all tokens of `_owner`.
+    /// @dev Auto-approves the transfer validator when `autoApproveTransfersFromValidator` is true.
+    /// @param _owner Token owner.
+    /// @param operator Operator address to check.
+    /// @return isApproved True if approved.
     function isApprovedForAll(
         address _owner,
         address operator
@@ -308,15 +307,15 @@ contract AccessToken is
         }
     }
 
-    /// @notice Returns the address of the current implementation.
-    /// @return implementation address.
+    /// @notice Returns the current implementation address (UUPS).
+    /// @return implementation Address of the implementation logic contract.
     function selfImplementation() external view virtual returns (address) {
         return _selfImplementation();
     }
 
-    /// @dev Returns true if this contract implements the interface defined by `interfaceId`.
-    /// See: https://eips.ethereum.org/EIPS/eip-165
-    /// This function call must use less than 30000 gas.
+    /// @notice EIP-165 interface support.
+    /// @param interfaceId Interface identifier.
+    /// @return True if supported.
     function supportsInterface(
         bytes4 interfaceId
     ) public view override(ERC721, ERC2981) returns (bool) {
@@ -335,24 +334,21 @@ contract AccessToken is
         return result || super.supportsInterface(interfaceId);
     }
 
-    /**
-     * @notice Mints a new token and assigns it to a specified address.
-     * @dev Increases totalSupply, stores metadata URI, and creation timestamp.
-     * @param to The address that will receive the newly minted token.
-     * @param tokenUri The metadata URI associated with the token.
-     * @param tokenId The ID of the token to be minted.
-     */
+    // ============================== Internals ==============================
+
+    /// @notice Internal mint helper that enforces supply cap and stores metadata.
+    /// @param tokenId Token ID to mint.
+    /// @param to Recipient address.
+    /// @param tokenUri Metadata URI to set for the token.
     function _baseMint(
         uint256 tokenId,
         address to,
         string calldata tokenUri
     ) private {
-        // Ensure the total supply has not been exceeded
         require(
             totalSupply + 1 <= parameters.info.maxTotalSupply,
             TotalSupplyLimitReached()
         );
-        // Overflow check required: The rest of the code assumes that totalSupply never overflows
         unchecked {
             totalSupply++;
         }
@@ -361,10 +357,14 @@ contract AccessToken is
         _safeMint(to, tokenId);
     }
 
-    /**
-     * @notice Handles the payment for minting NFTs, including sending fees to the platform and creator.
-     * @dev Payments can be made in ETH or another token.
-     */
+    /// @notice Handles payment routing for mints (ETH or ERC-20).
+    /// @dev
+    /// - Validates `expectedPayingToken` against configured payment token.
+    ///  - Splits platform commission and referral share, then forwards remainder to creator.
+    ///  - Emits {Paid}.
+    /// @param price Expected total price to charge.
+    /// @param expectedPayingToken Expected payment currency (ETH or ERC-20).
+    /// @return amount Amount actually charged (wei or token units).
     function _pay(
         uint256 price,
         address expectedPayingToken
@@ -451,10 +451,12 @@ contract AccessToken is
         emit Paid(msg.sender, expectedPayingToken, amount);
     }
 
-    /// @dev Hook that is called before any token transfers, including minting and burning.
-    /// @param from The address tokens are being transferred from.
-    /// @param to The address tokens are being transferred to.
-    /// @param id The token ID being transferred.
+    /// @notice Hook executed before transfers, mints, and burns.
+    /// @dev
+    /// - For pure transfers (non-mint/burn), enforces `transferable` and validates via `_validateTransfer`.
+    /// @param from Sender address (zero for mint).
+    /// @param to Recipient address (zero for burn).
+    /// @param id Token ID being moved.
     function _beforeTokenTransfer(
         address from,
         address to,
@@ -462,15 +464,14 @@ contract AccessToken is
     ) internal override {
         super._beforeTokenTransfer(from, to, id);
 
-        // Check if this is not a mint or burn operation, only a transfer.
         if (from != address(0) && to != address(0)) {
             require(parameters.info.transferable, NotTransferable());
-
             _validateTransfer(msg.sender, from, to, id);
         }
     }
 
-    /// @dev Authorizes an upgrade to a new implementation. Only ADMIN or owner.
+    /// @notice Authorizes UUPS upgrades; restricted to owner.
+    /// @param /*newImplementation*/ New implementation (unused in guard).
     function _authorizeUpgrade(
         address /*newImplementation*/
     ) internal override onlyOwner {}
