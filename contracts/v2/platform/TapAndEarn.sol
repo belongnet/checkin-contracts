@@ -19,11 +19,15 @@ import {Helper} from "../utils/Helper.sol";
 
 import {StakingTiers, VenueRules, PaymentTypes, BountyTypes, VenueInfo, CustomerInfo, PromoterInfo} from "../Structures.sol";
 
-/**
- * @title NFT Factory Contract
- * @notice A factory contract to create new NFT instances with specific parameters.
- * @dev This contract allows producing NFTs, managing platform settings, and verifying signatures.
- */
+/// @title TapAndEarn
+/// @notice Orchestrates venue deposits, customer payments, and promoter payouts for a
+///         referral-based commerce program with dual-token accounting (USDC/LONG).
+/// @dev
+/// - Uses ERC1155 credits (`CreditToken`) to track venue balances and promoter entitlements in USD units.
+/// - Delegates custody and distribution of USDC/LONG to `Escrow`.
+/// - Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps USDC→LONG on Uniswap V3.
+/// - Applies tiered fees/discounts depending on staked balance in `Staking`.
+/// - Signature-gated actions are authorized through a platform signer configured in `Factory`.
 contract TapAndEarn is Initializable, Ownable {
     using SignatureVerifier for address;
     using MetadataReaderLib for address;
@@ -32,27 +36,66 @@ contract TapAndEarn is Initializable, Ownable {
 
     // ========== Errors ==========
 
+    /// @notice Thrown when a provided referral code has no creator mapping in the Factory.
+    /// @param referralCode The invalid referral code.
     error WrongReferralCode(bytes32 referralCode);
+
+    /// @notice Thrown when a promoter cannot claim payouts for a venue.
+    /// @param venue The venue address in question.
+    /// @param promoter The promoter attempting to claim.
     error CanNotClaim(address venue, address promoter);
+
+    /// @notice Thrown when the caller is not recognized as a venue (no venue credits).
     error NotAVenue();
+
+    /// @notice Thrown when an action requires more balance than available.
+    /// @param requiredAmount The amount required to proceed.
+    /// @param availableBalance The currently available balance.
     error NotEnoughBalance(uint256 requiredAmount, uint256 availableBalance);
+
+    /// @notice Thrown when a venue provides an invalid or disabled payment type.
     error WrongPaymentTypeProvided();
 
     // ========== Events ==========
+
+    /// @notice Emitted when global parameters are updated.
+    /// @param paymentsInfo Uniswap/asset addresses and pool fee configuration.
+    /// @param fees Platform-level fee settings.
+    /// @param rewards Array of tiered staking rewards (index by `StakingTiers`).
     event ParametersSet(
         PaymentsInfo paymentsInfo,
         Fees fees,
         RewardsInfo[5] rewards
     );
+
+    /// @notice Emitted when a venue's rules are set or updated.
+    /// @param venue The venue address.
+    /// @param rules The rules applied to the venue.
     event VenueRulesSet(address indexed venue, VenueRules rules);
+
+    /// @notice Emitted when contract references are configured.
+    /// @param contracts The set of external contract references.
     event ContractsSet(Contracts contracts);
 
+    /// @notice Emitted when a venue deposits USDC to the program.
+    /// @param venue The venue that made the deposit.
+    /// @param referralCode The referral code used (if any).
+    /// @param rules The rules applied to the venue at time of deposit.
+    /// @param amount The deposited USDC amount (in USDC native decimals).
     event VenuePaidDeposit(
         address indexed venue,
         bytes32 indexed referralCode,
         VenueRules rules,
         uint256 amount
     );
+
+    /// @notice Emitted when a customer pays a venue (in USDC or LONG).
+    /// @param customer The paying customer.
+    /// @param venueToPayFor The venue receiving the payment.
+    /// @param promoter The promoter credited, if any.
+    /// @param amount The payment amount (USDC native decimals for USDC; LONG wei for LONG).
+    /// @param visitBountyAmount Flat bounty component (USDC native decimals) if paying in USDC; standardized in logic for LONG.
+    /// @param spendBountyPercentage Percentage bounty on spend (scaled by 1e4 where 10000 == 100%).
     event CustomerPaid(
         address indexed customer,
         address indexed venueToPayFor,
@@ -61,31 +104,50 @@ contract TapAndEarn is Initializable, Ownable {
         uint24 visitBountyAmount,
         uint24 spendBountyPercentage
     );
+
+    /// @notice Emitted when promoter payments are distributed.
+    /// @param promoter The promoter receiving a payout.
+    /// @param venue The venue to which the promoter's balance is linked.
+    /// @param amountInUSD The USD-denominated amount settled from promoter credits.
+    /// @param paymentInUSDC True if payout in USDC; false if swapped to LONG.
     event PromoterPaymentsDistributed(
         address indexed promoter,
         address indexed venue,
         uint256 amountInUSD,
         bool paymentInUSDC
     );
+
+    /// @notice Emitted when the owner cancels a promoter payment and restores venue credits.
+    /// @param venue The venue whose credits are restored.
+    /// @param promoter The promoter whose credits are burned.
+    /// @param amount The amount (USD-denominated credits) canceled and restored.
     event PromoterPaymentCancelled(
         address indexed venue,
         address indexed promoter,
         uint256 amount
     );
 
+    /// @notice Emitted after a USDC→LONG swap via Uniswap V3.
+    /// @param recipient The address receiving LONG.
+    /// @param amountIn The USDC input amount.
+    /// @param amountOut The LONG output amount.
     event Swapped(
         address indexed recipient,
         uint256 amountIn,
         uint256 amountOut
     );
 
-    // Structs
+    // ========== Structs ==========
+
+    /// @notice Top-level storage bundle for program configuration.
     struct TapAndEarnStorage {
         Contracts contracts;
         PaymentsInfo paymentsInfo;
         Fees fees;
     }
 
+    /// @notice Addresses of external contracts and oracles used by the program.
+    /// @dev `longPF` is a Chainlink aggregator proxy implementing `ILONGPriceFeed`.
     struct Contracts {
         Factory factory;
         Escrow escrow;
@@ -95,6 +157,13 @@ contract TapAndEarn is Initializable, Ownable {
         address longPF;
     }
 
+    /// @notice Platform fee knobs and constants.
+    /// @dev Percentages are scaled by 1e4 (10000 == 100%).
+    /// - `referralCreditsAmount`: number of “free” credits before charging deposit fees again.
+    /// - `affiliatePercentage`: fee taken on venue deposits attributable to a referral.
+    /// - `longCustomerDiscountPercentage`: discount applied to LONG payments (customer side).
+    /// - `platformSubsidyPercentage`: LONG subsidy the platform adds for merchant when customer pays in LONG.
+    /// - `processingFeePercentage`: portion of LONG subsidy collected by the platform as processing fee.
     struct Fees {
         uint8 referralCreditsAmount;
         uint24 affiliatePercentage;
@@ -103,6 +172,10 @@ contract TapAndEarn is Initializable, Ownable {
         uint24 processingFeePercentage;
     }
 
+    /// @notice Uniswap routing and token addresses.
+    /// @dev
+    /// - `uniswapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
+    /// - `weth`, `usdc`, `long` are token addresses; `uniswapV3Router` and `uniswapV3Quoter` are periphery contracts.
     struct PaymentsInfo {
         uint24 uniswapPoolFees;
         address uniswapV3Router;
@@ -112,21 +185,27 @@ contract TapAndEarn is Initializable, Ownable {
         address long;
     }
 
+    /// @notice Venue-specific configuration and remaining “free” deposit credits.
     struct GeneralVenueInfo {
         VenueRules rules;
         uint16 remainingCredits;
     }
 
+    /// @notice Per-tier venue-side fee settings.
+    /// @dev `depositFeePercentage` scaled by 1e4; `convenienceFeeAmount` is a flat USDC amount (native decimals).
     struct VenueStakingRewardInfo {
         uint24 depositFeePercentage;
         uint24 convenienceFeeAmount;
     }
 
+    /// @notice Per-tier promoter payout configuration.
+    /// @dev Percentages scaled by 1e4; separate values for USDC or LONG payouts.
     struct PromoterStakingRewardInfo {
         uint24 usdcPercentage;
         uint24 longPercentage;
     }
 
+    /// @notice Bundle of venue and promoter tier settings for a given staking tier.
     struct RewardsInfo {
         VenueStakingRewardInfo venueStakingInfo;
         PromoterStakingRewardInfo promoterStakingInfo;
@@ -134,22 +213,32 @@ contract TapAndEarn is Initializable, Ownable {
 
     // ========== State Variables ==========
 
+    /// @notice Global program configuration.
     TapAndEarnStorage public tapEarnStorage;
 
+    /// @notice Per-venue rule set and remaining free deposit credits.
+    /// @dev Keyed by venue address.
     mapping(address venue => GeneralVenueInfo info) public generalVenueInfo;
 
+    /// @notice Staking-tier-indexed rewards configuration.
+    /// @dev Indexed by `StakingTiers` enum value [0..4].
     mapping(StakingTiers tier => RewardsInfo rewardInfo) public stakingRewards;
 
     // ========== Functions ==========
 
+    /// @notice Disables initializers for the implementation contract.
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    /**
-     * @notice Initializes the contract with NFT factory parameters and referral percentages.
-     */
+    /// @notice Initializes core parameters and default tier tables; sets the owner.
+    /// @dev
+    /// - Computes a default $5 USDC convenience fee using `MetadataReaderLib.readDecimals()`.
+    /// - Installs default `Fees` and `RewardsInfo[5]` arrays.
+    /// - Must be called exactly once.
+    /// @param _owner The address granted ownership.
+    /// @param _paymentsInfo Uniswap/asset configuration to be stored.
     function initialize(
         address _owner,
         PaymentsInfo calldata _paymentsInfo
@@ -225,6 +314,10 @@ contract TapAndEarn is Initializable, Ownable {
         _initializeOwner(_owner);
     }
 
+    /// @notice Owner-only method to update core parameters in a single call.
+    /// @param _paymentsInfo New Uniswap/asset configuration.
+    /// @param _fees New platform fee configuration (scaled by 1e4).
+    /// @param _stakingRewards New tier table (array index maps to `StakingTiers`).
     function setParameters(
         PaymentsInfo calldata _paymentsInfo,
         Fees calldata _fees,
@@ -233,12 +326,17 @@ contract TapAndEarn is Initializable, Ownable {
         _setParameters(_paymentsInfo, _fees, _stakingRewards);
     }
 
+    /// @notice Owner-only method to update external contract references.
+    /// @param _contracts Struct of contract references (Factory, Escrow, Staking, tokens, price feed).
     function setContracts(Contracts calldata _contracts) external onlyOwner {
         tapEarnStorage.contracts = _contracts;
 
         emit ContractsSet(_contracts);
     }
 
+    /// @notice Allows a venue to update its rules after a balance check.
+    /// @dev Reverts with `NotAVenue()` if caller has zero venue credits.
+    /// @param rules The new `VenueRules` to set for the caller.
     function updateVenueRules(VenueRules calldata rules) external {
         uint256 venueId = msg.sender.getVenueId();
         uint256 venueBalance = tapEarnStorage.contracts.venueToken.balanceOf(
@@ -250,7 +348,13 @@ contract TapAndEarn is Initializable, Ownable {
         _setVenueRules(msg.sender, rules);
     }
 
-    // Approve should be: venueInfo.amount + depositFeePercentage + convenienceFee + affiliateFee
+    /// @notice Handles a venue USDC deposit, affiliate fee processing, convenience fee, and escrow funding.
+    /// @dev
+    /// - Signature-validated via platform signer from `Factory`.
+    /// - Applies staking-tier-based `depositFeePercentage` unless remaining free credits > 0.
+    /// - Charges convenience + affiliate fees in USDC, swaps convenience fee to LONG, and forwards USDC to `Escrow`.
+    /// - Mints venue credits (ERC1155) representing USD units deposited.
+    /// @param venueInfo Signed venue deposit parameters (venue, amount, referral code, rules, uri).
     function venueDeposit(VenueInfo calldata venueInfo) external {
         TapAndEarnStorage memory _storage = tapEarnStorage;
 
@@ -341,6 +445,13 @@ contract TapAndEarn is Initializable, Ownable {
         );
     }
 
+    /// @notice Processes a customer payment to a venue, optionally attributing promoter rewards.
+    /// @dev
+    /// - Signature-validated via platform signer from `Factory`.
+    /// - If a promoter is present, burns venue credits and mints promoter credits in USD units.
+    /// - If `paymentInUSDC` is true: transfers USDC from customer to venue.
+    /// - If false: applies subsidy minus processing fee via `Escrow`, then transfers discounted LONG from customer to venue.
+    /// @param customerInfo Signed customer payment parameters (customer, venue, promoter, amount, flags, bounties).
     function payToVenue(CustomerInfo calldata customerInfo) external {
         TapAndEarnStorage memory _storage = tapEarnStorage;
         VenueRules memory rules = generalVenueInfo[customerInfo.venueToPayFor]
@@ -434,6 +545,14 @@ contract TapAndEarn is Initializable, Ownable {
         );
     }
 
+    /// @notice Settles promoter credits into a payout in either USDC or LONG.
+    /// @dev
+    /// - Signature-validated via platform signer from `Factory`.
+    /// - Applies tiered platform fee based on `Staking` balance of the promoter.
+    /// - For USDC payout: pulls from `Escrow` venue deposit to feeCollector and promoter.
+    /// - For LONG payout: pulls USDC from `Escrow`, swaps to LONG (fee + promoter portions), and transfers out.
+    /// - Burns promoter credits by the settled USD amount.
+    /// @param promoterInfo Signed settlement parameters (promoter, venue, amountInUSD, payout currency flag).
     function distributePromoterPayments(
         PromoterInfo memory promoterInfo
     ) external {
@@ -516,6 +635,9 @@ contract TapAndEarn is Initializable, Ownable {
         );
     }
 
+    /// @notice Owner-only emergency function to cancel all promoter credits for a venue and restore them to the venue.
+    /// @param venue The venue whose credits will be restored.
+    /// @param promoter The promoter whose credits will be burned.
     function emergencyCancelPayment(
         address venue,
         address promoter
@@ -544,18 +666,36 @@ contract TapAndEarn is Initializable, Ownable {
         emit PromoterPaymentCancelled(venue, promoter, promoterBalance);
     }
 
-    function contracts() external view returns (Contracts memory) {
+    /// @notice Returns external contract references.
+    /// @return contracts_ The `Contracts` struct currently in use.
+    function contracts() external view returns (Contracts memory contracts_) {
         return tapEarnStorage.contracts;
     }
 
-    function fees() external view returns (Fees memory) {
+    /// @notice Returns platform fee configuration.
+    /// @return fees_ The `Fees` struct currently in use.
+    function fees() external view returns (Fees memory fees_) {
         return tapEarnStorage.fees;
     }
 
-    function paymentsInfo() external view returns (PaymentsInfo memory) {
+    /// @notice Returns Uniswap/asset configuration.
+    /// @return paymentsInfo_ The `PaymentsInfo` struct currently in use.
+    function paymentsInfo()
+        external
+        view
+        returns (PaymentsInfo memory paymentsInfo_)
+    {
         return tapEarnStorage.paymentsInfo;
     }
 
+    /// @notice Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
+    /// @dev
+    /// - Builds a multi-hop path USDC → WETH → LONG using the same fee tier.
+    /// - Uses Quoter to set a conservative `amountOutMinimum` (quotes can be front-run; consider slippage buffers at call sites if needed).
+    /// - Approves router for the exact USDC amount before calling.
+    /// @param recipient The recipient of LONG. If zero or `amount` is zero, returns 0 without swapping.
+    /// @param amount The USDC input amount to swap (USDC native decimals).
+    /// @return swapped The amount of LONG received.
     function _swap(
         address recipient,
         uint256 amount
@@ -592,6 +732,10 @@ contract TapAndEarn is Initializable, Ownable {
         emit Swapped(recipient, amount, swapped);
     }
 
+    /// @notice Internal helper to atomically set global parameters and tier tables.
+    /// @param _paymentsInfo New Uniswap/asset configuration.
+    /// @param _fees New platform fee configuration.
+    /// @param _stakingRewards Full 5-element tier table.
     function _setParameters(
         PaymentsInfo calldata _paymentsInfo,
         Fees memory _fees,
@@ -607,6 +751,10 @@ contract TapAndEarn is Initializable, Ownable {
         emit ParametersSet(_paymentsInfo, _fees, _stakingRewards);
     }
 
+    /// @notice Internal helper to set rules for a venue after validation.
+    /// @dev Reverts if `rules.paymentType == PaymentTypes.NoType`.
+    /// @param venue The venue address to update.
+    /// @param rules The new rules to apply.
     function _setVenueRules(address venue, VenueRules memory rules) private {
         require(
             rules.paymentType != PaymentTypes.NoType,
