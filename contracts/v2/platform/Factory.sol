@@ -176,13 +176,13 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         _initializeOwner(msg.sender);
     }
 
-    // function upgradeToV2(
-    //     RoyaltiesParameters calldata _royalties,
-    //     Implementations calldata _implementations
-    // ) external reinitializer(2) {
-    //     _setRoyalties(_royalties);
-    //     _setImplementations(_implementations);
-    // }
+    function upgradeToV2(
+        RoyaltiesParameters calldata _royalties,
+        Implementations calldata _implementations
+    ) external reinitializer(2) {
+        FactoryParameters memory factoryParameters = _nftFactoryParameters;
+        _setFactoryParameters(factoryParameters, _royalties, _implementations);
+    }
 
     // ========== Creation Flows ==========
 
@@ -411,7 +411,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param _royalties New royalties parameters (BPS).
     /// @param _implementations New implementation addresses.
     function _setFactoryParameters(
-        FactoryParameters calldata factoryParameters_,
+        FactoryParameters memory factoryParameters_,
         RoyaltiesParameters calldata _royalties,
         Implementations calldata _implementations
     ) private {
