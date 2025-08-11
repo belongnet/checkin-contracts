@@ -11,7 +11,9 @@ contract Staking is ERC4626, Ownable {
     error MinStakePeriodShouldBeGreaterThanZero();
     error MinStakePeriodNotMet();
     error PenaltyTooHigh();
+    error ZeroReward();
 
+    event RewardsDistributed(uint256 amount);
     event MinStakePeriodSet(uint256 period);
     event PenaltyPecentSet(uint256 percent);
     event TreasurySet(address treasury);
@@ -24,7 +26,7 @@ contract Staking is ERC4626, Ownable {
     );
 
     struct Stake {
-        uint256 amount;
+        uint256 shares;
         uint256 timestamp;
     }
 
@@ -36,6 +38,7 @@ contract Staking is ERC4626, Ownable {
     uint256 public minStakePeriod = 1 days;
     uint256 public penaltyPercentage = 1000;
 
+    // NOTE: public getter returns (shares, timestamp) for index
     mapping(address staker => Stake[] times) public stakes;
 
     constructor(address _owner, address _treasury, address long) {
@@ -60,6 +63,12 @@ contract Staking is ERC4626, Ownable {
         _setTreasury(_treasury);
     }
 
+    function distributeRewards(uint256 amount) external onlyOwner {
+        if (amount == 0) revert ZeroReward();
+        LONG.safeTransferFrom(msg.sender, address(this), amount);
+        emit RewardsDistributed(amount);
+    }
+
     function emergencyWithdraw(
         uint256 assets,
         address to,
@@ -80,7 +89,7 @@ contract Staking is ERC4626, Ownable {
         _emergencyWithdraw(msg.sender, to, _owner, assets, shares);
     }
 
-    /// Emergency unstake — burns all shares, returns 90%, sends 10% to treasury
+    /// Emergency unstake — burns shares, returns (assets - penalty), sends penalty to treasury
     function _emergencyWithdraw(
         address by,
         address to,
@@ -96,7 +105,7 @@ contract Staking is ERC4626, Ownable {
 
         if (by != _owner) _spendAllowance(_owner, by, shares);
 
-        _removeAnyAssetsFor(_owner, assets);
+        _removeAnySharesFor(_owner, shares);
         _burn(_owner, shares);
 
         LONG.safeTransfer(to, payout);
@@ -107,65 +116,61 @@ contract Staking is ERC4626, Ownable {
     }
 
     /// @dev To be overridden to return the address of the underlying asset.
-    ///
-    /// - MUST be an ERC20 token contract.
-    /// - MUST NOT revert.
     function asset() public view override returns (address) {
         return LONG;
     }
 
-    /// @dev Returns the name of the token.
     function name() public pure override returns (string memory) {
         return "LONG Staking";
     }
 
-    /// @dev Returns the symbol of the token.
     function symbol() public pure override returns (string memory) {
         return "sLONG";
     }
 
     function _afterDeposit(
-        uint256 assets,
-        uint256 /*shares*/
+        uint256 /*assets*/,
+        uint256 shares
     ) internal override {
         stakes[msg.sender].push(
-            Stake({amount: assets, timestamp: block.timestamp})
+            Stake({shares: shares, timestamp: block.timestamp})
         );
     }
 
+    // CHANGED: compare required `shares` (not `assets`) against unlocked shares
     function _beforeWithdraw(
-        uint256 assets,
-        uint256 /*shares*/
+        uint256 /*assets*/,
+        uint256 shares
     ) internal override {
         Stake[] memory userStakes = stakes[msg.sender];
         uint256 _minStakePeriod = minStakePeriod;
 
-        uint256 unlocked = 0;
+        uint256 unlockedShares = 0;
         for (uint256 i = 0; i < userStakes.length; ++i) {
             if (block.timestamp >= userStakes[i].timestamp + _minStakePeriod) {
-                unlocked += userStakes[i].amount;
+                unlockedShares += userStakes[i].shares;
             }
         }
 
-        if (unlocked < assets) {
-            revert MinStakePeriodNotMet();
-        }
+        if (unlockedShares < shares) revert MinStakePeriodNotMet();
 
-        _removeUnlockedAssetsFor(msg.sender, assets);
+        _removeUnlockedSharesFor(msg.sender, shares);
     }
 
-    // Remove used unlocked stakes (FIFO order)
-    function _removeUnlockedAssetsFor(address staker, uint256 assets) internal {
+    function _removeUnlockedSharesFor(address staker, uint256 shares) internal {
         Stake[] storage userStakes = stakes[staker];
-        uint256 remaining = assets;
+        uint256 _minStakePeriod = minStakePeriod;
+        uint256 remaining = shares;
+
         for (uint256 i = 0; i < userStakes.length && remaining > 0; ) {
-            if (block.timestamp >= userStakes[i].timestamp + minStakePeriod) {
-                if (userStakes[i].amount <= remaining) {
-                    remaining -= userStakes[i].amount;
+            Stake memory stake = userStakes[i];
+            if (block.timestamp >= stake.timestamp + _minStakePeriod) {
+                if (stake.shares <= remaining) {
+                    remaining -= stake.shares;
                     userStakes[i] = userStakes[userStakes.length - 1];
                     userStakes.pop();
                 } else {
-                    userStakes[i].amount -= remaining;
+                    userStakes[i].shares = stake.shares - remaining;
                     remaining = 0;
                     ++i;
                 }
@@ -175,17 +180,18 @@ contract Staking is ERC4626, Ownable {
         }
     }
 
-    // Remove any stakes (FIFO order, ignoring lock)
-    function _removeAnyAssetsFor(address staker, uint256 assets) internal {
+    function _removeAnySharesFor(address staker, uint256 shares) internal {
         Stake[] storage userStakes = stakes[staker];
-        uint256 remaining = assets;
+        uint256 remaining = shares;
+
         for (uint256 i = 0; i < userStakes.length && remaining > 0; ) {
-            if (userStakes[i].amount <= remaining) {
-                remaining -= userStakes[i].amount;
+            uint256 stakeShares = userStakes[i].shares;
+            if (stakeShares <= remaining) {
+                remaining -= stakeShares;
                 userStakes[i] = userStakes[userStakes.length - 1];
                 userStakes.pop();
             } else {
-                userStakes[i].amount -= remaining;
+                userStakes[i].shares = stakeShares - remaining;
                 remaining = 0;
                 ++i;
             }
