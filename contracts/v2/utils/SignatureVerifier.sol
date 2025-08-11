@@ -5,25 +5,37 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 import {AccessTokenInfo, ERC1155Info, VenueInfo, VenueRules, CustomerInfo, PromoterInfo, StaticPriceParameters, DynamicPriceParameters, PaymentTypes, BountyTypes} from "../Structures.sol";
 
-// ========== Library ==========
-
-/// @title AddressHelper Library
-/// @notice Provides helper functions to validate signatures for dynamic and static price parameters in NFT minting.
-/// @dev This library relies on SignatureCheckerLib to verify the validity of a signature for provided parameters.
+/// @title SignatureVerifier
+/// @notice Stateless helpers to verify backend-signed payloads for collection creation,
+///         credit token creation, venue/customer/promoter actions, and mint parameter checks.
+/// @dev
+/// - Uses `SignatureCheckerLib.isValidSignatureNow` for EOA or ERC1271 signatures.
+/// - All hashes include `block.chainid` to bind signatures to a specific chain.
+/// - Reverts with explicit errors on invalid signatures or rule mismatches.
 library SignatureVerifier {
     using SignatureCheckerLib for address;
 
-    // ========== Errors ==========
+    // ============================== Errors ==============================
 
-    /// @notice Error thrown when the signature provided is invalid.
+    /// @notice Thrown when a signature does not match the expected signer/payload.
     error InvalidSignature();
 
+    /// @notice Thrown when collection metadata (name/symbol) is empty.
+    /// @param name The provided collection name.
+    /// @param symbol The provided collection symbol.
     error EmptyMetadata(string name, string symbol);
 
+    /// @notice Thrown when the customer's requested payment type conflicts with venue rules.
     error WrongPaymentType();
 
+    /// @notice Thrown when the bounty type derived from customer payload conflicts with venue rules.
     error WrongBountyType();
 
+    // ============================== Verifiers ==============================
+
+    /// @notice Verifies AccessToken collection creation payload.
+    /// @param signer Authorized signer address.
+    /// @param accessTokenInfo Payload to verify (name, symbol, contractURI, feeNumerator, signature).
     function checkAccessTokenInfo(
         address signer,
         AccessTokenInfo memory accessTokenInfo
@@ -51,6 +63,10 @@ library SignatureVerifier {
         );
     }
 
+    /// @notice Verifies CreditToken (ERC1155) collection creation payload.
+    /// @param signer Authorized signer address.
+    /// @param signature Detached signature validating `creditTokenInfo`.
+    /// @param creditTokenInfo Payload (name, symbol, uri, roles).
     function checkCreditTokenInfo(
         address signer,
         bytes calldata signature,
@@ -78,6 +94,9 @@ library SignatureVerifier {
         );
     }
 
+    /// @notice Verifies venue deposit intent and parameters.
+    /// @param signer Authorized signer address.
+    /// @param venueInfo Venue payload (venue, referral, uri).
     function checkVenueInfo(
         address signer,
         VenueInfo calldata venueInfo
@@ -98,6 +117,10 @@ library SignatureVerifier {
         );
     }
 
+    /// @notice Verifies customer payment payload and enforces venue rule compatibility.
+    /// @param signer Authorized signer address.
+    /// @param customerInfo Customer payment data (currency flags, bounties, actors, amount).
+    /// @param rules Venue rules against which to validate payment/bounty types.
     function checkCustomerInfo(
         address signer,
         CustomerInfo calldata customerInfo,
@@ -152,6 +175,9 @@ library SignatureVerifier {
         );
     }
 
+    /// @notice Verifies promoter payout distribution payload.
+    /// @param signer Authorized signer address.
+    /// @param promoterInfo Payout details to be validated.
     function checkPromoterPaymentDistribution(
         address signer,
         PromoterInfo memory promoterInfo
@@ -172,13 +198,10 @@ library SignatureVerifier {
         );
     }
 
-    /**
-     * @notice Verifies the validity of a signature for dynamic price minting parameters.
-     * @dev Encodes and hashes the dynamic price parameters, then verifies the signature against the expected signer.
-     * @param signer The address expected to have signed the provided parameters.
-     * @param params A struct containing parameters for dynamic price minting, including receiver, tokenId, tokenUri, price, and signature.
-     * @custom:error InvalidSignature Thrown when the signature does not match the expected signer or encoded data.
-     */
+    /// @notice Verifies dynamic price mint parameters for a given receiver.
+    /// @param signer Authorized signer address.
+    /// @param receiver Address that will receive the minted token(s).
+    /// @param params Dynamic price payload (id, uri, price, signature).
     function checkDynamicPriceParameters(
         address signer,
         address receiver,
@@ -201,13 +224,10 @@ library SignatureVerifier {
         );
     }
 
-    /**
-     * @notice Verifies the validity of a signature for static price minting parameters.
-     * @dev Encodes and hashes the static price parameters, then verifies the signature against the expected signer.
-     * @param signer The address expected to have signed the provided parameters.
-     * @param params A struct containing parameters for static price minting, including receiver, tokenId, tokenUri, whitelisted status, and signature.
-     * @custom:error InvalidSignature Thrown when the signature does not match the expected signer or encoded data.
-     */
+    /// @notice Verifies static price mint parameters for a given receiver.
+    /// @param signer Authorized signer address.
+    /// @param receiver Address that will receive the minted token(s).
+    /// @param params Static price payload (id, uri, whitelist flag, signature).
     function checkStaticPriceParameters(
         address signer,
         address receiver,
