@@ -1,5 +1,5 @@
 {
-  "SigantureVerifier": {
+  "SignatureVerifier": {
     "address": "0x83618D58A1A4648BC31B7b7CD0DB08EFD39708bB"
   },
   "AccessTokenImplementation": {
