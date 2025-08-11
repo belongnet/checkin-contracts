@@ -1,0 +1,18 @@
+{
+  "SigantureVerifier": {
+    "address": "0x83618D58A1A4648BC31B7b7CD0DB08EFD39708bB"
+  },
+  "AccessTokenImplementation": {
+    "address": "0xd97aD56221cc9a68cB310cfF328F21bC5E24156a"
+  },
+  "RoyaltiesReceiverV2Implementation": {
+    "address": "0x42eA62312B97F87343Ba5a9D3599bfF73A3eD4E7"
+  },
+  "CreditTokenImplementation": {
+    "address": "0x9C2aD75498C8B952c9C7cBb4F7B7Ac8dA795887C"
+  },
+  "Factory": {
+    "proxy": "0xCa673987F1D74552fC25Dd7975848FE6f5F21abC",
+    "implementation": "0xc794db3285257943c2d1cabe549fa744c95185d5"
+  }
+}
