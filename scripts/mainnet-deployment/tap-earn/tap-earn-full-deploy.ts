@@ -1,13 +1,17 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
-import { verifyContract } from '../../helpers/verify';
+import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
-import { Helper, SignatureVerifier, LONG, Staking, Escrow, TapAndEarn } from '../../typechain-types';
-import { deployHelper, deploySignatureVerifier } from '../../helpers/deployLibraries';
-import { deployEscrow, deployLONG, deployStaking, deployTapAndEarn } from '../../helpers/deployFixtures';
+import { Helper, SignatureVerifier, LONG, Staking, Escrow, TapAndEarn } from '../../../typechain-types';
+import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
+import { deployEscrow, deployLONG, deployStaking, deployTapAndEarn } from '../../../helpers/deployFixtures';
 dotenv.config();
-const DEPLOY = true;
-const VERIFY = true;
+
+const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
+const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
+const DEPLOY = ENV_DEPLOY ?? true; // <-- ENV_UPGRADE is `false` (not nullish), so UPGRADE=false
+const VERIFY = ENV_VERIFY ?? true; // same
+
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
   const deploymentsDirectory = 'deployments';

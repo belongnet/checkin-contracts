@@ -1,10 +1,12 @@
 import fs from 'fs';
 import { ethers, upgrades } from 'hardhat';
-import { waitForNextBlock } from '../../helpers/wait';
-import { verifyContract } from '../../helpers/verify';
+import { waitForNextBlock } from '../../../helpers/wait';
+import { verifyContract } from '../../../helpers/verify';
 
-const UPGRADE = true;
-const VERIFY = true;
+const ENV_UPGRADE = process.env.UPGRADE?.toLowerCase() === 'true';
+const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
+const UPGRADE = ENV_UPGRADE ?? true; // <-- ENV_UPGRADE is `false` (not nullish), so UPGRADE=false
+const VERIFY = ENV_VERIFY ?? true; // same
 
 async function main() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -31,30 +33,6 @@ async function main() {
     const accessToken = deployments.AccessTokenImplementation.address;
     const royaltiesReceiver = deployments.RoyaltiesReceiverV2Implementation.address;
     const creditToken = deployments.CreditTokenImplementation.address;
-
-    // Validate environment variables
-    if (!SignatureVerifier || !Factory || !accessToken || !royaltiesReceiver || !creditToken) {
-      throw new Error(
-        'Missing required environment variable: SignatureVerifier, Factory, AccessTokenImplementation, RoyaltiesReceiverV2Implementation, CreditTokenImplementation',
-      );
-    }
-
-    // Validate address
-    if (!ethers.utils.isAddress(SignatureVerifier)) {
-      throw new Error(`Invalid address: ${SignatureVerifier}`);
-    }
-    if (!ethers.utils.isAddress(Factory)) {
-      throw new Error(`Invalid address: ${Factory}`);
-    }
-    if (!ethers.utils.isAddress(accessToken)) {
-      throw new Error(`Invalid address: ${accessToken}`);
-    }
-    if (!ethers.utils.isAddress(royaltiesReceiver)) {
-      throw new Error(`Invalid address: ${royaltiesReceiver}`);
-    }
-    if (!ethers.utils.isAddress(creditToken)) {
-      throw new Error(`Invalid address: ${creditToken}`);
-    }
 
     const FactoryV2 = await ethers.getContractFactory('Factory', {
       libraries: { SignatureVerifier },

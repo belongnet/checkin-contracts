@@ -7,8 +7,10 @@ import { deployLONG } from '../../../helpers/deployFixtures';
 
 dotenv.config();
 
-const DEPLOY = true;
-const VERIFY = true;
+const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
+const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
+const DEPLOY = ENV_DEPLOY ?? true; // <-- ENV_UPGRADE is `false` (not nullish), so UPGRADE=false
+const VERIFY = ENV_VERIFY ?? true; // same
 
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -30,19 +32,18 @@ async function deploy() {
     console.log('Deploying: ');
     // Read addresses from environment variables
     const mintToAddress = process.env.MINT_LONG_TO;
-    const amountToMint = process.env.LONG_AMOUNT_TO_MINT;
     const adminAddress = process.env.ADMIN_ADDRESS;
     const pauserAddress = process.env.PAUSER_ADDRESS;
 
     // Validate environment variables
-    if (!mintToAddress || !amountToMint || !adminAddress || !pauserAddress) {
+    if (!mintToAddress || !adminAddress || !pauserAddress) {
       throw new Error(
         'Missing required environment variables: MINT_LONG_TO, LONG_AMOUNT_TO_MINT, ADMIN_ADDRESS, PAUSER_ADDRESS',
       );
     }
 
     // Validate addresses
-    for (const addr of [mintToAddress, amountToMint, adminAddress, pauserAddress]) {
+    for (const addr of [mintToAddress, adminAddress, pauserAddress]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }

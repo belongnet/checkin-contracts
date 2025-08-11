@@ -7,8 +7,10 @@ import { deployHelper } from '../../../helpers/deployLibraries';
 
 dotenv.config();
 
-const DEPLOY = true;
-const VERIFY = true;
+const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
+const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
+const DEPLOY = ENV_DEPLOY ?? true; // <-- ENV_UPGRADE is `false` (not nullish), so UPGRADE=false
+const VERIFY = ENV_VERIFY ?? true; // same
 
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;

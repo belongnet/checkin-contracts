@@ -7,8 +7,10 @@ import { deployTapAndEarn } from '../../../helpers/deployFixtures';
 
 dotenv.config();
 
-const DEPLOY = true;
-const VERIFY = true;
+const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
+const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
+const DEPLOY = ENV_DEPLOY ?? true; // <-- ENV_UPGRADE is `false` (not nullish), so UPGRADE=false
+const VERIFY = ENV_VERIFY ?? true; // same
 
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -30,15 +32,16 @@ async function deploy() {
     console.log('Deploying TapAndEarn: ');
 
     // Read addresses from environment variables
-    const signatureVerifier = process.env.SIGNATURE_VERIFIER_ADDRESS;
-    const helper = process.env.HELPER_ADDRESS;
-    const owner = process.env.OWNER_ADDRESS;
+
+    const owner = process.env.ADMIN_ADDRESS;
     const uniswapPoolFees = process.env.UNISWAPV3_POOL_FEES;
     const uniswapV3Router = process.env.UNISWAPV3_ROUTER_ADDRESS;
     const uniswapV3Quoter = process.env.UNISWAPV3_QUOTER_ADDRESS;
     const weth = process.env.WETH_ADDRESS;
     const usdc = process.env.USDC_ADDRESS;
-    const long = process.env.LONG_ADDRESS;
+    const signatureVerifier = deployments.SignatureVerifier.address;
+    const helper = deployments.Helper.address;
+    const long = deployments.LONG.address;
 
     // Validate environment variables
     if (
