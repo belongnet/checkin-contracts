@@ -1,111 +1,226 @@
-# README: Deployment Script for TapAndEarn Ecosystem Contracts
+# TapAndEarn – Deployment & Upgrade Guide
 
-This script is a comprehensive Hardhat deployment tool for deploying and verifying a suite of smart contracts in the TapAndEarn ecosystem, including Helper, SignatureVerifier, LONG, TapAndEarn, Escrow, and Staking. It uses environment variables for configuration, deploys contracts in a specific order (handling dependencies like using deployed addresses in subsequent deployments), saves deployment details to a JSON file, and optionally verifies contracts on Etherscan (or similar explorers).
+This repo ships a set of Hardhat scripts to **deploy, upgrade, and verify** the TapAndEarn ecosystem:
 
-The script assumes you're deploying to an Ethereum-compatible network (e.g., Sepolia testnet, chain ID 11155111, based on common usage). It handles directory creation for deployments and includes validation for addresses and values.
+- Libraries: `Helper`, `SignatureVerifier`
+- Implementations: `AccessToken`, `CreditToken`, `RoyaltiesReceiverV2`
+- Core: `LONG`, `Staking`, `TapAndEarn`, `Escrow`
+- Factory upgrade from legacy → new `Factory`
 
-## Prerequisites
+The scripts also **persist addresses** under `deployments/chainId-<id>.json` and can **verify** contracts.
 
-1. **Node.js and Yarn**:
-   - Use Node.js LTS version (e.g., v18 or v20). Avoid v23+ as it's unsupported by Hardhat and may cause issues like `secp256k1 unavailable`.
-   - Install with `nvm` (recommended):
+> ⚠️ Use **Node 18 or 20**. Hardhat doesn’t support Node 23+.  
+> `nvm use 20 && yarn install`
+
+---
+
+## 🧰 Prerequisites
+
+- **Node**: v18 or v20 via `nvm`
+- **Yarn**: `npm i -g yarn`
+- **Funds**: your deployer wallet has test ETH (Sepolia, etc.)
+- **API keys**: RPC (Infura/Alchemy) + Etherscan-like explorer API key
+- **Hardhat plugins**: already included via `yarn install`
+
+---
+
+## 🔐 Environment
+
+Create `.env` (never commit):
+
+```ini
+# RPC / keys
+INFURA_ID_PROJECT=<...>          # or ALCHEMY_*
+ETHERSCAN_API_KEY=<...>          # explorer verification
+BLASTSCAN_API_KEY=<...>          # optional per-chain
+POLYSCAN_API_KEY=<...>           # optional per-chain
+PK=<deployer-private-key>        # or configure accounts in hardhat.config
+LEDGER_ADDRESS=<your-ledger>     # optional label only
+
+# LONG
+MINT_LONG_TO=0x...
+ADMIN_ADDRESS=0x...
+PAUSER_ADDRESS=0x...
+
+# TapAndEarn (PaymentsInfo)
+UNISWAPV3_POOL_FEES=3000
+UNISWAPV3_ROUTER_ADDRESS=0xE592427A0AEce92De3Edee1F18E0157C05861564
+UNISWAPV3_QUOTER_ADDRESS=0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
+WETH_ADDRESS=0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14
+USDC_ADDRESS=0x...
+
+# Staking
+TREASURY_ADDRESS=0x...
+
+# Factory upgrade (you must already have a proxy deployed)
+FACTORY=0x<existing-factory-proxy>
+
+# After you deploy Venue/Promoter tokens & price feed, add:
+VENUE_TOKEN=0x...
+PROMOTER_TOKEN=0x...
+LONG_PRICE_FEED=0x...
+```
+
+🗂️ Deployments index file
+
+All scripts read/write deployments/chainId-<id>.json.
+Important: the key for the verifier library is SignatureVerifier (spelled correctly). If you previously saved SigantureVerifier, fix it in your JSON.
+
+Minimal example:
 
 ```
-nvm install 18
-nvm use 18
-```
-
-- Install Yarn: `npm install -g yarn`.
-
-2. **Dependencies**:
-
-Run `yarn install` to install all project dependencies.
-Ensure your `package.json` includes necessary libraries (e.g., `dotenv`, `fs`).
-
-3. Wallet and Funds:
-
-Have an Ethereum wallet with testnet ETH (e.g., Sepolia ETH from a faucet like Alchemy's Sepolia Faucet) for gas fees.
-Export its private key securely (never commit it).
-
-4. API Keys:
-
-Alchemy (or Infura) for RPC URL.
-Etherscan for contract verification.
-
-5. Dependencies:
-
-Run yarn install to install all project dependencies.
-Ensure your package.json includes necessary libraries (e.g., dotenv, fs).
-
-6. Wallet and Funds:
-
-Have an Ethereum wallet with testnet ETH (e.g., Sepolia ETH from a faucet like Alchemy's Sepolia Faucet) for gas fees.
-Export its private key securely (never commit it).
-
-7. API Keys:
-
-Alchemy (or Infura) for RPC URL.
-Etherscan for contract verification.
-
-## Setup
-
-1. Create `.env` File:
-
-In your project root, create a `.env` file and add the following variables. Replace placeholders with actual values.
-
-Required for All Deployments:
+{
+  "SignatureVerifier": { "address": "0x..." },
+  "AccessTokenImplementation": { "address": "0x..." },
+  "RoyaltiesReceiverV2Implementation": { "address": "0x..." },
+  "CreditTokenImplementation": { "address": "0x..." },
+  "Factory": { "proxy": "0x...", "implementation": "0x..." },
+  "Helper": { "address": "0x..." },
+  "LONG": { "address": "0x...", "parameters": ["0xMintTo","0xAdmin","0xPauser"] },
+  "Staking": { "address": "0x...", "parameters": ["0xOwner","0xTreasury","0xLONG"] },
+  "TapAndEarn": { "address": "0x...", "parameters": ["0xOwner", { "uniswapPoolFees": 3000, "...": "..." }] },
+  "Escrow": { "address": "0x...", "parameters": ["0xTapAndEarn"] }
+}
 
 ```
-# Network and Verification
-INFURA_ID_PROJECT=your-infura-api-key-here
-PK=your-wallet-private-key-here  # Deployer's private key (with ETH for gas)
-LEDGER_ADDRESS
-ETHERSCAN_API_KEY=your-etherscan-api-key-here  # For contract verification
-BLASTSCAN_API_KEY
-POLYSCAN_API_KEY
 
-# LONG Contract
+> Note: For TapAndEarn and other non-proxy deployments, the field is address (not proxy). Keep it consistent or your later scripts will fail.
+
+🚀 Deployment & Upgrade Order
+
+> You can toggle behavior per-step with env flags:
+```
+DEPLOY=true|false
+VERIFY=true|false
+UPGRADE=true|false
+```
+> Run each step with your target network, e.g. --network sepolia.
+
+## Deployment
+
+1. SignatureVerifier:
+
+Run:
+```
+DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/0-deploy-signature-verifier.ts --network <network sepcified>
+```
+
+This writes:
+```
+"SignatureVerifier": { "address": "0x..." }
+```
+
+2. Implementations:
+
+Run:
+```
+DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/1-deploy-implementations.ts --network <network sepcified>
+```
+
+Writes:
+```
+"AccessTokenImplementation": { "address": "0x..." },
+"RoyaltiesReceiverV2Implementation": { "address": "0x..." },
+"CreditTokenImplementation": { "address": "0x..." }
+```
+
+3. Upgrade Factory:
+
+Required fields in `.env`: 
+```
+FACTORY=0xYourFactoryAddress  # Factory contract address
+```
+
+Factory should be upgraded to the new version related to the changes.
+
+Run:
+```
+UPGRADE=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/2-upgrade-factory.ts --network <network sepcified>
+```
+
+4. LONG:
+
+Required fields in `.env`: 
+```
 MINT_LONG_TO=0xYourMintToAddress  # Address to mint initial LONG tokens to
-LONG_AMOUNT_TO_MINT=1000000  # Amount of LONG tokens to mint (integer)
 ADMIN_ADDRESS=0xYourAdminAddress  # Admin role address (used as owner in multiple contracts)
 PAUSER_ADDRESS=0xYourPauserAddress  # Pauser role address for LONG
+```
 
-# TapAndEarn Contract (PaymentsInfo)
+
+Run:
+```
+DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/3-deploy-LONG.ts --network <network sepcified>
+```
+
+5. Staking
+
+Required fields in `.env`: 
+```
+# Staking Contract
+TREASURY_ADDRESS=0xYourTreasuryAddress  # Treasury address for Staking
+ADMIN_ADDRESS=0xYourAdminAddress  # Admin role address (used as owner in multiple contracts)
+```
+
+Run:
+```
+DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/4-deploy-staking.ts --network <network sepcified>
+```
+
+7. Helper:
+
+Run:
+```
+DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/5-deploy-helper.ts --network <network sepcified>
+```
+
+
+8. VenueToken, CreditToken:
+
+For their deployment Signer Backend should sing a message for its deployment. After their deployments, addresses should be added to `.env` file:
+```
+VENUE_TOKEN=0xYourVenueTokenAddress  # Venue token address
+PROMOTER_TOKEN=0xYourPromoterTokenAddress  # Promoter token address
+```
+
+9. TapAndEarn:
+
+Required fields in `.env`: 
+```
+# Staking Contract
 UNISWAPV3_POOL_FEES=3000  # Uniswap V3 pool fee tier (e.g., 3000 for 0.3%)
 UNISWAPV3_ROUTER_ADDRESS=0xE592427A0AEce92De3Edee1F18E0157C05861564  # Uniswap V3 Router (Sepolia example)
 UNISWAPV3_QUOTER_ADDRESS=0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6  # Uniswap V3 Quoter (Sepolia example)
 WETH_ADDRESS=0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14  # WETH address (Sepolia example)
 USDC_ADDRESS=0xYourUSDCAddress  # USDC token address on the network
-
-# Staking Contract
-TREASURY_ADDRESS=0xYourTreasuryAddress  # Treasury address for Staking
-
-# TapAndEarn Setup (setContracts call)
-FACTORY=0xYourFactoryAddress  # Factory contract address
-VENUE_TOKEN=0xYourVenueTokenAddress  # Venue token address
-PROMOTER_TOKEN=0xYourPromoterTokenAddress  # Promoter token address
-LONG_PRICE_FEED=0xYourLongPriceFeedAddress  # LONG price feed (e.g., Chainlink oracle)
 ```
 
-Notes:
-
-Addresses must be valid Ethereum addresses (prefixed with `0x`).
-For testnets like Sepolia, use testnet-specific addresses (e.g., Uniswap V3 contracts).
-Add `.env` to `.gitignore` to avoid committing sensitive data.
-
-2. Script Location:
-
-Save the script as `deploy-all.ts` in your project's `scripts/` directory (e.g., `scripts/deploy-all.ts`).
-
-## Usage
-
-1. Run the Script:
-
-Deploy to a specific network (e.g., Sepolia):
-
+Run:
 ```
-yarn hardhat run scripts/deploy-all.ts --network sepolia
+DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/6-deploy-tap-earn.ts --network <network sepcified>
 ```
+
+9. Escrow:
+
+Run:
+```
+DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/7-deploy-escrow.ts --network <network sepcified>
+```
+
+10. TapAndEarn configuration:
+
+Run:
+```
+DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/8-set-tapearn-up.ts --network <network sepcified>
+```
+
+🔎 Verification
+
+- For non-proxy deployments (e.g., LONG, Staking, libs): verify the contract address.
+
+- For proxy deployments: verify the implementation address (Etherscan has proxy-awareness, but verifying the impl directly is most reliable).
+
+Your scripts already call `verifyContract(...)` appropriately; ensure they pass the implementation for proxies.
 
 What Happens:
 
@@ -147,12 +262,7 @@ Helper verification successful.
 Done.
 ```
 
-2. Toggle Deployment/Verification:
-
-Set DEPLOY = false to skip deployment (useful for verification only).
-Set VERIFY = false to skip verification.
-
-3. View Deployment Data:
+2. View Deployment Data:
 
 After running, check `deployments/chainId-<chainId>.json` for addresses and parameters:
 
@@ -166,13 +276,3 @@ After running, check `deployments/chainId-<chainId>.json` for addresses and para
   "Staking": { "address": "0x...", "parameters": ["0x...", "0x...", "0x..."] }
 }
 ```
-
-## Troubleshooting
-
-Node.js Version Issues: If you see warnings about unsupported Node.js, switch versions with nvm and reinstall dependencies (yarn install).
-Missing Env Variables: Ensure all required keys are in .env. The script will throw errors if any are missing.
-Deployment Failures: Check gas funds, network connection, or contract logic in deployFixtures/deployLibraries.
-Verification Failures: Verify your ETHERSCAN_API_KEY and ensure the contract was deployed successfully.
-Custom Networks: Add networks to hardhat.config.ts as needed (e.g., mainnet).
-
-For issues, check Hardhat docs or provide error logs for debugging.
