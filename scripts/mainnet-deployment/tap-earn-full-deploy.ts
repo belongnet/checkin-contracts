@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
-import { verifyContract } from '../helpers/verify';
+import { verifyContract } from '../../helpers/verify';
 import { ethers } from 'hardhat';
 import { deployHelper, deploySignatureVerifier } from '../../test/v2/helpers/deployLibraries';
 import { deployLONG, deployStaking, deployEscrow, deployTapAndEarn } from '../../test/v2/helpers/deployFixtures';

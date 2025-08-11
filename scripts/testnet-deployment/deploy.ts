@@ -48,12 +48,6 @@ async function deploy() {
 
   console.log("Deployed to:", factory.address);
 
-  console.log("ReceiverFactory:");
-  const ReceiverFactory: ContractFactory = await ethers.getContractFactory("ReceiverFactory");
-  const receiverFactory: ReceiverFactory = await ReceiverFactory.deploy() as ReceiverFactory;
-  await receiverFactory.deployed();
-  console.log("Deployed to: ", receiverFactory.address);
-
   console.log("Done.");
 }
 

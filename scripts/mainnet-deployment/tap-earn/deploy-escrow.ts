@@ -2,7 +2,7 @@ import { Escrow } from '../../../typechain-types';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { deployEscrow } from '../../../test/v2/helpers/deployFixtures'; // Adjust if path differs
-import { verifyContract } from '../../helpers/verify';
+import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
 
 dotenv.config();

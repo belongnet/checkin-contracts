@@ -3,7 +3,7 @@ import { ContractFactory } from 'ethers';
 import { NFTFactory } from '../../../typechain-types';
 import { NftFactoryParametersStruct } from '../../typechain-types/contracts/factories/NFTFactory';
 import dotenv from 'dotenv';
-import { checkAddress, checkNumber, defaultParamsCheck } from '../../helpers/checkers';
+import { checkAddress, checkNumber, defaultParamsCheck } from '../../../helpers/checkers';
 dotenv.config();
 
 const signerAddress = process.env.SIGNER_ADDRESS;

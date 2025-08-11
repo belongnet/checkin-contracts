@@ -2,7 +2,7 @@ import { LONG } from '../../../typechain-types';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { deployLONG } from '../../../test/v2/helpers/deployFixtures';
-import { verifyContract } from '../../helpers/verify';
+import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
 
 dotenv.config();
