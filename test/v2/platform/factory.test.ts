@@ -18,15 +18,15 @@ import {
   AccessTokenInfoStructOutput,
   ERC1155InfoStruct,
 } from '../../../typechain-types/contracts/v2/platform/Factory';
-import { getPercentage } from '../helpers/getPercentage';
+import { getPercentage } from '../../../helpers/getPercentage';
 import {
   deployAccessTokenImplementation,
   deployCreditTokenImplementation,
   deployFactory,
   deployRoyaltiesReceiverV2Implementation,
-} from '../helpers/deployFixtures';
-import { deploySignatureVerifier } from '../helpers/deployLibraries';
-import { deployMockTransferValidatorV2, deployWETHMock } from '../helpers/deployMockFixtures';
+} from '../../../helpers/deployFixtures';
+import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
+import { deployMockTransferValidatorV2, deployWETHMock } from '../../../helpers/deployMockFixtures';
 
 describe('Factory', () => {
   const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';

@@ -1,7 +1,7 @@
 import hre, { ethers, network } from 'hardhat';
-import { IERC20Metadata } from '../../../typechain-types';
-import { chainRPCs } from '../../../utils/chain-ids';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { IERC20Metadata } from '../typechain-types';
+import { chainRPCs } from '../utils/chain-ids';
 
 export async function getSignerFromAddress(address: string): Promise<SignerWithAddress> {
   await hre.network.provider.request({

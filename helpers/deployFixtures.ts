@@ -1,3 +1,6 @@
+import { ethers, upgrades } from 'hardhat';
+import EthCrypto from 'eth-crypto';
+import BigNumber from 'bn.js';
 import { BigNumberish, BigNumber as BN, BytesLike, ContractFactory } from 'ethers';
 import {
   AccessToken,
@@ -8,12 +11,9 @@ import {
   RoyaltiesReceiverV2,
   Staking,
   TapAndEarn,
-} from '../../../typechain-types';
-import { ethers, upgrades } from 'hardhat';
-import EthCrypto from 'eth-crypto';
-import BigNumber from 'bn.js';
+} from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { AccessTokenInfoStruct } from '../../../typechain-types/contracts/v2/platform/Factory';
+import { AccessTokenInfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
 
 export type TokenMetadata = { name: string; symbol: string; uri: string };
 

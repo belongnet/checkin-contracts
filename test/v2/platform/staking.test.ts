@@ -2,8 +2,8 @@ import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import { LONG, Staking } from '../../../typechain-types';
-import { getPercentage } from '../helpers/getPercentage';
-import { deployLONG, deployStaking } from '../helpers/deployFixtures';
+import { getPercentage } from '../../../helpers/getPercentage';
+import { deployLONG, deployStaking } from '../../../helpers/deployFixtures';
 
 describe('Staking', () => {
   async function fixture() {

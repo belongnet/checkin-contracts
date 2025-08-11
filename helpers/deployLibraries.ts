@@ -1,6 +1,6 @@
-import { ContractFactory } from 'ethers';
-import { Helper, SignatureVerifier } from '../../../typechain-types';
 import { ethers } from 'hardhat';
+import { ContractFactory } from 'ethers';
+import { Helper, SignatureVerifier } from '../typechain-types';
 
 export async function deploySignatureVerifier(): Promise<SignatureVerifier> {
   const SignatureVerifier: ContractFactory = await ethers.getContractFactory('SignatureVerifier');

@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
-import { deployEscrow } from '../helpers/deployFixtures';
+import { deployEscrow } from '../../../helpers/deployFixtures';
 import { Escrow } from '../../../typechain-types';
 
 describe('Escrow', () => {

@@ -24,9 +24,9 @@ import {
   deployFactory,
   deployRoyaltiesReceiverV2Implementation,
   TokenMetadata,
-} from '../helpers/deployFixtures';
-import { deploySignatureVerifier } from '../helpers/deployLibraries';
-import { deployMockTransferValidatorV2, deployWETHMock } from '../helpers/deployMockFixtures';
+} from '../../../helpers/deployFixtures';
+import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
+import { deployMockTransferValidatorV2, deployWETHMock } from '../../../helpers/deployMockFixtures';
 
 describe('AccessToken', () => {
   const PLATFORM_COMISSION = '100';

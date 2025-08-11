@@ -1,12 +1,12 @@
 import { ethers } from 'hardhat';
+import { ContractFactory } from 'ethers';
 import {
   MockTransferValidatorV2,
   WETHMock,
   LONGPriceFeedMockV1,
   LONGPriceFeedMockV2,
   LONGPriceFeedMockV3,
-} from '../../../typechain-types';
-import { ContractFactory } from 'ethers';
+} from '../typechain-types';
 
 export async function deployWETHMock(): Promise<WETHMock> {
   const WETHMock: ContractFactory = await ethers.getContractFactory('WETHMock');

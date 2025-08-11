@@ -18,9 +18,9 @@ import {
   deployRoyaltiesReceiverV2Implementation,
   deployLONG,
   deployCreditTokens,
-} from '../helpers/deployFixtures';
-import { deploySignatureVerifier } from '../helpers/deployLibraries';
-import { deployMockTransferValidatorV2 } from '../helpers/deployMockFixtures';
+} from '../../../helpers/deployFixtures';
+import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
+import { deployMockTransferValidatorV2 } from '../../../helpers/deployMockFixtures';
 
 describe('CreditToken', () => {
   let implementations: Factory.ImplementationsStruct;
