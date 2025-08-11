@@ -1,7 +1,10 @@
 import fs from 'fs';
 import { ethers, upgrades } from 'hardhat';
+import { waitForNextBlock } from '../../../helpers/wait';
+import { verifyContract } from '../../../helpers/verify';
 
-const proxy = '0xCa673987F1D74552fC25Dd7975848FE6f5F21abC';
+const UPGRADE = false;
+const VERIFY = true;
 
 async function main() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -18,34 +21,61 @@ async function main() {
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
+  if (UPGRADE) {
+    const FactoryV2 = await ethers.getContractFactory('Factory', {
+      libraries: { SignatureVerifier: deployments.SigantureVerifier.address },
+    });
 
-  const FactoryV2 = await ethers.getContractFactory('Factory', {
-    libraries: { SignatureVerifier: deployments.SigantureVerifier.address },
-  });
+    // (Optional) pre-check: will fail if layout breaks
+    await upgrades.validateUpgrade(deployments.Factory.proxy, FactoryV2, {
+      kind: 'transparent',
+      unsafeAllow: ['constructor'],
+      unsafeAllowLinkedLibraries: true,
+    });
 
-  // (Optional) pre-check: will fail if layout breaks
-  await upgrades.validateUpgrade(proxy, FactoryV2, {
-    kind: 'transparent',
-    unsafeAllow: ['constructor'],
-    unsafeAllowLinkedLibraries: true,
-  });
+    const royalties = { amountToCreator: 8000, amountToPlatform: 2000 };
+    const implementations = {
+      accessToken: deployments.AccessTokenImplementation.address,
+      creditToken: deployments.CreditTokenImplementation.address,
+      royaltiesReceiver: deployments.RoyaltiesReceiverV2Implementation.address,
+    };
 
-  const royalties = { amountToCreator: 8000, amountToPlatform: 2000 };
-  const implementations = {
-    accessToken: deployments.AccessTokenImplementation.address,
-    creditToken: deployments.CreditTokenImplementation.address,
-    royaltiesReceiver: deployments.RoyaltiesReceiverV2Implementation.address,
-  };
+    const upgraded = await upgrades.upgradeProxy(deployments.Factory.proxy, FactoryV2, {
+      kind: 'transparent',
+      call: { fn: 'upgradeToV2', args: [royalties, implementations] },
+      unsafeAllow: ['constructor'],
+      unsafeAllowLinkedLibraries: true,
+    });
 
-  const upgraded = await upgrades.upgradeProxy(proxy, FactoryV2, {
-    kind: 'transparent',
-    call: { fn: 'upgradeToV2', args: [royalties, implementations] },
-    unsafeAllow: ['constructor'],
-    unsafeAllowLinkedLibraries: true,
-  });
+    await waitForNextBlock();
 
-  console.log('Upgraded proxy still at:', upgraded.address);
-  console.log('new impl:', await upgrades.erc1967.getImplementationAddress(upgraded.address));
+    const newImpl = await upgrades.erc1967.getImplementationAddress(upgraded.address);
+    console.log('Upgraded proxy still at:', upgraded.address);
+    console.log('new impl:', await upgrades.erc1967.getImplementationAddress(upgraded.address));
+
+    // Update deployments object
+    deployments = {
+      ...deployments,
+      Factory: {
+        proxy: upgraded.address,
+        implementation: newImpl,
+      },
+    };
+  }
+
+  if (VERIFY) {
+    console.log('Verification:');
+    try {
+      if (!deployments.Factory?.proxy) {
+        throw new Error('No Factory deployment data found for verification.');
+      }
+      await verifyContract(deployments.Factory.proxy);
+      console.log('Factory verification successful.');
+    } catch (error) {
+      console.error('Factory verification failed: ', error);
+    }
+    console.log('Done.');
+  }
 }
 
 main().catch(e => {
