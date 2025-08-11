@@ -76,7 +76,6 @@ contract LONG is
     }
 
     /// @inheritdoc ERC20Bridgeable
-    /// @inheritdoc AccessControl
     function supportsInterface(
         bytes4 interfaceId
     ) public view override(ERC20Bridgeable, AccessControl) returns (bool) {

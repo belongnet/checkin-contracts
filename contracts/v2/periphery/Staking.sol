@@ -226,12 +226,12 @@ contract Staking is ERC4626, Ownable {
         return LONG;
     }
 
-    /// @inheritdoc ERC4626
+    /// @dev Returns the name of the token.
     function name() public pure override returns (string memory) {
         return "LONG Staking";
     }
 
-    /// @inheritdoc ERC4626
+    /// @dev Returns the symbol of the token.
     function symbol() public pure override returns (string memory) {
         return "sLONG";
     }
