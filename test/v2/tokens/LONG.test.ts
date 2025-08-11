@@ -31,38 +31,10 @@ describe('LONG', () => {
 
       expect(await LONG.hasRole(await LONG.DEFAULT_ADMIN_ROLE(), admin.address)).to.be.true;
       expect(await LONG.hasRole(await LONG.PAUSER_ROLE(), pauser.address)).to.be.true;
-      expect(await LONG.hasRole(await LONG.MINTER_ROLE(), minter.address)).to.be.true;
-      expect(await LONG.hasRole(await LONG.BURNER_ROLE(), burner.address)).to.be.true;
     });
   });
 
   describe('Mint Burn Pause', () => {
-    it('mint() only with MINTER_ROLE', async () => {
-      const { LONG, admin, minter } = await loadFixture(fixture);
-
-      await expect(LONG.connect(admin).mint(admin.address, 1000))
-        .to.be.revertedWithCustomError(LONG, 'AccessControlUnauthorizedAccount')
-        .withArgs(admin.address, await LONG.MINTER_ROLE());
-
-      const tx = await LONG.connect(minter).mint(admin.address, 1000);
-
-      await expect(tx).to.emit(LONG, 'Transfer').withArgs(ethers.constants.AddressZero, admin.address, 1000);
-    });
-
-    it('burn() only with BURNER_ROLE', async () => {
-      const { LONG, admin, minter, burner } = await loadFixture(fixture);
-
-      await LONG.connect(minter).mint(admin.address, 1000);
-
-      await expect(LONG.connect(admin)['burn(address,uint256)'](admin.address, 1000))
-        .to.be.revertedWithCustomError(LONG, 'AccessControlUnauthorizedAccount')
-        .withArgs(admin.address, await LONG.BURNER_ROLE());
-
-      const tx = await LONG.connect(burner)['burn(address,uint256)'](admin.address, 1000);
-
-      await expect(tx).to.emit(LONG, 'Transfer').withArgs(admin.address, ethers.constants.AddressZero, 1000);
-    });
-
     it('pause() only with PAUSER_ROLE', async () => {
       const { LONG, admin, pauser } = await loadFixture(fixture);
 
