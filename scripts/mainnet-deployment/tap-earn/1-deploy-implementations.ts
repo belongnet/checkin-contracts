@@ -33,7 +33,22 @@ async function deploy() {
 
   if (DEPLOY) {
     console.log('Deploying AccessTokenImplementation: ');
-    const accessTokenImpl = await deployAccessTokenImplementation('0x83618D58A1A4648BC31B7b7CD0DB08EFD39708bB');
+
+    const SignatureVerifier = deployments.SignatureVerifier.address;
+
+    // Validate environment variables
+    if (!SignatureVerifier) {
+      throw new Error('Missing required environment variables: SignatureVerifier');
+    }
+
+    // Validate addresses
+    for (const addr of [SignatureVerifier]) {
+      if (!ethers.utils.isAddress(addr)) {
+        throw new Error(`Invalid address: ${addr}`);
+      }
+    }
+
+    const accessTokenImpl = await deployAccessTokenImplementation(SignatureVerifier);
     // Update deployments object
     deployments = {
       ...deployments,

@@ -34,6 +34,20 @@ async function main() {
     const royaltiesReceiver = deployments.RoyaltiesReceiverV2Implementation.address;
     const creditToken = deployments.CreditTokenImplementation.address;
 
+    // Validate environment variables
+    if (!SignatureVerifier || !Factory || !accessToken || !royaltiesReceiver || !creditToken) {
+      throw new Error(
+        'Missing required environment variables: SignatureVerifier, Factory, AccessTokenImplementation, RoyaltiesReceiverV2Implementation,CreditTokenImplementation',
+      );
+    }
+
+    // Validate addresses
+    for (const addr of [SignatureVerifier, Factory, accessToken, royaltiesReceiver, creditToken]) {
+      if (!ethers.utils.isAddress(addr)) {
+        throw new Error(`Invalid address: ${addr}`);
+      }
+    }
+
     const FactoryV2 = await ethers.getContractFactory('Factory', {
       libraries: { SignatureVerifier },
     });
