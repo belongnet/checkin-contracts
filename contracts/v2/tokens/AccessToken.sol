@@ -194,10 +194,10 @@ contract AccessToken is
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            factory.nftFactoryParameters().signer.checkStaticPriceParameters(
-                receiver,
-                paramsArray[i]
-            );
+            factory
+                .nftFactoryParameters()
+                .signerAddress
+                .checkStaticPriceParameters(receiver, paramsArray[i]);
 
             uint256 price = paramsArray[i].whitelisted
                 ? info.whitelistMintPrice
@@ -241,10 +241,10 @@ contract AccessToken is
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            factory.nftFactoryParameters().signer.checkDynamicPriceParameters(
-                receiver,
-                paramsArray[i]
-            );
+            factory
+                .nftFactoryParameters()
+                .signerAddress
+                .checkDynamicPriceParameters(receiver, paramsArray[i]);
 
             unchecked {
                 amountToPay += paramsArray[i].price;
@@ -277,12 +277,12 @@ contract AccessToken is
 
     /// @notice Collection name.
     function name() public view override returns (string memory) {
-        return parameters.info.name;
+        return parameters.info.metadata.name;
     }
 
     /// @notice Collection symbol.
     function symbol() public view override returns (string memory) {
-        return parameters.info.symbol;
+        return parameters.info.metadata.symbol;
     }
 
     /// @notice Contract-level metadata URI for marketplaces.
@@ -388,7 +388,7 @@ contract AccessToken is
                     _parameters
                         .factory
                         .nftFactoryParameters()
-                        .commissionInBps) /
+                        .platformCommission) /
                 _feeDenominator();
 
             amountToCreator = amount - fees;
@@ -417,7 +417,7 @@ contract AccessToken is
                 _parameters
                     .factory
                     .nftFactoryParameters()
-                    .feeCollector
+                    .platformAddress
                     .safeTransferETH(feesToPlatform);
             }
             if (referralFees > 0) {
@@ -429,7 +429,7 @@ contract AccessToken is
             if (feesToPlatform > 0) {
                 expectedPayingToken.safeTransferFrom(
                     msg.sender,
-                    _parameters.factory.nftFactoryParameters().feeCollector,
+                    _parameters.factory.nftFactoryParameters().platformAddress,
                     feesToPlatform
                 );
             }

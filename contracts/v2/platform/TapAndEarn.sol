@@ -358,9 +358,12 @@ contract TapAndEarn is Initializable, Ownable {
     function venueDeposit(VenueInfo calldata venueInfo) external {
         TapAndEarnStorage memory _storage = tapEarnStorage;
 
-        _storage.contracts.factory.nftFactoryParameters().signer.checkVenueInfo(
-            venueInfo
-        );
+        _storage
+            .contracts
+            .factory
+            .nftFactoryParameters()
+            .signerAddress
+            .checkVenueInfo(venueInfo);
 
         VenueStakingRewardInfo memory stakingInfo = stakingRewards[
             _storage.contracts.staking.balanceOf(venueInfo.venue).stakingTiers()
@@ -386,7 +389,7 @@ contract TapAndEarn is Initializable, Ownable {
             .contracts
             .factory
             .nftFactoryParameters()
-            .feeCollector;
+            .platformAddress;
         uint256 venueId = venueInfo.venue.getVenueId();
 
         if (
@@ -461,7 +464,7 @@ contract TapAndEarn is Initializable, Ownable {
             .contracts
             .factory
             .nftFactoryParameters()
-            .signer
+            .signerAddress
             .checkCustomerInfo(customerInfo, rules);
 
         uint256 venueId = customerInfo.venueToPayFor.getVenueId();
@@ -562,7 +565,7 @@ contract TapAndEarn is Initializable, Ownable {
             .contracts
             .factory
             .nftFactoryParameters()
-            .signer
+            .signerAddress
             .checkPromoterPaymentDistribution(promoterInfo);
 
         uint256 venueId = promoterInfo.venue.getVenueId();
@@ -588,7 +591,7 @@ contract TapAndEarn is Initializable, Ownable {
             .contracts
             .factory
             .nftFactoryParameters()
-            .feeCollector;
+            .platformAddress;
 
         uint256 toPromoter = promoterInfo.amountInUSD;
         uint24 percentage = promoterInfo.paymentInUSDC

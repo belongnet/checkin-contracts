@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.27;
 
+struct NftMetadata {
+    /// @notice The name of the NFT collection.
+    string name;
+    /// @notice The symbol representing the NFT collection.
+    string symbol;
+}
+
 /// @title AccessTokenInfo
 /// @notice Initialization/configuration data for an AccessToken (ERC-721) collection.
 /// @dev
@@ -23,10 +30,8 @@ struct AccessTokenInfo {
     uint256 whitelistMintPrice;
     /// @notice Optional collection expiration timestamp (seconds since epoch).
     uint256 collectionExpire;
-    /// @notice Collection name.
-    string name;
-    /// @notice Collection symbol.
-    string symbol;
+    /// @notice Collection name and symbol stored as NftMetadata struct.
+    NftMetadata metadata;
     /// @notice Contract-level metadata URI.
     string contractURI;
     /// @notice Backend signature authorizing creation with the provided fields.

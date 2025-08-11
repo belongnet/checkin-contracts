@@ -10,14 +10,26 @@ import {AccessToken} from "../tokens/AccessToken.sol";
 import {CreditToken} from "../tokens/CreditToken.sol";
 import {RoyaltiesReceiverV2} from "../periphery/RoyaltiesReceiverV2.sol";
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
-import {AccessTokenInfo, ERC1155Info} from "../Structures.sol";
+import {AccessTokenInfo, NftMetadata, ERC1155Info} from "../Structures.sol";
+
+/// @notice Summary information about a deployed AccessToken collection.
+struct NftInstanceInfo {
+    /// @notice Creator address for the collection.
+    address creator;
+    /// @notice Deployed AccessToken proxy address.
+    address nftAddress;
+    /// @notice Deployed RoyaltiesReceiver address (or zero if feeNumerator == 0).
+    address royaltiesReceiver;
+    /// @notice Collection name and symbol stored as NftMetadata struct.
+    NftMetadata metadata;
+}
 
 /// @title NFT Factory Contract
 /// @notice Produces upgradeable ERC721-like AccessToken collections and minimal-proxy ERC1155 CreditToken collections,
 ///         configures royalties receivers, and manages platform referral parameters.
 /// @dev
 /// - Uses Solady's `LibClone` for CREATE2 deterministic deployments and ERC1967 proxy deployments.
-/// - Signature-gated creation flows validated by a platform signer (see {FactoryParameters.signer}).
+/// - Signature-gated creation flows validated by a platform signerAddress (see {FactoryParameters.signerAddress}).
 /// - Royalties split (creator/platform/referral) configured via `RoyaltiesReceiverV2`.
 /// - Referral configuration inherited from {ReferralSystemV2}.
 contract Factory is Initializable, Ownable, ReferralSystemV2 {
@@ -46,10 +58,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Emitted after successful creation of an AccessToken collection.
     /// @param _hash Keccak256 hash of `(name, symbol)`.
     /// @param info Deployed collection details.
-    event AccessTokenCreated(
-        bytes32 indexed _hash,
-        AccessTokenInstanceInfo info
-    );
+    event AccessTokenCreated(bytes32 indexed _hash, NftInstanceInfo info);
 
     /// @notice Emitted after successful creation of a CreditToken collection.
     /// @param _hash Keccak256 hash of `(name, symbol)`.
@@ -72,34 +81,20 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     // ========== Types ==========
 
     /// @notice Global configuration for the Factory.
-    /// @dev `commissionInBps` is expressed in basis points (BPS), where 10_000 == 100%.
+    /// @dev `platformCommission` is expressed in basis points (BPS), where 10_000 == 100%.
     struct FactoryParameters {
         /// @notice Address that collects platform fees/commissions.
-        address feeCollector;
+        address platformAddress;
         /// @notice EOA/contract whose signature authorizes creation requests.
-        address signer;
+        address signerAddress;
         /// @notice Default payment token used when none specified by caller.
-        address defaultPaymentToken;
+        address defaultPaymentCurrency;
         /// @notice Platform commission in BPS.
-        uint256 commissionInBps;
+        uint256 platformCommission;
         /// @notice Maximum permissible array length for batched operations (guardrail).
         uint256 maxArraySize;
         /// @notice Transfer validator contract address injected into AccessToken instances.
         address transferValidator;
-    }
-
-    /// @notice Summary information about a deployed AccessToken collection.
-    struct AccessTokenInstanceInfo {
-        /// @notice Creator address for the collection.
-        address creator;
-        /// @notice Deployed AccessToken proxy address.
-        address accessToken;
-        /// @notice Deployed RoyaltiesReceiver address (or zero if feeNumerator == 0).
-        address royaltiesReceiver;
-        /// @notice Collection name.
-        string name;
-        /// @notice Collection symbol.
-        string symbol;
     }
 
     /// @notice Summary information about a deployed CreditToken collection.
@@ -129,7 +124,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
     /// @notice Implementation contract addresses used for deployments.
     /// @dev
-    /// - `accessToken` is an ERC1967 implementation for proxy deployments (Upgradeable).
+    /// - `nftAddress` is an ERC1967 implementation for proxy deployments (Upgradeable).
     /// - `creditToken` and `royaltiesReceiver` are minimal-proxy (clone) targets.
     struct Implementations {
         address accessToken;
@@ -140,11 +135,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     // ========== Storage ==========
 
     /// @notice Current factory parameters.
-    FactoryParameters private _factoryParameters;
+    FactoryParameters private _nftFactoryParameters;
 
     /// @notice Mapping `(name, symbol)` hash → AccessToken collection info.
-    mapping(bytes32 hashedNameSymbol => AccessTokenInstanceInfo info)
-        private _accessTokenInstanceInfo;
+    mapping(bytes32 hashedNameSymbol => NftInstanceInfo info)
+        public getNftInstanceInfo;
 
     /// @notice Mapping `(name, symbol)` hash → CreditToken collection info.
     mapping(bytes32 hashedNameSymbol => CreditTokenInstanceInfo info)
@@ -199,28 +194,28 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// - Uses `deployDeterministicERC1967` for AccessToken proxy and `cloneDeterministic` for royalties receiver.
     /// @param accessTokenInfo Parameters used to initialize the AccessToken instance.
     /// @param referralCode Optional referral code attributed to the creator.
-    /// @return accessToken The deployed AccessToken proxy address.
+    /// @return nftAddress The deployed AccessToken proxy address.
     function produce(
         AccessTokenInfo memory accessTokenInfo,
         bytes32 referralCode
-    ) external returns (address accessToken) {
-        FactoryParameters memory factoryParameters = _factoryParameters;
+    ) external returns (address nftAddress) {
+        FactoryParameters memory factoryParameters = _nftFactoryParameters;
 
-        factoryParameters.signer.checkAccessTokenInfo(accessTokenInfo);
+        factoryParameters.signerAddress.checkAccessTokenInfo(accessTokenInfo);
 
         bytes32 hashedSalt = _metadataHash(
-            accessTokenInfo.name,
-            accessTokenInfo.symbol
+            accessTokenInfo.metadata.name,
+            accessTokenInfo.metadata.symbol
         );
 
         require(
-            _accessTokenInstanceInfo[hashedSalt].accessToken == address(0),
+            getNftInstanceInfo[hashedSalt].nftAddress == address(0),
             TokenAlreadyExists()
         );
 
         accessTokenInfo.paymentToken = accessTokenInfo.paymentToken ==
             address(0)
-            ? factoryParameters.defaultPaymentToken
+            ? factoryParameters.defaultPaymentCurrency
             : accessTokenInfo.paymentToken;
 
         Implementations memory currentImplementations = _currentImplementations;
@@ -245,7 +240,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             RoyaltiesReceiverV2(payable(receiver)).initialize(
                 RoyaltiesReceiverV2.RoyaltiesReceivers(
                     msg.sender,
-                    factoryParameters.feeCollector,
+                    factoryParameters.platformAddress,
                     referrals[referralCode].creator
                 ),
                 Factory(address(this)),
@@ -253,14 +248,14 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             );
         }
 
-        accessToken = currentImplementations
+        nftAddress = currentImplementations
             .accessToken
             .deployDeterministicERC1967(hashedSalt);
         require(
-            predictedAccessToken == accessToken,
+            predictedAccessToken == nftAddress,
             AccessTokenAddressMismatch()
         );
-        AccessToken(accessToken).initialize(
+        AccessToken(nftAddress).initialize(
             AccessToken.AccessTokenParameters({
                 factory: Factory(address(this)),
                 info: accessTokenInfo,
@@ -271,16 +266,17 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             factoryParameters.transferValidator
         );
 
-        AccessTokenInstanceInfo
-            memory accessTokenInstanceInfo = AccessTokenInstanceInfo({
-                creator: msg.sender,
-                accessToken: accessToken,
-                royaltiesReceiver: receiver,
-                name: accessTokenInfo.name,
-                symbol: accessTokenInfo.symbol
-            });
+        NftInstanceInfo memory accessTokenInstanceInfo = NftInstanceInfo({
+            creator: msg.sender,
+            nftAddress: nftAddress,
+            royaltiesReceiver: receiver,
+            metadata: NftMetadata({
+                name: accessTokenInfo.metadata.name,
+                symbol: accessTokenInfo.metadata.symbol
+            })
+        });
 
-        _accessTokenInstanceInfo[hashedSalt] = accessTokenInstanceInfo;
+        getNftInstanceInfo[hashedSalt] = accessTokenInstanceInfo;
 
         emit AccessTokenCreated(hashedSalt, accessTokenInstanceInfo);
     }
@@ -297,7 +293,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         ERC1155Info calldata creditTokenInfo,
         bytes calldata signature
     ) external returns (address creditToken) {
-        _factoryParameters.signer.checkCreditTokenInfo(
+        _nftFactoryParameters.signerAddress.checkCreditTokenInfo(
             signature,
             creditTokenInfo
         );
@@ -366,7 +362,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         view
         returns (FactoryParameters memory)
     {
-        return _factoryParameters;
+        return _nftFactoryParameters;
     }
 
     /// @notice Returns the current royalties parameters (BPS).
@@ -388,12 +384,12 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Returns stored info for an AccessToken collection by `(name, symbol)`.
     /// @param name Collection name.
     /// @param symbol Collection symbol.
-    /// @return The {AccessTokenInstanceInfo} record, if created.
-    function getNftInstanceInfo(
+    /// @return The {NftInstanceInfo} record, if created.
+    function nftInstanceInfo(
         string calldata name,
         string calldata symbol
-    ) external view returns (AccessTokenInstanceInfo memory) {
-        return _accessTokenInstanceInfo[_metadataHash(name, symbol)];
+    ) external view returns (NftInstanceInfo memory) {
+        return getNftInstanceInfo[_metadataHash(name, symbol)];
     }
 
     /// @notice Returns stored info for a CreditToken collection by `(name, symbol)`.
@@ -424,7 +420,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             TotalRoyaltiesExceed100Pecents()
         );
 
-        _factoryParameters = factoryParameters_;
+        _nftFactoryParameters = factoryParameters_;
         _royaltiesParameters = _royalties;
         _currentImplementations = _implementations;
 

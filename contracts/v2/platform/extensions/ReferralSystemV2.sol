@@ -197,5 +197,5 @@ abstract contract ReferralSystemV2 {
     // ========== Reserved Storage Space ==========
 
     /// @dev Reserved storage space to allow for layout changes in the future.
-    uint256[49] private __gap;
+    uint256[50] private __gap;
 }

@@ -41,17 +41,20 @@ library SignatureVerifier {
         AccessTokenInfo memory accessTokenInfo
     ) external view {
         require(
-            bytes(accessTokenInfo.name).length > 0 &&
-                bytes(accessTokenInfo.symbol).length > 0,
-            EmptyMetadata(accessTokenInfo.name, accessTokenInfo.symbol)
+            bytes(accessTokenInfo.metadata.name).length > 0 &&
+                bytes(accessTokenInfo.metadata.symbol).length > 0,
+            EmptyMetadata(
+                accessTokenInfo.metadata.name,
+                accessTokenInfo.metadata.symbol
+            )
         );
 
         require(
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
-                        accessTokenInfo.name,
-                        accessTokenInfo.symbol,
+                        accessTokenInfo.metadata.name,
+                        accessTokenInfo.metadata.symbol,
                         accessTokenInfo.contractURI,
                         accessTokenInfo.feeNumerator,
                         block.chainid
