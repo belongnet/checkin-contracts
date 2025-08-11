@@ -227,6 +227,674 @@
         },
         "namespaces": {}
       }
+    },
+    "253784ca694e520fa30ad6dc90e6d543ce59af6d2ca804bf4f4955de57226a22": {
+      "address": "0x0A9dac3EC44cF79e7A26710a8513557966279270",
+      "txHash": "0xe8ef48d215dea51278790f7ff1d59a0ab71a854bb93e6447fff20c13d1956a34",
+      "layout": {
+        "solcVersion": "0.8.27",
+        "storage": [
+          {
+            "label": "usedToPercentage",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_array(t_uint16)5_storage",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:61"
+          },
+          {
+            "label": "referrals",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_bytes32,t_struct(ReferralCode)4295_storage)",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:64"
+          },
+          {
+            "label": "usedCode",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_address,t_mapping(t_bytes32,t_uint256))",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:200"
+          },
+          {
+            "label": "_nftFactoryParameters",
+            "offset": 0,
+            "slot": "53",
+            "type": "t_struct(FactoryParameters)2224_storage",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:138"
+          },
+          {
+            "label": "getNftInstanceInfo",
+            "offset": 0,
+            "slot": "59",
+            "type": "t_mapping(t_bytes32,t_struct(NftInstanceInfo)2148_storage)",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:141"
+          },
+          {
+            "label": "_creditTokenInstanceInfo",
+            "offset": 0,
+            "slot": "60",
+            "type": "t_mapping(t_bytes32,t_struct(CreditTokenInstanceInfo)2247_storage)",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:145"
+          },
+          {
+            "label": "_royaltiesParameters",
+            "offset": 0,
+            "slot": "61",
+            "type": "t_struct(RoyaltiesParameters)2253_storage",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:149"
+          },
+          {
+            "label": "_currentImplementations",
+            "offset": 0,
+            "slot": "62",
+            "type": "t_struct(Implementations)2261_storage",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:152"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint16)5_storage": {
+            "label": "uint16[5]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_bytes32,t_uint256))": {
+            "label": "mapping(address => mapping(bytes32 => uint256))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(CreditTokenInstanceInfo)2247_storage)": {
+            "label": "mapping(bytes32 => struct Factory.CreditTokenInstanceInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(NftInstanceInfo)2148_storage)": {
+            "label": "mapping(bytes32 => struct NftInstanceInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(ReferralCode)4295_storage)": {
+            "label": "mapping(bytes32 => struct ReferralSystemV2.ReferralCode)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(CreditTokenInstanceInfo)2247_storage": {
+            "label": "struct Factory.CreditTokenInstanceInfo",
+            "members": [
+              {
+                "label": "defaultAdmin",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "manager",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "minter",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "burner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "creditToken",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "symbol",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "6"
+              }
+            ],
+            "numberOfBytes": "224"
+          },
+          "t_struct(FactoryParameters)2224_storage": {
+            "label": "struct Factory.FactoryParameters",
+            "members": [
+              {
+                "label": "platformAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "signerAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "defaultPaymentCurrency",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "platformCommission",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "maxArraySize",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "transferValidator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_struct(Implementations)2261_storage": {
+            "label": "struct Factory.Implementations",
+            "members": [
+              {
+                "label": "nftAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "creditToken",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "royaltiesReceiver",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              }
+            ],
+            "numberOfBytes": "96"
+          },
+          "t_struct(NftInstanceInfo)2148_storage": {
+            "label": "struct NftInstanceInfo",
+            "members": [
+              {
+                "label": "creator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "nftAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "royaltiesReceiver",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "metadata",
+                "type": "t_struct(NftMetadata)458_storage",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(NftMetadata)458_storage": {
+            "label": "struct NftMetadata",
+            "members": [
+              {
+                "label": "name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "symbol",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(ReferralCode)4295_storage": {
+            "label": "struct ReferralSystemV2.ReferralCode",
+            "members": [
+              {
+                "label": "creator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "referralUsers",
+                "type": "t_array(t_address)dyn_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(RoyaltiesParameters)2253_storage": {
+            "label": "struct Factory.RoyaltiesParameters",
+            "members": [
+              {
+                "label": "amountToCreator",
+                "type": "t_uint16",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "amountToPlatform",
+                "type": "t_uint16",
+                "offset": 2,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint16": {
+            "label": "uint16",
+            "numberOfBytes": "2"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {}
+      }
+    },
+    "e640d98e4fac021be6a6c7f3c5928febe71884c91895f8e5b0fdf633810faffd": {
+      "address": "0xC794DB3285257943c2d1Cabe549fA744c95185D5",
+      "txHash": "0x3e684986390820a80ece7253336fcceb1a50f01e7947685a4c2018f7ce9d3139",
+      "layout": {
+        "solcVersion": "0.8.27",
+        "storage": [
+          {
+            "label": "usedToPercentage",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_array(t_uint16)5_storage",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:61"
+          },
+          {
+            "label": "referrals",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_bytes32,t_struct(ReferralCode)4284_storage)",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:64"
+          },
+          {
+            "label": "usedCode",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_address,t_mapping(t_bytes32,t_uint256))",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:200"
+          },
+          {
+            "label": "_nftFactoryParameters",
+            "offset": 0,
+            "slot": "53",
+            "type": "t_struct(FactoryParameters)2224_storage",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:138"
+          },
+          {
+            "label": "getNftInstanceInfo",
+            "offset": 0,
+            "slot": "59",
+            "type": "t_mapping(t_bytes32,t_struct(NftInstanceInfo)2148_storage)",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:141"
+          },
+          {
+            "label": "_creditTokenInstanceInfo",
+            "offset": 0,
+            "slot": "60",
+            "type": "t_mapping(t_bytes32,t_struct(CreditTokenInstanceInfo)2247_storage)",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:145"
+          },
+          {
+            "label": "_royaltiesParameters",
+            "offset": 0,
+            "slot": "61",
+            "type": "t_struct(RoyaltiesParameters)2253_storage",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:149"
+          },
+          {
+            "label": "_currentImplementations",
+            "offset": 0,
+            "slot": "62",
+            "type": "t_struct(Implementations)2261_storage",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:152"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint16)5_storage": {
+            "label": "uint16[5]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_bytes32,t_uint256))": {
+            "label": "mapping(address => mapping(bytes32 => uint256))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(CreditTokenInstanceInfo)2247_storage)": {
+            "label": "mapping(bytes32 => struct Factory.CreditTokenInstanceInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(NftInstanceInfo)2148_storage)": {
+            "label": "mapping(bytes32 => struct NftInstanceInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(ReferralCode)4284_storage)": {
+            "label": "mapping(bytes32 => struct ReferralSystemV2.ReferralCode)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(CreditTokenInstanceInfo)2247_storage": {
+            "label": "struct Factory.CreditTokenInstanceInfo",
+            "members": [
+              {
+                "label": "defaultAdmin",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "manager",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "minter",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "burner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "creditToken",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "symbol",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "6"
+              }
+            ],
+            "numberOfBytes": "224"
+          },
+          "t_struct(FactoryParameters)2224_storage": {
+            "label": "struct Factory.FactoryParameters",
+            "members": [
+              {
+                "label": "platformAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "signerAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "defaultPaymentCurrency",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "platformCommission",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "maxArraySize",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "transferValidator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_struct(Implementations)2261_storage": {
+            "label": "struct Factory.Implementations",
+            "members": [
+              {
+                "label": "accessToken",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "creditToken",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "royaltiesReceiver",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              }
+            ],
+            "numberOfBytes": "96"
+          },
+          "t_struct(NftInstanceInfo)2148_storage": {
+            "label": "struct NftInstanceInfo",
+            "members": [
+              {
+                "label": "creator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "nftAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "royaltiesReceiver",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "metadata",
+                "type": "t_struct(NftMetadata)458_storage",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(NftMetadata)458_storage": {
+            "label": "struct NftMetadata",
+            "members": [
+              {
+                "label": "name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "symbol",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(ReferralCode)4284_storage": {
+            "label": "struct ReferralSystemV2.ReferralCode",
+            "members": [
+              {
+                "label": "creator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "referralUsers",
+                "type": "t_array(t_address)dyn_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(RoyaltiesParameters)2253_storage": {
+            "label": "struct Factory.RoyaltiesParameters",
+            "members": [
+              {
+                "label": "amountToCreator",
+                "type": "t_uint16",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "amountToPlatform",
+                "type": "t_uint16",
+                "offset": 2,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint16": {
+            "label": "uint16",
+            "numberOfBytes": "2"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {}
+      }
     }
   }
 }
