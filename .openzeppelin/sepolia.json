@@ -9,6 +9,16 @@
       "address": "0xCa673987F1D74552fC25Dd7975848FE6f5F21abC",
       "txHash": "0x140e376a593ea10bbfec450f9ee8e7245b1443eb5a3e871fbbdc50485405f993",
       "kind": "transparent"
+    },
+    {
+      "address": "0x4beE9f94C187e80BDab296749c910E4667e13f66",
+      "txHash": "0x043a1af1adfb5a98418da3f552b73140022f02c049caea9b92be2acfb36a65da",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xB143A7e48aD5d6C66e446BB9aAAb391157c42150",
+      "txHash": "0xfdf8d07faaeb8df3ecc2b6dca3edfc5132bff4b947d96ba20f8fcabeefa214bd",
+      "kind": "transparent"
     }
   ],
   "impls": {
@@ -887,6 +897,409 @@
           "t_uint16": {
             "label": "uint16",
             "numberOfBytes": "2"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {}
+      }
+    },
+    "ae480b6c00963dced8b86f13f270466a292d7b53591af920fec6e82cbe0e62d3": {
+      "address": "0xf83460fE951b741f5b3D6d510202675a1625b927",
+      "txHash": "0x1ec7e99a92f1101b9fcc8270a88cf51f12cb07da306b581734fc0c4216bfca87",
+      "layout": {
+        "solcVersion": "0.8.27",
+        "storage": [
+          {
+            "label": "tapEarnStorage",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_struct(TapAndEarnStorage)3021_storage",
+            "contract": "TapAndEarn",
+            "src": "contracts/v2/platform/TapAndEarn.sol:217"
+          },
+          {
+            "label": "generalVenueInfo",
+            "offset": 0,
+            "slot": "12",
+            "type": "t_mapping(t_address,t_struct(GeneralVenueInfo)3073_storage)",
+            "contract": "TapAndEarn",
+            "src": "contracts/v2/platform/TapAndEarn.sol:221"
+          },
+          {
+            "label": "stakingRewards",
+            "offset": 0,
+            "slot": "13",
+            "type": "t_mapping(t_enum(StakingTiers)544,t_struct(RewardsInfo)3093_storage)",
+            "contract": "TapAndEarn",
+            "src": "contracts/v2/platform/TapAndEarn.sol:225"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_contract(CreditToken)5547": {
+            "label": "contract CreditToken",
+            "numberOfBytes": "20"
+          },
+          "t_contract(Escrow)894": {
+            "label": "contract Escrow",
+            "numberOfBytes": "20"
+          },
+          "t_contract(Factory)2847": {
+            "label": "contract Factory",
+            "numberOfBytes": "20"
+          },
+          "t_contract(Staking)2111": {
+            "label": "contract Staking",
+            "numberOfBytes": "20"
+          },
+          "t_enum(BountyTypes)556": {
+            "label": "enum BountyTypes",
+            "members": [
+              "NoType",
+              "VisitBounty",
+              "SpendBounty",
+              "Both"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_enum(PaymentTypes)550": {
+            "label": "enum PaymentTypes",
+            "members": [
+              "NoType",
+              "USDC",
+              "LONG",
+              "Both"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_enum(StakingTiers)544": {
+            "label": "enum StakingTiers",
+            "members": [
+              "NoStakes",
+              "BronzeTier",
+              "SilverTier",
+              "GoldTier",
+              "PlatinumTier"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_struct(GeneralVenueInfo)3073_storage)": {
+            "label": "mapping(address => struct TapAndEarn.GeneralVenueInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_enum(StakingTiers)544,t_struct(RewardsInfo)3093_storage)": {
+            "label": "mapping(enum StakingTiers => struct TapAndEarn.RewardsInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Contracts)3040_storage": {
+            "label": "struct TapAndEarn.Contracts",
+            "members": [
+              {
+                "label": "factory",
+                "type": "t_contract(Factory)2847",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "escrow",
+                "type": "t_contract(Escrow)894",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "staking",
+                "type": "t_contract(Staking)2111",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "venueToken",
+                "type": "t_contract(CreditToken)5547",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "promoterToken",
+                "type": "t_contract(CreditToken)5547",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "longPF",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_struct(Fees)3052_storage": {
+            "label": "struct TapAndEarn.Fees",
+            "members": [
+              {
+                "label": "referralCreditsAmount",
+                "type": "t_uint8",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "affiliatePercentage",
+                "type": "t_uint24",
+                "offset": 1,
+                "slot": "0"
+              },
+              {
+                "label": "longCustomerDiscountPercentage",
+                "type": "t_uint24",
+                "offset": 4,
+                "slot": "0"
+              },
+              {
+                "label": "platformSubsidyPercentage",
+                "type": "t_uint24",
+                "offset": 7,
+                "slot": "0"
+              },
+              {
+                "label": "processingFeePercentage",
+                "type": "t_uint24",
+                "offset": 10,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(GeneralVenueInfo)3073_storage": {
+            "label": "struct TapAndEarn.GeneralVenueInfo",
+            "members": [
+              {
+                "label": "rules",
+                "type": "t_struct(VenueRules)564_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "remainingCredits",
+                "type": "t_uint16",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(PaymentsInfo)3066_storage": {
+            "label": "struct TapAndEarn.PaymentsInfo",
+            "members": [
+              {
+                "label": "uniswapPoolFees",
+                "type": "t_uint24",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "uniswapV3Router",
+                "type": "t_address",
+                "offset": 3,
+                "slot": "0"
+              },
+              {
+                "label": "uniswapV3Quoter",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "weth",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "usdc",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "long",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(PromoterStakingRewardInfo)3085_storage": {
+            "label": "struct TapAndEarn.PromoterStakingRewardInfo",
+            "members": [
+              {
+                "label": "usdcPercentage",
+                "type": "t_uint24",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "longPercentage",
+                "type": "t_uint24",
+                "offset": 3,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(RewardsInfo)3093_storage": {
+            "label": "struct TapAndEarn.RewardsInfo",
+            "members": [
+              {
+                "label": "venueStakingInfo",
+                "type": "t_struct(VenueStakingRewardInfo)3079_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "promoterStakingInfo",
+                "type": "t_struct(PromoterStakingRewardInfo)3085_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(TapAndEarnStorage)3021_storage": {
+            "label": "struct TapAndEarn.TapAndEarnStorage",
+            "members": [
+              {
+                "label": "contracts",
+                "type": "t_struct(Contracts)3040_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "paymentsInfo",
+                "type": "t_struct(PaymentsInfo)3066_storage",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "fees",
+                "type": "t_struct(Fees)3052_storage",
+                "offset": 0,
+                "slot": "11"
+              }
+            ],
+            "numberOfBytes": "384"
+          },
+          "t_struct(VenueRules)564_storage": {
+            "label": "struct VenueRules",
+            "members": [
+              {
+                "label": "paymentType",
+                "type": "t_enum(PaymentTypes)550",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "bountyType",
+                "type": "t_enum(BountyTypes)556",
+                "offset": 1,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(VenueStakingRewardInfo)3079_storage": {
+            "label": "struct TapAndEarn.VenueStakingRewardInfo",
+            "members": [
+              {
+                "label": "depositFeePercentage",
+                "type": "t_uint24",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "convenienceFeeAmount",
+                "type": "t_uint24",
+                "offset": 3,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint16": {
+            "label": "uint16",
+            "numberOfBytes": "2"
+          },
+          "t_uint24": {
+            "label": "uint24",
+            "numberOfBytes": "3"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {}
+      }
+    },
+    "da465b08f8605c59d40ac50f16ccae14a040c5fd2a380225d85c36cd319e626f": {
+      "address": "0xcB5D949Bad43A7753e8a6cEE6eca37E418fbb9a3",
+      "txHash": "0x92f60fac1aeaada6bcf7c64a88883bdc83ece441c8135895261630f8014d9f0b",
+      "layout": {
+        "solcVersion": "0.8.27",
+        "storage": [
+          {
+            "label": "tapAndEarn",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_contract(TapAndEarn)4263",
+            "contract": "Escrow",
+            "src": "contracts/v2/periphery/Escrow.sol:75"
+          },
+          {
+            "label": "venueDeposits",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_address,t_struct(VenueDeposits)685_storage)",
+            "contract": "Escrow",
+            "src": "contracts/v2/periphery/Escrow.sol:78"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_contract(TapAndEarn)4263": {
+            "label": "contract TapAndEarn",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_struct(VenueDeposits)685_storage)": {
+            "label": "mapping(address => struct Escrow.VenueDeposits)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(VenueDeposits)685_storage": {
+            "label": "struct Escrow.VenueDeposits",
+            "members": [
+              {
+                "label": "usdcDeposits",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "longDeposits",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
           },
           "t_uint256": {
             "label": "uint256",
