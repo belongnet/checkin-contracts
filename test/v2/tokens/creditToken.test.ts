@@ -54,8 +54,8 @@ describe('CreditToken', () => {
     const { venueToken, promoterToken } = await deployCreditTokens(
       true,
       false,
-      factory,
-      signer,
+      factory.address,
+      signer.privateKey,
       admin,
       manager.address,
       minter.address,

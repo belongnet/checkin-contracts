@@ -184,8 +184,8 @@ describe('TapAndEarn', () => {
     const { venueToken, promoterToken } = await deployCreditTokens(
       true,
       false,
-      factory,
-      signer,
+      factory.address,
+      signer.privateKey,
       admin,
       manager.address,
       tapEarn.address,
