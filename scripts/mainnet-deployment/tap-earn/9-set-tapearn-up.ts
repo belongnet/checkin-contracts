@@ -1,9 +1,7 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { ethers } from 'hardhat';
-import { verifyContract } from '../../../helpers/verify';
-import { Factory, Helper, TapAndEarn } from '../../../typechain-types';
-import { deployHelper } from '../../../helpers/deployLibraries';
+import { TapAndEarn } from '../../../typechain-types';
 
 dotenv.config();
 
@@ -31,7 +29,7 @@ async function deploy() {
   const staking = deployments.Staking.address;
   const venueToken = deployments.VenueToken.address;
   const promoterToken = deployments.PromoterToken.address;
-  const longPF = deployments.LongPriceFeed.address;
+  const longPF = process.env.LONG_PRICE_FEED;
 
   // Validate environment variables
   if (!tapEarn || !factory || !escrow || !venueToken || !promoterToken || !longPF) {
