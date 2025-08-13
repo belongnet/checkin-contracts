@@ -37,7 +37,7 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: `https://eth.llamarpc.com`,
+        url: `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`,
         blockNumber: 23068383,
       },
       throwOnCallFailures: false,
