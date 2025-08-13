@@ -67,15 +67,9 @@ async function deploy() {
       }
     }
 
-    // Validate uniswapPoolFees (assuming it's a number, e.g., 500, 3000, 10000)
-    const poolFees = parseInt(uniswapPoolFees, 10);
-    if (isNaN(poolFees) || poolFees <= 0) {
-      throw new Error(`Invalid Uniswap pool fees: ${uniswapPoolFees}`);
-    }
-
     // Construct paymentsInfo struct
     const paymentsInfo = {
-      uniswapPoolFees: poolFees,
+      uniswapPoolFees,
       uniswapV3Router,
       uniswapV3Quoter,
       weth,
