@@ -157,7 +157,6 @@ DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/3-d
 
 Required fields in `.env`: 
 ```
-# Staking Contract
 TREASURY_ADDRESS=0xYourTreasuryAddress  # Treasury address for Staking
 ADMIN_ADDRESS=0xYourAdminAddress  # Admin role address (used as owner in multiple contracts)
 ```
@@ -174,25 +173,16 @@ Run:
 DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/5-deploy-helper.ts --network <network sepcified>
 ```
 
+7. TapAndEarn:
 
-8. VenueToken, CreditToken:
+Required fields in `.env`:
 
-For their deployment Signer Backend should sing a message for its deployment. After their deployments, addresses should be added to `.env` file:
 ```
-VENUE_TOKEN=0xYourVenueTokenAddress  # Venue token address
-PROMOTER_TOKEN=0xYourPromoterTokenAddress  # Promoter token address
-```
-
-9. TapAndEarn:
-
-Required fields in `.env`: 
-```
-# Staking Contract
 UNISWAPV3_POOL_FEES=3000  # Uniswap V3 pool fee tier (e.g., 3000 for 0.3%)
-UNISWAPV3_ROUTER_ADDRESS=0xE592427A0AEce92De3Edee1F18E0157C05861564  # Uniswap V3 Router (Sepolia example)
-UNISWAPV3_QUOTER_ADDRESS=0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6  # Uniswap V3 Quoter (Sepolia example)
-WETH_ADDRESS=0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14  # WETH address (Sepolia example)
-USDC_ADDRESS=0xYourUSDCAddress  # USDC token address on the network
+UNISWAPV3_ROUTER_ADDRESS=0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E  # Uniswap V3 Router (Sepolia example)
+UNISWAPV3_QUOTER_ADDRESS=0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3  # Uniswap V3 Quoter (Sepolia example)
+WETH_ADDRESS=0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9  # WETH address (Sepolia example)
+USDC_ADDRESS=0xf08A50178dfcDe18524640EA6618a1f965821715  # USDC token address on the network
 ```
 
 Run:
@@ -200,14 +190,29 @@ Run:
 DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/6-deploy-tap-earn.ts --network <network sepcified>
 ```
 
-9. Escrow:
+8. Escrow:
 
 Run:
 ```
 DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/7-deploy-escrow.ts --network <network sepcified>
 ```
 
+9. VenueToken, CreditToken:
+
+For their deployment Signer Backend should sing a message for its deployment. After their deployments, addresses should be added to `.env` file:
+```
+VENUE_TOKEN=0xYourVenueTokenAddress  # Venue token address
+PROMOTER_TOKEN=0xYourPromoterTokenAddress  # Promoter token address
+```
+
 10. TapAndEarn configuration:
+
+Required fields in `.env`:
+```
+VENUE_TOKEN=0x...
+PROMOTER_TOKEN=0x...
+LONG_PRICE_FEED=0x...
+```
 
 Run:
 ```
