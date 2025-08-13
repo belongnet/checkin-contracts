@@ -100,8 +100,8 @@ export async function deployAccessToken(
   maxTotalSupply: BigNumberish = 10,
   feeNumerator: BigNumberish = BN.from('600'),
   collectionExpire: BigNumberish = BN.from('86400'),
-  chainId: string | Number | BigNumber = 31337,
 ): Promise<{ accessToken: AccessToken; royaltiesReceiver: RoyaltiesReceiverV2 }> {
+  const chainId = (await ethers.provider.getNetwork()).chainId;
   const message = EthCrypto.hash.keccak256([
     { type: 'string', value: tokenMetadata.name },
     { type: 'string', value: tokenMetadata.symbol },
@@ -137,17 +137,12 @@ export async function deployAccessToken(
 export async function deployCreditTokens(
   transferableVenue: boolean,
   transferablePromoter: boolean,
-  factory: Factory,
-  signer: {
-    privateKey: string;
-    publicKey: string;
-    address: string;
-  },
+  factoryAddress: string,
+  signerPk: string,
   admin: SignerWithAddress,
   manager: string = admin.address,
   minter: string = admin.address,
   burner: string = admin.address,
-  chainId: string | Number | BigNumber = 31337,
   venueTokenMetadata: TokenMetadata = {
     name: 'VenueToken',
     symbol: 'VET',
@@ -162,13 +157,14 @@ export async function deployCreditTokens(
   venueToken: CreditToken;
   promoterToken: CreditToken;
 }> {
+  const chainId = (await ethers.provider.getNetwork()).chainId;
   const venueTokenMessage = EthCrypto.hash.keccak256([
     { type: 'string', value: venueTokenMetadata.name },
     { type: 'string', value: venueTokenMetadata.symbol },
     { type: 'string', value: venueTokenMetadata.uri },
     { type: 'uint256', value: chainId },
   ]);
-  const venueTokenSignature = EthCrypto.sign(signer.privateKey, venueTokenMessage);
+  const venueTokenSignature = EthCrypto.sign(signerPk, venueTokenMessage);
 
   const promoterTokenMessage = EthCrypto.hash.keccak256([
     { type: 'string', value: promoterTokenMetadata.name },
@@ -176,9 +172,11 @@ export async function deployCreditTokens(
     { type: 'string', value: promoterTokenMetadata.uri },
     { type: 'uint256', value: chainId },
   ]);
-  const promoterTokenSignature = EthCrypto.sign(signer.privateKey, promoterTokenMessage);
+  const promoterTokenSignature = EthCrypto.sign(signerPk, promoterTokenMessage);
 
-  await factory.connect(admin).produceCreditToken(
+  const factory = await ethers.getContractAt('Factory', factoryAddress);
+
+  const tx1 = await factory.connect(admin).produceCreditToken(
     {
       name: venueTokenMetadata.name,
       symbol: venueTokenMetadata.symbol,
@@ -191,8 +189,9 @@ export async function deployCreditTokens(
     },
     venueTokenSignature,
   );
+  await tx1.wait(1);
 
-  await factory.connect(admin).produceCreditToken(
+  const tx2 = await factory.connect(admin).produceCreditToken(
     {
       name: promoterTokenMetadata.name,
       symbol: promoterTokenMetadata.symbol,
@@ -205,6 +204,7 @@ export async function deployCreditTokens(
     },
     promoterTokenSignature,
   );
+  await tx2.wait(1);
 
   const venueTokenInstanceInfo = await factory.getCreditTokenInstanceInfo(
     venueTokenMetadata.name,
