@@ -32,7 +32,7 @@ async function deploy() {
   const longPF = process.env.LONG_PRICE_FEED;
 
   // Validate environment variables
-  if (!tapEarn || !factory || !escrow || !venueToken || !promoterToken || !longPF) {
+  if (!tapEarn || !factory || !escrow || !staking || !venueToken || !promoterToken || !longPF) {
     throw new Error(
       'Missing required environment variables: TapAndEarn, Factory, Escrow, Staking, VenueToken, PromoterToken, LongPriceFeed',
     );
@@ -50,7 +50,7 @@ async function deploy() {
   const contracts = {
     factory,
     escrow,
-    staking: staking.address,
+    staking,
     venueToken,
     promoterToken,
     longPF,

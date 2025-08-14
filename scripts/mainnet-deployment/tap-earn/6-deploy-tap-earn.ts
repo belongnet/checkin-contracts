@@ -84,7 +84,7 @@ async function deploy() {
     deployments = {
       ...deployments,
       TapAndEarn: {
-        address: tapAndEarn.address,
+        proxy: tapAndEarn.address,
         parameters: [owner, paymentsInfo],
       },
     };
