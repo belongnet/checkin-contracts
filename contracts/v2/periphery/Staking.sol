@@ -44,7 +44,7 @@ contract Staking is ERC4626, Ownable {
 
     /// @notice Emitted when the penalty percentage is updated.
     /// @param percent New penalty percentage scaled by {SCALING_FACTOR}.
-    event PenaltyPecentSet(uint256 percent);
+    event PenaltyPercentSet(uint256 percent);
 
     /// @notice Emitted when the treasury address is updated.
     /// @param treasury New treasury address.
@@ -125,10 +125,10 @@ contract Staking is ERC4626, Ownable {
     /// @notice Sets the emergency penalty percentage.
     /// @dev Reverts if `newPercent > SCALING_FACTOR` (i.e., > 100%).
     /// @param newPercent New penalty percentage scaled by {SCALING_FACTOR}.
-    function setpenaltyPercentage(uint256 newPercent) external onlyOwner {
+    function setPenaltyPercentage(uint256 newPercent) external onlyOwner {
         require(newPercent <= SCALING_FACTOR, PenaltyTooHigh());
         penaltyPercentage = newPercent;
-        emit PenaltyPecentSet(newPercent);
+        emit PenaltyPercentSet(newPercent);
     }
 
     /// @notice Updates the treasury address.
