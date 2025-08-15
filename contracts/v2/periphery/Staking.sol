@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {ERC4626} from "solady/src/tokens/ERC4626.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 /// @title LONG Single-Asset Staking Vault (ERC4626)
 /// @notice ERC4626-compatible staking vault for the LONG token with time-locks,
@@ -201,7 +202,13 @@ contract Staking is ERC4626, Ownable {
         uint256 assets,
         uint256 shares
     ) internal {
-        uint256 penalty = (assets * penaltyPercentage) / SCALING_FACTOR;
+        require(shares > 0, SharesEqZero());
+
+        uint256 penalty = FixedPointMathLib.fullMulDiv(
+            assets,
+            penaltyPercentage,
+            SCALING_FACTOR
+        );
         uint256 payout;
         unchecked {
             payout = assets - penalty;
