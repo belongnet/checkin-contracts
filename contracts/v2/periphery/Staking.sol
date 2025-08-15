@@ -245,28 +245,25 @@ contract Staking is ERC4626, Ownable {
 
     // ============================== Hooks ==============================
 
-    /// @notice Records a new stake position in shares after deposit/mint.
-    /// @dev Uses share amounts to keep locks consistent under changing exchange rates.
-    /// @param /*assets*/ Unused asset amount (see ERC4626 hook signature).
-    /// @param shares Shares minted to the depositor.
-    function _afterDeposit(
-        uint256 /*assets*/,
+    function _deposit(
+        address by,
+        address to,
+        uint256 assets,
         uint256 shares
     ) internal override {
-        stakes[msg.sender].push(
-            Stake({shares: shares, timestamp: block.timestamp})
-        );
+        supoer._deposit(by, to, assets, shares);
+
+        stakes[to].push(Stake({shares: shares, timestamp: block.timestamp}));
     }
 
-    /// @notice Ensures there are enough unlocked shares to withdraw/redeem the requested amount.
-    /// @dev Sums unlocked shares across stake entries; reverts if insufficient.
-    /// @param /*assets*/ Unused asset amount (see ERC4626 hook signature).
-    /// @param shares Shares intended to be burned by the operation.
-    function _beforeWithdraw(
-        uint256 /*assets*/,
+    function _withdraw(
+        address by,
+        address to,
+        address _owner,
+        uint256 assets,
         uint256 shares
     ) internal override {
-        Stake[] memory userStakes = stakes[msg.sender];
+        Stake[] memory userStakes = stakes[_owner];
         uint256 _minStakePeriod = minStakePeriod;
 
         uint256 unlockedShares = 0;
@@ -278,7 +275,9 @@ contract Staking is ERC4626, Ownable {
 
         if (unlockedShares < shares) revert MinStakePeriodNotMet();
 
-        _removeUnlockedSharesFor(msg.sender, shares);
+        _removeUnlockedSharesFor(_owner, shares);
+
+        super._withdraw(by, to, _owner, assets, shares);
     }
 
     // ============================== Stake Bookkeeping ==============================
