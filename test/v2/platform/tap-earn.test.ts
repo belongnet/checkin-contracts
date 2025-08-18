@@ -35,12 +35,12 @@ import {
   VenueRulesStruct,
 } from '../../../typechain-types/contracts/v2/platform/TapAndEarn';
 
-describe('TapAndEarn', () => {
+describe.only('TapAndEarn', () => {
   const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
   const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
   const ENA_ADDRESS = '0x57e114B691Db790C35207b2e685D4A43181e6061'; //used instead of LONG
 
-  const USDC_WHALE_ADDRESS = '0x28C6c06298d514Db089934071355E5743bf21d60';
+  const USDC_WHALE_ADDRESS = '0x01b8697695EAb322A339c4bf75740Db75dc9375E';
   const WETH_WHALE_ADDRESS = '0x57757E3D981446D585Af0D9Ae4d7DF6D64647806';
   const ENA_WHALE_ADDRESS = '0xc4E512313dD1cE0795f88eC5229778eDf1FDF79B';
 
@@ -832,10 +832,13 @@ describe('TapAndEarn', () => {
         USDC,
         ENA,
         USDC_whale,
+        ENA_whale,
       } = await loadFixture(fixture);
-      // console.log(await ENA.balanceOf(ENA_whale.address));
-      // await ENA.connect(ENA_whale).transfer(USDC_whale.address, ethers.utils.parseEther('50000'));
-      // console.log(await ENA.balanceOf(USDC_whale.address));
+      await staking.setMinStakePeriod(1);
+
+      console.log(await ENA.balanceOf(ENA_whale.address));
+      await ENA.connect(ENA_whale).transfer(USDC_whale.address, ethers.utils.parseEther('50000'));
+      console.log(await ENA.balanceOf(USDC_whale.address));
       await ENA.connect(USDC_whale).approve(staking.address, ethers.utils.parseEther('50000'));
       await staking.connect(USDC_whale).deposit(ethers.utils.parseEther('50000'), USDC_whale.address);
 
@@ -894,6 +897,10 @@ describe('TapAndEarn', () => {
       expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
+
+      await staking
+        .connect(USDC_whale)
+        .withdraw(ethers.utils.parseEther('50000'), USDC_whale.address, USDC_whale.address);
     });
 
     it('venueDeposit() (free deposits exceed) (w/ referral) (bronze tier stakes)', async () => {
@@ -911,10 +918,11 @@ describe('TapAndEarn', () => {
         USDC,
         ENA,
         USDC_whale,
+        ENA_whale,
       } = await loadFixture(fixture);
-      // console.log(await ENA.balanceOf(ENA_whale.address));
-      // await ENA.connect(ENA_whale).transfer(USDC_whale.address, ethers.utils.parseEther('50000'));
-      // console.log(await ENA.balanceOf(USDC_whale.address));
+      console.log(await ENA.balanceOf(ENA_whale.address));
+      await ENA.connect(ENA_whale).transfer(USDC_whale.address, ethers.utils.parseEther('249999'));
+      console.log(await ENA.balanceOf(USDC_whale.address));
       await ENA.connect(USDC_whale).approve(staking.address, ethers.utils.parseEther('249999'));
       await staking.connect(USDC_whale).deposit(ethers.utils.parseEther('249999'), USDC_whale.address);
 
@@ -990,10 +998,11 @@ describe('TapAndEarn', () => {
         USDC,
         ENA,
         USDC_whale,
+        ENA_whale,
       } = await loadFixture(fixture);
-      // console.log(await ENA.balanceOf(ENA_whale.address));
-      // await ENA.connect(ENA_whale).transfer(USDC_whale.address, ethers.utils.parseEther('50000'));
-      // console.log(await ENA.balanceOf(USDC_whale.address));
+      console.log(await ENA.balanceOf(ENA_whale.address));
+      await ENA.connect(ENA_whale).transfer(USDC_whale.address, ethers.utils.parseEther('250000'));
+      console.log(await ENA.balanceOf(USDC_whale.address));
       await ENA.connect(USDC_whale).approve(staking.address, ethers.utils.parseEther('250000'));
       await staking.connect(USDC_whale).deposit(ethers.utils.parseEther('250000'), USDC_whale.address);
 
@@ -1069,10 +1078,11 @@ describe('TapAndEarn', () => {
         USDC,
         ENA,
         USDC_whale,
+        ENA_whale,
       } = await loadFixture(fixture);
-      // console.log(await ENA.balanceOf(ENA_whale.address));
-      // await ENA.connect(ENA_whale).transfer(USDC_whale.address, ethers.utils.parseEther('50000'));
-      // console.log(await ENA.balanceOf(USDC_whale.address));
+      console.log(await ENA.balanceOf(ENA_whale.address));
+      await ENA.connect(ENA_whale).transfer(USDC_whale.address, ethers.utils.parseEther('500000'));
+      console.log(await ENA.balanceOf(USDC_whale.address));
       await ENA.connect(USDC_whale).approve(staking.address, ethers.utils.parseEther('500000'));
       await staking.connect(USDC_whale).deposit(ethers.utils.parseEther('500000'), USDC_whale.address);
 
@@ -1148,10 +1158,11 @@ describe('TapAndEarn', () => {
         USDC,
         ENA,
         USDC_whale,
+        ENA_whale,
       } = await loadFixture(fixture);
-      // console.log(await ENA.balanceOf(ENA_whale.address));
-      // await ENA.connect(ENA_whale).transfer(USDC_whale.address, ethers.utils.parseEther('50000'));
-      // console.log(await ENA.balanceOf(USDC_whale.address));
+      console.log(await ENA.balanceOf(ENA_whale.address));
+      await ENA.connect(ENA_whale).transfer(USDC_whale.address, ethers.utils.parseEther('1000000'));
+      console.log(await ENA.balanceOf(USDC_whale.address));
       await ENA.connect(USDC_whale).approve(staking.address, ethers.utils.parseEther('1000000'));
       await staking.connect(USDC_whale).deposit(ethers.utils.parseEther('1000000'), USDC_whale.address);
 
