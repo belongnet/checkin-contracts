@@ -546,21 +546,21 @@ describe('Staking', () => {
       expect(await staking.minStakePeriod()).to.eq(1);
     });
 
-    it('setpenaltyPercentage()', async () => {
+    it('setPenaltyPercentage()', async () => {
       const { staking, admin, user1 } = await loadFixture(fixture);
 
-      await expect(staking.connect(user1).setpenaltyPercentage(1)).to.be.revertedWithCustomError(
+      await expect(staking.connect(user1).setPenaltyPercentage(1)).to.be.revertedWithCustomError(
         staking,
         'Unauthorized',
       );
-      await expect(staking.connect(admin).setpenaltyPercentage(10000000)).to.be.revertedWithCustomError(
+      await expect(staking.connect(admin).setPenaltyPercentage(10000000)).to.be.revertedWithCustomError(
         staking,
         'PenaltyTooHigh',
       );
 
-      const tx = await staking.connect(admin).setpenaltyPercentage(1);
+      const tx = await staking.connect(admin).setPenaltyPercentage(1);
 
-      await expect(tx).to.emit(staking, 'PenaltyPecentSet').withArgs(1);
+      await expect(tx).to.emit(staking, 'PenaltyPercentSet').withArgs(1);
       expect(await staking.penaltyPercentage()).to.eq(1);
     });
 
