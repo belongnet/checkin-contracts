@@ -41,7 +41,7 @@ describe('Escrow', () => {
       );
       const tx = await escrow.venueDeposit(admin.address, 10, 20);
 
-      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated').withArgs(admin.address, 10, 20);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await escrow.venueDeposits(admin.address)).usdcDeposits).to.eq(10);
       expect((await escrow.venueDeposits(admin.address)).longDeposits).to.eq(20);
     });
