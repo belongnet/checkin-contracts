@@ -431,7 +431,7 @@ contract TapAndEarn is Initializable, Ownable {
                     - _storage.fees.processingFeePercentage.calculateRate(customerInfo.amount)
             );
 
-            // customer paid amount - 3%
+            // customer paid amount - longCustomerDiscountPercentage (3%)
             _storage.paymentsInfo.long.safeTransferFrom(
                 customerInfo.customer,
                 customerInfo.venueToPayFor,
