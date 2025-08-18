@@ -34,8 +34,7 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
     event TransferableSet(bool transferable);
 
     /// @notice Role: default admin.
-    uint256 public constant DEFAULT_ADMIN_ROLE =
-        uint256(keccak256("DEFAULT_ADMIN_ROLE"));
+    uint256 public constant DEFAULT_ADMIN_ROLE = uint256(keccak256("DEFAULT_ADMIN_ROLE"));
     /// @notice Role: collection manager (URI/transferability).
     uint256 public constant MANAGER_ROLE = uint256(keccak256("MANAGER_ROLE"));
     /// @notice Role: minter (mint).
@@ -91,12 +90,7 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
     /// @param tokenId Token id to mint.
     /// @param amount Amount to mint.
     /// @param tokenUri Token-specific URI to set (overrides collection URI).
-    function mint(
-        address to,
-        uint256 tokenId,
-        uint256 amount,
-        string calldata tokenUri
-    ) public onlyRole(MINTER_ROLE) {
+    function mint(address to, uint256 tokenId, uint256 amount, string calldata tokenUri) public onlyRole(MINTER_ROLE) {
         _setTokenUri(tokenId, tokenUri);
         _mint(to, tokenId, amount, "0x");
     }
@@ -105,11 +99,7 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
     /// @param from Address to burn from.
     /// @param tokenId Token id to burn.
     /// @param amount Amount to burn.
-    function burn(
-        address from,
-        uint256 tokenId,
-        uint256 amount
-    ) public onlyRole(BURNER_ROLE) {
+    function burn(address from, uint256 tokenId, uint256 amount) public onlyRole(BURNER_ROLE) {
         _setTokenUri(tokenId, "");
         _burn(from, tokenId, amount);
     }

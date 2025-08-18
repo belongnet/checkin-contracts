@@ -40,11 +40,7 @@ contract Escrow is Initializable, Ownable {
     /// @param venue Venue address.
     /// @param usdcDeposits New USDC balance recorded for the venue.
     /// @param longDeposits New LONG balance recorded for the venue.
-    event VenueDepositsUpdated(
-        address indexed venue,
-        uint256 usdcDeposits,
-        uint256 longDeposits
-    );
+    event VenueDepositsUpdated(address indexed venue, uint256 usdcDeposits, uint256 longDeposits);
 
     /// @notice Emitted when LONG discount funds are disbursed to a venue.
     /// @param venue Venue receiving the LONG subsidy.
@@ -55,11 +51,7 @@ contract Escrow is Initializable, Ownable {
     /// @param venue Venue whose USDC balance decreased.
     /// @param to Recipient of the USDC transfer.
     /// @param amount Amount of USDC transferred.
-    event DistributedVenueDeposit(
-        address indexed venue,
-        address indexed to,
-        uint256 amount
-    );
+    event DistributedVenueDeposit(address indexed venue, address indexed to, uint256 amount);
 
     // ============================== Types ==============================
 
@@ -106,15 +98,8 @@ contract Escrow is Initializable, Ownable {
     /// @param venue Venue whose balances are being updated.
     /// @param depositedUSDCs New USDC balance to record for `venue`.
     /// @param depositedLONGs New LONG balance to record for `venue`.
-    function venueDeposit(
-        address venue,
-        uint256 depositedUSDCs,
-        uint256 depositedLONGs
-    ) external onlyTapEarn {
-        venueDeposits[venue] = VenueDeposits({
-            usdcDeposits: depositedUSDCs,
-            longDeposits: depositedLONGs
-        });
+    function venueDeposit(address venue, uint256 depositedUSDCs, uint256 depositedLONGs) external onlyTapEarn {
+        venueDeposits[venue] = VenueDeposits({usdcDeposits: depositedUSDCs, longDeposits: depositedLONGs});
 
         emit VenueDepositsUpdated(venue, depositedUSDCs, depositedLONGs);
     }
@@ -123,10 +108,7 @@ contract Escrow is Initializable, Ownable {
     /// @dev Reverts if the venue does not have enough LONG recorded.
     /// @param venue Venue receiving the LONG transfer.
     /// @param amount Amount of LONG to transfer.
-    function distributeLONGDiscount(
-        address venue,
-        uint256 amount
-    ) external onlyTapEarn {
+    function distributeLONGDiscount(address venue, uint256 amount) external onlyTapEarn {
         uint256 longDeposits = venueDeposits[venue].longDeposits;
         require(longDeposits >= amount, NotEnoughLONGs(longDeposits, amount));
 
@@ -137,11 +119,7 @@ contract Escrow is Initializable, Ownable {
 
         tapAndEarn.paymentsInfo().long.safeTransfer(venue, amount);
 
-        emit VenueDepositsUpdated(
-            venue,
-            venueDeposits[venue].usdcDeposits,
-            longDeposits
-        );
+        emit VenueDepositsUpdated(venue, venueDeposits[venue].usdcDeposits, longDeposits);
         emit DistributedLONGDiscount(venue, amount);
     }
 
@@ -150,11 +128,7 @@ contract Escrow is Initializable, Ownable {
     /// @param venue Venue whose USDC balance will decrease.
     /// @param to Recipient of the USDC transfer.
     /// @param amount Amount of USDC to transfer.
-    function distributeVenueDeposit(
-        address venue,
-        address to,
-        uint256 amount
-    ) external onlyTapEarn {
+    function distributeVenueDeposit(address venue, address to, uint256 amount) external onlyTapEarn {
         uint256 usdcDeposits = venueDeposits[venue].usdcDeposits;
         require(amount <= usdcDeposits, NotEnoughUSDCs(usdcDeposits, amount));
 
@@ -166,11 +140,7 @@ contract Escrow is Initializable, Ownable {
 
         tapAndEarn.paymentsInfo().usdc.safeTransfer(to, amount);
 
-        emit VenueDepositsUpdated(
-            venue,
-            usdcDeposits,
-            venueDeposits[venue].longDeposits
-        );
+        emit VenueDepositsUpdated(venue, usdcDeposits, venueDeposits[venue].longDeposits);
         emit DistributedVenueDeposit(venue, to, amount);
     }
 }

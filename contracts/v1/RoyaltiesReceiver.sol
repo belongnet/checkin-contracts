@@ -38,11 +38,7 @@ contract RoyaltiesReceiver {
     /// @param token The address of the ERC20 token if address(0) then native currency.
     /// @param to The address receiving the payment.
     /// @param amount The amount of Ether released.
-    event PaymentReleased(
-        address indexed token,
-        address indexed to,
-        uint256 amount
-    );
+    event PaymentReleased(address indexed token, address indexed to, uint256 amount);
 
     /// @notice Emitted when the contract receives native Ether.
     /// @param from The address sending the Ether.
@@ -85,13 +81,8 @@ contract RoyaltiesReceiver {
         uint16 amountToPlatform = AMOUNT_TO_PLATFORM;
         uint16 amountToReferral;
         if (isReferral) {
-            amountToReferral = uint16(
-                NFTFactory(msg.sender).getReferralRate(
-                    payees_[0],
-                    referralCode,
-                    amountToPlatform
-                )
-            );
+            amountToReferral =
+                uint16(NFTFactory(msg.sender).getReferralRate(payees_[0], referralCode, amountToPlatform));
             unchecked {
                 amountToPlatform -= amountToReferral;
             }
@@ -183,10 +174,7 @@ contract RoyaltiesReceiver {
      * @param account The address of the payee.
      * @return The amount of tokens released to the payee.
      */
-    function released(
-        address token,
-        address account
-    ) external view returns (uint256) {
+    function released(address token, address account) external view returns (uint256) {
         return erc20Releases[token].released[account];
     }
 
@@ -200,14 +188,11 @@ contract RoyaltiesReceiver {
 
         uint256 toRelease = isNativeRelease
             ? _pendingPayment(
-                account,
-                address(this).balance + nativeReleases.totalReleased,
-                nativeReleases.released[account]
+                account, address(this).balance + nativeReleases.totalReleased, nativeReleases.released[account]
             )
             : _pendingPayment(
                 account,
-                token.balanceOf(address(this)) +
-                    erc20Releases[token].totalReleased,
+                token.balanceOf(address(this)) + erc20Releases[token].totalReleased,
                 erc20Releases[token].released[account]
             );
 
@@ -237,11 +222,11 @@ contract RoyaltiesReceiver {
      * @param alreadyReleased The amount already released to the payee.
      * @return The amount of funds still owed to the payee.
      */
-    function _pendingPayment(
-        address account,
-        uint256 totalReceived,
-        uint256 alreadyReleased
-    ) private view returns (uint256) {
+    function _pendingPayment(address account, uint256 totalReceived, uint256 alreadyReleased)
+        private
+        view
+        returns (uint256)
+    {
         uint256 payment = (totalReceived * shares[account]) / TOTAL_SHARES;
 
         if (payment <= alreadyReleased) {
@@ -267,11 +252,7 @@ contract RoyaltiesReceiver {
         }
     }
 
-    function _payeesInfo()
-        private
-        view
-        returns (uint256 arraySize, address[ARRAY_SIZE] memory _payees)
-    {
+    function _payeesInfo() private view returns (uint256 arraySize, address[ARRAY_SIZE] memory _payees) {
         _payees = payees;
         arraySize = _payees[2] != address(0) ? 3 : 2;
     }

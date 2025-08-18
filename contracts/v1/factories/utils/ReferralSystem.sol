@@ -61,8 +61,7 @@ abstract contract ReferralSystem {
     mapping(bytes32 code => ReferralCode referralCode) internal referrals;
 
     /// @notice Maps referral users to their respective used codes and counts the number of times the code was used.
-    mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed))
-        public usedCode;
+    mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed)) public usedCode;
 
     // ========== Functions ==========
 
@@ -72,14 +71,9 @@ abstract contract ReferralSystem {
      * @return hashedCode The created referral code.
      */
     function createReferralCode() external returns (bytes32 hashedCode) {
-        hashedCode = keccak256(
-            abi.encodePacked(msg.sender, address(this), block.chainid)
-        );
+        hashedCode = keccak256(abi.encodePacked(msg.sender, address(this), block.chainid));
 
-        require(
-            referrals[hashedCode].creator == address(0),
-            ReferralCodeExists(msg.sender, hashedCode)
-        );
+        require(referrals[hashedCode].creator == address(0), ReferralCodeExists(msg.sender, hashedCode));
 
         referrals[hashedCode].creator = msg.sender;
 
@@ -92,20 +86,14 @@ abstract contract ReferralSystem {
      * @param hashedCode The referral code.
      * @param referralUser The address of the user being referred.
      */
-    function _setReferralUser(
-        bytes32 hashedCode,
-        address referralUser
-    ) internal {
+    function _setReferralUser(bytes32 hashedCode, address referralUser) internal {
         if (hashedCode == bytes32(0)) {
             return;
         }
 
         ReferralCode memory referral = referrals[hashedCode];
 
-        require(
-            referral.creator != address(0) && referralUser != referral.creator,
-            ReferralCodeOwnerError()
-        );
+        require(referral.creator != address(0) && referralUser != referral.creator, ReferralCodeOwnerError());
 
         // Check if the user is already in the array
         bool inArray;
@@ -150,11 +138,7 @@ abstract contract ReferralSystem {
      * @param amount The amount to calculate the referral rate on.
      * @return The calculated referral rate based on the usage of the referral code.
      */
-    function getReferralRate(
-        address referralUser,
-        bytes32 code,
-        uint256 amount
-    ) external view returns (uint256) {
+    function getReferralRate(address referralUser, bytes32 code, uint256 amount) external view returns (uint256) {
         (uint256 used, uint256 rate) = _getRate(referralUser, code, amount);
         require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
         return rate;
@@ -174,17 +158,15 @@ abstract contract ReferralSystem {
      * @param code The referral code to get the users for.
      * @return An array of addresses that used the referral code.
      */
-    function getReferralUsers(
-        bytes32 code
-    ) external view returns (address[] memory) {
+    function getReferralUsers(bytes32 code) external view returns (address[] memory) {
         return referrals[code].referralUsers;
     }
 
-    function _getRate(
-        address referralUser,
-        bytes32 code,
-        uint256 amount
-    ) internal view returns (uint256 used, uint256 rate) {
+    function _getRate(address referralUser, bytes32 code, uint256 amount)
+        internal
+        view
+        returns (uint256 used, uint256 rate)
+    {
         used = usedCode[referralUser][code];
         rate = (amount * usedToPercentage[used]) / SCALING_FACTOR;
     }

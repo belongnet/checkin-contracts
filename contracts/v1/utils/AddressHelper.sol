@@ -25,22 +25,13 @@ library AddressHelper {
      * @param params A struct containing parameters for dynamic price minting, including receiver, tokenId, tokenUri, price, and signature.
      * @custom:error InvalidSignature Thrown when the signature does not match the expected signer or encoded data.
      */
-    function checkDynamicPriceParameters(
-        address signer,
-        address receiver,
-        DynamicPriceParameters calldata params
-    ) internal view {
+    function checkDynamicPriceParameters(address signer, address receiver, DynamicPriceParameters calldata params)
+        internal
+        view
+    {
         require(
             signer.isValidSignatureNow(
-                keccak256(
-                    abi.encodePacked(
-                        receiver,
-                        params.tokenId,
-                        params.tokenUri,
-                        params.price,
-                        block.chainid
-                    )
-                ),
+                keccak256(abi.encodePacked(receiver, params.tokenId, params.tokenUri, params.price, block.chainid)),
                 params.signature
             ),
             InvalidSignature()
@@ -54,21 +45,14 @@ library AddressHelper {
      * @param params A struct containing parameters for static price minting, including receiver, tokenId, tokenUri, whitelisted status, and signature.
      * @custom:error InvalidSignature Thrown when the signature does not match the expected signer or encoded data.
      */
-    function checkStaticPriceParameters(
-        address signer,
-        address receiver,
-        StaticPriceParameters calldata params
-    ) internal view {
+    function checkStaticPriceParameters(address signer, address receiver, StaticPriceParameters calldata params)
+        internal
+        view
+    {
         require(
             signer.isValidSignatureNow(
                 keccak256(
-                    abi.encodePacked(
-                        receiver,
-                        params.tokenId,
-                        params.tokenUri,
-                        params.whitelisted,
-                        block.chainid
-                    )
+                    abi.encodePacked(receiver, params.tokenId, params.tokenUri, params.whitelisted, block.chainid)
                 ),
                 params.signature
             ),

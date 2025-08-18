@@ -36,19 +36,14 @@ library Helper {
     /// @param percentage Percentage in 1e4 (e.g., 2500 == 25%).
     /// @param amount The base amount to apply the percentage to.
     /// @return rate The resulting amount after applying the rate.
-    function calculateRate(
-        uint256 percentage,
-        uint256 amount
-    ) external pure returns (uint256 rate) {
+    function calculateRate(uint256 percentage, uint256 amount) external pure returns (uint256 rate) {
         rate = (amount * percentage) / SCALING_FACTOR;
     }
 
     /// @notice Resolves the staking tier based on the staked amount of LONG (18 decimals).
     /// @param amountStaked Amount of LONG staked (wei).
     /// @return tier The enumerated staking tier.
-    function stakingTiers(
-        uint256 amountStaked
-    ) external pure returns (StakingTiers tier) {
+    function stakingTiers(uint256 amountStaked) external pure returns (StakingTiers tier) {
         if (amountStaked < 50000e18) {
             return StakingTiers.NoStakes;
         } else if (amountStaked >= 50000e18 && amountStaked < 250000e18) {
@@ -74,11 +69,11 @@ library Helper {
     /// @param tokenPriceFeed Chainlink feed for the token/USD price.
     /// @param amount Token amount to convert.
     /// @return priceAmount Standardized USD amount (27 decimals).
-    function getStandardizedPrice(
-        address token,
-        address tokenPriceFeed,
-        uint256 amount
-    ) external view returns (uint256 priceAmount) {
+    function getStandardizedPrice(address token, address tokenPriceFeed, uint256 amount)
+        external
+        view
+        returns (uint256 priceAmount)
+    {
         (uint256 tokenPriceInUsd, uint8 pfDecimals) = _getPrice(tokenPriceFeed);
         // (amount * price) / 10^priceFeedDecimals
         uint256 usdValue = amount.fullMulDiv(tokenPriceInUsd, 10 ** pfDecimals);
@@ -90,10 +85,7 @@ library Helper {
     /// @param token Token address to read decimals from.
     /// @param amount Amount in the token's native decimals.
     /// @return Standardized amount in 27 decimals.
-    function standardize(
-        address token,
-        uint256 amount
-    ) public view returns (uint256) {
+    function standardize(address token, uint256 amount) public view returns (uint256) {
         return _standardize(token.readDecimals(), amount);
     }
 
@@ -101,10 +93,7 @@ library Helper {
     /// @param token Token address to read decimals from.
     /// @param amount 27-decimal standardized amount.
     /// @return Amount converted to token-native decimals.
-    function unstandardize(
-        address token,
-        uint256 amount
-    ) public view returns (uint256) {
+    function unstandardize(address token, uint256 amount) public view returns (uint256) {
         return amount.fullMulDiv(10 ** token.readDecimals(), BPS);
     }
 
@@ -112,22 +101,12 @@ library Helper {
     /// @param priceFeed Chainlink aggregator proxy address.
     /// @return price Latest positive price as uint256.
     /// @return decimals Feed decimals (or `DECIMALS_BY_DEFAULT` if not exposed).
-    function _getPrice(
-        address priceFeed
-    ) private view returns (uint256 price, uint8 decimals) {
+    function _getPrice(address priceFeed) private view returns (uint256 price, uint8 decimals) {
         int256 intAnswer;
-        try ILONGPriceFeed(priceFeed).latestRoundData() returns (
-            uint80,
-            int256 _answer,
-            uint256,
-            uint256,
-            uint80
-        ) {
+        try ILONGPriceFeed(priceFeed).latestRoundData() returns (uint80, int256 _answer, uint256, uint256, uint80) {
             intAnswer = _answer;
         } catch {
-            try ILONGPriceFeed(priceFeed).latestAnswer() returns (
-                int256 _answer
-            ) {
+            try ILONGPriceFeed(priceFeed).latestAnswer() returns (int256 _answer) {
                 intAnswer = _answer;
             } catch {
                 revert IncorrectPriceFeed(priceFeed);
@@ -150,10 +129,7 @@ library Helper {
     /// @param decimals Source decimals.
     /// @param amount Amount in `decimals`.
     /// @return 27-decimal standardized amount.
-    function _standardize(
-        uint8 decimals,
-        uint256 amount
-    ) private pure returns (uint256) {
+    function _standardize(uint8 decimals, uint256 amount) private pure returns (uint256) {
         return amount.fullMulDiv(BPS, 10 ** decimals);
     }
 }

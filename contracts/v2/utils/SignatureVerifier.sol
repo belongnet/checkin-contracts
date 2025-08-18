@@ -3,7 +3,18 @@ pragma solidity 0.8.27;
 
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
-import {AccessTokenInfo, ERC1155Info, VenueInfo, VenueRules, CustomerInfo, PromoterInfo, StaticPriceParameters, DynamicPriceParameters, PaymentTypes, BountyTypes} from "../Structures.sol";
+import {
+    AccessTokenInfo,
+    ERC1155Info,
+    VenueInfo,
+    VenueRules,
+    CustomerInfo,
+    PromoterInfo,
+    StaticPriceParameters,
+    DynamicPriceParameters,
+    PaymentTypes,
+    BountyTypes
+} from "../Structures.sol";
 
 /// @title SignatureVerifier
 /// @notice Stateless helpers to verify backend-signed payloads for collection creation,
@@ -36,17 +47,10 @@ library SignatureVerifier {
     /// @notice Verifies AccessToken collection creation payload.
     /// @param signer Authorized signer address.
     /// @param accessTokenInfo Payload to verify (name, symbol, contractURI, feeNumerator, signature).
-    function checkAccessTokenInfo(
-        address signer,
-        AccessTokenInfo memory accessTokenInfo
-    ) external view {
+    function checkAccessTokenInfo(address signer, AccessTokenInfo memory accessTokenInfo) external view {
         require(
-            bytes(accessTokenInfo.metadata.name).length > 0 &&
-                bytes(accessTokenInfo.metadata.symbol).length > 0,
-            EmptyMetadata(
-                accessTokenInfo.metadata.name,
-                accessTokenInfo.metadata.symbol
-            )
+            bytes(accessTokenInfo.metadata.name).length > 0 && bytes(accessTokenInfo.metadata.symbol).length > 0,
+            EmptyMetadata(accessTokenInfo.metadata.name, accessTokenInfo.metadata.symbol)
         );
 
         require(
@@ -70,26 +74,19 @@ library SignatureVerifier {
     /// @param signer Authorized signer address.
     /// @param signature Detached signature validating `creditTokenInfo`.
     /// @param creditTokenInfo Payload (name, symbol, uri, roles).
-    function checkCreditTokenInfo(
-        address signer,
-        bytes calldata signature,
-        ERC1155Info calldata creditTokenInfo
-    ) external view {
+    function checkCreditTokenInfo(address signer, bytes calldata signature, ERC1155Info calldata creditTokenInfo)
+        external
+        view
+    {
         require(
-            bytes(creditTokenInfo.name).length > 0 &&
-                bytes(creditTokenInfo.symbol).length > 0,
+            bytes(creditTokenInfo.name).length > 0 && bytes(creditTokenInfo.symbol).length > 0,
             EmptyMetadata(creditTokenInfo.name, creditTokenInfo.symbol)
         );
 
         require(
             signer.isValidSignatureNow(
                 keccak256(
-                    abi.encodePacked(
-                        creditTokenInfo.name,
-                        creditTokenInfo.symbol,
-                        creditTokenInfo.uri,
-                        block.chainid
-                    )
+                    abi.encodePacked(creditTokenInfo.name, creditTokenInfo.symbol, creditTokenInfo.uri, block.chainid)
                 ),
                 signature
             ),
@@ -100,20 +97,10 @@ library SignatureVerifier {
     /// @notice Verifies venue deposit intent and parameters.
     /// @param signer Authorized signer address.
     /// @param venueInfo Venue payload (venue, referral, uri).
-    function checkVenueInfo(
-        address signer,
-        VenueInfo calldata venueInfo
-    ) external view {
+    function checkVenueInfo(address signer, VenueInfo calldata venueInfo) external view {
         require(
             signer.isValidSignatureNow(
-                keccak256(
-                    abi.encodePacked(
-                        venueInfo.venue,
-                        venueInfo.referralCode,
-                        venueInfo.uri,
-                        block.chainid
-                    )
-                ),
+                keccak256(abi.encodePacked(venueInfo.venue, venueInfo.referralCode, venueInfo.uri, block.chainid)),
                 venueInfo.signature
             ),
             InvalidSignature()
@@ -124,38 +111,27 @@ library SignatureVerifier {
     /// @param signer Authorized signer address.
     /// @param customerInfo Customer payment data (currency flags, bounties, actors, amount).
     /// @param rules Venue rules against which to validate payment/bounty types.
-    function checkCustomerInfo(
-        address signer,
-        CustomerInfo calldata customerInfo,
-        VenueRules memory rules
-    ) external view {
-        PaymentTypes paymentType = customerInfo.paymentInUSDC
-            ? PaymentTypes.USDC
-            : PaymentTypes.LONG;
+    function checkCustomerInfo(address signer, CustomerInfo calldata customerInfo, VenueRules memory rules)
+        external
+        view
+    {
+        PaymentTypes paymentType = customerInfo.paymentInUSDC ? PaymentTypes.USDC : PaymentTypes.LONG;
         require(
-            rules.paymentType != PaymentTypes.NoType &&
-                (rules.paymentType == PaymentTypes.Both ||
-                    rules.paymentType == paymentType),
+            rules.paymentType != PaymentTypes.NoType
+                && (rules.paymentType == PaymentTypes.Both || rules.paymentType == paymentType),
             WrongPaymentType()
         );
 
         if (customerInfo.promoter != address(0)) {
-            BountyTypes bountyType = customerInfo.visitBountyAmount > 0 &&
-                customerInfo.spendBountyPercentage > 0
+            BountyTypes bountyType = customerInfo.visitBountyAmount > 0 && customerInfo.spendBountyPercentage > 0
                 ? BountyTypes.Both
-                : customerInfo.visitBountyAmount > 0 &&
-                    customerInfo.spendBountyPercentage == 0
+                : customerInfo.visitBountyAmount > 0 && customerInfo.spendBountyPercentage == 0
                     ? BountyTypes.VisitBounty
-                    : customerInfo.visitBountyAmount == 0 &&
-                        customerInfo.spendBountyPercentage > 0
+                    : customerInfo.visitBountyAmount == 0 && customerInfo.spendBountyPercentage > 0
                         ? BountyTypes.SpendBounty
                         : BountyTypes.NoType;
 
-            require(
-                rules.bountyType == bountyType &&
-                    bountyType != BountyTypes.NoType,
-                WrongBountyType()
-            );
+            require(rules.bountyType == bountyType && bountyType != BountyTypes.NoType, WrongBountyType());
         }
 
         require(
@@ -181,19 +157,11 @@ library SignatureVerifier {
     /// @notice Verifies promoter payout distribution payload.
     /// @param signer Authorized signer address.
     /// @param promoterInfo Payout details to be validated.
-    function checkPromoterPaymentDistribution(
-        address signer,
-        PromoterInfo memory promoterInfo
-    ) external view {
+    function checkPromoterPaymentDistribution(address signer, PromoterInfo memory promoterInfo) external view {
         require(
             signer.isValidSignatureNow(
                 keccak256(
-                    abi.encodePacked(
-                        promoterInfo.promoter,
-                        promoterInfo.venue,
-                        promoterInfo.amountInUSD,
-                        block.chainid
-                    )
+                    abi.encodePacked(promoterInfo.promoter, promoterInfo.venue, promoterInfo.amountInUSD, block.chainid)
                 ),
                 promoterInfo.signature
             ),
@@ -205,22 +173,13 @@ library SignatureVerifier {
     /// @param signer Authorized signer address.
     /// @param receiver Address that will receive the minted token(s).
     /// @param params Dynamic price payload (id, uri, price, signature).
-    function checkDynamicPriceParameters(
-        address signer,
-        address receiver,
-        DynamicPriceParameters calldata params
-    ) external view {
+    function checkDynamicPriceParameters(address signer, address receiver, DynamicPriceParameters calldata params)
+        external
+        view
+    {
         require(
             signer.isValidSignatureNow(
-                keccak256(
-                    abi.encodePacked(
-                        receiver,
-                        params.tokenId,
-                        params.tokenUri,
-                        params.price,
-                        block.chainid
-                    )
-                ),
+                keccak256(abi.encodePacked(receiver, params.tokenId, params.tokenUri, params.price, block.chainid)),
                 params.signature
             ),
             InvalidSignature()
@@ -231,21 +190,14 @@ library SignatureVerifier {
     /// @param signer Authorized signer address.
     /// @param receiver Address that will receive the minted token(s).
     /// @param params Static price payload (id, uri, whitelist flag, signature).
-    function checkStaticPriceParameters(
-        address signer,
-        address receiver,
-        StaticPriceParameters calldata params
-    ) external view {
+    function checkStaticPriceParameters(address signer, address receiver, StaticPriceParameters calldata params)
+        external
+        view
+    {
         require(
             signer.isValidSignatureNow(
                 keccak256(
-                    abi.encodePacked(
-                        receiver,
-                        params.tokenId,
-                        params.tokenUri,
-                        params.whitelisted,
-                        block.chainid
-                    )
+                    abi.encodePacked(receiver, params.tokenId, params.tokenUri, params.whitelisted, block.chainid)
                 ),
                 params.signature
             ),

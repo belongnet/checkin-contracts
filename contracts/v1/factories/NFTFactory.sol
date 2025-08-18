@@ -102,10 +102,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
     /// @notice Event emitted when the new factory parameters set.
     /// @param nftFactoryParameters The NFT factory parameters to be set.
     /// @param percentages The referral percentages for the system.
-    event FactoryParametersSet(
-        NftFactoryParameters nftFactoryParameters,
-        uint16[5] percentages
-    );
+    event FactoryParametersSet(NftFactoryParameters nftFactoryParameters, uint16[5] percentages);
 
     // ========== State Variables ==========
 
@@ -127,10 +124,10 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
      * @param nftFactoryParameters_ The NFT factory parameters to be set.
      * @param percentages The referral percentages for the system.
      */
-    function initialize(
-        NftFactoryParameters calldata nftFactoryParameters_,
-        uint16[5] calldata percentages
-    ) external initializer {
+    function initialize(NftFactoryParameters calldata nftFactoryParameters_, uint16[5] calldata percentages)
+        external
+        initializer
+    {
         _nftFactoryParameters = nftFactoryParameters_;
         _setReferralPercentages(percentages);
 
@@ -144,10 +141,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
      * @param referralCode The referral code associated with this NFT instance.
      * @return nftAddress The address of the created NFT instance.
      */
-    function produce(
-        InstanceInfo memory _info,
-        bytes32 referralCode
-    ) external returns (address nftAddress) {
+    function produce(InstanceInfo memory _info, bytes32 referralCode) external returns (address nftAddress) {
         NftFactoryParameters memory params = _nftFactoryParameters;
 
         // Name, symbol signed through BE, and checks if the size > 0.
@@ -155,11 +149,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
             !params.signerAddress.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
-                        _info.metadata.name,
-                        _info.metadata.symbol,
-                        _info.contractURI,
-                        _info.feeNumerator,
-                        block.chainid
+                        _info.metadata.name, _info.metadata.symbol, _info.contractURI, _info.feeNumerator, block.chainid
                     )
                 ),
                 _info.signature
@@ -168,18 +158,11 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
             revert InvalidSignature();
         }
 
-        bytes32 _hash = keccak256(
-            abi.encodePacked(_info.metadata.name, _info.metadata.symbol)
-        );
+        bytes32 _hash = keccak256(abi.encodePacked(_info.metadata.name, _info.metadata.symbol));
 
-        require(
-            getNftInstanceInfo[_hash].nftAddress == address(0),
-            NFTAlreadyExists()
-        );
+        require(getNftInstanceInfo[_hash].nftAddress == address(0), NFTAlreadyExists());
 
-        _info.payingToken = _info.payingToken == address(0)
-            ? params.defaultPaymentCurrency
-            : _info.payingToken;
+        _info.payingToken = _info.payingToken == address(0) ? params.defaultPaymentCurrency : _info.payingToken;
 
         address receiver;
 
@@ -187,12 +170,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         if (_info.feeNumerator > 0) {
             address referral = getReferralCreator(referralCode);
 
-            receiver = address(
-                new RoyaltiesReceiver(
-                    referralCode,
-                    [msg.sender, params.platformAddress, referral]
-                )
-            );
+            receiver = address(new RoyaltiesReceiver(referralCode, [msg.sender, params.platformAddress, referral]));
         }
 
         nftAddress = address(
@@ -226,10 +204,10 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
      * @param nftFactoryParameters_ The NFT factory parameters to be set.
      * @param percentages An array containing the referral percentages for initial, second, third, and default use.
      */
-    function setFactoryParameters(
-        NftFactoryParameters calldata nftFactoryParameters_,
-        uint16[5] calldata percentages
-    ) external onlyOwner {
+    function setFactoryParameters(NftFactoryParameters calldata nftFactoryParameters_, uint16[5] calldata percentages)
+        external
+        onlyOwner
+    {
         _nftFactoryParameters = nftFactoryParameters_;
         _setReferralPercentages(percentages);
 
@@ -238,11 +216,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
 
     /// @notice Returns the current NFT factory parameters.
     /// @return The NFT factory parameters.
-    function nftFactoryParameters()
-        external
-        view
-        returns (NftFactoryParameters memory)
-    {
+    function nftFactoryParameters() external view returns (NftFactoryParameters memory) {
         return _nftFactoryParameters;
     }
 }

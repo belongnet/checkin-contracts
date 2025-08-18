@@ -31,11 +31,7 @@ contract RoyaltiesReceiverV2 is Initializable {
     /// @param token The address of the ERC20 token if address(0) then native currency.
     /// @param to The address receiving the payment.
     /// @param amount The amount of Ether released.
-    event PaymentReleased(
-        address indexed token,
-        address indexed to,
-        uint256 amount
-    );
+    event PaymentReleased(address indexed token, address indexed to, uint256 amount);
 
     /// @notice Emitted when the contract receives native Ether.
     /// @param from The address sending the Ether.
@@ -65,8 +61,7 @@ contract RoyaltiesReceiverV2 is Initializable {
     }
 
     /// @notice The constant address representing ETH.
-    address public constant ETH_ADDRESS =
-        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice Total shares amount.
     uint256 public constant TOTAL_SHARES = 10000;
@@ -94,11 +89,10 @@ contract RoyaltiesReceiverV2 is Initializable {
     /**
      * @notice Initializes the contract with a list of payees and their respective shares.
      */
-    function initialize(
-        RoyaltiesReceivers calldata _royaltiesReceivers,
-        Factory _factory,
-        bytes32 referralCode_
-    ) external initializer {
+    function initialize(RoyaltiesReceivers calldata _royaltiesReceivers, Factory _factory, bytes32 referralCode_)
+        external
+        initializer
+    {
         factory = _factory;
         royaltiesReceivers = _royaltiesReceivers;
         referralCode = referralCode_;
@@ -108,8 +102,7 @@ contract RoyaltiesReceiverV2 is Initializable {
         RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
 
         Factory _factory = factory;
-        Factory.RoyaltiesParameters memory royaltiesParameters = _factory
-            .royaltiesParameters();
+        Factory.RoyaltiesParameters memory royaltiesParameters = _factory.royaltiesParameters();
         if (account == _royaltiesReceivers.creator) {
             return royaltiesParameters.amountToCreator;
         } else {
@@ -117,9 +110,7 @@ contract RoyaltiesReceiverV2 is Initializable {
             uint256 referralShare;
             if (_royaltiesReceivers.referral != address(0)) {
                 referralShare = _factory.getReferralRate(
-                    _royaltiesReceivers.creator,
-                    referralCode,
-                    royaltiesParameters.amountToPlatform
+                    _royaltiesReceivers.creator, referralCode, royaltiesParameters.amountToPlatform
                 );
 
                 if (referralShare > 0) {
@@ -128,12 +119,9 @@ contract RoyaltiesReceiverV2 is Initializable {
                     }
                 }
             }
-            return
-                account == _royaltiesReceivers.platform
-                    ? platformShare
-                    : account == _royaltiesReceivers.referral
-                        ? referralShare
-                        : 0;
+            return account == _royaltiesReceivers.platform
+                ? platformShare
+                : account == _royaltiesReceivers.referral ? referralShare : 0;
         }
     }
 
@@ -188,10 +176,7 @@ contract RoyaltiesReceiverV2 is Initializable {
      * @param account The address of the payee.
      * @return The amount of tokens released to the payee.
      */
-    function released(
-        address token,
-        address account
-    ) external view returns (uint256) {
+    function released(address token, address account) external view returns (uint256) {
         if (token == ETH_ADDRESS) {
             return nativeReleases.released[account];
         } else {
@@ -212,9 +197,7 @@ contract RoyaltiesReceiverV2 is Initializable {
             return;
         }
 
-        Releases storage releases = isNativeRelease
-            ? nativeReleases
-            : erc20Releases[token];
+        Releases storage releases = isNativeRelease ? nativeReleases : erc20Releases[token];
         releases.released[account] += payment;
         releases.totalReleased += payment;
 
@@ -232,20 +215,11 @@ contract RoyaltiesReceiverV2 is Initializable {
      * @param account The address of the payee.
      * @return The amount of funds still owed to the payee.
      */
-    function _pendingPayment(
-        bool isNativeRelease,
-        address token,
-        address account
-    ) private view returns (uint256) {
-        Releases storage releases = isNativeRelease
-            ? nativeReleases
-            : erc20Releases[token];
-        uint256 balance = isNativeRelease
-            ? address(this).balance
-            : token.balanceOf(address(this));
+    function _pendingPayment(bool isNativeRelease, address token, address account) private view returns (uint256) {
+        Releases storage releases = isNativeRelease ? nativeReleases : erc20Releases[token];
+        uint256 balance = isNativeRelease ? address(this).balance : token.balanceOf(address(this));
 
-        uint256 payment = ((balance + releases.totalReleased) *
-            shares(account)) / TOTAL_SHARES;
+        uint256 payment = ((balance + releases.totalReleased) * shares(account)) / TOTAL_SHARES;
 
         if (payment <= releases.released[account]) {
             return 0;
@@ -258,10 +232,8 @@ contract RoyaltiesReceiverV2 is Initializable {
         RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
 
         require(
-            _royaltiesReceivers.creator == account ||
-                _royaltiesReceivers.platform == account ||
-                (_royaltiesReceivers.referral != address(0) &&
-                    _royaltiesReceivers.referral == account),
+            _royaltiesReceivers.creator == account || _royaltiesReceivers.platform == account
+                || (_royaltiesReceivers.referral != address(0) && _royaltiesReceivers.referral == account),
             AccountNotDuePayment(account)
         );
     }

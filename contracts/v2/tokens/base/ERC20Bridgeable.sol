@@ -23,21 +23,14 @@ abstract contract ERC20Bridgeable is ERC20, ERC165, IERC7802 {
     }
 
     /// @inheritdoc ERC165
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override(ERC165, IERC165) returns (bool) {
-        return
-            interfaceId == type(IERC7802).interfaceId ||
-            super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
+        return interfaceId == type(IERC7802).interfaceId || super.supportsInterface(interfaceId);
     }
 
     /**
      * @dev See {IERC7802-crosschainMint}. Emits a {CrosschainMint} event.
      */
-    function crosschainMint(
-        address to,
-        uint256 value
-    ) public virtual override onlyTokenBridge {
+    function crosschainMint(address to, uint256 value) public virtual override onlyTokenBridge {
         _mint(to, value);
         emit CrosschainMint(to, value, _msgSender());
     }
@@ -45,10 +38,7 @@ abstract contract ERC20Bridgeable is ERC20, ERC165, IERC7802 {
     /**
      * @dev See {IERC7802-crosschainBurn}. Emits a {CrosschainBurn} event.
      */
-    function crosschainBurn(
-        address from,
-        uint256 value
-    ) public virtual override onlyTokenBridge {
+    function crosschainBurn(address from, uint256 value) public virtual override onlyTokenBridge {
         _burn(from, value);
         emit CrosschainBurn(from, value, _msgSender());
     }

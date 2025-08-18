@@ -64,8 +64,7 @@ abstract contract ReferralSystemV2 {
     mapping(bytes32 code => ReferralCode referralCode) internal referrals;
 
     /// @notice Maps referral users to their respective used codes and counts the number of times the code was used.
-    mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed))
-        public usedCode;
+    mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed)) public usedCode;
 
     // ========== Functions ==========
 
@@ -75,14 +74,9 @@ abstract contract ReferralSystemV2 {
      * @return hashedCode The created referral code.
      */
     function createReferralCode() external returns (bytes32 hashedCode) {
-        hashedCode = keccak256(
-            abi.encodePacked(msg.sender, address(this), block.chainid)
-        );
+        hashedCode = keccak256(abi.encodePacked(msg.sender, address(this), block.chainid));
 
-        require(
-            referrals[hashedCode].creator == address(0),
-            ReferralCodeExists(msg.sender, hashedCode)
-        );
+        require(referrals[hashedCode].creator == address(0), ReferralCodeExists(msg.sender, hashedCode));
 
         referrals[hashedCode].creator = msg.sender;
 
@@ -92,29 +86,19 @@ abstract contract ReferralSystemV2 {
     /**
      * @notice Returns the referral rate for a user and code, based on the number of times the code was used.
      */
-    function getReferralRate(
-        address referralUser,
-        bytes32 code,
-        uint256 amount
-    ) public view returns (uint256 rate) {
+    function getReferralRate(address referralUser, bytes32 code, uint256 amount) public view returns (uint256 rate) {
         uint256 used = usedCode[referralUser][code];
         rate = calculateRate(amount, usedToPercentage[used]);
         require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
         return rate;
     }
 
-    function calculateRate(
-        uint256 amount,
-        uint256 percentage
-    ) public pure returns (uint256 rate) {
+    function calculateRate(uint256 amount, uint256 percentage) public pure returns (uint256 rate) {
         rate = (amount * percentage) / SCALING_FACTOR;
     }
 
-    function getReferralCodeByCreator(
-        address creator
-    ) public view returns (bytes32) {
-        return
-            keccak256(abi.encodePacked(creator, address(this), block.chainid));
+    function getReferralCodeByCreator(address creator) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(creator, address(this), block.chainid));
     }
 
     /**
@@ -131,9 +115,7 @@ abstract contract ReferralSystemV2 {
      * @param code The referral code to get the users for.
      * @return An array of addresses that used the referral code.
      */
-    function getReferralUsers(
-        bytes32 code
-    ) external view returns (address[] memory) {
+    function getReferralUsers(bytes32 code) external view returns (address[] memory) {
         return referrals[code].referralUsers;
     }
 
@@ -143,10 +125,7 @@ abstract contract ReferralSystemV2 {
      * @param hashedCode The referral code.
      * @param referralUser The address of the user being referred.
      */
-    function _setReferralUser(
-        bytes32 hashedCode,
-        address referralUser
-    ) internal {
+    function _setReferralUser(bytes32 hashedCode, address referralUser) internal {
         if (hashedCode == bytes32(0)) {
             return;
         }
@@ -154,10 +133,7 @@ abstract contract ReferralSystemV2 {
         ReferralCode memory referral = referrals[hashedCode];
 
         require(referral.creator != address(0), ReferralCreatorNotExists());
-        require(
-            referralUser != referral.creator,
-            ReferralUserIsReferralCreator()
-        );
+        require(referralUser != referral.creator, ReferralUserIsReferralCreator());
 
         // Check if the user is already in the array
         bool inArray;
@@ -184,10 +160,7 @@ abstract contract ReferralSystemV2 {
 
     function _setReferralParameters(uint16[5] calldata percentages) internal {
         for (uint256 i = 0; i < percentages.length; ++i) {
-            require(
-                percentages[i] <= SCALING_FACTOR,
-                PecentageExceedsMax(percentages[i])
-            );
+            require(percentages[i] <= SCALING_FACTOR, PecentageExceedsMax(percentages[i]));
             usedToPercentage[i] = percentages[i];
         }
 

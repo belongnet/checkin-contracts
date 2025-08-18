@@ -30,11 +30,7 @@ abstract contract CreatorToken {
      * @dev If the return value is the null address, no transfer validator is set.
      * @return The address of the currently active transfer validator.
      */
-    function getTransferValidator()
-        external
-        view
-        returns (ITransferValidator721)
-    {
+    function getTransferValidator() external view returns (ITransferValidator721) {
         return ITransferValidator721(_transferValidator);
     }
 
@@ -44,11 +40,7 @@ abstract contract CreatorToken {
      * @return functionSignature The selector of the transfer validation function.
      * @return isViewFunction True if the transfer validation function is a view function.
      */
-    function getTransferValidationFunction()
-        external
-        pure
-        returns (bytes4 functionSignature, bool isViewFunction)
-    {
+    function getTransferValidationFunction() external pure returns (bytes4 functionSignature, bool isViewFunction) {
         functionSignature = ITransferValidator721.validateTransfer.selector;
         isViewFunction = true;
     }
@@ -63,12 +55,7 @@ abstract contract CreatorToken {
 
         // Attempt to set the token type for the collection, if the new validator is not a null address.
         if (_newValidator != address(0) && _newValidator.code.length > 0) {
-            try
-                ITransferValidator721(_newValidator).setTokenTypeOfCollection(
-                    address(this),
-                    ERC721_TOKEN_TYPE
-                )
-            {
+            try ITransferValidator721(_newValidator).setTokenTypeOfCollection(address(this), ERC721_TOKEN_TYPE) {
                 emit TokenTypeOfCollectionSet(true);
             } catch {
                 emit TokenTypeOfCollectionSet(false);
@@ -86,12 +73,7 @@ abstract contract CreatorToken {
      * @param to The address receiving the token.
      * @param tokenId The ID of the token being transferred.
      */
-    function _validateTransfer(
-        address caller,
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal {
+    function _validateTransfer(address caller, address from, address to, uint256 tokenId) internal {
         // Call the transfer validator if one is set.
         address transferValidator = _transferValidator;
         if (transferValidator != address(0)) {
@@ -99,12 +81,7 @@ abstract contract CreatorToken {
                 return;
             }
 
-            ITransferValidator721(transferValidator).validateTransfer(
-                caller,
-                from,
-                to,
-                tokenId
-            );
+            ITransferValidator721(transferValidator).validateTransfer(caller, from, to, tokenId);
         }
     }
 }

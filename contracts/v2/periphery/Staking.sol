@@ -32,6 +32,9 @@ contract Staking is ERC4626, Ownable {
     /// @notice Reverts when a zero-amount reward distribution is attempted.
     error ZeroReward();
 
+    /// @notice Reverts when a zero shares is attempted.
+    error SharesEqZero();
+
     // ============================== Events ==============================
 
     /// @notice Emitted when rewards are added to the vault (increasing share backing).
@@ -57,11 +60,7 @@ contract Staking is ERC4626, Ownable {
     /// @param assets Amount of assets redeemed prior to penalty.
     /// @param shares Amount of shares burned.
     event EmergencyWithdraw(
-        address indexed by,
-        address indexed to,
-        address indexed owner,
-        uint256 assets,
-        uint256 shares
+        address indexed by, address indexed to, address indexed owner, uint256 assets, uint256 shares
     );
 
     // ============================== Types ==============================
@@ -158,11 +157,7 @@ contract Staking is ERC4626, Ownable {
     /// @param to Recipient of the post-penalty payout.
     /// @param _owner Share owner whose position will be reduced.
     /// @return shares Shares burned to facilitate the withdrawal.
-    function emergencyWithdraw(
-        uint256 assets,
-        address to,
-        address _owner
-    ) external returns (uint256 shares) {
+    function emergencyWithdraw(uint256 assets, address to, address _owner) external returns (uint256 shares) {
         if (assets > maxWithdraw(_owner)) revert WithdrawMoreThanMax();
         shares = previewWithdraw(assets);
         _emergencyWithdraw(msg.sender, to, _owner, assets, shares);
@@ -176,11 +171,7 @@ contract Staking is ERC4626, Ownable {
     /// @param to Recipient of the post-penalty payout.
     /// @param _owner Share owner whose position will be reduced.
     /// @return assets Assets calculated from `shares` before penalty.
-    function emergencyRedeem(
-        uint256 shares,
-        address to,
-        address _owner
-    ) external returns (uint256 assets) {
+    function emergencyRedeem(uint256 shares, address to, address _owner) external returns (uint256 assets) {
         if (shares > maxRedeem(_owner)) revert RedeemMoreThanMax();
         assets = previewRedeem(shares);
         _emergencyWithdraw(msg.sender, to, _owner, assets, shares);
@@ -195,20 +186,10 @@ contract Staking is ERC4626, Ownable {
     /// @param _owner Share owner whose `shares` are burned.
     /// @param assets Assets value derived from the operation (pre-penalty).
     /// @param shares Shares to burn.
-    function _emergencyWithdraw(
-        address by,
-        address to,
-        address _owner,
-        uint256 assets,
-        uint256 shares
-    ) internal {
+    function _emergencyWithdraw(address by, address to, address _owner, uint256 assets, uint256 shares) internal {
         require(shares > 0, SharesEqZero());
 
-        uint256 penalty = FixedPointMathLib.fullMulDiv(
-            assets,
-            penaltyPercentage,
-            SCALING_FACTOR
-        );
+        uint256 penalty = FixedPointMathLib.fullMulDiv(assets, penaltyPercentage, SCALING_FACTOR);
         uint256 payout;
         unchecked {
             payout = assets - penalty;
@@ -245,24 +226,13 @@ contract Staking is ERC4626, Ownable {
 
     // ============================== Hooks ==============================
 
-    function _deposit(
-        address by,
-        address to,
-        uint256 assets,
-        uint256 shares
-    ) internal override {
-        supoer._deposit(by, to, assets, shares);
+    function _deposit(address by, address to, uint256 assets, uint256 shares) internal override {
+        super._deposit(by, to, assets, shares);
 
         stakes[to].push(Stake({shares: shares, timestamp: block.timestamp}));
     }
 
-    function _withdraw(
-        address by,
-        address to,
-        address _owner,
-        uint256 assets,
-        uint256 shares
-    ) internal override {
+    function _withdraw(address by, address to, address _owner, uint256 assets, uint256 shares) internal override {
         Stake[] memory userStakes = stakes[_owner];
         uint256 _minStakePeriod = minStakePeriod;
 
@@ -291,7 +261,7 @@ contract Staking is ERC4626, Ownable {
         uint256 _minStakePeriod = minStakePeriod;
         uint256 remaining = shares;
 
-        for (uint256 i = 0; i < userStakes.length && remaining > 0; ) {
+        for (uint256 i = 0; i < userStakes.length && remaining > 0;) {
             Stake memory stake = userStakes[i];
             if (block.timestamp >= stake.timestamp + _minStakePeriod) {
                 if (stake.shares <= remaining) {
@@ -317,7 +287,7 @@ contract Staking is ERC4626, Ownable {
         Stake[] storage userStakes = stakes[staker];
         uint256 remaining = shares;
 
-        for (uint256 i = 0; i < userStakes.length && remaining > 0; ) {
+        for (uint256 i = 0; i < userStakes.length && remaining > 0;) {
             uint256 stakeShares = userStakes[i].shares;
             if (stakeShares <= remaining) {
                 remaining -= stakeShares;

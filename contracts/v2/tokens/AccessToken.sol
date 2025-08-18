@@ -22,14 +22,7 @@ import {StaticPriceParameters, DynamicPriceParameters, AccessTokenInfo} from "..
 /// - Payments can be in ETH or an ERC-20 token; platform fee and referral split are applied.
 /// - Transfer validation is enforced via `CreatorToken` when transfers are enabled.
 /// - `mintStaticPrice` and `mintDynamicPrice` are signature-gated (see `SignatureVerifier`).
-contract AccessToken is
-    Initializable,
-    UUPSUpgradeable,
-    ERC721,
-    ERC2981,
-    Ownable,
-    CreatorToken
-{
+contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable, CreatorToken {
     using SafeTransferLib for address;
     using SignatureVerifier for address;
 
@@ -72,12 +65,7 @@ contract AccessToken is
     /// @param newPrice Public mint price (token units or wei).
     /// @param newWLPrice Whitelist mint price (token units or wei).
     /// @param autoApproved Whether the transfer validator is auto-approved for all holders.
-    event NftParametersChanged(
-        address newToken,
-        uint256 newPrice,
-        uint256 newWLPrice,
-        bool autoApproved
-    );
+    event NftParametersChanged(address newToken, uint256 newPrice, uint256 newWLPrice, bool autoApproved);
 
     // ============================== Types ==============================
 
@@ -99,8 +87,7 @@ contract AccessToken is
     // ============================== State ==============================
 
     /// @notice Pseudo-address used to represent ETH in payment flows.
-    address public constant ETH_ADDRESS =
-        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice Number of tokens minted so far.
     uint256 public totalSupply;
@@ -125,10 +112,7 @@ contract AccessToken is
     /// @dev Called exactly once by the factory when deploying the collection proxy.
     /// @param _params AccessToken initialization parameters (see `AccessTokenParameters`).
     /// @param transferValidator_ Transfer validator contract (approved depending on `autoApprove` flag).
-    function initialize(
-        AccessTokenParameters calldata _params,
-        address transferValidator_
-    ) external initializer {
+    function initialize(AccessTokenParameters calldata _params, address transferValidator_) external initializer {
         parameters = _params;
 
         if (_params.info.feeNumerator > 0) {
@@ -147,24 +131,17 @@ contract AccessToken is
     /// @param _mintPrice New public mint price.
     /// @param _whitelistMintPrice New whitelist mint price.
     /// @param autoApprove If true, `isApprovedForAll` auto-approves the transfer validator.
-    function setNftParameters(
-        address _payingToken,
-        uint128 _mintPrice,
-        uint128 _whitelistMintPrice,
-        bool autoApprove
-    ) external onlyOwner {
+    function setNftParameters(address _payingToken, uint128 _mintPrice, uint128 _whitelistMintPrice, bool autoApprove)
+        external
+        onlyOwner
+    {
         parameters.info.paymentToken = _payingToken;
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
 
         autoApproveTransfersFromValidator = autoApprove;
 
-        emit NftParametersChanged(
-            _payingToken,
-            _mintPrice,
-            _whitelistMintPrice,
-            autoApprove
-        );
+        emit NftParametersChanged(_payingToken, _mintPrice, _whitelistMintPrice, autoApprove);
     }
 
     // ============================== Minting ==============================
@@ -185,39 +162,24 @@ contract AccessToken is
         uint256 expectedMintPrice
     ) external payable {
         Factory factory = parameters.factory;
-        require(
-            paramsArray.length <= factory.nftFactoryParameters().maxArraySize,
-            WrongArraySize()
-        );
+        require(paramsArray.length <= factory.nftFactoryParameters().maxArraySize, WrongArraySize());
 
         AccessTokenInfo memory info = parameters.info;
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            factory
-                .nftFactoryParameters()
-                .signerAddress
-                .checkStaticPriceParameters(receiver, paramsArray[i]);
+            factory.nftFactoryParameters().signerAddress.checkStaticPriceParameters(receiver, paramsArray[i]);
 
-            uint256 price = paramsArray[i].whitelisted
-                ? info.whitelistMintPrice
-                : info.mintPrice;
+            uint256 price = paramsArray[i].whitelisted ? info.whitelistMintPrice : info.mintPrice;
 
             unchecked {
                 amountToPay += price;
             }
 
-            _baseMint(
-                paramsArray[i].tokenId,
-                receiver,
-                paramsArray[i].tokenUri
-            );
+            _baseMint(paramsArray[i].tokenId, receiver, paramsArray[i].tokenUri);
         }
 
-        require(
-            _pay(amountToPay, expectedPayingToken) == expectedMintPrice,
-            PriceChanged(expectedMintPrice)
-        );
+        require(_pay(amountToPay, expectedPayingToken) == expectedMintPrice, PriceChanged(expectedMintPrice));
     }
 
     /// @notice Signature-gated batch mint with per-item dynamic prices.
@@ -234,27 +196,17 @@ contract AccessToken is
         address expectedPayingToken
     ) external payable {
         Factory factory = parameters.factory;
-        require(
-            paramsArray.length <= factory.nftFactoryParameters().maxArraySize,
-            WrongArraySize()
-        );
+        require(paramsArray.length <= factory.nftFactoryParameters().maxArraySize, WrongArraySize());
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            factory
-                .nftFactoryParameters()
-                .signerAddress
-                .checkDynamicPriceParameters(receiver, paramsArray[i]);
+            factory.nftFactoryParameters().signerAddress.checkDynamicPriceParameters(receiver, paramsArray[i]);
 
             unchecked {
                 amountToPay += paramsArray[i].price;
             }
 
-            _baseMint(
-                paramsArray[i].tokenId,
-                receiver,
-                paramsArray[i].tokenUri
-            );
+            _baseMint(paramsArray[i].tokenId, receiver, paramsArray[i].tokenUri);
         }
 
         _pay(amountToPay, expectedPayingToken);
@@ -265,9 +217,7 @@ contract AccessToken is
     /// @notice Returns metadata URI for a given token ID.
     /// @param _tokenId Token ID to query.
     /// @return The token URI string.
-    function tokenURI(
-        uint256 _tokenId
-    ) public view override returns (string memory) {
+    function tokenURI(uint256 _tokenId) public view override returns (string memory) {
         if (!_exists(_tokenId)) {
             revert TokenIdDoesNotExist();
         }
@@ -296,10 +246,7 @@ contract AccessToken is
     /// @param _owner Token owner.
     /// @param operator Operator address to check.
     /// @return isApproved True if approved.
-    function isApprovedForAll(
-        address _owner,
-        address operator
-    ) public view override returns (bool isApproved) {
+    function isApprovedForAll(address _owner, address operator) public view override returns (bool isApproved) {
         isApproved = super.isApprovedForAll(_owner, operator);
 
         if (!isApproved && autoApproveTransfersFromValidator) {
@@ -316,19 +263,14 @@ contract AccessToken is
     /// @notice EIP-165 interface support.
     /// @param interfaceId Interface identifier.
     /// @return True if supported.
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view override(ERC721, ERC2981) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC2981) returns (bool) {
         bool result;
         /// @solidity memory-safe-assembly
         assembly {
             let s := shr(224, interfaceId)
             // ICreatorToken: 0xad0d7f6c, ILegacyCreatorToken: 0xa07d229a.
             // ERC4906: 0x49064906, check https://eips.ethereum.org/EIPS/eip-4906.
-            result := or(
-                or(eq(s, 0xad0d7f6c), eq(s, 0xa07d229a)),
-                eq(s, 0x49064906)
-            )
+            result := or(or(eq(s, 0xad0d7f6c), eq(s, 0xa07d229a)), eq(s, 0x49064906))
         }
 
         return result || super.supportsInterface(interfaceId);
@@ -340,15 +282,8 @@ contract AccessToken is
     /// @param tokenId Token ID to mint.
     /// @param to Recipient address.
     /// @param tokenUri Metadata URI to set for the token.
-    function _baseMint(
-        uint256 tokenId,
-        address to,
-        string calldata tokenUri
-    ) private {
-        require(
-            totalSupply + 1 <= parameters.info.maxTotalSupply,
-            TotalSupplyLimitReached()
-        );
+    function _baseMint(uint256 tokenId, address to, string calldata tokenUri) private {
+        require(totalSupply + 1 <= parameters.info.maxTotalSupply, TotalSupplyLimitReached());
         unchecked {
             totalSupply++;
         }
@@ -365,16 +300,10 @@ contract AccessToken is
     /// @param price Expected total price to charge.
     /// @param expectedPayingToken Expected payment currency (ETH or ERC-20).
     /// @return amount Amount actually charged (wei or token units).
-    function _pay(
-        uint256 price,
-        address expectedPayingToken
-    ) private returns (uint256 amount) {
+    function _pay(uint256 price, address expectedPayingToken) private returns (uint256 amount) {
         AccessTokenParameters memory _parameters = parameters;
 
-        require(
-            expectedPayingToken == _parameters.info.paymentToken,
-            TokenChanged(_parameters.info.paymentToken)
-        );
+        require(expectedPayingToken == _parameters.info.paymentToken, TokenChanged(_parameters.info.paymentToken));
 
         amount = expectedPayingToken == ETH_ADDRESS ? msg.value : price;
 
@@ -383,30 +312,18 @@ contract AccessToken is
         uint256 fees;
         uint256 amountToCreator;
         unchecked {
-            fees =
-                (amount *
-                    _parameters
-                        .factory
-                        .nftFactoryParameters()
-                        .platformCommission) /
-                _feeDenominator();
+            fees = (amount * _parameters.factory.nftFactoryParameters().platformCommission) / _feeDenominator();
 
             amountToCreator = amount - fees;
         }
 
         bytes32 referralCode = _parameters.referralCode;
-        address refferalCreator = _parameters.factory.getReferralCreator(
-            referralCode
-        );
+        address refferalCreator = _parameters.factory.getReferralCreator(referralCode);
 
         uint256 feesToPlatform = fees;
         uint256 referralFees;
         if (referralCode != bytes32(0)) {
-            referralFees = _parameters.factory.getReferralRate(
-                _parameters.creator,
-                referralCode,
-                fees
-            );
+            referralFees = _parameters.factory.getReferralRate(_parameters.creator, referralCode, fees);
             unchecked {
                 feesToPlatform -= referralFees;
             }
@@ -414,11 +331,7 @@ contract AccessToken is
 
         if (expectedPayingToken == ETH_ADDRESS) {
             if (feesToPlatform > 0) {
-                _parameters
-                    .factory
-                    .nftFactoryParameters()
-                    .platformAddress
-                    .safeTransferETH(feesToPlatform);
+                _parameters.factory.nftFactoryParameters().platformAddress.safeTransferETH(feesToPlatform);
             }
             if (referralFees > 0) {
                 refferalCreator.safeTransferETH(referralFees);
@@ -428,24 +341,14 @@ contract AccessToken is
         } else {
             if (feesToPlatform > 0) {
                 expectedPayingToken.safeTransferFrom(
-                    msg.sender,
-                    _parameters.factory.nftFactoryParameters().platformAddress,
-                    feesToPlatform
+                    msg.sender, _parameters.factory.nftFactoryParameters().platformAddress, feesToPlatform
                 );
             }
             if (referralFees > 0) {
-                expectedPayingToken.safeTransferFrom(
-                    msg.sender,
-                    refferalCreator,
-                    referralFees
-                );
+                expectedPayingToken.safeTransferFrom(msg.sender, refferalCreator, referralFees);
             }
 
-            expectedPayingToken.safeTransferFrom(
-                msg.sender,
-                _parameters.creator,
-                amountToCreator
-            );
+            expectedPayingToken.safeTransferFrom(msg.sender, _parameters.creator, amountToCreator);
         }
 
         emit Paid(msg.sender, expectedPayingToken, amount);
@@ -457,11 +360,7 @@ contract AccessToken is
     /// @param from Sender address (zero for mint).
     /// @param to Recipient address (zero for burn).
     /// @param id Token ID being moved.
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 id
-    ) internal override {
+    function _beforeTokenTransfer(address from, address to, uint256 id) internal override {
         super._beforeTokenTransfer(from, to, id);
 
         if (from != address(0) && to != address(0)) {
@@ -472,7 +371,5 @@ contract AccessToken is
 
     /// @notice Authorizes UUPS upgrades; restricted to owner.
     /// @param /*newImplementation*/ New implementation (unused in guard).
-    function _authorizeUpgrade(
-        address /*newImplementation*/
-    ) internal override onlyOwner {}
+    function _authorizeUpgrade(address /*newImplementation*/ ) internal override onlyOwner {}
 }

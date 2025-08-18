@@ -79,18 +79,12 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
     /// @param newPrice The new mint price.
     /// @param newWLPrice The new whitelist mint price.
     /// @param autoApproved The new value of the automatic approval flag.
-    event NftParametersChanged(
-        address newToken,
-        uint256 newPrice,
-        uint256 newWLPrice,
-        bool autoApproved
-    );
+    event NftParametersChanged(address newToken, uint256 newPrice, uint256 newWLPrice, bool autoApproved);
 
     // ========== State Variables ==========
 
     /// @notice The constant address representing ETH.
-    address public constant ETH_ADDRESS =
-        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice The current total supply of tokens.
     uint256 public totalSupply;
@@ -133,24 +127,17 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
      * @param _whitelistMintPrice The new whitelist mint price.
      * @param autoApprove If true, the transfer validator will be automatically approved for all token holders.
      */
-    function setNftParameters(
-        address _payingToken,
-        uint128 _mintPrice,
-        uint128 _whitelistMintPrice,
-        bool autoApprove
-    ) external onlyOwner {
+    function setNftParameters(address _payingToken, uint128 _mintPrice, uint128 _whitelistMintPrice, bool autoApprove)
+        external
+        onlyOwner
+    {
         parameters.info.payingToken = _payingToken;
         parameters.info.mintPrice = _mintPrice;
         parameters.info.whitelistMintPrice = _whitelistMintPrice;
 
         autoApproveTransfersFromValidator = autoApprove;
 
-        emit NftParametersChanged(
-            _payingToken,
-            _mintPrice,
-            _whitelistMintPrice,
-            autoApprove
-        );
+        emit NftParametersChanged(_payingToken, _mintPrice, _whitelistMintPrice, autoApprove);
     }
 
     /**
@@ -167,42 +154,28 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
         uint256 expectedMintPrice
     ) external payable {
         require(
-            paramsArray.length <=
-                NFTFactory(parameters.factory)
-                    .nftFactoryParameters()
-                    .maxArraySize,
-            WrongArraySize()
+            paramsArray.length <= NFTFactory(parameters.factory).nftFactoryParameters().maxArraySize, WrongArraySize()
         );
 
         InstanceInfo memory info = parameters.info;
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            NFTFactory(parameters.factory)
-                .nftFactoryParameters()
-                .signerAddress
-                .checkStaticPriceParameters(receiver, paramsArray[i]);
+            NFTFactory(parameters.factory).nftFactoryParameters().signerAddress.checkStaticPriceParameters(
+                receiver, paramsArray[i]
+            );
 
             // Determine the mint price based on whitelist status
-            uint256 price = paramsArray[i].whitelisted
-                ? info.whitelistMintPrice
-                : info.mintPrice;
+            uint256 price = paramsArray[i].whitelisted ? info.whitelistMintPrice : info.mintPrice;
 
             unchecked {
                 amountToPay += price;
             }
 
-            _baseMint(
-                paramsArray[i].tokenId,
-                receiver,
-                paramsArray[i].tokenUri
-            );
+            _baseMint(paramsArray[i].tokenId, receiver, paramsArray[i].tokenUri);
         }
 
-        require(
-            _pay(amountToPay, expectedPayingToken) == expectedMintPrice,
-            PriceChanged(expectedMintPrice)
-        );
+        require(_pay(amountToPay, expectedPayingToken) == expectedMintPrice, PriceChanged(expectedMintPrice));
     }
 
     /**
@@ -217,29 +190,20 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
         address expectedPayingToken
     ) external payable {
         require(
-            paramsArray.length <=
-                NFTFactory(parameters.factory)
-                    .nftFactoryParameters()
-                    .maxArraySize,
-            WrongArraySize()
+            paramsArray.length <= NFTFactory(parameters.factory).nftFactoryParameters().maxArraySize, WrongArraySize()
         );
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            NFTFactory(parameters.factory)
-                .nftFactoryParameters()
-                .signerAddress
-                .checkDynamicPriceParameters(receiver, paramsArray[i]);
+            NFTFactory(parameters.factory).nftFactoryParameters().signerAddress.checkDynamicPriceParameters(
+                receiver, paramsArray[i]
+            );
 
             unchecked {
                 amountToPay += paramsArray[i].price;
             }
 
-            _baseMint(
-                paramsArray[i].tokenId,
-                receiver,
-                paramsArray[i].tokenUri
-            );
+            _baseMint(paramsArray[i].tokenId, receiver, paramsArray[i].tokenUri);
         }
 
         _pay(amountToPay, expectedPayingToken);
@@ -250,9 +214,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
      * @param _tokenId The ID of the token.
      * @return The metadata URI associated with the given token ID.
      */
-    function tokenURI(
-        uint256 _tokenId
-    ) public view override returns (string memory) {
+    function tokenURI(uint256 _tokenId) public view override returns (string memory) {
         if (!_exists(_tokenId)) {
             revert TokenIdDoesNotExist();
         }
@@ -287,10 +249,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
      * @param operator The operator trying to manage the tokens.
      * @return isApproved Whether the operator is approved for all tokens of the owner.
      */
-    function isApprovedForAll(
-        address _owner,
-        address operator
-    ) public view override returns (bool isApproved) {
+    function isApprovedForAll(address _owner, address operator) public view override returns (bool isApproved) {
         isApproved = super.isApprovedForAll(_owner, operator);
 
         if (!isApproved && autoApproveTransfersFromValidator) {
@@ -301,19 +260,14 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
     /// @dev Returns true if this contract implements the interface defined by `interfaceId`.
     /// See: https://eips.ethereum.org/EIPS/eip-165
     /// This function call must use less than 30000 gas.
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view override(ERC721, ERC2981) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC2981) returns (bool) {
         bool result;
         /// @solidity memory-safe-assembly
         assembly {
             let s := shr(224, interfaceId)
             // ICreatorToken: 0xad0d7f6c, ILegacyCreatorToken: 0xa07d229a.
             // ERC4906: 0x49064906, check https://eips.ethereum.org/EIPS/eip-4906.
-            result := or(
-                or(eq(s, 0xad0d7f6c), eq(s, 0xa07d229a)),
-                eq(s, 0x49064906)
-            )
+            result := or(or(eq(s, 0xad0d7f6c), eq(s, 0xa07d229a)), eq(s, 0x49064906))
         }
 
         return result || super.supportsInterface(interfaceId);
@@ -326,16 +280,9 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
      * @param tokenUri The metadata URI associated with the token.
      * @param tokenId The ID of the token to be minted.
      */
-    function _baseMint(
-        uint256 tokenId,
-        address to,
-        string calldata tokenUri
-    ) internal {
+    function _baseMint(uint256 tokenId, address to, string calldata tokenUri) internal {
         // Ensure the total supply has not been exceeded
-        require(
-            totalSupply + 1 <= parameters.info.maxTotalSupply,
-            TotalSupplyLimitReached()
-        );
+        require(totalSupply + 1 <= parameters.info.maxTotalSupply, TotalSupplyLimitReached());
         // Overflow check required: The rest of the code assumes that totalSupply never overflows
         unchecked {
             totalSupply++;
@@ -349,16 +296,10 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
      * @notice Handles the payment for minting NFTs, including sending fees to the platform and creator.
      * @dev Payments can be made in ETH or another token.
      */
-    function _pay(
-        uint256 price,
-        address expectedPayingToken
-    ) private returns (uint256 amount) {
+    function _pay(uint256 price, address expectedPayingToken) private returns (uint256 amount) {
         NftParameters memory _parameters = parameters;
 
-        require(
-            expectedPayingToken == _parameters.info.payingToken,
-            TokenChanged(_parameters.info.payingToken)
-        );
+        require(expectedPayingToken == _parameters.info.payingToken, TokenChanged(_parameters.info.payingToken));
 
         amount = expectedPayingToken == ETH_ADDRESS ? msg.value : price;
 
@@ -369,9 +310,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
         uint256 fees;
         uint256 amountToCreator;
         unchecked {
-            fees =
-                (amount * _factory.nftFactoryParameters().platformCommission) /
-                _feeDenominator();
+            fees = (amount * _factory.nftFactoryParameters().platformCommission) / _feeDenominator();
 
             amountToCreator = amount - fees;
         }
@@ -382,11 +321,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
         uint256 feesToPlatform = fees;
         uint256 referralFees;
         if (referralCode != bytes32(0)) {
-            referralFees = _factory.getReferralRate(
-                _parameters.creator,
-                referralCode,
-                fees
-            );
+            referralFees = _factory.getReferralRate(_parameters.creator, referralCode, fees);
             unchecked {
                 feesToPlatform -= referralFees;
             }
@@ -394,9 +329,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
 
         if (expectedPayingToken == ETH_ADDRESS) {
             if (feesToPlatform > 0) {
-                _factory.nftFactoryParameters().platformAddress.safeTransferETH(
-                    feesToPlatform
-                );
+                _factory.nftFactoryParameters().platformAddress.safeTransferETH(feesToPlatform);
             }
             if (referralFees > 0) {
                 refferalCreator.safeTransferETH(referralFees);
@@ -406,24 +339,14 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
         } else {
             if (feesToPlatform > 0) {
                 expectedPayingToken.safeTransferFrom(
-                    msg.sender,
-                    _factory.nftFactoryParameters().platformAddress,
-                    feesToPlatform
+                    msg.sender, _factory.nftFactoryParameters().platformAddress, feesToPlatform
                 );
             }
             if (referralFees > 0) {
-                expectedPayingToken.safeTransferFrom(
-                    msg.sender,
-                    refferalCreator,
-                    referralFees
-                );
+                expectedPayingToken.safeTransferFrom(msg.sender, refferalCreator, referralFees);
             }
 
-            expectedPayingToken.safeTransferFrom(
-                msg.sender,
-                _parameters.creator,
-                amountToCreator
-            );
+            expectedPayingToken.safeTransferFrom(msg.sender, _parameters.creator, amountToCreator);
         }
 
         emit Paid(msg.sender, expectedPayingToken, amount);
@@ -433,11 +356,7 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
     /// @param from The address tokens are being transferred from.
     /// @param to The address tokens are being transferred to.
     /// @param id The token ID being transferred.
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 id
-    ) internal override {
+    function _beforeTokenTransfer(address from, address to, uint256 id) internal override {
         super._beforeTokenTransfer(from, to, id);
 
         // Check if this is not a mint or burn operation, only a transfer.

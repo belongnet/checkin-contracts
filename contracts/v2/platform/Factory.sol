@@ -63,19 +63,14 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Emitted after successful creation of a CreditToken collection.
     /// @param _hash Keccak256 hash of `(name, symbol)`.
     /// @param info Deployed collection details.
-    event CreditTokenCreated(
-        bytes32 indexed _hash,
-        CreditTokenInstanceInfo info
-    );
+    event CreditTokenCreated(bytes32 indexed _hash, CreditTokenInstanceInfo info);
 
     /// @notice Emitted when factory/global parameters are updated.
     /// @param factoryParameters New factory parameters.
     /// @param royalties New royalties parameters (creator/platform BPS).
     /// @param implementations Addresses for implementation contracts.
     event FactoryParametersSet(
-        FactoryParameters factoryParameters,
-        RoyaltiesParameters royalties,
-        Implementations implementations
+        FactoryParameters factoryParameters, RoyaltiesParameters royalties, Implementations implementations
     );
 
     // ========== Types ==========
@@ -138,12 +133,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     FactoryParameters private _nftFactoryParameters;
 
     /// @notice Mapping `(name, symbol)` hash → AccessToken collection info.
-    mapping(bytes32 hashedNameSymbol => NftInstanceInfo info)
-        public getNftInstanceInfo;
+    mapping(bytes32 hashedNameSymbol => NftInstanceInfo info) public getNftInstanceInfo;
 
     /// @notice Mapping `(name, symbol)` hash → CreditToken collection info.
-    mapping(bytes32 hashedNameSymbol => CreditTokenInstanceInfo info)
-        private _creditTokenInstanceInfo;
+    mapping(bytes32 hashedNameSymbol => CreditTokenInstanceInfo info) private _creditTokenInstanceInfo;
 
     /// @notice Current royalties split parameters.
     RoyaltiesParameters private _royaltiesParameters;
@@ -176,10 +169,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         _initializeOwner(msg.sender);
     }
 
-    function upgradeToV2(
-        RoyaltiesParameters calldata _royalties,
-        Implementations calldata _implementations
-    ) external reinitializer(2) {
+    function upgradeToV2(RoyaltiesParameters calldata _royalties, Implementations calldata _implementations)
+        external
+        reinitializer(2)
+    {
         FactoryParameters memory factoryParameters = _nftFactoryParameters;
         _setFactoryParameters(factoryParameters, _royalties, _implementations);
     }
@@ -195,66 +188,45 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param accessTokenInfo Parameters used to initialize the AccessToken instance.
     /// @param referralCode Optional referral code attributed to the creator.
     /// @return nftAddress The deployed AccessToken proxy address.
-    function produce(
-        AccessTokenInfo memory accessTokenInfo,
-        bytes32 referralCode
-    ) external returns (address nftAddress) {
+    function produce(AccessTokenInfo memory accessTokenInfo, bytes32 referralCode)
+        external
+        returns (address nftAddress)
+    {
         FactoryParameters memory factoryParameters = _nftFactoryParameters;
 
         factoryParameters.signerAddress.checkAccessTokenInfo(accessTokenInfo);
 
-        bytes32 hashedSalt = _metadataHash(
-            accessTokenInfo.metadata.name,
-            accessTokenInfo.metadata.symbol
-        );
+        bytes32 hashedSalt = _metadataHash(accessTokenInfo.metadata.name, accessTokenInfo.metadata.symbol);
 
-        require(
-            getNftInstanceInfo[hashedSalt].nftAddress == address(0),
-            TokenAlreadyExists()
-        );
+        require(getNftInstanceInfo[hashedSalt].nftAddress == address(0), TokenAlreadyExists());
 
-        accessTokenInfo.paymentToken = accessTokenInfo.paymentToken ==
-            address(0)
+        accessTokenInfo.paymentToken = accessTokenInfo.paymentToken == address(0)
             ? factoryParameters.defaultPaymentCurrency
             : accessTokenInfo.paymentToken;
 
         Implementations memory currentImplementations = _currentImplementations;
 
-        address predictedRoyaltiesReceiver = currentImplementations
-            .royaltiesReceiver
-            .predictDeterministicAddress(hashedSalt, address(this));
-        address predictedAccessToken = currentImplementations
-            .accessToken
-            .predictDeterministicAddressERC1967(hashedSalt, address(this));
+        address predictedRoyaltiesReceiver =
+            currentImplementations.royaltiesReceiver.predictDeterministicAddress(hashedSalt, address(this));
+        address predictedAccessToken =
+            currentImplementations.accessToken.predictDeterministicAddressERC1967(hashedSalt, address(this));
 
         address receiver;
         _setReferralUser(referralCode, msg.sender);
         if (accessTokenInfo.feeNumerator > 0) {
-            receiver = currentImplementations
-                .royaltiesReceiver
-                .cloneDeterministic(hashedSalt);
-            require(
-                predictedRoyaltiesReceiver == receiver,
-                RoyaltiesReceiverAddressMismatch()
-            );
+            receiver = currentImplementations.royaltiesReceiver.cloneDeterministic(hashedSalt);
+            require(predictedRoyaltiesReceiver == receiver, RoyaltiesReceiverAddressMismatch());
             RoyaltiesReceiverV2(payable(receiver)).initialize(
                 RoyaltiesReceiverV2.RoyaltiesReceivers(
-                    msg.sender,
-                    factoryParameters.platformAddress,
-                    referrals[referralCode].creator
+                    msg.sender, factoryParameters.platformAddress, referrals[referralCode].creator
                 ),
                 Factory(address(this)),
                 referralCode
             );
         }
 
-        nftAddress = currentImplementations
-            .accessToken
-            .deployDeterministicERC1967(hashedSalt);
-        require(
-            predictedAccessToken == nftAddress,
-            AccessTokenAddressMismatch()
-        );
+        nftAddress = currentImplementations.accessToken.deployDeterministicERC1967(hashedSalt);
+        require(predictedAccessToken == nftAddress, AccessTokenAddressMismatch());
         AccessToken(nftAddress).initialize(
             AccessToken.AccessTokenParameters({
                 factory: Factory(address(this)),
@@ -270,10 +242,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             creator: msg.sender,
             nftAddress: nftAddress,
             royaltiesReceiver: receiver,
-            metadata: NftMetadata({
-                name: accessTokenInfo.metadata.name,
-                symbol: accessTokenInfo.metadata.symbol
-            })
+            metadata: NftMetadata({name: accessTokenInfo.metadata.name, symbol: accessTokenInfo.metadata.symbol})
         });
 
         getNftInstanceInfo[hashedSalt] = accessTokenInstanceInfo;
@@ -289,46 +258,32 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param creditTokenInfo Parameters to initialize the CreditToken instance.
     /// @param signature Authorization signature from the platform signer.
     /// @return creditToken The deployed CreditToken clone address.
-    function produceCreditToken(
-        ERC1155Info calldata creditTokenInfo,
-        bytes calldata signature
-    ) external returns (address creditToken) {
-        _nftFactoryParameters.signerAddress.checkCreditTokenInfo(
-            signature,
-            creditTokenInfo
-        );
+    function produceCreditToken(ERC1155Info calldata creditTokenInfo, bytes calldata signature)
+        external
+        returns (address creditToken)
+    {
+        _nftFactoryParameters.signerAddress.checkCreditTokenInfo(signature, creditTokenInfo);
 
-        bytes32 hashedSalt = _metadataHash(
-            creditTokenInfo.name,
-            creditTokenInfo.symbol
-        );
+        bytes32 hashedSalt = _metadataHash(creditTokenInfo.name, creditTokenInfo.symbol);
 
-        require(
-            _creditTokenInstanceInfo[hashedSalt].creditToken == address(0),
-            TokenAlreadyExists()
-        );
+        require(_creditTokenInstanceInfo[hashedSalt].creditToken == address(0), TokenAlreadyExists());
 
         address creditTokenImplementation = _currentImplementations.creditToken;
-        address predictedCreditToken = creditTokenImplementation
-            .predictDeterministicAddress(hashedSalt, address(this));
+        address predictedCreditToken = creditTokenImplementation.predictDeterministicAddress(hashedSalt, address(this));
 
         creditToken = creditTokenImplementation.cloneDeterministic(hashedSalt);
-        require(
-            predictedCreditToken == creditToken,
-            CreditTokenAddressMismatch()
-        );
+        require(predictedCreditToken == creditToken, CreditTokenAddressMismatch());
         CreditToken(creditToken).initialize(creditTokenInfo);
 
-        CreditTokenInstanceInfo
-            memory creditTokenInstanceInfo = CreditTokenInstanceInfo({
-                defaultAdmin: creditTokenInfo.defaultAdmin,
-                manager: creditTokenInfo.manager,
-                minter: creditTokenInfo.minter,
-                burner: creditTokenInfo.burner,
-                creditToken: creditToken,
-                name: creditTokenInfo.name,
-                symbol: creditTokenInfo.symbol
-            });
+        CreditTokenInstanceInfo memory creditTokenInstanceInfo = CreditTokenInstanceInfo({
+            defaultAdmin: creditTokenInfo.defaultAdmin,
+            manager: creditTokenInfo.manager,
+            minter: creditTokenInfo.minter,
+            burner: creditTokenInfo.burner,
+            creditToken: creditToken,
+            name: creditTokenInfo.name,
+            symbol: creditTokenInfo.symbol
+        });
 
         _creditTokenInstanceInfo[hashedSalt] = creditTokenInstanceInfo;
 
@@ -357,21 +312,13 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
     /// @notice Returns the current factory parameters.
     /// @return The {FactoryParameters} struct.
-    function nftFactoryParameters()
-        external
-        view
-        returns (FactoryParameters memory)
-    {
+    function nftFactoryParameters() external view returns (FactoryParameters memory) {
         return _nftFactoryParameters;
     }
 
     /// @notice Returns the current royalties parameters (BPS).
     /// @return The {RoyaltiesParameters} struct.
-    function royaltiesParameters()
-        external
-        view
-        returns (RoyaltiesParameters memory)
-    {
+    function royaltiesParameters() external view returns (RoyaltiesParameters memory) {
         return _royaltiesParameters;
     }
 
@@ -385,10 +332,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param name Collection name.
     /// @param symbol Collection symbol.
     /// @return The {NftInstanceInfo} record, if created.
-    function nftInstanceInfo(
-        string calldata name,
-        string calldata symbol
-    ) external view returns (NftInstanceInfo memory) {
+    function nftInstanceInfo(string calldata name, string calldata symbol)
+        external
+        view
+        returns (NftInstanceInfo memory)
+    {
         return getNftInstanceInfo[_metadataHash(name, symbol)];
     }
 
@@ -396,10 +344,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param name Collection name.
     /// @param symbol Collection symbol.
     /// @return The {CreditTokenInstanceInfo} record, if created.
-    function getCreditTokenInstanceInfo(
-        string calldata name,
-        string calldata symbol
-    ) external view returns (CreditTokenInstanceInfo memory) {
+    function getCreditTokenInstanceInfo(string calldata name, string calldata symbol)
+        external
+        view
+        returns (CreditTokenInstanceInfo memory)
+    {
         return _creditTokenInstanceInfo[_metadataHash(name, symbol)];
     }
 
@@ -415,30 +364,20 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         RoyaltiesParameters calldata _royalties,
         Implementations calldata _implementations
     ) private {
-        require(
-            _royalties.amountToCreator + _royalties.amountToPlatform <= 10000,
-            TotalRoyaltiesExceed100Pecents()
-        );
+        require(_royalties.amountToCreator + _royalties.amountToPlatform <= 10000, TotalRoyaltiesExceed100Pecents());
 
         _nftFactoryParameters = factoryParameters_;
         _royaltiesParameters = _royalties;
         _currentImplementations = _implementations;
 
-        emit FactoryParametersSet(
-            factoryParameters_,
-            _royalties,
-            _implementations
-        );
+        emit FactoryParametersSet(factoryParameters_, _royalties, _implementations);
     }
 
     /// @notice Computes a deterministic salt for a collection metadata pair.
     /// @param name Collection name.
     /// @param symbol Collection symbol.
     /// @return Hash salt equal to `keccak256(abi.encodePacked(name, symbol))`.
-    function _metadataHash(
-        string memory name,
-        string memory symbol
-    ) private pure returns (bytes32) {
+    function _metadataHash(string memory name, string memory symbol) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(name, symbol));
     }
 }

@@ -17,10 +17,7 @@ interface ICreatorToken {
     /// @notice Retrieves the function signature of the transfer validation function and whether it's a view function
     /// @return functionSignature The function signature of the transfer validation function
     /// @return isViewFunction Indicates whether the transfer validation function is a view function
-    function getTransferValidationFunction()
-        external
-        view
-        returns (bytes4 functionSignature, bool isViewFunction);
+    function getTransferValidationFunction() external view returns (bytes4 functionSignature, bool isViewFunction);
 
     /// @notice Sets a new transfer validator contract
     /// @param validator The address of the new transfer validator
