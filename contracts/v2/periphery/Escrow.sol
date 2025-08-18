@@ -38,9 +38,8 @@ contract Escrow is Initializable, Ownable {
 
     /// @notice Emitted whenever a venue's escrow balances are updated.
     /// @param venue Venue address.
-    /// @param usdcDeposits New USDC balance recorded for the venue.
-    /// @param longDeposits New LONG balance recorded for the venue.
-    event VenueDepositsUpdated(address indexed venue, uint256 usdcDeposits, uint256 longDeposits);
+    /// @param deposits New USDC and LONG balances recorded for the venue.
+    event VenueDepositsUpdated(address indexed venue, VenueDeposits deposits);
 
     /// @notice Emitted when LONG discount funds are disbursed to a venue.
     /// @param venue Venue receiving the LONG subsidy.
@@ -99,9 +98,11 @@ contract Escrow is Initializable, Ownable {
     /// @param depositedUSDCs New USDC balance to record for `venue`.
     /// @param depositedLONGs New LONG balance to record for `venue`.
     function venueDeposit(address venue, uint256 depositedUSDCs, uint256 depositedLONGs) external onlyTapEarn {
-        venueDeposits[venue] = VenueDeposits({usdcDeposits: depositedUSDCs, longDeposits: depositedLONGs});
+        VenueDeposits storage deposits = venueDeposits[venue];
+        deposits.usdcDeposits += depositedUSDCs;
+        deposits.longDeposits += depositedLONGs;
 
-        emit VenueDepositsUpdated(venue, depositedUSDCs, depositedLONGs);
+        emit VenueDepositsUpdated(venue, deposits);
     }
 
     /// @notice Disburses LONG discount funds from a venue's LONG balance to the venue.
@@ -119,7 +120,7 @@ contract Escrow is Initializable, Ownable {
 
         tapAndEarn.paymentsInfo().long.safeTransfer(venue, amount);
 
-        emit VenueDepositsUpdated(venue, venueDeposits[venue].usdcDeposits, longDeposits);
+        emit VenueDepositsUpdated(venue, venueDeposits[venue]);
         emit DistributedLONGDiscount(venue, amount);
     }
 
@@ -140,7 +141,7 @@ contract Escrow is Initializable, Ownable {
 
         tapAndEarn.paymentsInfo().usdc.safeTransfer(to, amount);
 
-        emit VenueDepositsUpdated(venue, usdcDeposits, venueDeposits[venue].longDeposits);
+        emit VenueDepositsUpdated(venue, venueDeposits[venue]);
         emit DistributedVenueDeposit(venue, to, amount);
     }
 }
