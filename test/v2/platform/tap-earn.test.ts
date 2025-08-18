@@ -35,7 +35,7 @@ import {
   VenueRulesStruct,
 } from '../../../typechain-types/contracts/v2/platform/TapAndEarn';
 
-describe.only('TapAndEarn', () => {
+describe('TapAndEarn', () => {
   const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
   const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
   const ENA_ADDRESS = '0x57e114B691Db790C35207b2e685D4A43181e6061'; //used instead of LONG
