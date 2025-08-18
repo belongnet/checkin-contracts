@@ -1,3 +1,5 @@
+const shell = require('shelljs');
+
 module.exports = {
   istanbulReporter: ['html'],
   onCompileComplete: async function (_config) {
