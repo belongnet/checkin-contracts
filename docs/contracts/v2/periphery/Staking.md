@@ -43,6 +43,14 @@ error ZeroReward()
 
 Reverts when a zero-amount reward distribution is attempted.
 
+### SharesEqZero
+
+```solidity
+error SharesEqZero()
+```
+
+Reverts when a zero shares is attempted.
+
 ### RewardsDistributed
 
 ```solidity
@@ -71,10 +79,10 @@ Emitted when the minimum stake period is updated.
 | ---- | ---- | ----------- |
 | period | uint256 | New minimum stake period in seconds. |
 
-### PenaltyPecentSet
+### PenaltyPercentSet
 
 ```solidity
-event PenaltyPecentSet(uint256 percent)
+event PenaltyPercentSet(uint256 percent)
 ```
 
 Emitted when the penalty percentage is updated.
@@ -204,10 +212,10 @@ _Reverts if `period == 0`._
 | ---- | ---- | ----------- |
 | period | uint256 | New minimum stake period in seconds. |
 
-### setpenaltyPercentage
+### setPenaltyPercentage
 
 ```solidity
-function setpenaltyPercentage(uint256 newPercent) external
+function setPenaltyPercentage(uint256 newPercent) external
 ```
 
 Sets the emergency penalty percentage.
@@ -348,39 +356,21 @@ function symbol() public pure returns (string)
 
 _Returns the symbol of the token._
 
-### _afterDeposit
+### _deposit
 
 ```solidity
-function _afterDeposit(uint256, uint256 shares) internal
+function _deposit(address by, address to, uint256 assets, uint256 shares) internal
 ```
 
-Records a new stake position in shares after deposit/mint.
+_For deposits and mints.
 
-_Uses share amounts to keep locks consistent under changing exchange rates._
+Emits a {Deposit} event._
 
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-|  | uint256 |  |
-| shares | uint256 | Shares minted to the depositor. |
-
-### _beforeWithdraw
+### _withdraw
 
 ```solidity
-function _beforeWithdraw(uint256, uint256 shares) internal
+function _withdraw(address by, address to, address _owner, uint256 assets, uint256 shares) internal
 ```
-
-Ensures there are enough unlocked shares to withdraw/redeem the requested amount.
-
-_Sums unlocked shares across stake entries; reverts if insufficient._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-|  | uint256 |  |
-| shares | uint256 | Shares intended to be burned by the operation. |
 
 ### _removeUnlockedSharesFor
 

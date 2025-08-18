@@ -1,12 +1,25 @@
 # Solidity API
 
+## NftInstanceInfo
+
+Summary information about a deployed AccessToken collection.
+
+```solidity
+struct NftInstanceInfo {
+  address creator;
+  address nftAddress;
+  address royaltiesReceiver;
+  struct NftMetadata metadata;
+}
+```
+
 ## Factory
 
 Produces upgradeable ERC721-like AccessToken collections and minimal-proxy ERC1155 CreditToken collections,
         configures royalties receivers, and manages platform referral parameters.
 @dev
 - Uses Solady's `LibClone` for CREATE2 deterministic deployments and ERC1967 proxy deployments.
-- Signature-gated creation flows validated by a platform signer (see {FactoryParameters.signer}).
+- Signature-gated creation flows validated by a platform signerAddress (see {FactoryParameters.signerAddress}).
 - Royalties split (creator/platform/referral) configured via `RoyaltiesReceiverV2`.
 - Referral configuration inherited from {ReferralSystemV2}.
 
@@ -53,7 +66,7 @@ Thrown when the deployed CreditToken address does not match the predicted addres
 ### AccessTokenCreated
 
 ```solidity
-event AccessTokenCreated(bytes32 _hash, struct Factory.AccessTokenInstanceInfo info)
+event AccessTokenCreated(bytes32 _hash, struct NftInstanceInfo info)
 ```
 
 Emitted after successful creation of an AccessToken collection.
@@ -63,7 +76,7 @@ Emitted after successful creation of an AccessToken collection.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _hash | bytes32 | Keccak256 hash of `(name, symbol)`. |
-| info | struct Factory.AccessTokenInstanceInfo | Deployed collection details. |
+| info | struct NftInstanceInfo | Deployed collection details. |
 
 ### CreditTokenCreated
 
@@ -100,30 +113,16 @@ Emitted when factory/global parameters are updated.
 
 Global configuration for the Factory.
 
-_`commissionInBps` is expressed in basis points (BPS), where 10_000 == 100%._
+_`platformCommission` is expressed in basis points (BPS), where 10_000 == 100%._
 
 ```solidity
 struct FactoryParameters {
-  address feeCollector;
-  address signer;
-  address defaultPaymentToken;
-  uint256 commissionInBps;
+  address platformAddress;
+  address signerAddress;
+  address defaultPaymentCurrency;
+  uint256 platformCommission;
   uint256 maxArraySize;
   address transferValidator;
-}
-```
-
-### AccessTokenInstanceInfo
-
-Summary information about a deployed AccessToken collection.
-
-```solidity
-struct AccessTokenInstanceInfo {
-  address creator;
-  address accessToken;
-  address royaltiesReceiver;
-  string name;
-  string symbol;
 }
 ```
 
@@ -160,7 +159,7 @@ struct RoyaltiesParameters {
 
 Implementation contract addresses used for deployments.
 @dev
-- `accessToken` is an ERC1967 implementation for proxy deployments (Upgradeable).
+- `nftAddress` is an ERC1967 implementation for proxy deployments (Upgradeable).
 - `creditToken` and `royaltiesReceiver` are minimal-proxy (clone) targets.
 
 ```solidity
@@ -170,6 +169,14 @@ struct Implementations {
   address royaltiesReceiver;
 }
 ```
+
+### getNftInstanceInfo
+
+```solidity
+mapping(bytes32 => struct NftInstanceInfo) getNftInstanceInfo
+```
+
+Mapping `(name, symbol)` hash → AccessToken collection info.
 
 ### constructor
 
@@ -198,10 +205,16 @@ _Must be called exactly once on the proxy instance._
 | _implementations | struct Factory.Implementations | Implementation addresses for deployments. |
 | percentages | uint16[5] | Referral percentages array forwarded to {ReferralSystemV2}. |
 
+### upgradeToV2
+
+```solidity
+function upgradeToV2(struct Factory.RoyaltiesParameters _royalties, struct Factory.Implementations _implementations) external
+```
+
 ### produce
 
 ```solidity
-function produce(struct AccessTokenInfo accessTokenInfo, bytes32 referralCode) external returns (address accessToken)
+function produce(struct AccessTokenInfo accessTokenInfo, bytes32 referralCode) external returns (address nftAddress)
 ```
 
 Produces a new AccessToken collection (upgradeable proxy) and optional RoyaltiesReceiver.
@@ -222,7 +235,7 @@ Produces a new AccessToken collection (upgradeable proxy) and optional Royalties
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| accessToken | address | The deployed AccessToken proxy address. |
+| nftAddress | address | The deployed AccessToken proxy address. |
 
 ### produceCreditToken
 
@@ -310,10 +323,10 @@ Returns the current implementation addresses used for deployments.
 | ---- | ---- | ----------- |
 | [0] | struct Factory.Implementations | The {Implementations} struct. |
 
-### getNftInstanceInfo
+### nftInstanceInfo
 
 ```solidity
-function getNftInstanceInfo(string name, string symbol) external view returns (struct Factory.AccessTokenInstanceInfo)
+function nftInstanceInfo(string name, string symbol) external view returns (struct NftInstanceInfo)
 ```
 
 Returns stored info for an AccessToken collection by `(name, symbol)`.
@@ -329,7 +342,7 @@ Returns stored info for an AccessToken collection by `(name, symbol)`.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | struct Factory.AccessTokenInstanceInfo | The {AccessTokenInstanceInfo} record, if created. |
+| [0] | struct NftInstanceInfo | The {NftInstanceInfo} record, if created. |
 
 ### getCreditTokenInstanceInfo
 

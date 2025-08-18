@@ -1,5 +1,14 @@
 # Solidity API
 
+## NftMetadata
+
+```solidity
+struct NftMetadata {
+  string name;
+  string symbol;
+}
+```
+
 ## AccessTokenInfo
 
 Initialization/configuration data for an AccessToken (ERC-721) collection.
@@ -18,8 +27,7 @@ struct AccessTokenInfo {
   uint256 mintPrice;
   uint256 whitelistMintPrice;
   uint256 collectionExpire;
-  string name;
-  string symbol;
+  struct NftMetadata metadata;
   string contractURI;
   bytes signature;
 }
