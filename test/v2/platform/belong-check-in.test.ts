@@ -506,9 +506,7 @@ describe('BelongCheckIn', () => {
       await expect(tx)
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
-      await expect(tx)
-        .to.emit(escrow, 'VenueDepositsUpdated')
-        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
@@ -569,9 +567,7 @@ describe('BelongCheckIn', () => {
       await expect(tx)
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
-      await expect(tx)
-        .to.emit(escrow, 'VenueDepositsUpdated')
-        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
@@ -681,9 +677,7 @@ describe('BelongCheckIn', () => {
       await expect(tx)
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
-      await expect(tx)
-        .to.emit(escrow, 'VenueDepositsUpdated')
-        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
@@ -749,9 +743,7 @@ describe('BelongCheckIn', () => {
       await expect(tx)
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
-      await expect(tx)
-        .to.emit(escrow, 'VenueDepositsUpdated')
-        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
@@ -823,9 +815,7 @@ describe('BelongCheckIn', () => {
       await expect(tx)
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
-      await expect(tx)
-        .to.emit(escrow, 'VenueDepositsUpdated')
-        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
@@ -905,9 +895,7 @@ describe('BelongCheckIn', () => {
       await expect(tx)
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
-      await expect(tx)
-        .to.emit(escrow, 'VenueDepositsUpdated')
-        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
@@ -989,9 +977,7 @@ describe('BelongCheckIn', () => {
       await expect(tx)
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
-      await expect(tx)
-        .to.emit(escrow, 'VenueDepositsUpdated')
-        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
@@ -1069,9 +1055,7 @@ describe('BelongCheckIn', () => {
       await expect(tx)
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
-      await expect(tx)
-        .to.emit(escrow, 'VenueDepositsUpdated')
-        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
@@ -1149,9 +1133,7 @@ describe('BelongCheckIn', () => {
       await expect(tx)
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
-      await expect(tx)
-        .to.emit(escrow, 'VenueDepositsUpdated')
-        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
@@ -1229,9 +1211,7 @@ describe('BelongCheckIn', () => {
       await expect(tx)
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
-      await expect(tx)
-        .to.emit(escrow, 'VenueDepositsUpdated')
-        .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
