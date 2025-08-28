@@ -10,7 +10,7 @@ import {
   LONG,
   RoyaltiesReceiverV2,
   Staking,
-  TapAndEarn,
+  BelongCheckIn,
 } from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { AccessTokenInfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
@@ -235,27 +235,27 @@ export async function deployStaking(owner: string, treasury: string, long: strin
   return staking;
 }
 
-export async function deployTapAndEarn(
+export async function deployBelongCheckIn(
   signatureVerifier: string,
   helper: string,
   owner: string,
-  paymentsInfo: TapAndEarn.PaymentsInfoStruct,
-): Promise<TapAndEarn> {
-  const TapAndEarn: ContractFactory = await ethers.getContractFactory('TapAndEarn', {
+  paymentsInfo: BelongCheckIn.PaymentsInfoStruct,
+): Promise<BelongCheckIn> {
+  const BelongCheckIn: ContractFactory = await ethers.getContractFactory('BelongCheckIn', {
     libraries: { SignatureVerifier: signatureVerifier, Helper: helper },
   });
-  const tapAndEarn: TapAndEarn = (await upgrades.deployProxy(TapAndEarn, [owner, paymentsInfo], {
+  const belongCheckIn: BelongCheckIn = (await upgrades.deployProxy(BelongCheckIn, [owner, paymentsInfo], {
     unsafeAllow: ['constructor'],
     unsafeAllowLinkedLibraries: true,
-  })) as TapAndEarn;
-  await tapAndEarn.deployed();
+  })) as BelongCheckIn;
+  await belongCheckIn.deployed();
 
-  return tapAndEarn;
+  return belongCheckIn;
 }
 
-export async function deployEscrow(tapEarn: string): Promise<Escrow> {
+export async function deployEscrow(belongCheckIn: string): Promise<Escrow> {
   const Escrow: ContractFactory = await ethers.getContractFactory('Escrow');
-  const escrow: Escrow = (await upgrades.deployProxy(Escrow, [tapEarn], {
+  const escrow: Escrow = (await upgrades.deployProxy(Escrow, [belongCheckIn], {
     unsafeAllow: ['constructor'],
     unsafeAllowLinkedLibraries: true,
   })) as Escrow;
