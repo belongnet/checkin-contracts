@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { ethers } from 'hardhat';
-import { TapAndEarn } from '../../../typechain-types';
+import { BelongCheckIn } from '../../../typechain-types';
 
 dotenv.config();
 
@@ -21,9 +21,9 @@ async function deploy() {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
 
-  console.log('Setting TapAndEarn up...');
+  console.log('Setting BelongCheckIn up...');
 
-  const tapEarn = deployments.TapAndEarn.proxy;
+  const belongCheckIn = deployments.BelongCheckIn.proxy;
   const factory = deployments.Factory.proxy;
   const escrow = deployments.Escrow.address;
   const staking = deployments.Staking.address;
@@ -32,9 +32,9 @@ async function deploy() {
   const longPF = process.env.LONG_PRICE_FEED;
 
   // Validate environment variables
-  if (!tapEarn || !factory || !escrow || !staking || !venueToken || !promoterToken || !longPF) {
+  if (!belongCheckIn || !factory || !escrow || !staking || !venueToken || !promoterToken || !longPF) {
     throw new Error(
-      'Missing required environment variables: TapAndEarn, Factory, Escrow, Staking, VenueToken, PromoterToken, LongPriceFeed',
+      'Missing required environment variables: BelongCheckIn, Factory, Escrow, Staking, VenueToken, PromoterToken, LongPriceFeed',
     );
   }
 
@@ -45,7 +45,7 @@ async function deploy() {
     }
   }
 
-  const tapAndEarn: TapAndEarn = await ethers.getContractAt('TapAndEarn', tapEarn);
+  const belongCheckIn: BelongCheckIn = await ethers.getContractAt('BelongCheckIn', belongCheckIn);
 
   const contracts = {
     factory,
@@ -56,7 +56,7 @@ async function deploy() {
     longPF,
   };
 
-  await tapAndEarn.setContracts(contracts);
+  await belongCheckIn.setContracts(contracts);
 
   console.log('Done.');
 }

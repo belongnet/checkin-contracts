@@ -1,9 +1,9 @@
-import { TapAndEarn } from '../../../typechain-types';
+import { BelongCheckIn } from '../../../typechain-types';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
-import { deployTapAndEarn } from '../../../helpers/deployFixtures';
+import { deployBelongCheckIn } from '../../../helpers/deployFixtures';
 
 dotenv.config();
 
@@ -29,7 +29,7 @@ async function deploy() {
   }
 
   if (DEPLOY) {
-    console.log('Deploying TapAndEarn: ');
+    console.log('Deploying BelongCheckIn: ');
 
     // Read addresses from environment variables
 
@@ -75,36 +75,36 @@ async function deploy() {
       weth,
       usdc,
       long,
-    } as TapAndEarn.PaymentsInfoStruct;
+    } as BelongCheckIn.PaymentsInfoStruct;
 
-    console.log('Deploying TapAndEarn contract...');
-    const tapAndEarn: TapAndEarn = await deployTapAndEarn(signatureVerifier, helper, owner, paymentsInfo);
+    console.log('Deploying BelongCheckIn contract...');
+    const belongCheckIn: BelongCheckIn = await deployBelongCheckIn(signatureVerifier, helper, owner, paymentsInfo);
 
     // Update deployments object
     deployments = {
       ...deployments,
-      TapAndEarn: {
-        proxy: tapAndEarn.address,
+      BelongCheckIn: {
+        proxy: belongCheckIn.address,
         parameters: [owner, paymentsInfo],
       },
     };
 
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
-    console.log('Deployed TapAndEarn to: ', tapAndEarn.address);
+    console.log('Deployed BelongCheckIn to: ', belongCheckIn.address);
     console.log('Done.');
   }
 
   if (VERIFY) {
     console.log('Verification: ');
     try {
-      if (!deployments.TapAndEarn?.address) {
-        throw new Error('No TapAndEarn deployment data found for verification.');
+      if (!deployments.BelongCheckIn?.address) {
+        throw new Error('No BelongCheckIn deployment data found for verification.');
       }
-      await verifyContract(deployments.TapAndEarn.address);
-      console.log('TapAndEarn verification successful.');
+      await verifyContract(deployments.BelongCheckIn.address);
+      console.log('BelongCheckIn verification successful.');
     } catch (error) {
-      console.error('TapAndEarn verification failed: ', error);
+      console.error('BelongCheckIn verification failed: ', error);
     }
     console.log('Done.');
   }

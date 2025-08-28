@@ -2,9 +2,9 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
-import { Helper, SignatureVerifier, LONG, Staking, Escrow, TapAndEarn } from '../../../typechain-types';
+import { Helper, SignatureVerifier, LONG, Staking, Escrow, BelongCheckIn } from '../../../typechain-types';
 import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
-import { deployEscrow, deployLONG, deployStaking, deployTapAndEarn } from '../../../helpers/deployFixtures';
+import { deployEscrow, deployLONG, deployStaking, deployBelongCheckIn } from '../../../helpers/deployFixtures';
 dotenv.config();
 
 const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
@@ -39,7 +39,7 @@ async function deploy() {
     }
     console.log('Everything specified!');
 
-    console.log('For TapAndEarn deployment: ');
+    console.log('For BelongCheckIn deployment: ');
     const uniswapPoolFees = process.env.UNISWAPV3_POOL_FEES;
     const uniswapV3Router = process.env.UNISWAPV3_ROUTER_ADDRESS;
     const uniswapV3Quoter = process.env.UNISWAPV3_QUOTER_ADDRESS;
@@ -59,7 +59,7 @@ async function deploy() {
     }
     console.log('Everything specified!');
 
-    console.log('For TapAndEarn configuration: ');
+    console.log('For BelongCheckIn configuration: ');
     const factoryAddress = process.env.FACTORY;
     const venueTokenAddress = process.env.VENUE_TOKEN;
     const promoterTokenAddress = process.env.PROMOTER_TOKEN;
@@ -107,8 +107,8 @@ async function deploy() {
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
     console.log('Deployed LONG to:', long.address);
 
-    // Deploy TapAndEarn
-    console.log('Deploying TapAndEarn contract...');
+    // Deploy BelongCheckIn
+    console.log('Deploying BelongCheckIn contract...');
     // Validate addresses
     [adminAddress, uniswapV3Router, uniswapV3Quoter, weth, usdc].forEach(addr => {
       if (!ethers.utils.isAddress(addr)) {
@@ -126,26 +126,26 @@ async function deploy() {
       weth,
       usdc,
       long: long.address,
-    } as TapAndEarn.PaymentsInfoStruct;
-    const tapAndEarn: TapAndEarn = await deployTapAndEarn(
+    } as BelongCheckIn.PaymentsInfoStruct;
+    const belongCheckIn: BelongCheckIn = await deployBelongCheckIn(
       signatureVerifier.address,
       helper.address,
       adminAddress,
       paymentsInfo,
     );
-    deployments.TapAndEarn = {
-      address: tapAndEarn.address,
+    deployments.BelongCheckIn = {
+      address: belongCheckIn.address,
       parameters: [signatureVerifier.address, helper.address, adminAddress, paymentsInfo],
     };
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
-    console.log('Deployed TapAndEarn to:', tapAndEarn.address);
+    console.log('Deployed BelongCheckIn to:', belongCheckIn.address);
 
     // Deploy Escrow
     console.log('Deploying Escrow contract...');
-    const escrow: Escrow = await deployEscrow(tapAndEarn.address);
+    const escrow: Escrow = await deployEscrow(belongCheckIn.address);
     deployments.Escrow = {
       address: escrow.address,
-      parameters: [tapAndEarn.address],
+      parameters: [belongCheckIn.address],
     };
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
     console.log('Deployed Escrow to:', escrow.address);
@@ -165,8 +165,8 @@ async function deploy() {
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
     console.log('Deployed Staking to:', staking.address);
 
-    // Set up TapAndEarn
-    console.log('Setting up TapAndEarn contract...');
+    // Set up BelongCheckIn
+    console.log('Setting up BelongCheckIn contract...');
 
     const contracts = {
       factory: factoryAddress,
@@ -177,7 +177,7 @@ async function deploy() {
       longPF: longPriceFeedAddress,
     };
 
-    await tapAndEarn.setContracts(contracts);
+    await belongCheckIn.setContracts(contracts);
     console.log('All deployments done.');
   }
 
@@ -210,14 +210,14 @@ async function deploy() {
     } catch (error) {
       console.error('LONG verification failed:', error);
     }
-    // Verify TapAndEarn
+    // Verify BelongCheckIn
     try {
-      if (deployments.TapAndEarn?.address) {
-        await verifyContract(deployments.TapAndEarn.address);
-        console.log('TapAndEarn verification successful.');
+      if (deployments.BelongCheckIn?.address) {
+        await verifyContract(deployments.BelongCheckIn.address);
+        console.log('BelongCheckIn verification successful.');
       }
     } catch (error) {
-      console.error('TapAndEarn verification failed:', error);
+      console.error('BelongCheckIn verification failed:', error);
     }
     // Verify Escrow
     try {

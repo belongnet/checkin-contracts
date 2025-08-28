@@ -32,26 +32,26 @@ async function deploy() {
     console.log('Deploying Escrow contract...');
 
     // Read addresses from environment variables
-    const tapEarn = deployments.TapAndEarn.address;
+    const belongCheckIn = deployments.BelongCheckIn.address;
 
     // Validate environment variables
-    if (!tapEarn) {
+    if (!belongCheckIn) {
       throw new Error('Missing required environment variable: TAP_EARN_ADDRESS');
     }
 
     // Validate address
-    if (!ethers.utils.isAddress(tapEarn)) {
-      throw new Error(`Invalid address: ${tapEarn}`);
+    if (!ethers.utils.isAddress(belongCheckIn)) {
+      throw new Error(`Invalid address: ${belongCheckIn}`);
     }
 
-    const escrow: Escrow = await deployEscrow(tapEarn);
+    const escrow: Escrow = await deployEscrow(belongCheckIn);
 
     // Update deployments object
     deployments = {
       ...deployments,
       Escrow: {
         address: escrow.address,
-        parameters: [tapEarn],
+        parameters: [belongCheckIn],
       },
     };
 
