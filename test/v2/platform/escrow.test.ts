@@ -27,7 +27,7 @@ describe('Escrow', () => {
       const { escrow, admin } = await loadFixture(fixture);
 
       expect(escrow.address).to.be.properAddress;
-      expect(await escrow.tapAndEarn()).to.eq(admin.address);
+      expect(await escrow.belongCheckIn()).to.eq(admin.address);
     });
   });
 
@@ -37,7 +37,7 @@ describe('Escrow', () => {
 
       await expect(escrow.connect(user1).venueDeposit(admin.address, 10, 20)).to.be.revertedWithCustomError(
         escrow,
-        'NotTapAndEarn',
+        'NotBelongCheckIn',
       );
       const tx = await escrow.venueDeposit(admin.address, 10, 20);
 
@@ -53,7 +53,7 @@ describe('Escrow', () => {
 
       await expect(escrow.connect(user1).distributeLONGDiscount(user1.address, 10)).to.be.revertedWithCustomError(
         escrow,
-        'NotTapAndEarn',
+        'NotBelongCheckIn',
       );
       await expect(escrow.distributeLONGDiscount(admin.address, 30))
         .to.be.revertedWithCustomError(escrow, 'NotEnoughLONGs')
@@ -67,7 +67,7 @@ describe('Escrow', () => {
 
       await expect(
         escrow.connect(user1).distributeVenueDeposit(admin.address, user1.address, 10),
-      ).to.be.revertedWithCustomError(escrow, 'NotTapAndEarn');
+      ).to.be.revertedWithCustomError(escrow, 'NotBelongCheckIn');
       await expect(escrow.distributeVenueDeposit(admin.address, user1.address, 20))
         .to.be.revertedWithCustomError(escrow, 'NotEnoughUSDCs')
         .withArgs(10, 20);

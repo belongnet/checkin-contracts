@@ -12,7 +12,7 @@ import {
   RoyaltiesReceiverV2,
   SignatureVerifier,
   Staking,
-  TapAndEarn,
+  BelongCheckIn,
 } from '../../../typechain-types';
 import {
   deployCreditTokens,
@@ -21,7 +21,7 @@ import {
   deployFactory,
   deployRoyaltiesReceiverV2Implementation,
   deployStaking,
-  deployTapAndEarn,
+  deployBelongCheckIn,
   deployEscrow,
 } from '../../../helpers/deployFixtures';
 import { getSignerFromAddress, getToken, startSimulateMainnet, stopSimulateMainnet } from '../../../helpers/fork';
@@ -33,9 +33,9 @@ import {
   PromoterInfoStruct,
   VenueInfoStruct,
   VenueRulesStruct,
-} from '../../../typechain-types/contracts/v2/platform/TapAndEarn';
+} from '../../../typechain-types/contracts/v2/platform/BelongCheckIn';
 
-describe('TapAndEarn', () => {
+describe('BelongCheckIn', () => {
   const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
   const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
   const ENA_ADDRESS = '0x57e114B691Db790C35207b2e685D4A43181e6061'; //used instead of LONG
@@ -50,7 +50,7 @@ describe('TapAndEarn', () => {
 
   const chainId = 31337;
 
-  const paymentsInfo: TapAndEarn.PaymentsInfoStruct = {
+  const paymentsInfo: BelongCheckIn.PaymentsInfoStruct = {
     uniswapPoolFees: POOL_FEE,
     uniswapV3Router: UNISWAP_ROUTER_ADDRESS,
     uniswapV3Quoter: UNISWAP_QUOTER_ADDRESS,
@@ -61,71 +61,71 @@ describe('TapAndEarn', () => {
   const usdcPercentage = 1000;
   const convenienceFeeAmount = 5000000;
   const stakingRewards: [
-    TapAndEarn.RewardsInfoStruct,
-    TapAndEarn.RewardsInfoStruct,
-    TapAndEarn.RewardsInfoStruct,
-    TapAndEarn.RewardsInfoStruct,
-    TapAndEarn.RewardsInfoStruct,
+    BelongCheckIn.RewardsInfoStruct,
+    BelongCheckIn.RewardsInfoStruct,
+    BelongCheckIn.RewardsInfoStruct,
+    BelongCheckIn.RewardsInfoStruct,
+    BelongCheckIn.RewardsInfoStruct,
   ] = [
     {
       venueStakingInfo: {
         depositFeePercentage: 1000,
         convenienceFeeAmount,
-      } as TapAndEarn.VenueStakingRewardInfoStruct,
+      } as BelongCheckIn.VenueStakingRewardInfoStruct,
       promoterStakingInfo: {
         usdcPercentage,
         longPercentage: 800,
-      } as TapAndEarn.PromoterStakingRewardInfoStruct,
-    } as TapAndEarn.RewardsInfoStruct,
+      } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+    } as BelongCheckIn.RewardsInfoStruct,
     {
       venueStakingInfo: {
         depositFeePercentage: 900,
         convenienceFeeAmount,
-      } as TapAndEarn.VenueStakingRewardInfoStruct,
+      } as BelongCheckIn.VenueStakingRewardInfoStruct,
       promoterStakingInfo: {
         usdcPercentage,
         longPercentage: 700,
-      } as TapAndEarn.PromoterStakingRewardInfoStruct,
-    } as TapAndEarn.RewardsInfoStruct,
+      } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+    } as BelongCheckIn.RewardsInfoStruct,
     {
       venueStakingInfo: {
         depositFeePercentage: 800,
         convenienceFeeAmount,
-      } as TapAndEarn.VenueStakingRewardInfoStruct,
+      } as BelongCheckIn.VenueStakingRewardInfoStruct,
       promoterStakingInfo: {
         usdcPercentage,
         longPercentage: 600,
-      } as TapAndEarn.PromoterStakingRewardInfoStruct,
-    } as TapAndEarn.RewardsInfoStruct,
+      } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+    } as BelongCheckIn.RewardsInfoStruct,
     {
       venueStakingInfo: {
         depositFeePercentage: 700,
         convenienceFeeAmount,
-      } as TapAndEarn.VenueStakingRewardInfoStruct,
+      } as BelongCheckIn.VenueStakingRewardInfoStruct,
       promoterStakingInfo: {
         usdcPercentage,
         longPercentage: 500,
-      } as TapAndEarn.PromoterStakingRewardInfoStruct,
-    } as TapAndEarn.RewardsInfoStruct,
+      } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+    } as BelongCheckIn.RewardsInfoStruct,
     {
       venueStakingInfo: {
         depositFeePercentage: 500,
         convenienceFeeAmount,
-      } as TapAndEarn.VenueStakingRewardInfoStruct,
+      } as BelongCheckIn.VenueStakingRewardInfoStruct,
       promoterStakingInfo: {
         usdcPercentage,
         longPercentage: 400,
-      } as TapAndEarn.PromoterStakingRewardInfoStruct,
-    } as TapAndEarn.RewardsInfoStruct,
+      } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+    } as BelongCheckIn.RewardsInfoStruct,
   ];
-  const fees: TapAndEarn.FeesStruct = {
+  const fees: BelongCheckIn.FeesStruct = {
     referralCreditsAmount: 3,
     affiliatePercentage: 1000,
     longCustomerDiscountPercentage: 300,
     platformSubsidyPercentage: 300,
     processingFeePercentage: 250,
   };
-  let implementations: Factory.ImplementationsStruct, contracts: TapAndEarn.ContractsStruct;
+  let implementations: Factory.ImplementationsStruct, contracts: BelongCheckIn.ContractsStruct;
 
   before(startSimulateMainnet);
   after(stopSimulateMainnet);
@@ -172,14 +172,14 @@ describe('TapAndEarn', () => {
 
     await factory.connect(referral).createReferralCode();
 
-    const tapEarn: TapAndEarn = await deployTapAndEarn(
+    const belongCheckIn: BelongCheckIn = await deployBelongCheckIn(
       signatureVerifier.address,
       helper.address,
       admin.address,
       paymentsInfo,
     );
 
-    const escrow: Escrow = await deployEscrow(tapEarn.address);
+    const escrow: Escrow = await deployEscrow(belongCheckIn.address);
     const { pf1, pf2, pf3 } = await deployPriceFeeds();
     const { venueToken, promoterToken } = await deployCreditTokens(
       true,
@@ -188,8 +188,8 @@ describe('TapAndEarn', () => {
       signer.privateKey,
       admin,
       manager.address,
-      tapEarn.address,
-      tapEarn.address,
+      belongCheckIn.address,
+      belongCheckIn.address,
     );
 
     contracts = {
@@ -201,7 +201,7 @@ describe('TapAndEarn', () => {
       longPF: pf1.address,
     };
 
-    await tapEarn.setContracts(contracts);
+    await belongCheckIn.setContracts(contracts);
 
     return {
       signatureVerifier,
@@ -210,7 +210,7 @@ describe('TapAndEarn', () => {
       staking,
       venueToken,
       promoterToken,
-      tapEarn,
+      belongCheckIn,
       escrow,
       pf1,
       pf2,
@@ -235,54 +235,54 @@ describe('TapAndEarn', () => {
 
   describe('Deployment', () => {
     it('Should be deployed correctly', async () => {
-      const { tapEarn, escrow, pf1, pf2, pf3, admin } = await loadFixture(fixture);
+      const { belongCheckIn, escrow, pf1, pf2, pf3, admin } = await loadFixture(fixture);
 
-      expect(tapEarn.address).to.be.properAddress;
+      expect(belongCheckIn.address).to.be.properAddress;
       expect(escrow.address).to.be.properAddress;
       expect(pf1.address).to.be.properAddress;
       expect(pf2.address).to.be.properAddress;
       expect(pf3.address).to.be.properAddress;
 
-      expect(await tapEarn.owner()).to.eq(admin.address);
+      expect(await belongCheckIn.owner()).to.eq(admin.address);
 
-      const tapEarnStorage = await tapEarn.tapEarnStorage();
+      const belongCheckInStorage = await belongCheckIn.belongCheckInStorage();
 
       // Convert contracts tuple to object
       const contractsFromStorage = {
-        factory: tapEarnStorage.contracts.factory,
-        escrow: tapEarnStorage.contracts.escrow,
-        staking: tapEarnStorage.contracts.staking,
-        venueToken: tapEarnStorage.contracts.venueToken,
-        promoterToken: tapEarnStorage.contracts.promoterToken,
-        longPF: tapEarnStorage.contracts.longPF,
+        factory: belongCheckInStorage.contracts.factory,
+        escrow: belongCheckInStorage.contracts.escrow,
+        staking: belongCheckInStorage.contracts.staking,
+        venueToken: belongCheckInStorage.contracts.venueToken,
+        promoterToken: belongCheckInStorage.contracts.promoterToken,
+        longPF: belongCheckInStorage.contracts.longPF,
       };
       expect(contractsFromStorage).to.deep.eq(contracts);
-      expect(tapEarnStorage.contracts).to.deep.eq(await tapEarn.contracts());
+      expect(belongCheckInStorage.contracts).to.deep.eq(await belongCheckIn.contracts());
 
       // Convert paymentsInfo tuple to object
       const paymentsInfoFromStorage = {
-        uniswapPoolFees: tapEarnStorage.paymentsInfo.uniswapPoolFees,
-        uniswapV3Router: tapEarnStorage.paymentsInfo.uniswapV3Router,
-        uniswapV3Quoter: tapEarnStorage.paymentsInfo.uniswapV3Quoter,
-        weth: tapEarnStorage.paymentsInfo.weth,
-        usdc: tapEarnStorage.paymentsInfo.usdc,
-        long: tapEarnStorage.paymentsInfo.long,
+        uniswapPoolFees: belongCheckInStorage.paymentsInfo.uniswapPoolFees,
+        uniswapV3Router: belongCheckInStorage.paymentsInfo.uniswapV3Router,
+        uniswapV3Quoter: belongCheckInStorage.paymentsInfo.uniswapV3Quoter,
+        weth: belongCheckInStorage.paymentsInfo.weth,
+        usdc: belongCheckInStorage.paymentsInfo.usdc,
+        long: belongCheckInStorage.paymentsInfo.long,
       };
       expect(paymentsInfoFromStorage).to.deep.eq(paymentsInfo);
 
       // Convert fees tuple to object
       const feesFromStorage = {
-        referralCreditsAmount: tapEarnStorage.fees.referralCreditsAmount,
-        affiliatePercentage: tapEarnStorage.fees.affiliatePercentage,
-        longCustomerDiscountPercentage: tapEarnStorage.fees.longCustomerDiscountPercentage,
-        platformSubsidyPercentage: tapEarnStorage.fees.platformSubsidyPercentage,
-        processingFeePercentage: tapEarnStorage.fees.processingFeePercentage,
+        referralCreditsAmount: belongCheckInStorage.fees.referralCreditsAmount,
+        affiliatePercentage: belongCheckInStorage.fees.affiliatePercentage,
+        longCustomerDiscountPercentage: belongCheckInStorage.fees.longCustomerDiscountPercentage,
+        platformSubsidyPercentage: belongCheckInStorage.fees.platformSubsidyPercentage,
+        processingFeePercentage: belongCheckInStorage.fees.processingFeePercentage,
       };
       expect(feesFromStorage).to.deep.eq(fees);
-      expect(tapEarnStorage.fees).to.deep.eq(await tapEarn.fees());
+      expect(belongCheckInStorage.fees).to.deep.eq(await belongCheckIn.fees());
 
       for (let tierValue = 0; tierValue < stakingRewards.length; tierValue++) {
-        const result = await tapEarn.stakingRewards(tierValue);
+        const result = await belongCheckIn.stakingRewards(tierValue);
         const resultFromStorage = {
           venueStakingInfo: {
             depositFeePercentage: result.venueStakingInfo.depositFeePercentage,
@@ -296,13 +296,13 @@ describe('TapAndEarn', () => {
         expect(resultFromStorage).to.deep.eq(stakingRewards[tierValue]);
       }
 
-      expect(await escrow.tapAndEarn()).to.eq(tapEarn.address);
+      expect(await escrow.belongCheckIn()).to.eq(belongCheckIn.address);
     });
   });
 
   describe('Set functions', () => {
     it('setParameters() can be set only by the owner', async () => {
-      const { tapEarn, minter } = await loadFixture(fixture);
+      const { belongCheckIn, minter } = await loadFixture(fixture);
 
       const paymentsInfoNew = {
         uniswapPoolFees: 5000,
@@ -322,91 +322,91 @@ describe('TapAndEarn', () => {
       const convenienceFeeAmountNew = 1000000;
       const usdcPercentageNew = 100;
       const stakingRewardsNew: [
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
       ] = [
         {
           venueStakingInfo: {
             depositFeePercentage: 1000,
             convenienceFeeAmount: convenienceFeeAmountNew,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: usdcPercentageNew,
             longPercentage: 800,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 900,
             convenienceFeeAmount: convenienceFeeAmountNew,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: usdcPercentageNew,
             longPercentage: 700,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 800,
             convenienceFeeAmount: convenienceFeeAmountNew,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: usdcPercentageNew,
             longPercentage: 600,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 700,
             convenienceFeeAmount: convenienceFeeAmountNew,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: usdcPercentageNew,
             longPercentage: 500,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 500,
             convenienceFeeAmount: convenienceFeeAmountNew,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: usdcPercentageNew,
             longPercentage: 400,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
       ];
 
       await expect(
-        tapEarn.connect(minter).setParameters(paymentsInfoNew, feesNew, stakingRewardsNew),
-      ).to.be.revertedWithCustomError(tapEarn, 'Unauthorized');
-      const tx = await tapEarn.setParameters(paymentsInfoNew, feesNew, stakingRewardsNew);
-      await expect(tx).to.emit(tapEarn, 'ParametersSet');
+        belongCheckIn.connect(minter).setParameters(paymentsInfoNew, feesNew, stakingRewardsNew),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'Unauthorized');
+      const tx = await belongCheckIn.setParameters(paymentsInfoNew, feesNew, stakingRewardsNew);
+      await expect(tx).to.emit(belongCheckIn, 'ParametersSet');
 
-      const tapEarnStorage = await tapEarn.tapEarnStorage();
+      const belongCheckInStorage = await belongCheckIn.belongCheckInStorage();
       // Convert paymentsInfo tuple to object
       expect({
-        uniswapPoolFees: tapEarnStorage.paymentsInfo.uniswapPoolFees,
-        uniswapV3Router: tapEarnStorage.paymentsInfo.uniswapV3Router,
-        uniswapV3Quoter: tapEarnStorage.paymentsInfo.uniswapV3Quoter,
-        weth: tapEarnStorage.paymentsInfo.weth,
-        usdc: tapEarnStorage.paymentsInfo.usdc,
-        long: tapEarnStorage.paymentsInfo.long,
+        uniswapPoolFees: belongCheckInStorage.paymentsInfo.uniswapPoolFees,
+        uniswapV3Router: belongCheckInStorage.paymentsInfo.uniswapV3Router,
+        uniswapV3Quoter: belongCheckInStorage.paymentsInfo.uniswapV3Quoter,
+        weth: belongCheckInStorage.paymentsInfo.weth,
+        usdc: belongCheckInStorage.paymentsInfo.usdc,
+        long: belongCheckInStorage.paymentsInfo.long,
       }).to.deep.eq(paymentsInfoNew);
       // Convert fees tuple to object
       expect({
-        referralCreditsAmount: tapEarnStorage.fees.referralCreditsAmount,
-        affiliatePercentage: tapEarnStorage.fees.affiliatePercentage,
-        longCustomerDiscountPercentage: tapEarnStorage.fees.longCustomerDiscountPercentage,
-        platformSubsidyPercentage: tapEarnStorage.fees.platformSubsidyPercentage,
-        processingFeePercentage: tapEarnStorage.fees.processingFeePercentage,
+        referralCreditsAmount: belongCheckInStorage.fees.referralCreditsAmount,
+        affiliatePercentage: belongCheckInStorage.fees.affiliatePercentage,
+        longCustomerDiscountPercentage: belongCheckInStorage.fees.longCustomerDiscountPercentage,
+        platformSubsidyPercentage: belongCheckInStorage.fees.platformSubsidyPercentage,
+        processingFeePercentage: belongCheckInStorage.fees.processingFeePercentage,
       }).to.deep.eq(feesNew);
       // Convert stakingRewards tuple to object for each tier
       for (let tierValue = 0; tierValue < stakingRewardsNew.length; tierValue++) {
-        const result = await tapEarn.stakingRewards(tierValue);
+        const result = await belongCheckIn.stakingRewards(tierValue);
         const resultFromStorage = {
           venueStakingInfo: {
             depositFeePercentage: result.venueStakingInfo.depositFeePercentage,
@@ -422,33 +422,33 @@ describe('TapAndEarn', () => {
     });
 
     it('setContracts() can be set only by the owner', async () => {
-      const { tapEarn, minter } = await loadFixture(fixture);
+      const { belongCheckIn, minter } = await loadFixture(fixture);
 
       const contractsNew = {
-        factory: tapEarn.address,
-        escrow: tapEarn.address,
-        staking: tapEarn.address,
-        venueToken: tapEarn.address,
-        promoterToken: tapEarn.address,
-        longPF: tapEarn.address,
+        factory: belongCheckIn.address,
+        escrow: belongCheckIn.address,
+        staking: belongCheckIn.address,
+        venueToken: belongCheckIn.address,
+        promoterToken: belongCheckIn.address,
+        longPF: belongCheckIn.address,
       };
 
-      await expect(tapEarn.connect(minter).setContracts(contractsNew)).to.be.revertedWithCustomError(
-        tapEarn,
+      await expect(belongCheckIn.connect(minter).setContracts(contractsNew)).to.be.revertedWithCustomError(
+        belongCheckIn,
         'Unauthorized',
       );
-      const tx = await tapEarn.setContracts(contractsNew);
-      await expect(tx).to.emit(tapEarn, 'ContractsSet');
+      const tx = await belongCheckIn.setContracts(contractsNew);
+      await expect(tx).to.emit(belongCheckIn, 'ContractsSet');
 
-      const tapEarnStorage = await tapEarn.tapEarnStorage();
+      const belongCheckInStorage = await belongCheckIn.belongCheckInStorage();
       // Convert contracts tuple to object
       const contractsFromStorage = {
-        factory: tapEarnStorage.contracts.factory,
-        escrow: tapEarnStorage.contracts.escrow,
-        staking: tapEarnStorage.contracts.staking,
-        venueToken: tapEarnStorage.contracts.venueToken,
-        promoterToken: tapEarnStorage.contracts.promoterToken,
-        longPF: tapEarnStorage.contracts.longPF,
+        factory: belongCheckInStorage.contracts.factory,
+        escrow: belongCheckInStorage.contracts.escrow,
+        staking: belongCheckInStorage.contracts.staking,
+        venueToken: belongCheckInStorage.contracts.venueToken,
+        promoterToken: belongCheckInStorage.contracts.promoterToken,
+        longPF: belongCheckInStorage.contracts.longPF,
       };
       expect(contractsFromStorage).to.deep.eq(contractsNew);
     });
@@ -456,7 +456,7 @@ describe('TapAndEarn', () => {
 
   describe('Venue flow', () => {
     it('venueDeposit() (first deposit) (w/o referral) (no stakes)', async () => {
-      const { tapEarn, escrow, venueToken, helper, signatureVerifier, treasury, signer, USDC, ENA, USDC_whale } =
+      const { belongCheckIn, escrow, venueToken, helper, signatureVerifier, treasury, signer, USDC, ENA, USDC_whale } =
         await loadFixture(fixture);
 
       const uri = 'uriuri';
@@ -490,32 +490,32 @@ describe('TapAndEarn', () => {
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
 
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
-      await expect(tapEarn.connect(USDC_whale).venueDeposit(venueInfoFake)).to.be.revertedWithCustomError(
+      await expect(belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoFake)).to.be.revertedWithCustomError(
         signatureVerifier,
         'InvalidSignature',
       );
 
-      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
-      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       await expect(tx)
-        .to.emit(tapEarn, 'Swapped')
+        .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx)
         .to.emit(escrow, 'VenueDepositsUpdated')
         .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdcDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
       expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDC_whale.address))).to.eq(uri);
-      expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
+      expect(await USDC.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
       expect(await USDC.balanceOf(treasury.address)).to.eq(0);
@@ -525,9 +525,8 @@ describe('TapAndEarn', () => {
     });
 
     it('venueDeposit() (free deposits exceed) (w/o referral) (no stakes)', async () => {
-      const { tapEarn, escrow, venueToken, helper, admin, treasury, signer, USDC, ENA, USDC_whale } = await loadFixture(
-        fixture,
-      );
+      const { belongCheckIn, escrow, venueToken, helper, admin, treasury, signer, USDC, ENA, USDC_whale } =
+        await loadFixture(fixture);
 
       const uri = 'uriuri';
       const amount = 100 * 10 ** (await USDC.decimals());
@@ -551,12 +550,12 @@ describe('TapAndEarn', () => {
       const willBeTaken = paymentToTreasury.add(amount + convenienceFeeAmount);
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
       fees.referralCreditsAmount = 0;
-      await tapEarn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
+      await belongCheckIn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
 
-      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -565,28 +564,39 @@ describe('TapAndEarn', () => {
 
       expect(await USDC.balanceOf(treasury.address)).to.eq(paymentToTreasury);
 
-      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       await expect(tx)
-        .to.emit(tapEarn, 'Swapped')
+        .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx)
         .to.emit(escrow, 'VenueDepositsUpdated')
         .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdcDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
       expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDC_whale.address))).to.eq(uri);
-      expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
+      expect(await USDC.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
     });
 
     it('venueDeposit() (first deposit) (w/ referral) (no stakes)', async () => {
-      const { tapEarn, escrow, venueToken, helper, referral, treasury, signer, referralCode, USDC, ENA, USDC_whale } =
-        await loadFixture(fixture);
+      const {
+        belongCheckIn,
+        escrow,
+        venueToken,
+        helper,
+        referral,
+        treasury,
+        signer,
+        referralCode,
+        USDC,
+        ENA,
+        USDC_whale,
+      } = await loadFixture(fixture);
 
       const uri = 'uriuri';
       const amount = 100 * 10 ** (await USDC.decimals());
@@ -648,17 +658,16 @@ describe('TapAndEarn', () => {
       const willBeTaken = paymentToAffiliate.add(amount + convenienceFeeAmount);
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
-      await expect(tapEarn.connect(USDC_whale).venueDeposit(venueInfoWrongCode))
-        .to.be.revertedWithCustomError(tapEarn, 'WrongReferralCode')
+      await expect(belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoWrongCode))
+        .to.be.revertedWithCustomError(belongCheckIn, 'WrongReferralCode')
         .withArgs(venueInfoWrongCode.referralCode);
-      await expect(tapEarn.connect(USDC_whale).venueDeposit(venueInfoWrongPaymentType)).to.be.revertedWithCustomError(
-        tapEarn,
-        'WrongPaymentTypeProvided',
-      );
+      await expect(
+        belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoWrongPaymentType),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'WrongPaymentTypeProvided');
 
-      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -667,29 +676,40 @@ describe('TapAndEarn', () => {
 
       expect(await ENA.balanceOf(referral.address)).to.gt(amount);
 
-      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       await expect(tx)
-        .to.emit(tapEarn, 'Swapped')
+        .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx)
         .to.emit(escrow, 'VenueDepositsUpdated')
         .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdcDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
       expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDC_whale.address))).to.eq(uri);
-      expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
+      expect(await USDC.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await USDC.balanceOf(treasury.address)).to.eq(0);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
     });
 
     it('venueDeposit() (first deposit) (w/ referral) (no stakes)', async () => {
-      const { tapEarn, escrow, venueToken, helper, referral, treasury, signer, referralCode, USDC, ENA, USDC_whale } =
-        await loadFixture(fixture);
+      const {
+        belongCheckIn,
+        escrow,
+        venueToken,
+        helper,
+        referral,
+        treasury,
+        signer,
+        referralCode,
+        USDC,
+        ENA,
+        USDC_whale,
+      } = await loadFixture(fixture);
 
       const uri = 'uriuri';
       const amount = 100 * 10 ** (await USDC.decimals());
@@ -713,9 +733,9 @@ describe('TapAndEarn', () => {
       const willBeTaken = paymentToAffiliate.add(amount + convenienceFeeAmount);
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
-      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -724,21 +744,21 @@ describe('TapAndEarn', () => {
 
       expect(await ENA.balanceOf(referral.address)).to.gt(amount);
 
-      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       await expect(tx)
-        .to.emit(tapEarn, 'Swapped')
+        .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx)
         .to.emit(escrow, 'VenueDepositsUpdated')
         .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdcDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
       expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDC_whale.address))).to.eq(uri);
-      expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
+      expect(await USDC.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await USDC.balanceOf(treasury.address)).to.eq(0);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
@@ -746,7 +766,7 @@ describe('TapAndEarn', () => {
 
     it('venueDeposit() (free deposits exceed) (w/ referral) (no stakes)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         escrow,
         venueToken,
         helper,
@@ -783,12 +803,12 @@ describe('TapAndEarn', () => {
       const willBeTaken = paymentToAffiliate.add(amount + convenienceFeeAmount).add(paymentToTreasury);
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
       fees.referralCreditsAmount = 0;
-      await tapEarn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
+      await belongCheckIn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
 
-      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -798,28 +818,28 @@ describe('TapAndEarn', () => {
       expect(await USDC.balanceOf(treasury.address)).to.eq(paymentToTreasury);
       expect(await ENA.balanceOf(referral.address)).to.gt(amount);
 
-      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       await expect(tx)
-        .to.emit(tapEarn, 'Swapped')
+        .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx)
         .to.emit(escrow, 'VenueDepositsUpdated')
         .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdcDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
       expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDC_whale.address))).to.eq(uri);
-      expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
+      expect(await USDC.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
     });
 
     it('venueDeposit() (free deposits exceed) (w/ referral) (bronze tier stakes)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         staking,
         escrow,
         venueToken,
@@ -865,12 +885,12 @@ describe('TapAndEarn', () => {
       const willBeTaken = paymentToAffiliate.add(amount + convenienceFeeAmount).add(paymentToTreasury);
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
       fees.referralCreditsAmount = 0;
-      await tapEarn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
+      await belongCheckIn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
 
-      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -880,21 +900,21 @@ describe('TapAndEarn', () => {
       expect(await USDC.balanceOf(treasury.address)).to.eq(paymentToTreasury);
       expect(await ENA.balanceOf(referral.address)).to.gt(amount);
 
-      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       await expect(tx)
-        .to.emit(tapEarn, 'Swapped')
+        .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx)
         .to.emit(escrow, 'VenueDepositsUpdated')
         .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdcDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
       expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDC_whale.address))).to.eq(uri);
-      expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
+      expect(await USDC.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
 
@@ -905,7 +925,7 @@ describe('TapAndEarn', () => {
 
     it('venueDeposit() (free deposits exceed) (w/ referral) (bronze tier stakes)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         staking,
         escrow,
         venueToken,
@@ -949,12 +969,12 @@ describe('TapAndEarn', () => {
       const willBeTaken = paymentToAffiliate.add(amount + convenienceFeeAmount).add(paymentToTreasury);
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
       fees.referralCreditsAmount = 0;
-      await tapEarn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
+      await belongCheckIn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
 
-      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -964,28 +984,28 @@ describe('TapAndEarn', () => {
       expect(await USDC.balanceOf(treasury.address)).to.eq(paymentToTreasury);
       expect(await ENA.balanceOf(referral.address)).to.gt(amount);
 
-      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       await expect(tx)
-        .to.emit(tapEarn, 'Swapped')
+        .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx)
         .to.emit(escrow, 'VenueDepositsUpdated')
         .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdcDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
       expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDC_whale.address))).to.eq(uri);
-      expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
+      expect(await USDC.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
     });
 
     it('venueDeposit() (free deposits exceed) (w/ referral) (silver tier stakes)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         staking,
         escrow,
         venueToken,
@@ -1029,12 +1049,12 @@ describe('TapAndEarn', () => {
       const willBeTaken = paymentToAffiliate.add(amount + convenienceFeeAmount).add(paymentToTreasury);
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
       fees.referralCreditsAmount = 0;
-      await tapEarn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
+      await belongCheckIn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
 
-      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -1044,28 +1064,28 @@ describe('TapAndEarn', () => {
       expect(await USDC.balanceOf(treasury.address)).to.eq(paymentToTreasury);
       expect(await ENA.balanceOf(referral.address)).to.gt(amount);
 
-      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       await expect(tx)
-        .to.emit(tapEarn, 'Swapped')
+        .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx)
         .to.emit(escrow, 'VenueDepositsUpdated')
         .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdcDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
       expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDC_whale.address))).to.eq(uri);
-      expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
+      expect(await USDC.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
     });
 
     it('venueDeposit() (free deposits exceed) (w/ referral) (gold tier stakes)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         staking,
         escrow,
         venueToken,
@@ -1109,12 +1129,12 @@ describe('TapAndEarn', () => {
       const willBeTaken = paymentToAffiliate.add(amount + convenienceFeeAmount).add(paymentToTreasury);
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
       fees.referralCreditsAmount = 0;
-      await tapEarn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
+      await belongCheckIn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
 
-      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -1124,28 +1144,28 @@ describe('TapAndEarn', () => {
       expect(await USDC.balanceOf(treasury.address)).to.eq(paymentToTreasury);
       expect(await ENA.balanceOf(referral.address)).to.gt(amount);
 
-      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       await expect(tx)
-        .to.emit(tapEarn, 'Swapped')
+        .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx)
         .to.emit(escrow, 'VenueDepositsUpdated')
         .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdcDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
       expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDC_whale.address))).to.eq(uri);
-      expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
+      expect(await USDC.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
     });
 
     it('venueDeposit() (free deposits exceed) (w/ referral) (platinum tier stakes)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         staking,
         escrow,
         venueToken,
@@ -1189,12 +1209,12 @@ describe('TapAndEarn', () => {
       const willBeTaken = paymentToAffiliate.add(amount + convenienceFeeAmount).add(paymentToTreasury);
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
       fees.referralCreditsAmount = 0;
-      await tapEarn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
+      await belongCheckIn.connect(admin).setParameters(paymentsInfo, fees, stakingRewards);
 
-      const tx = await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -1204,27 +1224,27 @@ describe('TapAndEarn', () => {
       expect(await USDC.balanceOf(treasury.address)).to.eq(paymentToTreasury);
       expect(await ENA.balanceOf(referral.address)).to.gt(amount);
 
-      await expect(tx).to.emit(tapEarn, 'VenuePaidDeposit');
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       await expect(tx)
-        .to.emit(tapEarn, 'Swapped')
+        .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx)
         .to.emit(escrow, 'VenueDepositsUpdated')
         .withArgs(USDC_whale.address, amount, escrowDeposit.longDeposits);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdcDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(amount);
       expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDC_whale.address))).to.eq(uri);
-      expect(await USDC.balanceOf(tapEarn.address)).to.eq(0);
+      expect(await USDC.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDC.balanceOf(escrow.address)).to.eq(amount);
       expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
     });
 
     it('updateVenueRules()', async () => {
-      const { tapEarn, helper, signer, referralCode, USDC, ENA, USDC_whale } = await loadFixture(fixture);
+      const { belongCheckIn, helper, signer, referralCode, USDC, ENA, USDC_whale } = await loadFixture(fixture);
 
       const uri = 'uriuri';
       const amount = 100 * 10 ** (await USDC.decimals());
@@ -1246,28 +1266,28 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, amount);
       const willBeTaken = paymentToAffiliate.add(amount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       await expect(
-        tapEarn.connect(USDC_whale).updateVenueRules({ paymentType: 0, bountyType: 1 }),
-      ).to.be.revertedWithCustomError(tapEarn, 'WrongPaymentTypeProvided');
-      await expect(tapEarn.updateVenueRules({ paymentType: 1, bountyType: 0 })).to.be.revertedWithCustomError(
-        tapEarn,
+        belongCheckIn.connect(USDC_whale).updateVenueRules({ paymentType: 0, bountyType: 1 }),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'WrongPaymentTypeProvided');
+      await expect(belongCheckIn.updateVenueRules({ paymentType: 1, bountyType: 0 })).to.be.revertedWithCustomError(
+        belongCheckIn,
         'NotAVenue',
       );
 
-      const tx = await tapEarn.connect(USDC_whale).updateVenueRules({ paymentType: 2, bountyType: 2 });
+      const tx = await belongCheckIn.connect(USDC_whale).updateVenueRules({ paymentType: 2, bountyType: 2 });
 
-      await expect(tx).to.emit(tapEarn, 'VenueRulesSet');
-      expect((await tapEarn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(2);
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(2);
     });
   });
 
   describe('Customer flow usdc payment', () => {
     it('payToVenue() (w/o promoter)', async () => {
-      const { tapEarn, signer, signatureVerifier, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(fixture);
+      const { belongCheckIn, signer, signatureVerifier, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(fixture);
 
       const uri = 'uriuri';
       const venueAmount = 100 * 10 ** (await USDC.decimals());
@@ -1286,8 +1306,8 @@ describe('TapAndEarn', () => {
         signature: venueSignature,
       };
       const willBeTaken = venueAmount + convenienceFeeAmount;
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -1316,18 +1336,18 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -1341,7 +1361,7 @@ describe('TapAndEarn', () => {
     });
 
     it('payToVenue() (both payment) (w/o promoter)', async () => {
-      const { tapEarn, signer, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(fixture);
+      const { belongCheckIn, signer, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(fixture);
 
       const uri = 'uriuri';
       const venueAmount = 100 * 10 ** (await USDC.decimals());
@@ -1360,8 +1380,8 @@ describe('TapAndEarn', () => {
         signature: venueSignature,
       };
       const willBeTaken = venueAmount + convenienceFeeAmount;
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -1390,18 +1410,18 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -1416,7 +1436,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (w/ promoter) (visit bounty)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         signatureVerifier,
         venueToken,
@@ -1450,8 +1470,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -1528,7 +1548,7 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
@@ -1541,19 +1561,19 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      await expect(tapEarn.connect(ENA_whale).payToVenue(customerInfoFakeMessage1)).to.be.revertedWithCustomError(
+      await expect(belongCheckIn.connect(ENA_whale).payToVenue(customerInfoFakeMessage1)).to.be.revertedWithCustomError(
         signatureVerifier,
         'WrongPaymentType',
       );
-      await expect(tapEarn.connect(ENA_whale).payToVenue(customerInfoFakeMessage2)).to.be.revertedWithCustomError(
+      await expect(belongCheckIn.connect(ENA_whale).payToVenue(customerInfoFakeMessage2)).to.be.revertedWithCustomError(
         signatureVerifier,
         'InvalidSignature',
       );
       await expect(
-        tapEarn.connect(ENA_whale).payToVenue(customerInfoWrongSpendBountyPercentage),
+        belongCheckIn.connect(ENA_whale).payToVenue(customerInfoWrongSpendBountyPercentage),
       ).to.be.revertedWithCustomError(signatureVerifier, 'WrongBountyType');
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -1567,7 +1587,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -1588,7 +1608,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (w/ promoter) (visit bounty) (not enough funds)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         venueToken,
         promoterToken,
@@ -1621,8 +1641,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -1651,17 +1671,17 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await expect(tapEarn.connect(ENA_whale).payToVenue(customerInfo)).to.be.revertedWithCustomError(
-        tapEarn,
+      await expect(belongCheckIn.connect(ENA_whale).payToVenue(customerInfo)).to.be.revertedWithCustomError(
+        belongCheckIn,
         'NotEnoughBalance',
       );
     });
 
     it('payToVenue() (both payment) (w/ promoter) (visit bounty)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         venueToken,
         promoterToken,
@@ -1694,8 +1714,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -1724,7 +1744,7 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
@@ -1737,7 +1757,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -1751,7 +1771,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -1772,7 +1792,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (w/ promoter) (spend bounty)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         venueToken,
         promoterToken,
@@ -1805,8 +1825,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -1837,7 +1857,7 @@ describe('TapAndEarn', () => {
       const rewardsToPromoter = await helper.calculateRate(customerInfo.spendBountyPercentage, customerAmount);
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
@@ -1850,7 +1870,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -1864,7 +1884,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -1881,7 +1901,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (both payment) (w/ promoter) (spend bounty)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         venueToken,
         promoterToken,
@@ -1914,8 +1934,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -1946,7 +1966,7 @@ describe('TapAndEarn', () => {
       const rewardsToPromoter = await helper.calculateRate(customerInfo.spendBountyPercentage, customerAmount);
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
@@ -1959,7 +1979,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -1973,7 +1993,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -1990,7 +2010,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (w/ promoter) (both bounties)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         venueToken,
         promoterToken,
@@ -2023,8 +2043,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -2057,7 +2077,7 @@ describe('TapAndEarn', () => {
       );
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
@@ -2070,7 +2090,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -2084,7 +2104,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -2101,7 +2121,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (both payment) (w/ promoter) (both bounties)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         venueToken,
         promoterToken,
@@ -2134,8 +2154,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -2168,7 +2188,7 @@ describe('TapAndEarn', () => {
       );
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
@@ -2181,7 +2201,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -2195,7 +2215,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -2213,7 +2233,7 @@ describe('TapAndEarn', () => {
 
   describe('Customer flow long payment', () => {
     it('payToVenue() (w/o promoter)', async () => {
-      const { tapEarn, escrow, helper, signer, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(fixture);
+      const { belongCheckIn, escrow, helper, signer, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(fixture);
 
       const uri = 'uriuri';
       const venueAmount = 100 * 10 ** (await USDC.decimals());
@@ -2232,8 +2252,8 @@ describe('TapAndEarn', () => {
         signature: venueSignature,
       };
       const willBeTaken = venueAmount + convenienceFeeAmount;
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -2263,39 +2283,39 @@ describe('TapAndEarn', () => {
 
       const platformSubsidy = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
         customerAmount,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
       const fromCustomerToVenue = BigNumber.from(customerAmount).sub(longCustomerDiscount);
 
-      await ENA.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await ENA.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const escrowBalance_before = await ENA.balanceOf(escrow.address);
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
       const venueBalance_before = await ENA.balanceOf(USDC_whale.address);
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
       const venueBalance_after = await ENA.balanceOf(USDC_whale.address);
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -2310,7 +2330,7 @@ describe('TapAndEarn', () => {
     });
 
     it('payToVenue() (both payment) (w/o promoter)', async () => {
-      const { tapEarn, escrow, helper, signer, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(fixture);
+      const { belongCheckIn, escrow, helper, signer, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(fixture);
 
       const uri = 'uriuri';
       const venueAmount = 100 * 10 ** (await USDC.decimals());
@@ -2329,8 +2349,8 @@ describe('TapAndEarn', () => {
         signature: venueSignature,
       };
       const willBeTaken = venueAmount + convenienceFeeAmount;
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -2360,39 +2380,39 @@ describe('TapAndEarn', () => {
 
       const platformSubsidy = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
         customerAmount,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
       const fromCustomerToVenue = BigNumber.from(customerAmount).sub(longCustomerDiscount);
 
-      await ENA.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await ENA.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const escrowBalance_before = await ENA.balanceOf(escrow.address);
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
       const venueBalance_before = await ENA.balanceOf(USDC_whale.address);
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
       const venueBalance_after = await ENA.balanceOf(USDC_whale.address);
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -2408,7 +2428,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (w/ promoter) (visit bounty)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         escrow,
         helper,
         venueToken,
@@ -2442,8 +2462,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -2473,26 +2493,26 @@ describe('TapAndEarn', () => {
 
       const platformSubsidy = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
         customerAmount,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
       const fromCustomerToVenue = BigNumber.from(customerAmount).sub(longCustomerDiscount);
 
-      await ENA.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await ENA.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const escrowBalance_before = await ENA.balanceOf(escrow.address);
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
@@ -2506,7 +2526,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -2521,7 +2541,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -2543,7 +2563,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (both payment) (w/ promoter) (visit bounty)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         escrow,
         helper,
         venueToken,
@@ -2577,8 +2597,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -2608,26 +2628,26 @@ describe('TapAndEarn', () => {
 
       const platformSubsidy = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
         customerAmount,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
       const fromCustomerToVenue = BigNumber.from(customerAmount).sub(longCustomerDiscount);
 
-      await ENA.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await ENA.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const escrowBalance_before = await ENA.balanceOf(escrow.address);
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
@@ -2641,7 +2661,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -2656,7 +2676,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -2678,7 +2698,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (w/ promoter) (spend bounty)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         escrow,
         helper,
         venueToken,
@@ -2712,8 +2732,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -2743,19 +2763,19 @@ describe('TapAndEarn', () => {
 
       const platformSubsidy = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
         customerAmount,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
@@ -2769,7 +2789,7 @@ describe('TapAndEarn', () => {
           await helper.getStandardizedPrice(
             ENA.address,
             (
-              await tapEarn.tapEarnStorage()
+              await belongCheckIn.belongCheckInStorage()
             ).contracts.longPF,
             customerAmount,
           ),
@@ -2785,7 +2805,7 @@ describe('TapAndEarn', () => {
         ),
       );
 
-      await ENA.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await ENA.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const escrowBalance_before = await ENA.balanceOf(escrow.address);
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
@@ -2799,7 +2819,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -2814,7 +2834,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -2832,7 +2852,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (both payment) (w/ promoter) (spend bounty)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         escrow,
         helper,
         venueToken,
@@ -2866,8 +2886,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -2897,19 +2917,19 @@ describe('TapAndEarn', () => {
 
       const platformSubsidy = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
         customerAmount,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
@@ -2923,7 +2943,7 @@ describe('TapAndEarn', () => {
           await helper.getStandardizedPrice(
             ENA.address,
             (
-              await tapEarn.tapEarnStorage()
+              await belongCheckIn.belongCheckInStorage()
             ).contracts.longPF,
             customerAmount,
           ),
@@ -2939,7 +2959,7 @@ describe('TapAndEarn', () => {
         ),
       );
 
-      await ENA.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await ENA.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const escrowBalance_before = await ENA.balanceOf(escrow.address);
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
@@ -2953,7 +2973,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -2968,7 +2988,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -2986,7 +3006,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (w/ promoter) (both bounties)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         escrow,
         helper,
         venueToken,
@@ -3020,8 +3040,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -3051,19 +3071,19 @@ describe('TapAndEarn', () => {
 
       const platformSubsidy = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
         customerAmount,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
@@ -3077,7 +3097,7 @@ describe('TapAndEarn', () => {
           await helper.getStandardizedPrice(
             ENA.address,
             (
-              await tapEarn.tapEarnStorage()
+              await belongCheckIn.belongCheckInStorage()
             ).contracts.longPF,
             customerAmount,
           ),
@@ -3093,7 +3113,7 @@ describe('TapAndEarn', () => {
         ),
       );
 
-      await ENA.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await ENA.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const escrowBalance_before = await ENA.balanceOf(escrow.address);
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
@@ -3107,7 +3127,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -3122,7 +3142,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -3144,7 +3164,7 @@ describe('TapAndEarn', () => {
 
     it('payToVenue() (both payment) (w/ promoter) (both bounties)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         escrow,
         helper,
         venueToken,
@@ -3178,8 +3198,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -3209,19 +3229,19 @@ describe('TapAndEarn', () => {
 
       const platformSubsidy = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
         customerAmount,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
-          await tapEarn.tapEarnStorage()
+          await belongCheckIn.belongCheckInStorage()
         ).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
@@ -3235,7 +3255,7 @@ describe('TapAndEarn', () => {
           await helper.getStandardizedPrice(
             ENA.address,
             (
-              await tapEarn.tapEarnStorage()
+              await belongCheckIn.belongCheckInStorage()
             ).contracts.longPF,
             customerAmount,
           ),
@@ -3251,7 +3271,7 @@ describe('TapAndEarn', () => {
         ),
       );
 
-      await ENA.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await ENA.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
       const escrowBalance_before = await ENA.balanceOf(escrow.address);
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
@@ -3265,7 +3285,7 @@ describe('TapAndEarn', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -3280,7 +3300,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'CustomerPaid')
+        .to.emit(belongCheckIn, 'CustomerPaid')
         .withArgs(
           ENA_whale.address,
           USDC_whale.address,
@@ -3304,7 +3324,7 @@ describe('TapAndEarn', () => {
   describe('Promoter flow usdc', () => {
     it('distributePromoterPayments() (full amount)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         escrow,
         promoterToken,
@@ -3339,8 +3359,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -3369,9 +3389,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -3413,9 +3433,9 @@ describe('TapAndEarn', () => {
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
       await expect(
-        tapEarn.connect(referral).distributePromoterPayments(promoterInfoFake),
+        belongCheckIn.connect(referral).distributePromoterPayments(promoterInfoFake),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
-      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -3426,7 +3446,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before, true);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before)).to.eq(escrowBalance_after);
@@ -3438,7 +3458,7 @@ describe('TapAndEarn', () => {
     });
 
     it('distributePromoterPayments() (more than full amount)', async () => {
-      const { tapEarn, helper, promoterToken, referral, signer, referralCode, USDC, USDC_whale, ENA_whale } =
+      const { belongCheckIn, helper, promoterToken, referral, signer, referralCode, USDC, USDC_whale, ENA_whale } =
         await loadFixture(fixture);
 
       const uri = 'uriuri';
@@ -3461,8 +3481,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -3491,9 +3511,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -3518,15 +3538,14 @@ describe('TapAndEarn', () => {
         signature: promoterSignature,
       };
 
-      await expect(tapEarn.connect(referral).distributePromoterPayments(promoterInfo)).to.be.revertedWithCustomError(
-        tapEarn,
-        'NotEnoughBalance',
-      );
+      await expect(
+        belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'NotEnoughBalance');
     });
 
     it('distributePromoterPayments() (partial amount)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         escrow,
         promoterToken,
@@ -3560,8 +3579,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -3590,9 +3609,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -3625,7 +3644,7 @@ describe('TapAndEarn', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -3636,7 +3655,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before.div(2), true);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before.div(2))).to.eq(escrowBalance_after);
@@ -3650,7 +3669,7 @@ describe('TapAndEarn', () => {
     // Use .only for test
     it.skip('distributePromoterPayments() (full amount) (no tier)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         escrow,
         promoterToken,
@@ -3665,64 +3684,64 @@ describe('TapAndEarn', () => {
       } = await loadFixture(fixture);
 
       const stakingRewardsNew: [
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
       ] = [
         {
           venueStakingInfo: {
             depositFeePercentage: 1000,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 800,
             longPercentage: 800,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 900,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 700,
             longPercentage: 700,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 800,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 600,
             longPercentage: 600,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 700,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 500,
             longPercentage: 500,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 500,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 400,
             longPercentage: 400,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
       ];
-      await tapEarn.setParameters(paymentsInfo, fees, stakingRewardsNew);
+      await belongCheckIn.setParameters(paymentsInfo, fees, stakingRewardsNew);
 
       const uri = 'uriuri';
       const venueAmount = 100 * 10 ** (await USDC.decimals());
@@ -3744,8 +3763,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -3774,9 +3793,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -3809,7 +3828,7 @@ describe('TapAndEarn', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -3820,7 +3839,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before, true);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before)).to.eq(escrowBalance_after);
@@ -3834,7 +3853,7 @@ describe('TapAndEarn', () => {
     // Use .only for test
     it.skip('distributePromoterPayments() (full amount) (bronze tier)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         staking,
         helper,
         escrow,
@@ -3850,64 +3869,64 @@ describe('TapAndEarn', () => {
       } = await loadFixture(fixture);
 
       const stakingRewardsNew: [
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
       ] = [
         {
           venueStakingInfo: {
             depositFeePercentage: 1000,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 800,
             longPercentage: 800,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 900,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 700,
             longPercentage: 700,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 800,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 600,
             longPercentage: 600,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 700,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 500,
             longPercentage: 500,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 500,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 400,
             longPercentage: 400,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
       ];
-      await tapEarn.setParameters(paymentsInfo, fees, stakingRewardsNew);
+      await belongCheckIn.setParameters(paymentsInfo, fees, stakingRewardsNew);
 
       await ENA.connect(ENA_whale).transfer(referral.address, ethers.utils.parseEther('50000'));
       await ENA.connect(referral).approve(staking.address, ethers.utils.parseEther('50000'));
@@ -3933,8 +3952,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -3963,9 +3982,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -3998,7 +4017,7 @@ describe('TapAndEarn', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -4009,7 +4028,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before, true);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before)).to.eq(escrowBalance_after);
@@ -4023,7 +4042,7 @@ describe('TapAndEarn', () => {
     // Use .only for test
     it.skip('distributePromoterPayments() (full amount) (silver tier)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         staking,
         helper,
         escrow,
@@ -4039,64 +4058,64 @@ describe('TapAndEarn', () => {
       } = await loadFixture(fixture);
 
       const stakingRewardsNew: [
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
       ] = [
         {
           venueStakingInfo: {
             depositFeePercentage: 1000,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 800,
             longPercentage: 800,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 900,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 700,
             longPercentage: 700,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 800,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 600,
             longPercentage: 600,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 700,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 500,
             longPercentage: 500,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 500,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 400,
             longPercentage: 400,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
       ];
-      await tapEarn.setParameters(paymentsInfo, fees, stakingRewardsNew);
+      await belongCheckIn.setParameters(paymentsInfo, fees, stakingRewardsNew);
 
       await ENA.connect(ENA_whale).transfer(referral.address, ethers.utils.parseEther('250000'));
       await ENA.connect(referral).approve(staking.address, ethers.utils.parseEther('250000'));
@@ -4122,8 +4141,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -4152,9 +4171,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -4187,7 +4206,7 @@ describe('TapAndEarn', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -4198,7 +4217,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before, true);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before)).to.eq(escrowBalance_after);
@@ -4212,7 +4231,7 @@ describe('TapAndEarn', () => {
     // Use .only for test
     it.skip('distributePromoterPayments() (full amount) (gold tier)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         staking,
         helper,
         escrow,
@@ -4228,64 +4247,64 @@ describe('TapAndEarn', () => {
       } = await loadFixture(fixture);
 
       const stakingRewardsNew: [
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
       ] = [
         {
           venueStakingInfo: {
             depositFeePercentage: 1000,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 800,
             longPercentage: 800,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 900,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 700,
             longPercentage: 700,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 800,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 600,
             longPercentage: 600,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 700,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 500,
             longPercentage: 500,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 500,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 400,
             longPercentage: 400,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
       ];
-      await tapEarn.setParameters(paymentsInfo, fees, stakingRewardsNew);
+      await belongCheckIn.setParameters(paymentsInfo, fees, stakingRewardsNew);
 
       await ENA.connect(ENA_whale).transfer(referral.address, ethers.utils.parseEther('500000'));
       await ENA.connect(referral).approve(staking.address, ethers.utils.parseEther('500000'));
@@ -4311,8 +4330,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -4341,9 +4360,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -4376,7 +4395,7 @@ describe('TapAndEarn', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -4387,7 +4406,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before, true);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before)).to.eq(escrowBalance_after);
@@ -4401,7 +4420,7 @@ describe('TapAndEarn', () => {
     // Use .only for test
     it.skip('distributePromoterPayments() (full amount) (platinum tier)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         staking,
         helper,
         escrow,
@@ -4417,64 +4436,64 @@ describe('TapAndEarn', () => {
       } = await loadFixture(fixture);
 
       const stakingRewardsNew: [
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
-        TapAndEarn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
+        BelongCheckIn.RewardsInfoStruct,
       ] = [
         {
           venueStakingInfo: {
             depositFeePercentage: 1000,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 800,
             longPercentage: 800,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 900,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 700,
             longPercentage: 700,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 800,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 600,
             longPercentage: 600,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 700,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 500,
             longPercentage: 500,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
         {
           venueStakingInfo: {
             depositFeePercentage: 500,
             convenienceFeeAmount,
-          } as TapAndEarn.VenueStakingRewardInfoStruct,
+          } as BelongCheckIn.VenueStakingRewardInfoStruct,
           promoterStakingInfo: {
             usdcPercentage: 400,
             longPercentage: 400,
-          } as TapAndEarn.PromoterStakingRewardInfoStruct,
-        } as TapAndEarn.RewardsInfoStruct,
+          } as BelongCheckIn.PromoterStakingRewardInfoStruct,
+        } as BelongCheckIn.RewardsInfoStruct,
       ];
-      await tapEarn.setParameters(paymentsInfo, fees, stakingRewardsNew);
+      await belongCheckIn.setParameters(paymentsInfo, fees, stakingRewardsNew);
 
       await ENA.connect(ENA_whale).transfer(referral.address, ethers.utils.parseEther('1000000'));
       await ENA.connect(referral).approve(staking.address, ethers.utils.parseEther('1000000'));
@@ -4500,8 +4519,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -4530,9 +4549,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -4565,7 +4584,7 @@ describe('TapAndEarn', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -4576,7 +4595,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before, true);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before)).to.eq(escrowBalance_after);
@@ -4591,7 +4610,7 @@ describe('TapAndEarn', () => {
   describe('Promoter flow long', () => {
     it('distributePromoterPayments() (full amount)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         escrow,
         promoterToken,
@@ -4625,8 +4644,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -4655,9 +4674,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -4691,7 +4710,7 @@ describe('TapAndEarn', () => {
       const promoterBalance_before = await ENA.balanceOf(referral.address);
       console.log(feeReceiverBalance_before);
       console.log(promoterBalance_before);
-      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await ENA.balanceOf(treasury.address);
@@ -4704,7 +4723,7 @@ describe('TapAndEarn', () => {
       console.log(promoterBalance_after);
 
       await expect(tx)
-        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before, false);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before)).to.eq(escrowBalance_after);
@@ -4717,7 +4736,7 @@ describe('TapAndEarn', () => {
 
     it('distributePromoterPayments() (partial amount)', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         escrow,
         promoterToken,
@@ -4751,8 +4770,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -4781,9 +4800,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -4817,7 +4836,7 @@ describe('TapAndEarn', () => {
       const promoterBalance_before = await ENA.balanceOf(referral.address);
       console.log(feeReceiverBalance_before);
       console.log(promoterBalance_before);
-      const tx = await tapEarn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await ENA.balanceOf(treasury.address);
@@ -4830,7 +4849,7 @@ describe('TapAndEarn', () => {
       console.log(promoterBalance_after);
 
       await expect(tx)
-        .to.emit(tapEarn, 'PromoterPaymentsDistributed')
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before.div(2), false);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before.div(2))).to.eq(escrowBalance_after);
@@ -4845,7 +4864,7 @@ describe('TapAndEarn', () => {
   describe('Manager flow', () => {
     it('payToVenue() (both payment) (w/ promoter) (both bounties) then emergencyCancelPayment()', async () => {
       const {
-        tapEarn,
+        belongCheckIn,
         helper,
         venueToken,
         promoterToken,
@@ -4878,8 +4897,8 @@ describe('TapAndEarn', () => {
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(venueAmount + convenienceFeeAmount);
-      await USDC.connect(USDC_whale).approve(tapEarn.address, willBeTaken);
-      await tapEarn.connect(USDC_whale).venueDeposit(venueInfo);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       const customerAmount = 5 * 10 ** (await USDC.decimals());
       const customerMessage = ethers.utils.solidityKeccak256(
@@ -4908,9 +4927,9 @@ describe('TapAndEarn', () => {
       };
 
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
-      await USDC.connect(ENA_whale).approve(tapEarn.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await tapEarn.connect(ENA_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
       const venueBalance_venueToken_before = await venueToken.balanceOf(
         USDC_whale.address,
@@ -4922,10 +4941,10 @@ describe('TapAndEarn', () => {
       );
 
       await expect(
-        tapEarn.connect(USDC_whale).emergencyCancelPayment(USDC_whale.address, referral.address),
-      ).to.be.revertedWithCustomError(tapEarn, 'Unauthorized');
+        belongCheckIn.connect(USDC_whale).emergencyCancelPayment(USDC_whale.address, referral.address),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'Unauthorized');
 
-      const tx = await tapEarn.emergencyCancelPayment(USDC_whale.address, referral.address);
+      const tx = await belongCheckIn.emergencyCancelPayment(USDC_whale.address, referral.address);
 
       const venueBalance_venueToken_after = await venueToken.balanceOf(
         USDC_whale.address,
@@ -4937,7 +4956,7 @@ describe('TapAndEarn', () => {
       );
 
       await expect(tx)
-        .to.emit(tapEarn, 'PromoterPaymentCancelled')
+        .to.emit(belongCheckIn, 'PromoterPaymentCancelled')
         .withArgs(USDC_whale.address, referral.address, promoterBalance_promoterToken_before);
 
       expect(venueBalance_venueToken_before.add(promoterBalance_promoterToken_before)).to.eq(
