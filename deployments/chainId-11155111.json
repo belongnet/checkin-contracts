@@ -34,7 +34,7 @@
   "Helper": {
     "address": "0xe0B2A33dbea03ed8fb8bA2289Cc2aAA8E30a4Bf1"
   },
-  "TapAndEarn": {
+  "BelongCheckIn": {
     "proxy": "0x4beE9f94C187e80BDab296749c910E4667e13f66",
     "parameters": [
       "0x53d2f4917C9FC210536ffDB7D1BD26dc9F2Fc319",

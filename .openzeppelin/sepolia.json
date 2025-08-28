@@ -913,28 +913,28 @@
         "solcVersion": "0.8.27",
         "storage": [
           {
-            "label": "tapEarnStorage",
+            "label": "belongCheckInStorage",
             "offset": 0,
             "slot": "0",
-            "type": "t_struct(TapAndEarnStorage)3021_storage",
-            "contract": "TapAndEarn",
-            "src": "contracts/v2/platform/TapAndEarn.sol:217"
+            "type": "t_struct(BelongCheckInStorage)3021_storage",
+            "contract": "BelongCheckIn",
+            "src": "contracts/v2/platform/BelongCheckIn.sol:217"
           },
           {
             "label": "generalVenueInfo",
             "offset": 0,
             "slot": "12",
             "type": "t_mapping(t_address,t_struct(GeneralVenueInfo)3073_storage)",
-            "contract": "TapAndEarn",
-            "src": "contracts/v2/platform/TapAndEarn.sol:221"
+            "contract": "BelongCheckIn",
+            "src": "contracts/v2/platform/BelongCheckIn.sol:221"
           },
           {
             "label": "stakingRewards",
             "offset": 0,
             "slot": "13",
             "type": "t_mapping(t_enum(StakingTiers)544,t_struct(RewardsInfo)3093_storage)",
-            "contract": "TapAndEarn",
-            "src": "contracts/v2/platform/TapAndEarn.sol:225"
+            "contract": "BelongCheckIn",
+            "src": "contracts/v2/platform/BelongCheckIn.sol:225"
           }
         ],
         "types": {
@@ -960,45 +960,29 @@
           },
           "t_enum(BountyTypes)556": {
             "label": "enum BountyTypes",
-            "members": [
-              "NoType",
-              "VisitBounty",
-              "SpendBounty",
-              "Both"
-            ],
+            "members": ["NoType", "VisitBounty", "SpendBounty", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(PaymentTypes)550": {
             "label": "enum PaymentTypes",
-            "members": [
-              "NoType",
-              "USDC",
-              "LONG",
-              "Both"
-            ],
+            "members": ["NoType", "USDC", "LONG", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(StakingTiers)544": {
             "label": "enum StakingTiers",
-            "members": [
-              "NoStakes",
-              "BronzeTier",
-              "SilverTier",
-              "GoldTier",
-              "PlatinumTier"
-            ],
+            "members": ["NoStakes", "BronzeTier", "SilverTier", "GoldTier", "PlatinumTier"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_struct(GeneralVenueInfo)3073_storage)": {
-            "label": "mapping(address => struct TapAndEarn.GeneralVenueInfo)",
+            "label": "mapping(address => struct BelongCheckIn.GeneralVenueInfo)",
             "numberOfBytes": "32"
           },
           "t_mapping(t_enum(StakingTiers)544,t_struct(RewardsInfo)3093_storage)": {
-            "label": "mapping(enum StakingTiers => struct TapAndEarn.RewardsInfo)",
+            "label": "mapping(enum StakingTiers => struct BelongCheckIn.RewardsInfo)",
             "numberOfBytes": "32"
           },
           "t_struct(Contracts)3040_storage": {
-            "label": "struct TapAndEarn.Contracts",
+            "label": "struct BelongCheckIn.Contracts",
             "members": [
               {
                 "label": "factory",
@@ -1040,7 +1024,7 @@
             "numberOfBytes": "192"
           },
           "t_struct(Fees)3052_storage": {
-            "label": "struct TapAndEarn.Fees",
+            "label": "struct BelongCheckIn.Fees",
             "members": [
               {
                 "label": "referralCreditsAmount",
@@ -1076,7 +1060,7 @@
             "numberOfBytes": "32"
           },
           "t_struct(GeneralVenueInfo)3073_storage": {
-            "label": "struct TapAndEarn.GeneralVenueInfo",
+            "label": "struct BelongCheckIn.GeneralVenueInfo",
             "members": [
               {
                 "label": "rules",
@@ -1094,7 +1078,7 @@
             "numberOfBytes": "64"
           },
           "t_struct(PaymentsInfo)3066_storage": {
-            "label": "struct TapAndEarn.PaymentsInfo",
+            "label": "struct BelongCheckIn.PaymentsInfo",
             "members": [
               {
                 "label": "uniswapPoolFees",
@@ -1136,7 +1120,7 @@
             "numberOfBytes": "160"
           },
           "t_struct(PromoterStakingRewardInfo)3085_storage": {
-            "label": "struct TapAndEarn.PromoterStakingRewardInfo",
+            "label": "struct BelongCheckIn.PromoterStakingRewardInfo",
             "members": [
               {
                 "label": "usdcPercentage",
@@ -1154,7 +1138,7 @@
             "numberOfBytes": "32"
           },
           "t_struct(RewardsInfo)3093_storage": {
-            "label": "struct TapAndEarn.RewardsInfo",
+            "label": "struct BelongCheckIn.RewardsInfo",
             "members": [
               {
                 "label": "venueStakingInfo",
@@ -1171,8 +1155,8 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(TapAndEarnStorage)3021_storage": {
-            "label": "struct TapAndEarn.TapAndEarnStorage",
+          "t_struct(BelongCheckInStorage)3021_storage": {
+            "label": "struct BelongCheckIn.BelongCheckInStorage",
             "members": [
               {
                 "label": "contracts",
@@ -1214,7 +1198,7 @@
             "numberOfBytes": "32"
           },
           "t_struct(VenueStakingRewardInfo)3079_storage": {
-            "label": "struct TapAndEarn.VenueStakingRewardInfo",
+            "label": "struct BelongCheckIn.VenueStakingRewardInfo",
             "members": [
               {
                 "label": "depositFeePercentage",
@@ -1254,10 +1238,10 @@
         "solcVersion": "0.8.27",
         "storage": [
           {
-            "label": "tapAndEarn",
+            "label": "belongCheckIn",
             "offset": 0,
             "slot": "0",
-            "type": "t_contract(TapAndEarn)4263",
+            "type": "t_contract(BelongCheckIn)4263",
             "contract": "Escrow",
             "src": "contracts/v2/periphery/Escrow.sol:75"
           },
@@ -1275,8 +1259,8 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_contract(TapAndEarn)4263": {
-            "label": "contract TapAndEarn",
+          "t_contract(BelongCheckIn)4263": {
+            "label": "contract BelongCheckIn",
             "numberOfBytes": "20"
           },
           "t_mapping(t_address,t_struct(VenueDeposits)685_storage)": {
