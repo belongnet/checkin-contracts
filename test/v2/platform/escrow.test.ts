@@ -51,11 +51,10 @@ describe('Escrow', () => {
 
       await escrow.venueDeposit(admin.address, 10, 20);
 
-      await expect(escrow.connect(user1).distributeLONGDiscount(user1.address, 10)).to.be.revertedWithCustomError(
-        escrow,
-        'NotBelongCheckIn',
-      );
-      await expect(escrow.distributeLONGDiscount(admin.address, 30))
+      await expect(
+        escrow.connect(user1).distributeLONGDiscount(user1.address, user1.address, 10),
+      ).to.be.revertedWithCustomError(escrow, 'NotBelongCheckIn');
+      await expect(escrow.distributeLONGDiscount(admin.address, admin.address, 30))
         .to.be.revertedWithCustomError(escrow, 'NotEnoughLONGs')
         .withArgs(20, 30);
     });
