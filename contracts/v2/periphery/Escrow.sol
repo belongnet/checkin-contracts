@@ -42,9 +42,10 @@ contract Escrow is Initializable, Ownable {
     event VenueDepositsUpdated(address indexed venue, VenueDeposits deposits);
 
     /// @notice Emitted when LONG discount funds are disbursed to a venue.
-    /// @param venue Venue receiving the LONG subsidy.
+    /// @param venue Venue whose LONG balance decreased.
+    /// @param to Recipient of the LONG transfer.
     /// @param amount Amount of LONG transferred.
-    event DistributedLONGDiscount(address indexed venue, uint256 amount);
+    event DistributedLONGDiscount(address indexed venue, address indexed to, uint256 amount);
 
     /// @notice Emitted when USDC deposit funds are disbursed from a venue's balance.
     /// @param venue Venue whose USDC balance decreased.
@@ -107,9 +108,10 @@ contract Escrow is Initializable, Ownable {
 
     /// @notice Disburses LONG discount funds from a venue's LONG balance to the venue.
     /// @dev Reverts if the venue does not have enough LONG recorded.
-    /// @param venue Venue receiving the LONG transfer.
+    /// @param venue Venue whose LONG balance will decrease.
+    /// @param to Recipient of the LONG transfer.
     /// @param amount Amount of LONG to transfer.
-    function distributeLONGDiscount(address venue, uint256 amount) external onlyBelongCheckIn {
+    function distributeLONGDiscount(address venue, address to, uint256 amount) external onlyBelongCheckIn {
         uint256 longDeposits = venueDeposits[venue].longDeposits;
         require(longDeposits >= amount, NotEnoughLONGs(longDeposits, amount));
 
@@ -118,10 +120,10 @@ contract Escrow is Initializable, Ownable {
         }
         venueDeposits[venue].longDeposits = longDeposits;
 
-        belongCheckIn.paymentsInfo().long.safeTransfer(venue, amount);
+        belongCheckIn.paymentsInfo().long.safeTransfer(to, amount);
 
         emit VenueDepositsUpdated(venue, venueDeposits[venue]);
-        emit DistributedLONGDiscount(venue, amount);
+        emit DistributedLONGDiscount(venue, to, amount);
     }
 
     /// @notice Disburses USDC funds from a venue's USDC balance to a recipient.
