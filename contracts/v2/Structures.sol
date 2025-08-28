@@ -97,7 +97,7 @@ enum PaymentTypes {
 }
 
 /// @title BountyTypes
-/// @notice Allowed promoter bounty schemes.
+/// @notice Venue-allowed promoter bounty schemes.
 enum BountyTypes {
     NoType,
     VisitBounty,
@@ -105,11 +105,20 @@ enum BountyTypes {
     Both
 }
 
+/// @title LongPaymentTypes
+/// @notice Venue-allowed Long payment options.
+enum LongPaymentTypes {
+    NoType,
+    AutoStake,
+    AutoConvert
+}
+
 /// @title VenueRules
 /// @notice Venue-level configuration for payment and bounty types.
 struct VenueRules {
     PaymentTypes paymentType;
     BountyTypes bountyType;
+    LongPaymentTypes longPaymentType;
 }
 
 /// @title VenueInfo
@@ -126,13 +135,15 @@ struct VenueInfo {
 /// @title CustomerInfo
 /// @notice Signed payload authorizing a customer payment to a venue (and optional promoter attribution).
 struct CustomerInfo {
+    // Backend configurable
     bool paymentInUSDC;
     uint24 visitBountyAmount;
     uint24 spendBountyPercentage;
-    // Actors and amounts
+    // Actors
     address customer;
     address venueToPayFor;
     address promoter;
+    // Amounts
     uint256 amount;
     bytes signature;
 }
