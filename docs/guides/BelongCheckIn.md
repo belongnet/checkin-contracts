@@ -1,10 +1,10 @@
-# TapAndEarn – Deployment & Upgrade Guide
+# BelongCheckIn – Deployment & Upgrade Guide
 
-This repo ships a set of Hardhat scripts to **deploy, upgrade, and verify** the TapAndEarn ecosystem:
+This repo ships a set of Hardhat scripts to **deploy, upgrade, and verify** the BelongCheckIn ecosystem:
 
 - Libraries: `Helper`, `SignatureVerifier`
 - Implementations: `AccessToken`, `CreditToken`, `RoyaltiesReceiverV2`
-- Core: `LONG`, `Staking`, `TapAndEarn`, `Escrow`
+- Core: `LONG`, `Staking`, `BelongCheckIn`, `Escrow`
 - Factory upgrade from legacy → new `Factory`
 
 The scripts also **persist addresses** under `deployments/chainId-<id>.json` and can **verify** contracts.
@@ -42,7 +42,7 @@ MINT_LONG_TO=0x...
 ADMIN_ADDRESS=0x...
 PAUSER_ADDRESS=0x...
 
-# TapAndEarn (PaymentsInfo)
+# BelongCheckIn (PaymentsInfo)
 UNISWAPV3_POOL_FEES=3000
 UNISWAPV3_ROUTER_ADDRESS=0xE592427A0AEce92De3Edee1F18E0157C05861564
 UNISWAPV3_QUOTER_ADDRESS=0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
@@ -78,13 +78,13 @@ Minimal example:
   "Helper": { "address": "0x..." },
   "LONG": { "address": "0x...", "parameters": ["0xMintTo","0xAdmin","0xPauser"] },
   "Staking": { "address": "0x...", "parameters": ["0xOwner","0xTreasury","0xLONG"] },
-  "TapAndEarn": { "address": "0x...", "parameters": ["0xOwner", { "uniswapPoolFees": 3000, "...": "..." }] },
-  "Escrow": { "address": "0x...", "parameters": ["0xTapAndEarn"] }
+  "BelongCheckIn": { "address": "0x...", "parameters": ["0xOwner", { "uniswapPoolFees": 3000, "...": "..." }] },
+  "Escrow": { "address": "0x...", "parameters": ["0xBelongCheckIn"] }
 }
 
 ```
 
-> Note: For TapAndEarn and other non-proxy deployments, the field is address (not proxy). Keep it consistent or your later scripts will fail.
+> Note: For BelongCheckIn and other non-proxy deployments, the field is address (not proxy). Keep it consistent or your later scripts will fail.
 
 🚀 Deployment & Upgrade Order
 
@@ -173,7 +173,7 @@ Run:
 DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/tap-earn/5-deploy-helper.ts --network <network sepcified>
 ```
 
-7. TapAndEarn:
+7. BelongCheckIn:
 
 Required fields in `.env`:
 
@@ -205,7 +205,7 @@ VENUE_TOKEN=0xYourVenueTokenAddress  # Venue token address
 PROMOTER_TOKEN=0xYourPromoterTokenAddress  # Promoter token address
 ```
 
-10. TapAndEarn configuration:
+10. BelongCheckIn configuration:
 
 Required fields in `.env`:
 ```
@@ -230,9 +230,9 @@ Your scripts already call `verifyContract(...)` appropriately; ensure they pass 
 What Happens:
 
 The script checks and validates all required environment variables.
-Deploys contracts in order: Helper → SignatureVerifier → LONG → TapAndEarn → Escrow → Staking.
-Uses deployed addresses (e.g., LONG in TapAndEarn, TapAndEarn in Escrow).
-Calls `setContracts` on TapAndEarn to configure it with Factory, Escrow, Staking, etc.
+Deploys contracts in order: Helper → SignatureVerifier → LONG → BelongCheckIn → Escrow → Staking.
+Uses deployed addresses (e.g., LONG in BelongCheckIn, BelongCheckIn in Escrow).
+Calls `setContracts` on BelongCheckIn to configure it with Factory, Escrow, Staking, etc.
 Saves all addresses and parameters to `deployments/chainId-<chainId>.json` (e.g., `deployments/chainId-11155111.json`).
 If `VERIFY = true`, verifies each contract on Etherscan.
 
@@ -241,11 +241,11 @@ Output Example:
 ```
 For LONG deployment:
 Everything specified!
-For TapAndEarn deployment:
+For BelongCheckIn deployment:
 Everything specified!
 For Staking deployment:
 Everything specified!
-For TapAndEarn configuration:
+For BelongCheckIn configuration:
 Everything specified!
 Deploying Helper contract...
 Deployed Helper to: 0x...
@@ -253,13 +253,13 @@ Deploying SignatureVerifier contract...
 Deployed SignatureVerifier to: 0x...
 Deploying LONG contract...
 Deployed LONG to: 0x...
-Deploying TapAndEarn contract...
-Deployed TapAndEarn to: 0x...
+Deploying BelongCheckIn contract...
+Deployed BelongCheckIn to: 0x...
 Deploying Escrow contract...
 Deployed Escrow to: 0x...
 Deploying Staking contract...
 Deployed Staking to: 0x...
-Setting up TapAndEarn contract...
+Setting up BelongCheckIn contract...
 All deployments done.
 Verification:
 Helper verification successful.
@@ -276,7 +276,7 @@ After running, check `deployments/chainId-<chainId>.json` for addresses and para
   "Helper": { "address": "0x..." },
   "SignatureVerifier": { "address": "0x..." },
   "LONG": { "address": "0x...", "parameters": ["0x...", "1000000", "0x...", "0x..."] },
-  "TapAndEarn": { "address": "0x...", "parameters": ["0x...", "0x...", "0x...", { "uniswapPoolFees": 3000, ... }] },
+  "BelongCheckIn": { "address": "0x...", "parameters": ["0x...", "0x...", "0x...", { "uniswapPoolFees": 3000, ... }] },
   "Escrow": { "address": "0x...", "parameters": ["0x..."] },
   "Staking": { "address": "0x...", "parameters": ["0x...", "0x...", "0x..."] }
 }

@@ -1,6 +1,6 @@
 # Solidity API
 
-## TapAndEarn
+## BelongCheckIn
 
 Orchestrates venue deposits, customer payments, and promoter payouts for a
         referral-based commerce program with dual-token accounting (USDC/LONG).
@@ -74,7 +74,7 @@ Thrown when a venue provides an invalid or disabled payment type.
 ### ParametersSet
 
 ```solidity
-event ParametersSet(struct TapAndEarn.PaymentsInfo paymentsInfo, struct TapAndEarn.Fees fees, struct TapAndEarn.RewardsInfo[5] rewards)
+event ParametersSet(struct BelongCheckIn.PaymentsInfo paymentsInfo, struct BelongCheckIn.Fees fees, struct BelongCheckIn.RewardsInfo[5] rewards)
 ```
 
 Emitted when global parameters are updated.
@@ -83,9 +83,9 @@ Emitted when global parameters are updated.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| paymentsInfo | struct TapAndEarn.PaymentsInfo | Uniswap/asset addresses and pool fee configuration. |
-| fees | struct TapAndEarn.Fees | Platform-level fee settings. |
-| rewards | struct TapAndEarn.RewardsInfo[5] | Array of tiered staking rewards (index by `StakingTiers`). |
+| paymentsInfo | struct BelongCheckIn.PaymentsInfo | Uniswap/asset addresses and pool fee configuration. |
+| fees | struct BelongCheckIn.Fees | Platform-level fee settings. |
+| rewards | struct BelongCheckIn.RewardsInfo[5] | Array of tiered staking rewards (index by `StakingTiers`). |
 
 ### VenueRulesSet
 
@@ -105,7 +105,7 @@ Emitted when a venue's rules are set or updated.
 ### ContractsSet
 
 ```solidity
-event ContractsSet(struct TapAndEarn.Contracts contracts)
+event ContractsSet(struct BelongCheckIn.Contracts contracts)
 ```
 
 Emitted when contract references are configured.
@@ -114,7 +114,7 @@ Emitted when contract references are configured.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| contracts | struct TapAndEarn.Contracts | The set of external contract references. |
+| contracts | struct BelongCheckIn.Contracts | The set of external contract references. |
 
 ### VenuePaidDeposit
 
@@ -201,15 +201,15 @@ Emitted after a USDC→LONG swap via Uniswap V3.
 | amountIn | uint256 | The USDC input amount. |
 | amountOut | uint256 | The LONG output amount. |
 
-### TapAndEarnStorage
+### BelongCheckInStorage
 
 Top-level storage bundle for program configuration.
 
 ```solidity
-struct TapAndEarnStorage {
-  struct TapAndEarn.Contracts contracts;
-  struct TapAndEarn.PaymentsInfo paymentsInfo;
-  struct TapAndEarn.Fees fees;
+struct BelongCheckInStorage {
+  struct BelongCheckIn.Contracts contracts;
+  struct BelongCheckIn.PaymentsInfo paymentsInfo;
+  struct BelongCheckIn.Fees fees;
 }
 ```
 
@@ -312,15 +312,15 @@ Bundle of venue and promoter tier settings for a given staking tier.
 
 ```solidity
 struct RewardsInfo {
-  struct TapAndEarn.VenueStakingRewardInfo venueStakingInfo;
-  struct TapAndEarn.PromoterStakingRewardInfo promoterStakingInfo;
+  struct BelongCheckIn.VenueStakingRewardInfo venueStakingInfo;
+  struct BelongCheckIn.PromoterStakingRewardInfo promoterStakingInfo;
 }
 ```
 
-### tapEarnStorage
+### belongCheckInStorage
 
 ```solidity
-struct TapAndEarn.TapAndEarnStorage tapEarnStorage
+struct BelongCheckIn.BelongCheckInStorage belongCheckInStorage
 ```
 
 Global program configuration.
@@ -328,7 +328,7 @@ Global program configuration.
 ### generalVenueInfo
 
 ```solidity
-mapping(address => struct TapAndEarn.GeneralVenueInfo) generalVenueInfo
+mapping(address => struct BelongCheckIn.GeneralVenueInfo) generalVenueInfo
 ```
 
 Per-venue rule set and remaining free deposit credits.
@@ -338,7 +338,7 @@ _Keyed by venue address._
 ### stakingRewards
 
 ```solidity
-mapping(enum StakingTiers => struct TapAndEarn.RewardsInfo) stakingRewards
+mapping(enum StakingTiers => struct BelongCheckIn.RewardsInfo) stakingRewards
 ```
 
 Staking-tier-indexed rewards configuration.
@@ -356,7 +356,7 @@ Disables initializers for the implementation contract.
 ### initialize
 
 ```solidity
-function initialize(address _owner, struct TapAndEarn.PaymentsInfo _paymentsInfo) external
+function initialize(address _owner, struct BelongCheckIn.PaymentsInfo _paymentsInfo) external
 ```
 
 Initializes core parameters and default tier tables; sets the owner.
@@ -370,12 +370,12 @@ Initializes core parameters and default tier tables; sets the owner.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _owner | address | The address granted ownership. |
-| _paymentsInfo | struct TapAndEarn.PaymentsInfo | Uniswap/asset configuration to be stored. |
+| _paymentsInfo | struct BelongCheckIn.PaymentsInfo | Uniswap/asset configuration to be stored. |
 
 ### setParameters
 
 ```solidity
-function setParameters(struct TapAndEarn.PaymentsInfo _paymentsInfo, struct TapAndEarn.Fees _fees, struct TapAndEarn.RewardsInfo[5] _stakingRewards) external
+function setParameters(struct BelongCheckIn.PaymentsInfo _paymentsInfo, struct BelongCheckIn.Fees _fees, struct BelongCheckIn.RewardsInfo[5] _stakingRewards) external
 ```
 
 Owner-only method to update core parameters in a single call.
@@ -384,14 +384,14 @@ Owner-only method to update core parameters in a single call.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _paymentsInfo | struct TapAndEarn.PaymentsInfo | New Uniswap/asset configuration. |
-| _fees | struct TapAndEarn.Fees | New platform fee configuration (scaled by 1e4). |
-| _stakingRewards | struct TapAndEarn.RewardsInfo[5] | New tier table (array index maps to `StakingTiers`). |
+| _paymentsInfo | struct BelongCheckIn.PaymentsInfo | New Uniswap/asset configuration. |
+| _fees | struct BelongCheckIn.Fees | New platform fee configuration (scaled by 1e4). |
+| _stakingRewards | struct BelongCheckIn.RewardsInfo[5] | New tier table (array index maps to `StakingTiers`). |
 
 ### setContracts
 
 ```solidity
-function setContracts(struct TapAndEarn.Contracts _contracts) external
+function setContracts(struct BelongCheckIn.Contracts _contracts) external
 ```
 
 Owner-only method to update external contract references.
@@ -400,7 +400,7 @@ Owner-only method to update external contract references.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _contracts | struct TapAndEarn.Contracts | Struct of contract references (Factory, Escrow, Staking, tokens, price feed). |
+| _contracts | struct BelongCheckIn.Contracts | Struct of contract references (Factory, Escrow, Staking, tokens, price feed). |
 
 ### updateVenueRules
 
@@ -494,7 +494,7 @@ Owner-only emergency function to cancel all promoter credits for a venue and res
 ### contracts
 
 ```solidity
-function contracts() external view returns (struct TapAndEarn.Contracts contracts_)
+function contracts() external view returns (struct BelongCheckIn.Contracts contracts_)
 ```
 
 Returns external contract references.
@@ -503,12 +503,12 @@ Returns external contract references.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| contracts_ | struct TapAndEarn.Contracts | The `Contracts` struct currently in use. |
+| contracts_ | struct BelongCheckIn.Contracts | The `Contracts` struct currently in use. |
 
 ### fees
 
 ```solidity
-function fees() external view returns (struct TapAndEarn.Fees fees_)
+function fees() external view returns (struct BelongCheckIn.Fees fees_)
 ```
 
 Returns platform fee configuration.
@@ -517,12 +517,12 @@ Returns platform fee configuration.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| fees_ | struct TapAndEarn.Fees | The `Fees` struct currently in use. |
+| fees_ | struct BelongCheckIn.Fees | The `Fees` struct currently in use. |
 
 ### paymentsInfo
 
 ```solidity
-function paymentsInfo() external view returns (struct TapAndEarn.PaymentsInfo paymentsInfo_)
+function paymentsInfo() external view returns (struct BelongCheckIn.PaymentsInfo paymentsInfo_)
 ```
 
 Returns Uniswap/asset configuration.
@@ -531,7 +531,7 @@ Returns Uniswap/asset configuration.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| paymentsInfo_ | struct TapAndEarn.PaymentsInfo | The `PaymentsInfo` struct currently in use. |
+| paymentsInfo_ | struct BelongCheckIn.PaymentsInfo | The `PaymentsInfo` struct currently in use. |
 
 ### _swap
 

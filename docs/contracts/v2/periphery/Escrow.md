@@ -3,20 +3,20 @@
 ## Escrow
 
 Custodies venue deposits in USDC and LONG, and disburses funds on instructions
-        from the TapAndEarn platform.
+        from the BelongCheckIn platform.
 @dev
 - Tracks per-venue balances for USDC and LONG.
-- Only the TapAndEarn contract may call mutating methods via {onlyTapEarn}.
+- Only the BelongCheckIn contract may call mutating methods via {onlyBelongCheckIn}.
 - Uses SafeTransferLib for robust ERC20 transfers.
 - Designed for use behind an upgradeable proxy.
 
-### NotTapAndEarn
+### NotBelongCheckIn
 
 ```solidity
-error NotTapAndEarn()
+error NotBelongCheckIn()
 ```
 
-Reverts when a non-authorized caller attempts a TapAndEarn-only action.
+Reverts when a non-authorized caller attempts a BelongCheckIn-only action.
 
 ### NotEnoughLONGs
 
@@ -51,7 +51,7 @@ Reverts when a USDC disbursement exceeds the venue's USDC balance.
 ### VenueDepositsUpdated
 
 ```solidity
-event VenueDepositsUpdated(address venue, uint256 usdcDeposits, uint256 longDeposits)
+event VenueDepositsUpdated(address venue, struct Escrow.VenueDeposits deposits)
 ```
 
 Emitted whenever a venue's escrow balances are updated.
@@ -61,8 +61,7 @@ Emitted whenever a venue's escrow balances are updated.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | venue | address | Venue address. |
-| usdcDeposits | uint256 | New USDC balance recorded for the venue. |
-| longDeposits | uint256 | New LONG balance recorded for the venue. |
+| deposits | struct Escrow.VenueDeposits | New USDC and LONG balances recorded for the venue. |
 
 ### DistributedLONGDiscount
 
@@ -106,13 +105,13 @@ struct VenueDeposits {
 }
 ```
 
-### tapAndEarn
+### belongCheckIn
 
 ```solidity
-contract TapAndEarn tapAndEarn
+contract BelongCheckIn belongCheckIn
 ```
 
-TapAndEarn platform contract authorized to operate this escrow.
+BelongCheckIn platform contract authorized to operate this escrow.
 
 ### venueDeposits
 
@@ -131,10 +130,10 @@ constructor() public
 ### initialize
 
 ```solidity
-function initialize(contract TapAndEarn _tapAndEarn) external
+function initialize(contract BelongCheckIn _belongCheckIn) external
 ```
 
-Initializes the escrow with its controlling TapAndEarn contract.
+Initializes the escrow with its controlling BelongCheckIn contract.
 
 _Must be called exactly once (initializer)._
 
@@ -142,15 +141,15 @@ _Must be called exactly once (initializer)._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _tapAndEarn | contract TapAndEarn | Address of the TapAndEarn contract. |
+| _belongCheckIn | contract BelongCheckIn | Address of the BelongCheckIn contract. |
 
-### onlyTapEarn
+### onlyBelongCheckIn
 
 ```solidity
-modifier onlyTapEarn()
+modifier onlyBelongCheckIn()
 ```
 
-Restricts function to only be callable by the TapAndEarn contract.
+Restricts function to only be callable by the BelongCheckIn contract.
 
 ### venueDeposit
 
@@ -160,7 +159,7 @@ function venueDeposit(address venue, uint256 depositedUSDCs, uint256 depositedLO
 
 Records/overwrites a venue's deposit balances after a deposit operation.
 
-_Called by TapAndEarn when new funds are received and routed to escrow._
+_Called by BelongCheckIn when new funds are received and routed to escrow._
 
 #### Parameters
 
