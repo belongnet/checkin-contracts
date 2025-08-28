@@ -22,6 +22,7 @@ import {
     VenueRules,
     PaymentTypes,
     BountyTypes,
+    LongPaymentTypes,
     VenueInfo,
     CustomerInfo,
     PromoterInfo
@@ -425,18 +426,26 @@ contract BelongCheckIn is Initializable, Ownable {
             );
         } else {
             // platform subsidy - processing fee
+            uint256 subsidyMinusFees = _storage.fees.platformSubsidyPercentage.calculateRate(customerInfo.amount)
+                - _storage.fees.processingFeePercentage.calculateRate(customerInfo.amount);
             _storage.contracts.escrow.distributeLONGDiscount(
-                customerInfo.venueToPayFor,
-                _storage.fees.platformSubsidyPercentage.calculateRate(customerInfo.amount)
-                    - _storage.fees.processingFeePercentage.calculateRate(customerInfo.amount)
+                customerInfo.venueToPayFor, address(this), subsidyMinusFees
             );
 
             // customer paid amount - longCustomerDiscountPercentage (3%)
-            _storage.paymentsInfo.long.safeTransferFrom(
-                customerInfo.customer,
-                customerInfo.venueToPayFor,
-                customerInfo.amount - _storage.fees.longCustomerDiscountPercentage.calculateRate(customerInfo.amount)
-            );
+            uint256 longFromCustomer =
+                customerInfo.amount - _storage.fees.longCustomerDiscountPercentage.calculateRate(customerInfo.amount);
+            _storage.paymentsInfo.long.safeTransferFrom(customerInfo.customer, address(this), longFromCustomer);
+
+            uint256 longAmount = subsidyMinusFees + longFromCustomer;
+
+            if (rules.longPaymentType == LongPaymentTypes.AutoStake) {
+                _storage.contracts.staking.deposit(longAmount, customerInfo.venueToPayFor);
+            } else if (rules.longPaymentType == LongPaymentTypes.AutoConvert) {
+                _swap(customerInfo.venueToPayFor, longAmount);
+            } else {
+                _storage.paymentsInfo.long.safeTransfer(customerInfo.venueToPayFor, longAmount);
+            }
         }
 
         emit CustomerPaid(
