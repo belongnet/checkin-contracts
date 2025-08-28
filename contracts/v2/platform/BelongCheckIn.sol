@@ -27,7 +27,7 @@ import {
     PromoterInfo
 } from "../Structures.sol";
 
-/// @title TapAndEarn
+/// @title BelongCheckIn
 /// @notice Orchestrates venue deposits, customer payments, and promoter payouts for a
 ///         referral-based commerce program with dual-token accounting (USDC/LONG).
 /// @dev
@@ -36,7 +36,7 @@ import {
 /// - Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps USDC→LONG on Uniswap V3.
 /// - Applies tiered fees/discounts depending on staked balance in `Staking`.
 /// - Signature-gated actions are authorized through a platform signer configured in `Factory`.
-contract TapAndEarn is Initializable, Ownable {
+contract BelongCheckIn is Initializable, Ownable {
     using SignatureVerifier for address;
     using MetadataReaderLib for address;
     using SafeTransferLib for address;
@@ -128,7 +128,7 @@ contract TapAndEarn is Initializable, Ownable {
     // ========== Structs ==========
 
     /// @notice Top-level storage bundle for program configuration.
-    struct TapAndEarnStorage {
+    struct BelongCheckInStorage {
         Contracts contracts;
         PaymentsInfo paymentsInfo;
         Fees fees;
@@ -202,7 +202,7 @@ contract TapAndEarn is Initializable, Ownable {
     // ========== State Variables ==========
 
     /// @notice Global program configuration.
-    TapAndEarnStorage public tapEarnStorage;
+    BelongCheckInStorage public belongCheckInStorage;
 
     /// @notice Per-venue rule set and remaining free deposit credits.
     /// @dev Keyed by venue address.
@@ -312,7 +312,7 @@ contract TapAndEarn is Initializable, Ownable {
     /// @notice Owner-only method to update external contract references.
     /// @param _contracts Struct of contract references (Factory, Escrow, Staking, tokens, price feed).
     function setContracts(Contracts calldata _contracts) external onlyOwner {
-        tapEarnStorage.contracts = _contracts;
+        belongCheckInStorage.contracts = _contracts;
 
         emit ContractsSet(_contracts);
     }
@@ -322,7 +322,7 @@ contract TapAndEarn is Initializable, Ownable {
     /// @param rules The new `VenueRules` to set for the caller.
     function updateVenueRules(VenueRules calldata rules) external {
         uint256 venueId = msg.sender.getVenueId();
-        uint256 venueBalance = tapEarnStorage.contracts.venueToken.balanceOf(msg.sender, venueId);
+        uint256 venueBalance = belongCheckInStorage.contracts.venueToken.balanceOf(msg.sender, venueId);
         require(venueBalance > 0, NotAVenue());
 
         _setVenueRules(msg.sender, rules);
@@ -336,7 +336,7 @@ contract TapAndEarn is Initializable, Ownable {
     /// - Mints venue credits (ERC1155) representing USD units deposited.
     /// @param venueInfo Signed venue deposit parameters (venue, amount, referral code, rules, uri).
     function venueDeposit(VenueInfo calldata venueInfo) external {
-        TapAndEarnStorage memory _storage = tapEarnStorage;
+        BelongCheckInStorage memory _storage = belongCheckInStorage;
 
         _storage.contracts.factory.nftFactoryParameters().signerAddress.checkVenueInfo(venueInfo);
 
@@ -393,7 +393,7 @@ contract TapAndEarn is Initializable, Ownable {
     /// - If false: applies subsidy minus processing fee via `Escrow`, then transfers discounted LONG from customer to venue.
     /// @param customerInfo Signed customer payment parameters (customer, venue, promoter, amount, flags, bounties).
     function payToVenue(CustomerInfo calldata customerInfo) external {
-        TapAndEarnStorage memory _storage = tapEarnStorage;
+        BelongCheckInStorage memory _storage = belongCheckInStorage;
         VenueRules memory rules = generalVenueInfo[customerInfo.venueToPayFor].rules;
 
         _storage.contracts.factory.nftFactoryParameters().signerAddress.checkCustomerInfo(customerInfo, rules);
@@ -458,7 +458,7 @@ contract TapAndEarn is Initializable, Ownable {
     /// - Burns promoter credits by the settled USD amount.
     /// @param promoterInfo Signed settlement parameters (promoter, venue, amountInUSD, payout currency flag).
     function distributePromoterPayments(PromoterInfo memory promoterInfo) external {
-        TapAndEarnStorage memory _storage = tapEarnStorage;
+        BelongCheckInStorage memory _storage = belongCheckInStorage;
 
         _storage.contracts.factory.nftFactoryParameters().signerAddress.checkPromoterPaymentDistribution(promoterInfo);
 
@@ -505,7 +505,7 @@ contract TapAndEarn is Initializable, Ownable {
     /// @param venue The venue whose credits will be restored.
     /// @param promoter The promoter whose credits will be burned.
     function emergencyCancelPayment(address venue, address promoter) external onlyOwner {
-        TapAndEarnStorage memory _storage = tapEarnStorage;
+        BelongCheckInStorage memory _storage = belongCheckInStorage;
 
         uint256 venueId = venue.getVenueId();
         uint256 promoterBalance = _storage.contracts.promoterToken.balanceOf(promoter, venueId);
@@ -520,19 +520,19 @@ contract TapAndEarn is Initializable, Ownable {
     /// @notice Returns external contract references.
     /// @return contracts_ The `Contracts` struct currently in use.
     function contracts() external view returns (Contracts memory contracts_) {
-        return tapEarnStorage.contracts;
+        return belongCheckInStorage.contracts;
     }
 
     /// @notice Returns platform fee configuration.
     /// @return fees_ The `Fees` struct currently in use.
     function fees() external view returns (Fees memory fees_) {
-        return tapEarnStorage.fees;
+        return belongCheckInStorage.fees;
     }
 
     /// @notice Returns Uniswap/asset configuration.
     /// @return paymentsInfo_ The `PaymentsInfo` struct currently in use.
     function paymentsInfo() external view returns (PaymentsInfo memory paymentsInfo_) {
-        return tapEarnStorage.paymentsInfo;
+        return belongCheckInStorage.paymentsInfo;
     }
 
     /// @notice Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
@@ -548,7 +548,7 @@ contract TapAndEarn is Initializable, Ownable {
             return 0;
         }
 
-        PaymentsInfo memory _paymentsInfo = tapEarnStorage.paymentsInfo;
+        PaymentsInfo memory _paymentsInfo = belongCheckInStorage.paymentsInfo;
 
         bytes memory path = abi.encodePacked(
             _paymentsInfo.usdc,
@@ -581,8 +581,8 @@ contract TapAndEarn is Initializable, Ownable {
         Fees memory _fees,
         RewardsInfo[5] memory _stakingRewards
     ) private {
-        tapEarnStorage.paymentsInfo = _paymentsInfo;
-        tapEarnStorage.fees = _fees;
+        belongCheckInStorage.paymentsInfo = _paymentsInfo;
+        belongCheckInStorage.fees = _fees;
 
         for (uint8 i = 0; i < 5; ++i) {
             stakingRewards[StakingTiers(i)] = _stakingRewards[i];

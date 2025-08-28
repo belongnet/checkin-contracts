@@ -5,15 +5,15 @@ import {Initializable} from "solady/src/utils/Initializable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
-import {TapAndEarn} from "../platform/TapAndEarn.sol";
+import {BelongCheckIn} from "../platform/BelongCheckIn.sol";
 import {VenueInfo} from "../Structures.sol";
 
-/// @title TapAndEarn Escrow
+/// @title BelongCheckIn Escrow
 /// @notice Custodies venue deposits in USDC and LONG, and disburses funds on instructions
-///         from the TapAndEarn platform.
+///         from the BelongCheckIn platform.
 /// @dev
 /// - Tracks per-venue balances for USDC and LONG.
-/// - Only the TapAndEarn contract may call mutating methods via {onlyTapEarn}.
+/// - Only the BelongCheckIn contract may call mutating methods via {onlyBelongCheckIn}.
 /// - Uses SafeTransferLib for robust ERC20 transfers.
 /// - Designed for use behind an upgradeable proxy.
 contract Escrow is Initializable, Ownable {
@@ -21,8 +21,8 @@ contract Escrow is Initializable, Ownable {
 
     // ============================== Errors ==============================
 
-    /// @notice Reverts when a non-authorized caller attempts a TapAndEarn-only action.
-    error NotTapAndEarn();
+    /// @notice Reverts when a non-authorized caller attempts a BelongCheckIn-only action.
+    error NotBelongCheckIn();
 
     /// @notice Reverts when a LONG disbursement exceeds the venue's LONG balance.
     /// @param longDeposits Current LONG balance on record.
@@ -62,8 +62,8 @@ contract Escrow is Initializable, Ownable {
 
     // ============================== Storage ==============================
 
-    /// @notice TapAndEarn platform contract authorized to operate this escrow.
-    TapAndEarn public tapAndEarn;
+    /// @notice BelongCheckIn platform contract authorized to operate this escrow.
+    BelongCheckIn public belongCheckIn;
 
     /// @notice Mapping of per-venue deposits tracked by currency.
     mapping(address venue => VenueDeposits deposits) public venueDeposits;
@@ -75,29 +75,29 @@ contract Escrow is Initializable, Ownable {
         _disableInitializers();
     }
 
-    /// @notice Initializes the escrow with its controlling TapAndEarn contract.
+    /// @notice Initializes the escrow with its controlling BelongCheckIn contract.
     /// @dev Must be called exactly once (initializer).
-    /// @param _tapAndEarn Address of the TapAndEarn contract.
-    function initialize(TapAndEarn _tapAndEarn) external initializer {
-        tapAndEarn = _tapAndEarn;
+    /// @param _belongCheckIn Address of the BelongCheckIn contract.
+    function initialize(BelongCheckIn _belongCheckIn) external initializer {
+        belongCheckIn = _belongCheckIn;
     }
 
     // ============================== Modifiers ==============================
 
-    /// @notice Restricts function to only be callable by the TapAndEarn contract.
-    modifier onlyTapEarn() {
-        require(msg.sender == address(tapAndEarn), NotTapAndEarn());
+    /// @notice Restricts function to only be callable by the BelongCheckIn contract.
+    modifier onlyBelongCheckIn() {
+        require(msg.sender == address(belongCheckIn), NotBelongCheckIn());
         _;
     }
 
-    // ============================== Mutators (TapAndEarn Only) ==============================
+    // ============================== Mutators (BelongCheckIn Only) ==============================
 
     /// @notice Records/overwrites a venue's deposit balances after a deposit operation.
-    /// @dev Called by TapAndEarn when new funds are received and routed to escrow.
+    /// @dev Called by BelongCheckIn when new funds are received and routed to escrow.
     /// @param venue Venue whose balances are being updated.
     /// @param depositedUSDCs New USDC balance to record for `venue`.
     /// @param depositedLONGs New LONG balance to record for `venue`.
-    function venueDeposit(address venue, uint256 depositedUSDCs, uint256 depositedLONGs) external onlyTapEarn {
+    function venueDeposit(address venue, uint256 depositedUSDCs, uint256 depositedLONGs) external onlyBelongCheckIn {
         VenueDeposits storage deposits = venueDeposits[venue];
         deposits.usdcDeposits += depositedUSDCs;
         deposits.longDeposits += depositedLONGs;
@@ -109,7 +109,7 @@ contract Escrow is Initializable, Ownable {
     /// @dev Reverts if the venue does not have enough LONG recorded.
     /// @param venue Venue receiving the LONG transfer.
     /// @param amount Amount of LONG to transfer.
-    function distributeLONGDiscount(address venue, uint256 amount) external onlyTapEarn {
+    function distributeLONGDiscount(address venue, uint256 amount) external onlyBelongCheckIn {
         uint256 longDeposits = venueDeposits[venue].longDeposits;
         require(longDeposits >= amount, NotEnoughLONGs(longDeposits, amount));
 
@@ -118,7 +118,7 @@ contract Escrow is Initializable, Ownable {
         }
         venueDeposits[venue].longDeposits = longDeposits;
 
-        tapAndEarn.paymentsInfo().long.safeTransfer(venue, amount);
+        belongCheckIn.paymentsInfo().long.safeTransfer(venue, amount);
 
         emit VenueDepositsUpdated(venue, venueDeposits[venue]);
         emit DistributedLONGDiscount(venue, amount);
@@ -129,7 +129,7 @@ contract Escrow is Initializable, Ownable {
     /// @param venue Venue whose USDC balance will decrease.
     /// @param to Recipient of the USDC transfer.
     /// @param amount Amount of USDC to transfer.
-    function distributeVenueDeposit(address venue, address to, uint256 amount) external onlyTapEarn {
+    function distributeVenueDeposit(address venue, address to, uint256 amount) external onlyBelongCheckIn {
         uint256 usdcDeposits = venueDeposits[venue].usdcDeposits;
         require(amount <= usdcDeposits, NotEnoughUSDCs(usdcDeposits, amount));
 
@@ -139,7 +139,7 @@ contract Escrow is Initializable, Ownable {
 
         venueDeposits[venue].usdcDeposits = usdcDeposits;
 
-        tapAndEarn.paymentsInfo().usdc.safeTransfer(to, amount);
+        belongCheckIn.paymentsInfo().usdc.safeTransfer(to, amount);
 
         emit VenueDepositsUpdated(venue, venueDeposits[venue]);
         emit DistributedVenueDeposit(venue, to, amount);
