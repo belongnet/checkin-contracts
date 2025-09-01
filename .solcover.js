@@ -10,5 +10,5 @@ module.exports = {
     shell.rm('-rf', './artifacts');
     shell.rm('-rf', './typechain');
   },
-  skipFiles: ['mocks', 'v1'],
+  skipFiles: ['mocks', 'v1', 'v2/tokens/LONG.sol'],
 };
