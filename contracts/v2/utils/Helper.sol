@@ -10,12 +10,12 @@ import {StakingTiers} from "../Structures.sol";
 /**
  * @title Helper
  * @notice Utility library for percentage math, 27-decimal standardization, staking tier
- *         resolution, address→id mapping, and Chainlink price reads.
+ *         resolution, address→id mapping, and Chainlink price reads with optional staleness checks.
  * @dev
  * - Standardization uses 27-decimal fixed-point (`BPS = 1e27`) to avoid precision loss across tokens.
  * - Price reads support both `latestRoundData()` and legacy `latestAnswer()` interfaces.
- * - Callers who need price freshness must validate timestamps upstream; this library only
- *   ensures the returned price is positive and the feed is callable.
+ * - When calling pricing helpers, pass `maxPriceFeedDelay` (in seconds) to enforce feed freshness
+ *   relative to `block.timestamp`.
  */
 library Helper {
     /// @dev Used for precise calculations.
@@ -29,11 +29,26 @@ library Helper {
     /// @notice Reverts when a price feed is invalid, inoperative, or returns a non-positive value.
     /// @param assetPriceFeedAddress The price feed address that failed validation.
     error IncorrectPriceFeed(address assetPriceFeedAddress);
+    /// @notice Reverts when `latestRoundData()` cannot be read and a fallback `latestRound()` is also unavailable.
+    /// @param priceFeed Price feed address.
     error LatestRoundError(address priceFeed);
+    /// @notice Reverts when the feed timestamp cannot be retrieved from either v3 or v2-compatible interfaces.
+    /// @param priceFeed Price feed address.
     error LatestTimestampError(address priceFeed);
+    /// @notice Reverts when the feed answer cannot be retrieved from either v3 or v2-compatible interfaces.
+    /// @param priceFeed Price feed address.
     error LatestAnswerError(address priceFeed);
+    /// @notice Reverts when the reported round id is zero or otherwise invalid.
+    /// @param priceFeed Price feed address.
+    /// @param roundId Reported round id.
     error IncorrectRoundId(address priceFeed, uint256 roundId);
+    /// @notice Reverts when the feed timestamp is zero, in the future, or older than `maxPriceFeedDelay`.
+    /// @param priceFeed Price feed address.
+    /// @param updatedAt Reported update timestamp.
     error IncorrectLatestUpdatedTimestamp(address priceFeed, uint256 updatedAt);
+    /// @notice Reverts when the answered price is non-positive.
+    /// @param priceFeed Price feed address.
+    /// @param intAnswer Reported price as an int256.
     error IncorrectAnswer(address priceFeed, int256 intAnswer);
 
     /// @notice 27-decimal scaling base used for standardization.
@@ -74,10 +89,13 @@ library Helper {
     }
 
     /// @notice Converts a token amount to a standardized 27-decimal USD value using a price feed.
-    /// @dev `amount` is in the token's native decimals; result is standardized to 27 decimals.
+    /// @dev
+    /// - `amount` is in the token's native decimals; result is standardized to 27 decimals.
+    /// - Enforces price freshness by requiring the feed timestamp to be within `maxPriceFeedDelay` seconds.
     /// @param token Token address whose decimals are used for standardization.
     /// @param tokenPriceFeed Chainlink feed for the token/USD price.
     /// @param amount Token amount to convert.
+    /// @param maxPriceFeedDelay Maximum allowed age (in seconds) for the feed data.
     /// @return priceAmount Standardized USD amount (27 decimals).
     function getStandardizedPrice(address token, address tokenPriceFeed, uint256 amount, uint256 maxPriceFeedDelay)
         external
@@ -108,10 +126,10 @@ library Helper {
     }
 
     /// @notice Computes a minimum-out value given a quote and a slippage tolerance.
-    /// @dev Returns quote * (1 - slippage/scale), rounded down. Scaling domain is implementation-defined.
-    /// Reverts if the provided `slippageBps` exceeds the scaling domain.
+    /// @dev Returns quote * (1 - slippage/scale), rounded down.
+    /// Note: This implementation uses the 27-decimal `BPS` constant as the scaling domain.
     /// @param quote Quoted output amount prior to slippage.
-    /// @param slippageBps Slippage tolerance (units must match the scaling domain used internally).
+    /// @param slippageBps Slippage tolerance expressed in the same scaling domain used internally (here: `BPS`).
     /// @return minOut Minimum acceptable output amount after slippage.
     function amountOutMin(uint256 quote, uint256 slippageBps) internal pure returns (uint256) {
         require(slippageBps <= BPS, SlippageTooHigh());
@@ -120,8 +138,10 @@ library Helper {
     }
 
     /// @dev Reads price and decimals from a Chainlink feed; supports v3 `latestRoundData()`
-    /// and legacy v2 `latestAnswer()` interfaces.
+    /// and legacy v2 interfaces via `latestRound()`, `latestTimestamp()`, and `latestAnswer()` fallbacks.
+    /// Performs basic validations: non-zero round id, positive answer, and `updatedAt` not older than `maxPriceFeedDelay`.
     /// @param priceFeed Chainlink aggregator proxy address.
+    /// @param maxPriceFeedDelay Maximum allowed age (in seconds) for the feed data relative to `block.timestamp`.
     /// @return price Latest positive price as uint256.
     /// @return decimals Feed decimals.
     function _getPrice(address priceFeed, uint256 maxPriceFeedDelay)
