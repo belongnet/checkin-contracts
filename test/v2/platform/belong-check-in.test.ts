@@ -58,6 +58,7 @@ describe('BelongCheckIn', () => {
     weth: WETH_ADDRESS,
     usdc: USDC_ADDRESS,
     long: ENA_ADDRESS,
+    maxPriceFeedDelay: 3600,
   };
   const usdcPercentage = 1000;
   const convenienceFeeAmount = 5000000;
@@ -269,6 +270,7 @@ describe('BelongCheckIn', () => {
         weth: belongCheckInStorage.paymentsInfo.weth,
         usdc: belongCheckInStorage.paymentsInfo.usdc,
         long: belongCheckInStorage.paymentsInfo.long,
+        maxPriceFeedDelay: belongCheckInStorage.paymentsInfo.maxPriceFeedDelay,
       };
       expect(paymentsInfoFromStorage).to.deep.eq(paymentsInfo);
 
@@ -314,6 +316,7 @@ describe('BelongCheckIn', () => {
         weth: WETH_ADDRESS,
         usdc: USDC_ADDRESS,
         long: ENA_ADDRESS,
+        maxPriceFeedDelay: 3600,
       };
       const feesNew = {
         referralCreditsAmount: 1,
@@ -399,6 +402,7 @@ describe('BelongCheckIn', () => {
         weth: belongCheckInStorage.paymentsInfo.weth,
         usdc: belongCheckInStorage.paymentsInfo.usdc,
         long: belongCheckInStorage.paymentsInfo.long,
+        maxPriceFeedDelay: belongCheckInStorage.paymentsInfo.maxPriceFeedDelay,
       }).to.deep.eq(paymentsInfoNew);
       // Convert fees tuple to object
       expect({
@@ -2777,6 +2781,7 @@ describe('BelongCheckIn', () => {
               await belongCheckIn.belongCheckInStorage()
             ).contracts.longPF,
             customerAmount,
+            3600,
           ),
         ),
       );
@@ -2931,6 +2936,7 @@ describe('BelongCheckIn', () => {
               await belongCheckIn.belongCheckInStorage()
             ).contracts.longPF,
             customerAmount,
+            3600,
           ),
         ),
       );
@@ -3085,6 +3091,7 @@ describe('BelongCheckIn', () => {
               await belongCheckIn.belongCheckInStorage()
             ).contracts.longPF,
             customerAmount,
+            3600,
           ),
         ),
       );
@@ -3243,6 +3250,7 @@ describe('BelongCheckIn', () => {
               await belongCheckIn.belongCheckInStorage()
             ).contracts.longPF,
             customerAmount,
+            3600,
           ),
         ),
       );
