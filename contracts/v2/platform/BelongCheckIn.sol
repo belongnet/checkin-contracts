@@ -453,7 +453,7 @@ contract BelongCheckIn is Initializable, Ownable {
                 _storage.paymentsInfo.long.safeApprove(address(_storage.contracts.staking), longAmount);
                 _storage.contracts.staking.deposit(longAmount, customerInfo.venueToPayFor);
             } else if (rules.longPaymentType == LongPaymentTypes.AutoConvert) {
-                _swap(customerInfo.venueToPayFor, longAmount);
+                _swapLONGtoUSDC(customerInfo.venueToPayFor, longAmount);
             } else {
                 _storage.paymentsInfo.long.safeTransfer(customerInfo.venueToPayFor, longAmount);
             }
@@ -588,6 +588,44 @@ contract BelongCheckIn is Initializable, Ownable {
         });
 
         _paymentsInfo.usdc.safeApprove(_paymentsInfo.uniswapV3Router, amount);
+        swapped = ISwapRouter(_paymentsInfo.uniswapV3Router).exactInput(swapParams);
+
+        emit Swapped(recipient, amount, swapped);
+    }
+
+    /// @notice Swaps exact LONG amount to USDC and sends proceeds to `recipient`.
+    /// @dev
+    /// - Builds a multi-hop path LONG → WETH → USDC using the same fee tier.
+    /// - Uses Quoter to set a conservative `amountOutMinimum`.
+    /// - Approves router for the exact LONG amount before calling.
+    /// @param recipient The recipient of USDC. If zero or `amount` is zero, returns 0 without swapping.
+    /// @param amount The LONG input amount to swap (LONG native decimals).
+    /// @return swapped The amount of USDC received.
+    function _swapLONGtoUSDC(address recipient, uint256 amount) internal returns (uint256 swapped) {
+        if (recipient == address(0) || amount == 0) {
+            return 0;
+        }
+
+        PaymentsInfo memory _paymentsInfo = belongCheckInStorage.paymentsInfo;
+
+        bytes memory path = abi.encodePacked(
+            _paymentsInfo.long,
+            _paymentsInfo.uniswapPoolFees,
+            _paymentsInfo.weth,
+            _paymentsInfo.uniswapPoolFees,
+            _paymentsInfo.usdc
+        );
+        uint256 amountOutMinimum =
+            IQuoter(_paymentsInfo.uniswapV3Quoter).quoteExactInput(path, amount).amountOutMin(_paymentsInfo.slippageBps);
+        ISwapRouter.ExactInputParams memory swapParams = ISwapRouter.ExactInputParams({
+            path: path,
+            recipient: recipient,
+            deadline: block.timestamp,
+            amountIn: amount,
+            amountOutMinimum: amountOutMinimum
+        });
+
+        _paymentsInfo.long.safeApprove(_paymentsInfo.uniswapV3Router, amount);
         swapped = ISwapRouter(_paymentsInfo.uniswapV3Router).exactInput(swapParams);
 
         emit Swapped(recipient, amount, swapped);
