@@ -1,6 +1,5 @@
 import { ethers, upgrades } from 'hardhat';
 import EthCrypto from 'eth-crypto';
-import BigNumber from 'bn.js';
 import { BigNumberish, BigNumber as BN, BytesLike, ContractFactory } from 'ethers';
 import {
   AccessToken,

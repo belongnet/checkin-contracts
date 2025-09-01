@@ -40,9 +40,9 @@ describe('BelongCheckIn', () => {
   const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
   const ENA_ADDRESS = '0x57e114B691Db790C35207b2e685D4A43181e6061'; //used instead of LONG
 
-  const USDC_WHALE_ADDRESS = '0x01b8697695EAb322A339c4bf75740Db75dc9375E';
+  const USDC_WHALE_ADDRESS = '0x8EB8a3b98659Cce290402893d0123abb75E3ab28';
   const WETH_WHALE_ADDRESS = '0x57757E3D981446D585Af0D9Ae4d7DF6D64647806';
-  const ENA_WHALE_ADDRESS = '0xc4E512313dD1cE0795f88eC5229778eDf1FDF79B';
+  const ENA_WHALE_ADDRESS = '0xF977814e90dA44bFA03b6295A0616a897441aceC';
 
   const UNISWAP_ROUTER_ADDRESS = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
   const UNISWAP_QUOTER_ADDRESS = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6';
@@ -52,6 +52,7 @@ describe('BelongCheckIn', () => {
 
   const paymentsInfo: BelongCheckIn.PaymentsInfoStruct = {
     uniswapPoolFees: POOL_FEE,
+    slippageBps: BigNumber.from(1).pow(27).sub(1),
     uniswapV3Router: UNISWAP_ROUTER_ADDRESS,
     uniswapV3Quoter: UNISWAP_QUOTER_ADDRESS,
     weth: WETH_ADDRESS,
@@ -261,6 +262,7 @@ describe('BelongCheckIn', () => {
 
       // Convert paymentsInfo tuple to object
       const paymentsInfoFromStorage = {
+        slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
         uniswapPoolFees: belongCheckInStorage.paymentsInfo.uniswapPoolFees,
         uniswapV3Router: belongCheckInStorage.paymentsInfo.uniswapV3Router,
         uniswapV3Quoter: belongCheckInStorage.paymentsInfo.uniswapV3Quoter,
@@ -305,6 +307,7 @@ describe('BelongCheckIn', () => {
       const { belongCheckIn, minter } = await loadFixture(fixture);
 
       const paymentsInfoNew = {
+        slippageBps: BigNumber.from(1).pow(27).sub(1),
         uniswapPoolFees: 5000,
         uniswapV3Router: UNISWAP_ROUTER_ADDRESS,
         uniswapV3Quoter: UNISWAP_QUOTER_ADDRESS,
@@ -389,6 +392,7 @@ describe('BelongCheckIn', () => {
       const belongCheckInStorage = await belongCheckIn.belongCheckInStorage();
       // Convert paymentsInfo tuple to object
       expect({
+        slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
         uniswapPoolFees: belongCheckInStorage.paymentsInfo.uniswapPoolFees,
         uniswapV3Router: belongCheckInStorage.paymentsInfo.uniswapV3Router,
         uniswapV3Quoter: belongCheckInStorage.paymentsInfo.uniswapV3Quoter,
