@@ -23,18 +23,21 @@ library Helper {
     /// @dev Used for metadata reading (e.g., token decimals).
     using MetadataReaderLib for address;
 
-    /// @notice Reverts when a price feed is invalid, inoperative, or returns a non-positive value.
-    /// @param assetPriceFeedAddress The price feed address that failed validation.
-    error IncorrectPriceFeed(address assetPriceFeedAddress);
-
     /// @notice Reverts when a provided slippage value exceeds the configured scaling domain.
     error SlippageTooHigh();
 
+    /// @notice Reverts when a price feed is invalid, inoperative, or returns a non-positive value.
+    /// @param assetPriceFeedAddress The price feed address that failed validation.
+    error IncorrectPriceFeed(address assetPriceFeedAddress);
+    error LatestRoundError(address priceFeed);
+    error LatestTimestampError(address priceFeed);
+    error LatestAnswerError(address priceFeed);
+    error IncorrectRoundId(address priceFeed, uint256 roundId);
+    error IncorrectLatestUpdatedTimestamp(address priceFeed, uint256 updatedAt);
+    error IncorrectAnswer(address priceFeed, int256 intAnswer);
+
     /// @notice 27-decimal scaling base used for standardization.
     uint256 public constant BPS = 10 ** 27;
-
-    /// @notice Fallback decimals when a price feed does not expose `decimals()`.
-    uint8 public constant DECIMALS_BY_DEFAULT = 8;
 
     /// @notice Scaling factor for percentage math (10_000 == 100%).
     uint16 public constant SCALING_FACTOR = 10000;
@@ -76,12 +79,12 @@ library Helper {
     /// @param tokenPriceFeed Chainlink feed for the token/USD price.
     /// @param amount Token amount to convert.
     /// @return priceAmount Standardized USD amount (27 decimals).
-    function getStandardizedPrice(address token, address tokenPriceFeed, uint256 amount)
+    function getStandardizedPrice(address token, address tokenPriceFeed, uint256 amount, uint256 maxPriceFeedDelay)
         external
         view
         returns (uint256 priceAmount)
     {
-        (uint256 tokenPriceInUsd, uint8 pfDecimals) = _getPrice(tokenPriceFeed);
+        (uint256 tokenPriceInUsd, uint8 pfDecimals) = _getPrice(tokenPriceFeed, maxPriceFeedDelay);
         // (amount * price) / 10^priceFeedDecimals
         uint256 usdValue = amount.fullMulDiv(tokenPriceInUsd, 10 ** pfDecimals);
         // Standardize the USD value to 27 decimals
@@ -117,32 +120,59 @@ library Helper {
     }
 
     /// @dev Reads price and decimals from a Chainlink feed; supports v3 `latestRoundData()`
-    /// and legacy v2 `latestAnswer()` interfaces. Does not check staleness.
+    /// and legacy v2 `latestAnswer()` interfaces.
     /// @param priceFeed Chainlink aggregator proxy address.
     /// @return price Latest positive price as uint256.
-    /// @return decimals Feed decimals (or `DECIMALS_BY_DEFAULT` if not exposed).
-    function _getPrice(address priceFeed) private view returns (uint256 price, uint8 decimals) {
+    /// @return decimals Feed decimals.
+    function _getPrice(address priceFeed, uint256 maxPriceFeedDelay)
+        private
+        view
+        returns (uint256 price, uint8 decimals)
+    {
         int256 intAnswer;
-        try ILONGPriceFeed(priceFeed).latestRoundData() returns (uint80, int256 _answer, uint256, uint256, uint80) {
+        uint256 roundId;
+        uint256 updatedAt;
+        try ILONGPriceFeed(priceFeed).latestRoundData() returns (
+            uint80 _roundId, int256 _answer, uint256, uint256 _updatedAt, uint80
+        ) {
+            roundId = uint256(_roundId);
+            updatedAt = _updatedAt;
             intAnswer = _answer;
         } catch {
+            try ILONGPriceFeed(priceFeed).latestRound() returns (uint256 _roundId) {
+                roundId = _roundId;
+            } catch {
+                revert LatestRoundError(priceFeed);
+            }
+
+            try ILONGPriceFeed(priceFeed).latestTimestamp() returns (uint256 _updatedAt) {
+                updatedAt = _updatedAt;
+            } catch {
+                revert LatestTimestampError(priceFeed);
+            }
+
             try ILONGPriceFeed(priceFeed).latestAnswer() returns (int256 _answer) {
                 intAnswer = _answer;
             } catch {
-                revert IncorrectPriceFeed(priceFeed);
+                revert LatestAnswerError(priceFeed);
             }
         }
-        if (intAnswer <= 0) {
-            revert IncorrectPriceFeed(priceFeed);
-        }
-
-        price = uint256(intAnswer);
 
         try ILONGPriceFeed(priceFeed).decimals() returns (uint8 _decimals) {
             decimals = _decimals;
         } catch {
-            decimals = DECIMALS_BY_DEFAULT;
+            revert IncorrectPriceFeed(priceFeed);
         }
+
+        require(roundId > 0, IncorrectRoundId(priceFeed, roundId));
+        require(
+            updatedAt > 0 && updatedAt <= block.timestamp && block.timestamp - updatedAt <= maxPriceFeedDelay,
+            IncorrectLatestUpdatedTimestamp(priceFeed, updatedAt)
+        );
+
+        require(intAnswer > 0, IncorrectAnswer(priceFeed, intAnswer));
+
+        price = uint256(intAnswer);
     }
 
     /// @dev Scales `amount` from `decimals` to 27 decimals.
