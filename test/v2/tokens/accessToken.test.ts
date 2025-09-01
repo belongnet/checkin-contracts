@@ -246,6 +246,43 @@ describe('AccessToken', () => {
 
       expect(isViewFunction).to.be.true;
       expect(functionSignature).to.eq('0xcaee23ea');
+
+      expect(await accessTokenEth.selfImplementation()).to.be.equal(implementations.accessToken);
+      await expect(
+        accessTokenEth.initialize(
+          {
+            factory: accessTokenEth.address,
+            creator: accessTokenEth.address,
+            feeReceiver: accessTokenEth.address,
+            referralCode: ethers.utils.formatBytes32String('test'),
+            info: {
+              metadata: { name: AccessTokenTokenMetadata.name, symbol: AccessTokenTokenMetadata.symbol },
+              contractURI: AccessTokenTokenMetadata.uri,
+              paymentToken: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+              mintPrice: tokenPurchasePrice,
+              whitelistMintPrice: tokenPurchasePrice / 2,
+              transferable: true,
+              maxTotalSupply: 10,
+              feeNumerator: BigNumber.from('600'),
+              collectionExpire: BigNumber.from('86400'),
+              signature: '0x',
+            } as AccessTokenInfoStruct,
+          } as AccessToken.AccessTokenParametersStruct,
+          accessTokenEth.address,
+        ),
+      ).to.be.revertedWithCustomError(accessTokenEth, 'InvalidInitialization');
+
+      await expect(
+        royaltiesReceiverEth.initialize(
+          {
+            creator: royaltiesReceiverEth.address,
+            platform: royaltiesReceiverEth.address,
+            referral: royaltiesReceiverEth.address,
+          } as RoyaltiesReceiverV2.RoyaltiesReceiversStruct,
+          royaltiesReceiverEth.address,
+          ethers.utils.formatBytes32String('test'),
+        ),
+      ).to.be.revertedWithCustomError(royaltiesReceiverEth, 'InvalidInitialization');
     });
   });
 

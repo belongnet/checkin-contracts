@@ -28,6 +28,8 @@ describe('Escrow', () => {
 
       expect(escrow.address).to.be.properAddress;
       expect(await escrow.belongCheckIn()).to.eq(admin.address);
+
+      await expect(escrow.initialize(escrow.address)).to.be.revertedWithCustomError(escrow, 'InvalidInitialization');
     });
   });
 

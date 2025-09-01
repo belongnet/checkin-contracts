@@ -21,6 +21,7 @@ import {
 } from '../../../helpers/deployFixtures';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2 } from '../../../helpers/deployMockFixtures';
+import { ERC1155InfoStruct } from '../../../typechain-types/contracts/v2/platform/Factory';
 
 describe('CreditToken', () => {
   let implementations: Factory.ImplementationsStruct;
@@ -101,6 +102,19 @@ describe('CreditToken', () => {
       expect(await promoterToken.hasRole(manager.address, await promoterToken.MANAGER_ROLE())).to.be.true;
       expect(await promoterToken.hasRole(minter.address, await promoterToken.MINTER_ROLE())).to.be.true;
       expect(await promoterToken.hasRole(burner.address, await promoterToken.BURNER_ROLE())).to.be.true;
+
+      await expect(
+        promoterToken.initialize({
+          name: '12',
+          symbol: '12',
+          defaultAdmin: promoterToken.address,
+          manager: promoterToken.address,
+          minter: promoterToken.address,
+          burner: promoterToken.address,
+          uri: '12',
+          transferable: true,
+        } as ERC1155InfoStruct),
+      ).to.be.revertedWithCustomError(promoterToken, 'InvalidInitialization');
     });
   });
 

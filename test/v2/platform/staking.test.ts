@@ -328,6 +328,10 @@ describe('Staking', () => {
       await staking.connect(user1).deposit(amount, user1.address);
 
       await expect(
+        staking.connect(user1).emergencyRedeem(0, user1.address, user1.address),
+      ).to.be.revertedWithCustomError(staking, 'SharesEqZero');
+
+      await expect(
         staking.connect(user1).emergencyRedeem(amount.add(1), user1.address, user1.address),
       ).to.be.revertedWithCustomError(staking, 'RedeemMoreThanMax');
 
