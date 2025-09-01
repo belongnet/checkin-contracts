@@ -1294,7 +1294,7 @@ describe('BelongCheckIn', () => {
 
   describe('Customer flow usdc payment', () => {
     it('payToVenue() (w/o promoter)', async () => {
-      const { belongCheckIn, signer, signatureVerifier, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(fixture);
+      const { belongCheckIn, signer, USDC, USDC_whale, ENA_whale } = await loadFixture(fixture);
 
       const uri = 'uriuri';
       const venueAmount = 100 * 10 ** (await USDC.decimals());
@@ -2334,6 +2334,212 @@ describe('BelongCheckIn', () => {
       expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
+    });
+
+    it('payToVenue() (AutoStake) (w/o promoter)', async () => {
+      const { belongCheckIn, escrow, staking, helper, signer, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(
+        fixture,
+      );
+
+      const uri = 'uriuri';
+      const venueAmount = 100 * 10 ** (await USDC.decimals());
+      const venue = USDC_whale.address;
+      const venueMessage = ethers.utils.solidityKeccak256(
+        ['address', 'bytes32', 'string', 'uint256'],
+        [venue, ethers.constants.HashZero, uri, chainId],
+      );
+      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 2, bountyType: 0, longPaymentType: 1 } as VenueRulesStruct,
+        venue,
+        amount: venueAmount,
+        referralCode: ethers.constants.HashZero,
+        uri,
+        signature: venueSignature,
+      };
+      const willBeTaken = venueAmount + convenienceFeeAmount;
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+
+      const customerAmount = ethers.utils.parseEther('5');
+      const customerMessage = ethers.utils.solidityKeccak256(
+        ['bool', 'uint24', 'uint24', 'address', 'address', 'address', 'uint256', 'uint256'],
+        [
+          false, // paymentInUSDC
+          0, // visitBountyAmount (uint24, adjust to uint256 if needed)
+          0, // spendBountyPercentage (uint24, adjust to uint256 if needed)
+          ENA_whale.address, // customer
+          USDC_whale.address, // venueToPayFor
+          ethers.constants.AddressZero, // promoter
+          customerAmount, // amount
+          chainId, // block.chainid
+        ],
+      );
+      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDC: false,
+        visitBountyAmount: 0,
+        spendBountyPercentage: 0,
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoter: ethers.constants.AddressZero,
+        amount: customerAmount,
+        signature: customerSignature,
+      };
+
+      const platformSubsidy = await helper.calculateRate(
+        (
+          await belongCheckIn.belongCheckInStorage()
+        ).fees.platformSubsidyPercentage,
+        customerAmount,
+      );
+      const processingFee = await helper.calculateRate(
+        (
+          await belongCheckIn.belongCheckInStorage()
+        ).fees.processingFeePercentage,
+        customerAmount,
+      );
+      const longCustomerDiscount = await helper.calculateRate(
+        (
+          await belongCheckIn.belongCheckInStorage()
+        ).fees.longCustomerDiscountPercentage,
+        customerAmount,
+      );
+      const fromEscrowToVenue = platformSubsidy.sub(processingFee);
+      const fromCustomerToVenue = BigNumber.from(customerAmount).sub(longCustomerDiscount);
+
+      await ENA.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
+
+      const escrowBalance_before = await ENA.balanceOf(escrow.address);
+      const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
+      const venueBalance_before = await staking.balanceOf(USDC_whale.address);
+
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+
+      const escrowBalance_after = await ENA.balanceOf(escrow.address);
+      const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
+      const venueBalance_after = await staking.balanceOf(USDC_whale.address);
+
+      await expect(tx)
+        .to.emit(belongCheckIn, 'CustomerPaid')
+        .withArgs(
+          ENA_whale.address,
+          USDC_whale.address,
+          ethers.constants.AddressZero,
+          customerAmount,
+          customerInfo.visitBountyAmount,
+          customerInfo.spendBountyPercentage,
+        );
+      await expect(tx)
+        .to.emit(staking, 'Deposit')
+        .withArgs(
+          belongCheckIn.address,
+          USDC_whale.address,
+          fromCustomerToVenue.add(fromEscrowToVenue),
+          fromCustomerToVenue.add(fromEscrowToVenue),
+        );
+      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
+      expect(venueBalance_before.add(fromCustomerToVenue.add(fromEscrowToVenue))).to.eq(venueBalance_after);
+    });
+
+    it('payToVenue() (AutoConvert) (w/o promoter)', async () => {
+      const { belongCheckIn, escrow, staking, helper, signer, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(
+        fixture,
+      );
+
+      const uri = 'uriuri';
+      const venueAmount = 100 * 10 ** (await USDC.decimals());
+      const venue = USDC_whale.address;
+      const venueMessage = ethers.utils.solidityKeccak256(
+        ['address', 'bytes32', 'string', 'uint256'],
+        [venue, ethers.constants.HashZero, uri, chainId],
+      );
+      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 2, bountyType: 0, longPaymentType: 2 } as VenueRulesStruct,
+        venue,
+        amount: venueAmount,
+        referralCode: ethers.constants.HashZero,
+        uri,
+        signature: venueSignature,
+      };
+      const willBeTaken = venueAmount + convenienceFeeAmount;
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+
+      const customerAmount = ethers.utils.parseEther('5');
+      const customerMessage = ethers.utils.solidityKeccak256(
+        ['bool', 'uint24', 'uint24', 'address', 'address', 'address', 'uint256', 'uint256'],
+        [
+          false, // paymentInUSDC
+          0, // visitBountyAmount (uint24, adjust to uint256 if needed)
+          0, // spendBountyPercentage (uint24, adjust to uint256 if needed)
+          ENA_whale.address, // customer
+          USDC_whale.address, // venueToPayFor
+          ethers.constants.AddressZero, // promoter
+          customerAmount, // amount
+          chainId, // block.chainid
+        ],
+      );
+      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDC: false,
+        visitBountyAmount: 0,
+        spendBountyPercentage: 0,
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoter: ethers.constants.AddressZero,
+        amount: customerAmount,
+        signature: customerSignature,
+      };
+
+      const platformSubsidy = await helper.calculateRate(
+        (
+          await belongCheckIn.belongCheckInStorage()
+        ).fees.platformSubsidyPercentage,
+        customerAmount,
+      );
+      const processingFee = await helper.calculateRate(
+        (
+          await belongCheckIn.belongCheckInStorage()
+        ).fees.processingFeePercentage,
+        customerAmount,
+      );
+      const longCustomerDiscount = await helper.calculateRate(
+        (
+          await belongCheckIn.belongCheckInStorage()
+        ).fees.longCustomerDiscountPercentage,
+        customerAmount,
+      );
+      const fromEscrowToVenue = platformSubsidy.sub(processingFee);
+      const fromCustomerToVenue = BigNumber.from(customerAmount).sub(longCustomerDiscount);
+
+      await ENA.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
+
+      const escrowBalance_before = await ENA.balanceOf(escrow.address);
+      const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
+      const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
+
+      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+
+      const escrowBalance_after = await ENA.balanceOf(escrow.address);
+      const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
+      const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
+
+      await expect(tx)
+        .to.emit(belongCheckIn, 'CustomerPaid')
+        .withArgs(
+          ENA_whale.address,
+          USDC_whale.address,
+          ethers.constants.AddressZero,
+          customerAmount,
+          customerInfo.visitBountyAmount,
+          customerInfo.spendBountyPercentage,
+        );
+      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
+      expect(venueBalance_after).to.gt(venueBalance_before);
     });
 
     it('payToVenue() (both payment) (w/o promoter)', async () => {
