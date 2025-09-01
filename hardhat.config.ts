@@ -37,10 +37,10 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`,
-        blockNumber: 23068383,
+        url: `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`, //'https://eth.llamarpc.com',
+        blockNumber: 23269482,
       },
-      throwOnCallFailures: false,
+      // throwOnCallFailures: false,
       accounts: { accountsBalance: '10000000000000000000000000' },
       initialBaseFeePerGas: 0,
       allowUnlimitedContractSize: false,
@@ -117,6 +117,10 @@ const config: HardhatUserConfig = {
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: 'USD',
+  },
+  mocha: {
+    timeout: 180000, // defense in depth
+    parallel: false, // parallel + fork tends to hang
   },
 };
 
