@@ -173,6 +173,7 @@ contract BelongCheckIn is Initializable, Ownable {
         address weth;
         address usdc;
         address long;
+        uint256 maxPriceFeedDelay;
     }
 
     /// @notice Venue-specific configuration and remaining “free” deposit credits.
@@ -409,7 +410,9 @@ contract BelongCheckIn is Initializable, Ownable {
                     // standardization
                     _storage.paymentsInfo.usdc.standardize(customerInfo.visitBountyAmount)
                         + customerInfo.spendBountyPercentage.calculateRate(
-                            _storage.paymentsInfo.long.getStandardizedPrice(_storage.contracts.longPF, customerInfo.amount)
+                            _storage.paymentsInfo.long.getStandardizedPrice(
+                                _storage.contracts.longPF, customerInfo.amount, _storage.paymentsInfo.maxPriceFeedDelay
+                            )
                         )
                 );
             uint256 venueBalance = _storage.contracts.venueToken.balanceOf(customerInfo.venueToPayFor, venueId);
