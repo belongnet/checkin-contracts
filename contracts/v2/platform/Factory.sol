@@ -378,6 +378,6 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param symbol Collection symbol.
     /// @return Hash salt equal to `keccak256(abi.encodePacked(name, symbol))`.
     function _metadataHash(string memory name, string memory symbol) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(name, symbol));
+        return keccak256(abi.encode(name, symbol));
     }
 }
