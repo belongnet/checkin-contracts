@@ -5,15 +5,33 @@ contract LONGPriceFeedMockV1 {
     function latestAnswer() external pure returns (int256) {
         return 50000000;
     }
+
+    function latestRound() external pure returns (uint256) {
+        return 2025;
+    }
+
+    function latestTimestamp() external view returns (uint256) {
+        return block.timestamp;
+    }
+
+    function decimals() external pure returns (uint8) {
+        return 8;
+    }
 }
 
 contract LONGPriceFeedMockV2 {
     function latestRoundData()
         external
-        pure
-        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
+        view
+        returns (
+            uint80 roundId,
+            int256 answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        )
     {
-        return (0, 50000000, 0, 0, 0);
+        return (0, 50000000, 0, block.timestamp, 0);
     }
 }
 
