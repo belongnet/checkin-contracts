@@ -450,6 +450,7 @@ contract BelongCheckIn is Initializable, Ownable {
             uint256 longAmount = subsidyMinusFees + longFromCustomer;
 
             if (rules.longPaymentType == LongPaymentTypes.AutoStake) {
+                _storage.paymentsInfo.long.safeApprove(address(_storage.contracts.staking), longAmount);
                 _storage.contracts.staking.deposit(longAmount, customerInfo.venueToPayFor);
             } else if (rules.longPaymentType == LongPaymentTypes.AutoConvert) {
                 _swap(customerInfo.venueToPayFor, longAmount);
