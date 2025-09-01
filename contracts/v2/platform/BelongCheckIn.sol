@@ -166,7 +166,7 @@ contract BelongCheckIn is Initializable, Ownable {
 
     /// @notice Uniswap routing and token addresses.
     /// @notice Slippage tolerance scaled to 27 decimals where 1e27 == 100%.
-    /// @dev Used by Helper.amountOutMin via BelongCheckIn._swap; valid range [0, 1e27].
+    /// @dev Used by Helper.amountOutMin via BelongCheckIn._swapUSDCtoLONG; valid range [0, 1e27].
     /// @dev
     /// - `uniswapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
     /// - `weth`, `usdc`, `long` are token addresses; `uniswapV3Router` and `uniswapV3Quoter` are periphery contracts.
@@ -383,8 +383,9 @@ contract BelongCheckIn is Initializable, Ownable {
             venueInfo.venue, address(_storage.contracts.escrow), venueInfo.amount
         );
 
-        uint256 convenienceFeeLong = _swap(address(_storage.contracts.escrow), stakingInfo.convenienceFeeAmount);
-        _swap(affiliate, affiliateFee);
+        uint256 convenienceFeeLong =
+            _swapUSDCtoLONG(address(_storage.contracts.escrow), stakingInfo.convenienceFeeAmount);
+        _swapUSDCtoLONG(affiliate, affiliateFee);
 
         _storage.contracts.escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
 
@@ -508,8 +509,8 @@ contract BelongCheckIn is Initializable, Ownable {
                 promoterInfo.venue, address(this), promoterInfo.amountInUSD
             );
 
-            _swap(feeCollector, plaformFees);
-            _swap(promoterInfo.promoter, toPromoter);
+            _swapUSDCtoLONG(feeCollector, plaformFees);
+            _swapUSDCtoLONG(promoterInfo.promoter, toPromoter);
         }
 
         _storage.contracts.promoterToken.burn(promoterInfo.promoter, venueId, promoterInfo.amountInUSD);
@@ -561,7 +562,7 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @param recipient The recipient of LONG. If zero or `amount` is zero, returns 0 without swapping.
     /// @param amount The USDC input amount to swap (USDC native decimals).
     /// @return swapped The amount of LONG received.
-    function _swap(address recipient, uint256 amount) internal returns (uint256 swapped) {
+    function _swapUSDCtoLONG(address recipient, uint256 amount) internal returns (uint256 swapped) {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
