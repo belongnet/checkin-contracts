@@ -52,7 +52,7 @@ describe('BelongCheckIn', () => {
 
   const paymentsInfo: BelongCheckIn.PaymentsInfoStruct = {
     uniswapPoolFees: POOL_FEE,
-    slippageBps: BigNumber.from(1).pow(27).sub(1),
+    slippageBps: BigNumber.from(10).pow(27).sub(1),
     uniswapV3Router: UNISWAP_ROUTER_ADDRESS,
     uniswapV3Quoter: UNISWAP_QUOTER_ADDRESS,
     weth: WETH_ADDRESS,
@@ -237,7 +237,7 @@ describe('BelongCheckIn', () => {
 
   describe('Deployment', () => {
     it('Should be deployed correctly', async () => {
-      const { belongCheckIn, escrow, pf1, pf2, pf3, admin } = await loadFixture(fixture);
+      const { belongCheckIn, escrow, helper, pf1, pf2, pf3, admin } = await loadFixture(fixture);
 
       expect(belongCheckIn.address).to.be.properAddress;
       expect(escrow.address).to.be.properAddress;
@@ -301,6 +301,19 @@ describe('BelongCheckIn', () => {
       }
 
       expect(await escrow.belongCheckIn()).to.eq(belongCheckIn.address);
+
+      await expect(
+        belongCheckIn.initialize(belongCheckIn.address, {
+          slippageBps: 10,
+          uniswapPoolFees: 10,
+          uniswapV3Router: belongCheckIn.address,
+          uniswapV3Quoter: belongCheckIn.address,
+          weth: belongCheckIn.address,
+          usdc: belongCheckIn.address,
+          long: belongCheckIn.address,
+          maxPriceFeedDelay: 10,
+        } as BelongCheckIn.PaymentsInfoStruct),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'InvalidInitialization');
     });
   });
 
@@ -309,7 +322,7 @@ describe('BelongCheckIn', () => {
       const { belongCheckIn, minter } = await loadFixture(fixture);
 
       const paymentsInfoNew = {
-        slippageBps: BigNumber.from(1).pow(27).sub(1),
+        slippageBps: BigNumber.from(10).pow(27).sub(1),
         uniswapPoolFees: 5000,
         uniswapV3Router: UNISWAP_ROUTER_ADDRESS,
         uniswapV3Quoter: UNISWAP_QUOTER_ADDRESS,
@@ -389,6 +402,11 @@ describe('BelongCheckIn', () => {
       await expect(
         belongCheckIn.connect(minter).setParameters(paymentsInfoNew, feesNew, stakingRewardsNew),
       ).to.be.revertedWithCustomError(belongCheckIn, 'Unauthorized');
+      paymentsInfoNew.slippageBps = BigNumber.from(10).pow(27).add(1);
+      await expect(
+        belongCheckIn.setParameters(paymentsInfoNew, feesNew, stakingRewardsNew),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'BPSTooHigh');
+      paymentsInfoNew.slippageBps = BigNumber.from(10).pow(27).sub(1);
       const tx = await belongCheckIn.setParameters(paymentsInfoNew, feesNew, stakingRewardsNew);
       await expect(tx).to.emit(belongCheckIn, 'ParametersSet');
 
