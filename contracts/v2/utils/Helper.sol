@@ -132,7 +132,6 @@ library Helper {
     /// @param slippageBps Slippage tolerance expressed in the same scaling domain used internally (here: `BPS`).
     /// @return minOut Minimum acceptable output amount after slippage.
     function amountOutMin(uint256 quote, uint256 slippageBps) internal pure returns (uint256) {
-        require(slippageBps <= BPS, SlippageTooHigh());
         // multiply first, then divide, to keep precision
         return (quote * (BPS - slippageBps)) / BPS;
     }

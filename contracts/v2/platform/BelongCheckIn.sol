@@ -164,11 +164,13 @@ contract BelongCheckIn is Initializable, Ownable {
     }
 
     /// @notice Uniswap routing and token addresses.
+    /// @notice Slippage tolerance scaled to 27 decimals where 1e27 == 100%.
+    /// @dev Used by Helper.amountOutMin via BelongCheckIn._swap; valid range [0, 1e27].
     /// @dev
     /// - `uniswapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
     /// - `weth`, `usdc`, `long` are token addresses; `uniswapV3Router` and `uniswapV3Quoter` are periphery contracts.
     struct PaymentsInfo {
-        uint96 slippageBps; // 27 decimals
+        uint96 slippageBps;
         uint24 uniswapPoolFees;
         address uniswapV3Router;
         address uniswapV3Quoter;
@@ -294,7 +296,7 @@ contract BelongCheckIn is Initializable, Ownable {
                 affiliatePercentage: 1000, // 10%
                 longCustomerDiscountPercentage: 300, // 3%
                 platformSubsidyPercentage: 300, // 3%
-                processingFeePercentage: 250 // 3%
+                processingFeePercentage: 250 // 2.5%
             }),
             stakingRewardsInfo
         );
