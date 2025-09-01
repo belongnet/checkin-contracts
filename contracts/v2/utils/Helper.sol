@@ -7,21 +7,28 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {ILONGPriceFeed} from "../interfaces/ILONGPriceFeed.sol";
 import {StakingTiers} from "../Structures.sol";
 
-/// @title Helper
-/// @notice Utility library for percentage math, standardizing token amounts to 27 decimals,
-///         staking tier resolution, address→id mapping, and Chainlink price reads.
-/// @dev
-/// - Standardization uses 27-decimal fixed-point (`BPS`) to avoid precision loss across tokens.
-/// - Price reads support both `latestRoundData()` and legacy `latestAnswer()`.
+/**
+ * @title Helper
+ * @notice Utility library for percentage math, 27-decimal standardization, staking tier
+ *         resolution, address→id mapping, and Chainlink price reads.
+ * @dev
+ * - Standardization uses 27-decimal fixed-point (`BPS = 1e27`) to avoid precision loss across tokens.
+ * - Price reads support both `latestRoundData()` and legacy `latestAnswer()` interfaces.
+ * - Callers who need price freshness must validate timestamps upstream; this library only
+ *   ensures the returned price is positive and the feed is callable.
+ */
 library Helper {
     /// @dev Used for precise calculations.
     using FixedPointMathLib for uint256;
     /// @dev Used for metadata reading (e.g., token decimals).
     using MetadataReaderLib for address;
 
-    /// @notice Thrown when a price feed is invalid or returns a non-positive value.
-    /// @param assetPriceFeedAddress The provided price feed address.
+    /// @notice Reverts when a price feed is invalid, inoperative, or returns a non-positive value.
+    /// @param assetPriceFeedAddress The price feed address that failed validation.
     error IncorrectPriceFeed(address assetPriceFeedAddress);
+
+    /// @notice Reverts when a provided slippage value exceeds the configured scaling domain.
+    error SlippageTooHigh();
 
     /// @notice 27-decimal scaling base used for standardization.
     uint256 public constant BPS = 10 ** 27;
@@ -32,8 +39,8 @@ library Helper {
     /// @notice Scaling factor for percentage math (10_000 == 100%).
     uint16 public constant SCALING_FACTOR = 10000;
 
-    /// @notice Computes `percentage` of `amount` with 1e4 scaling.
-    /// @param percentage Percentage in 1e4 (e.g., 2500 == 25%).
+    /// @notice Computes `percentage` of `amount` with 1e4 scaling (basis points).
+    /// @param percentage Percentage in basis points (e.g., 2500 == 25%).
     /// @param amount The base amount to apply the percentage to.
     /// @return rate The resulting amount after applying the rate.
     function calculateRate(uint256 percentage, uint256 amount) external pure returns (uint256 rate) {
@@ -58,7 +65,7 @@ library Helper {
 
     /// @notice Computes a deterministic venue id from an address.
     /// @param venue The venue address.
-    /// @return The uint256 id derived from the address.
+    /// @return id The uint256 id derived from the address.
     function getVenueId(address venue) external pure returns (uint256) {
         return uint256(uint160(venue));
     }
@@ -84,7 +91,7 @@ library Helper {
     /// @notice Standardizes an amount to 27 decimals based on the token's decimals.
     /// @param token Token address to read decimals from.
     /// @param amount Amount in the token's native decimals.
-    /// @return Standardized amount in 27 decimals.
+    /// @return standardized Standardized amount in 27 decimals.
     function standardize(address token, uint256 amount) public view returns (uint256) {
         return _standardize(token.readDecimals(), amount);
     }
@@ -92,12 +99,25 @@ library Helper {
     /// @notice Converts a 27-decimal standardized amount back to the token's native decimals.
     /// @param token Token address to read decimals from.
     /// @param amount 27-decimal standardized amount.
-    /// @return Amount converted to token-native decimals.
+    /// @return unstandardized Amount converted to token-native decimals.
     function unstandardize(address token, uint256 amount) public view returns (uint256) {
         return amount.fullMulDiv(10 ** token.readDecimals(), BPS);
     }
 
-    /// @dev Reads price and decimals from a Chainlink feed; supports v2/v3 interfaces.
+    /// @notice Computes a minimum-out value given a quote and a slippage tolerance.
+    /// @dev Returns quote * (1 - slippage/scale), rounded down. Scaling domain is implementation-defined.
+    /// Reverts if the provided `slippageBps` exceeds the scaling domain.
+    /// @param quote Quoted output amount prior to slippage.
+    /// @param slippageBps Slippage tolerance (units must match the scaling domain used internally).
+    /// @return minOut Minimum acceptable output amount after slippage.
+    function amountOutMin(uint256 quote, uint256 slippageBps) internal pure returns (uint256) {
+        require(slippageBps <= BPS, SlippageTooHigh());
+        // multiply first, then divide, to keep precision
+        return (quote * (BPS - slippageBps)) / BPS;
+    }
+
+    /// @dev Reads price and decimals from a Chainlink feed; supports v3 `latestRoundData()`
+    /// and legacy v2 `latestAnswer()` interfaces. Does not check staleness.
     /// @param priceFeed Chainlink aggregator proxy address.
     /// @return price Latest positive price as uint256.
     /// @return decimals Feed decimals (or `DECIMALS_BY_DEFAULT` if not exposed).
@@ -128,7 +148,7 @@ library Helper {
     /// @dev Scales `amount` from `decimals` to 27 decimals.
     /// @param decimals Source decimals.
     /// @param amount Amount in `decimals`.
-    /// @return 27-decimal standardized amount.
+    /// @return standardized 27-decimal standardized amount.
     function _standardize(uint8 decimals, uint256 amount) private pure returns (uint256) {
         return amount.fullMulDiv(BPS, 10 ** decimals);
     }

@@ -166,6 +166,7 @@ contract BelongCheckIn is Initializable, Ownable {
     /// - `uniswapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
     /// - `weth`, `usdc`, `long` are token addresses; `uniswapV3Router` and `uniswapV3Quoter` are periphery contracts.
     struct PaymentsInfo {
+        uint96 slippageBps;
         uint24 uniswapPoolFees;
         address uniswapV3Router;
         address uniswapV3Quoter;
@@ -547,7 +548,7 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @notice Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
     /// @dev
     /// - Builds a multi-hop path USDC → WETH → LONG using the same fee tier.
-    /// - Uses Quoter to set a conservative `amountOutMinimum` (quotes can be front-run; consider slippage buffers at call sites if needed).
+    /// - Uses Quoter to set a conservative `amountOutMinimum`.
     /// - Approves router for the exact USDC amount before calling.
     /// @param recipient The recipient of LONG. If zero or `amount` is zero, returns 0 without swapping.
     /// @param amount The USDC input amount to swap (USDC native decimals).
@@ -566,7 +567,8 @@ contract BelongCheckIn is Initializable, Ownable {
             _paymentsInfo.uniswapPoolFees,
             _paymentsInfo.long
         );
-        uint256 amountOutMinimum = IQuoter(_paymentsInfo.uniswapV3Quoter).quoteExactInput(path, amount);
+        uint256 amountOutMinimum =
+            IQuoter(_paymentsInfo.uniswapV3Quoter).quoteExactInput(path, amount).amountOutMin(_paymentsInfo.slippageBps);
         ISwapRouter.ExactInputParams memory swapParams = ISwapRouter.ExactInputParams({
             path: path,
             recipient: recipient,
