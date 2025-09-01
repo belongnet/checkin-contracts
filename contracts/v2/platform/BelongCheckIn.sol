@@ -65,6 +65,8 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @notice Thrown when a venue provides an invalid or disabled payment type.
     error WrongPaymentTypeProvided();
 
+    error BPSTooHigh();
+
     // ========== Events ==========
 
     /// @notice Emitted when global parameters are updated.
@@ -166,7 +168,7 @@ contract BelongCheckIn is Initializable, Ownable {
     /// - `uniswapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
     /// - `weth`, `usdc`, `long` are token addresses; `uniswapV3Router` and `uniswapV3Quoter` are periphery contracts.
     struct PaymentsInfo {
-        uint96 slippageBps;
+        uint96 slippageBps; // 27 decimals
         uint24 uniswapPoolFees;
         address uniswapV3Router;
         address uniswapV3Quoter;
@@ -595,6 +597,8 @@ contract BelongCheckIn is Initializable, Ownable {
         Fees memory _fees,
         RewardsInfo[5] memory _stakingRewards
     ) private {
+        require(_paymentsInfo.slippageBps <= Helper.BPS, BPSTooHigh());
+
         belongCheckInStorage.paymentsInfo = _paymentsInfo;
         belongCheckInStorage.fees = _fees;
 
