@@ -25,7 +25,7 @@ export async function startSimulateMainnet() {
       {
         forking: {
           jsonRpcUrl: chainRPCs(1),
-          blockNumber: 23068383,
+          blockNumber: 23269482,
           enable: true,
         },
       },
