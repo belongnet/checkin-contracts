@@ -65,6 +65,7 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @notice Thrown when a venue provides an invalid or disabled payment type.
     error WrongPaymentTypeProvided();
 
+    /// @notice Reverts when a provided bps value exceeds the configured scaling domain.
     error BPSTooHigh();
 
     // ========== Events ==========

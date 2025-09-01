@@ -23,9 +23,6 @@ library Helper {
     /// @dev Used for metadata reading (e.g., token decimals).
     using MetadataReaderLib for address;
 
-    /// @notice Reverts when a provided slippage value exceeds the configured scaling domain.
-    error SlippageTooHigh();
-
     /// @notice Reverts when a price feed is invalid, inoperative, or returns a non-positive value.
     /// @param assetPriceFeedAddress The price feed address that failed validation.
     error IncorrectPriceFeed(address assetPriceFeedAddress);
