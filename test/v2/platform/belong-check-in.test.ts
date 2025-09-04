@@ -51,10 +51,10 @@ describe('BelongCheckIn', () => {
   const chainId = 31337;
 
   const paymentsInfo: BelongCheckIn.PaymentsInfoStruct = {
-    uniswapPoolFees: POOL_FEE,
+    swapPoolFees: POOL_FEE,
     slippageBps: BigNumber.from(10).pow(27).sub(1),
-    uniswapV3Router: UNISWAP_ROUTER_ADDRESS,
-    uniswapV3Quoter: UNISWAP_QUOTER_ADDRESS,
+    swapV3Router: UNISWAP_ROUTER_ADDRESS,
+    swapV3Quoter: UNISWAP_QUOTER_ADDRESS,
     weth: WETH_ADDRESS,
     usdc: USDC_ADDRESS,
     long: ENA_ADDRESS,
@@ -264,9 +264,9 @@ describe('BelongCheckIn', () => {
       // Convert paymentsInfo tuple to object
       const paymentsInfoFromStorage = {
         slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
-        uniswapPoolFees: belongCheckInStorage.paymentsInfo.uniswapPoolFees,
-        uniswapV3Router: belongCheckInStorage.paymentsInfo.uniswapV3Router,
-        uniswapV3Quoter: belongCheckInStorage.paymentsInfo.uniswapV3Quoter,
+        swapPoolFees: belongCheckInStorage.paymentsInfo.swapPoolFees,
+        swapV3Router: belongCheckInStorage.paymentsInfo.swapV3Router,
+        swapV3Quoter: belongCheckInStorage.paymentsInfo.swapV3Quoter,
         weth: belongCheckInStorage.paymentsInfo.weth,
         usdc: belongCheckInStorage.paymentsInfo.usdc,
         long: belongCheckInStorage.paymentsInfo.long,
@@ -305,9 +305,9 @@ describe('BelongCheckIn', () => {
       await expect(
         belongCheckIn.initialize(belongCheckIn.address, {
           slippageBps: 10,
-          uniswapPoolFees: 10,
-          uniswapV3Router: belongCheckIn.address,
-          uniswapV3Quoter: belongCheckIn.address,
+          swapPoolFees: 10,
+          swapV3Router: belongCheckIn.address,
+          swapV3Quoter: belongCheckIn.address,
           weth: belongCheckIn.address,
           usdc: belongCheckIn.address,
           long: belongCheckIn.address,
@@ -323,9 +323,9 @@ describe('BelongCheckIn', () => {
 
       const paymentsInfoNew = {
         slippageBps: BigNumber.from(10).pow(27).sub(1),
-        uniswapPoolFees: 5000,
-        uniswapV3Router: UNISWAP_ROUTER_ADDRESS,
-        uniswapV3Quoter: UNISWAP_QUOTER_ADDRESS,
+        swapPoolFees: 5000,
+        swapV3Router: UNISWAP_ROUTER_ADDRESS,
+        swapV3Quoter: UNISWAP_QUOTER_ADDRESS,
         weth: WETH_ADDRESS,
         usdc: USDC_ADDRESS,
         long: ENA_ADDRESS,
@@ -414,9 +414,9 @@ describe('BelongCheckIn', () => {
       // Convert paymentsInfo tuple to object
       expect({
         slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
-        uniswapPoolFees: belongCheckInStorage.paymentsInfo.uniswapPoolFees,
-        uniswapV3Router: belongCheckInStorage.paymentsInfo.uniswapV3Router,
-        uniswapV3Quoter: belongCheckInStorage.paymentsInfo.uniswapV3Quoter,
+        swapPoolFees: belongCheckInStorage.paymentsInfo.swapPoolFees,
+        swapV3Router: belongCheckInStorage.paymentsInfo.swapV3Router,
+        swapV3Quoter: belongCheckInStorage.paymentsInfo.swapV3Quoter,
         weth: belongCheckInStorage.paymentsInfo.weth,
         usdc: belongCheckInStorage.paymentsInfo.usdc,
         long: belongCheckInStorage.paymentsInfo.long,
