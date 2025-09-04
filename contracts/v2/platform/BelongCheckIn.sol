@@ -170,13 +170,13 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @notice Slippage tolerance scaled to 27 decimals where 1e27 == 100%.
     /// @dev Used by Helper.amountOutMin via BelongCheckIn._swapUSDCtoLONG; valid range [0, 1e27].
     /// @dev
-    /// - `uniswapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
-    /// - `weth`, `usdc`, `long` are token addresses; `uniswapV3Router` and `uniswapV3Quoter` are periphery contracts.
+    /// - `swapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
+    /// - `weth`, `usdc`, `long` are token addresses; `swapV3Router` and `swapV3Quoter` are periphery contracts.
     struct PaymentsInfo {
         uint96 slippageBps;
-        uint24 uniswapPoolFees;
-        address uniswapV3Router;
-        address uniswapV3Quoter;
+        uint24 swapPoolFees;
+        address swapV3Router;
+        address swapV3Quoter;
         address weth;
         address usdc;
         address long;
@@ -574,9 +574,9 @@ contract BelongCheckIn is Initializable, Ownable {
 
         bytes memory path = abi.encodePacked(
             _paymentsInfo.usdc,
-            _paymentsInfo.uniswapPoolFees,
+            _paymentsInfo.swapPoolFees,
             _paymentsInfo.weth,
-            _paymentsInfo.uniswapPoolFees,
+            _paymentsInfo.swapPoolFees,
             _paymentsInfo.long
         );
         uint256 amountOutMinimum =
@@ -612,9 +612,9 @@ contract BelongCheckIn is Initializable, Ownable {
 
         bytes memory path = abi.encodePacked(
             _paymentsInfo.long,
-            _paymentsInfo.uniswapPoolFees,
+            _paymentsInfo.swapPoolFees,
             _paymentsInfo.weth,
-            _paymentsInfo.uniswapPoolFees,
+            _paymentsInfo.swapPoolFees,
             _paymentsInfo.usdc
         );
         uint256 amountOutMinimum =
