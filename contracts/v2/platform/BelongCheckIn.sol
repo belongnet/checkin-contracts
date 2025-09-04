@@ -20,140 +20,69 @@ contract BelongCheckIn is BelongCheckInBase {
     using SafeTransferLib for address;
     using Helper for uint256;
 
-    /// @notice Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
-    /// @dev
-    /// - Builds a multi-hop path USDC → WETH → LONG using the same fee tier.
-    /// - Uses Quoter to set a conservative `amountOutMinimum`.
-    /// - Approves router for the exact USDC amount before calling.
-    /// @param recipient The recipient of LONG. If zero or `amount` is zero, returns 0 without swapping.
-    /// @param amount The USDC input amount to swap (USDC native decimals).
-    /// @return swapped The amount of LONG received.
-    function _swapUSDCtoLONG(
-        address recipient,
-        uint256 amount
-    ) internal override returns (uint256 swapped) {
-        if (recipient == address(0) || amount == 0) {
-            return 0;
-        }
+    /* ========================================= */
+    /* ========== OVERRIDDEN FUNCTIONS ========= */
+    /* ========================================= */
 
-        PaymentsInfo memory _paymentsInfo = belongCheckInStorage.paymentsInfo;
-
-        bytes memory path;
+    /// @dev Builds the best-available path between `tokenIn` and `tokenOut`.
+    ///      Prefers direct pool, otherwise routes via WETH using the same fee tier.
+    function _buildPath(PaymentsInfo memory paymentsInfo, address tokenIn, address tokenOut)
+        internal
+        view
+        override
+        returns (bytes memory path)
+    {
+        // Direct pool
         if (
-            ISwapFactory(_paymentsInfo.swapV3Factory).getPool(
-                _paymentsInfo.usdc,
-                _paymentsInfo.long,
-                _paymentsInfo.swapPoolFees
-            ) != address(0)
+            ISwapFactory(paymentsInfo.swapV3Factory).getPool(tokenIn, tokenOut, paymentsInfo.swapPoolFees) != address(0)
+        ) {
+            path = abi.encodePacked(tokenIn, paymentsInfo.swapPoolFees, tokenOut);
+        }
+        // tokenIn -> WETH -> tokenOut
+        else if (
+            ISwapFactory(paymentsInfo.swapV3Factory).getPool(tokenIn, paymentsInfo.weth, paymentsInfo.swapPoolFees)
+                != address(0)
         ) {
             path = abi.encodePacked(
-                _paymentsInfo.usdc,
-                _paymentsInfo.swapPoolFees,
-                _paymentsInfo.long
-            );
-        } else if (
-            ISwapFactory(_paymentsInfo.swapV3Factory).getPool(
-                _paymentsInfo.usdc,
-                _paymentsInfo.weth,
-                _paymentsInfo.swapPoolFees
-            ) != address(0)
-        ) {
-            path = abi.encodePacked(
-                _paymentsInfo.usdc,
-                _paymentsInfo.swapPoolFees,
-                _paymentsInfo.weth,
-                _paymentsInfo.swapPoolFees,
-                _paymentsInfo.long
+                tokenIn, paymentsInfo.swapPoolFees, paymentsInfo.weth, paymentsInfo.swapPoolFees, tokenOut
             );
         } else {
             revert NoValidSwapPath();
         }
-
-        uint256 amountOutMinimum = IQuoter(_paymentsInfo.swapV3Quoter)
-            .quoteExactInput(path, amount)
-            .amountOutMin(_paymentsInfo.slippageBps);
-        ISwapRouter.ExactInputParams memory swapParams = ISwapRouter
-            .ExactInputParams({
-                path: path,
-                recipient: recipient,
-                deadline: block.timestamp,
-                amountIn: amount,
-                amountOutMinimum: amountOutMinimum
-            });
-
-        _paymentsInfo.usdc.safeApprove(_paymentsInfo.swapV3Router, amount);
-        swapped = ISwapRouter(_paymentsInfo.swapV3Router).exactInput(
-            swapParams
-        );
-
-        emit Swapped(recipient, amount, swapped);
     }
 
-    /// @notice Swaps exact LONG amount to USDC and sends proceeds to `recipient`.
-    /// @dev
-    /// - Builds a multi-hop path LONG → WETH → USDC using the same fee tier.
-    /// - Uses Quoter to set a conservative `amountOutMinimum`.
-    /// - Approves router for the exact LONG amount before calling.
-    /// @param recipient The recipient of USDC. If zero or `amount` is zero, returns 0 without swapping.
-    /// @param amount The LONG input amount to swap (LONG native decimals).
-    /// @return swapped The amount of USDC received.
-    function _swapLONGtoUSDC(
-        address recipient,
-        uint256 amount
-    ) internal override returns (uint256 swapped) {
+    /// @dev Common swap executor with minimal approvals and conservative slippage.
+    function _swapExact(address tokenIn, address tokenOut, address recipient, uint256 amount)
+        internal
+        override
+        returns (uint256 swapped)
+    {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
 
-        PaymentsInfo memory _paymentsInfo = belongCheckInStorage.paymentsInfo;
+        PaymentsInfo memory paymentsInfo = belongCheckInStorage.paymentsInfo;
 
-        bytes memory path;
-        if (
-            ISwapFactory(_paymentsInfo.swapV3Factory).getPool(
-                _paymentsInfo.long,
-                _paymentsInfo.usdc,
-                _paymentsInfo.swapPoolFees
-            ) != address(0)
-        ) {
-            path = abi.encodePacked(
-                _paymentsInfo.long,
-                _paymentsInfo.swapPoolFees,
-                _paymentsInfo.usdc
-            );
-        } else if (
-            ISwapFactory(_paymentsInfo.swapV3Factory).getPool(
-                _paymentsInfo.long,
-                _paymentsInfo.weth,
-                _paymentsInfo.swapPoolFees
-            ) != address(0)
-        ) {
-            path = abi.encodePacked(
-                _paymentsInfo.long,
-                _paymentsInfo.swapPoolFees,
-                _paymentsInfo.weth,
-                _paymentsInfo.swapPoolFees,
-                _paymentsInfo.usdc
-            );
-        } else {
-            revert NoValidSwapPath();
-        }
+        bytes memory path = _buildPath(paymentsInfo, tokenIn, tokenOut);
 
-        uint256 amountOutMinimum = IQuoter(_paymentsInfo.swapV3Quoter)
-            .quoteExactInput(path, amount)
-            .amountOutMin(_paymentsInfo.slippageBps);
-        ISwapRouter.ExactInputParams memory swapParams = ISwapRouter
-            .ExactInputParams({
-                path: path,
-                recipient: recipient,
-                deadline: block.timestamp,
-                amountIn: amount,
-                amountOutMinimum: amountOutMinimum
-            });
+        uint256 amountOutMinimum =
+            IQuoter(paymentsInfo.swapV3Quoter).quoteExactInput(path, amount).amountOutMin(paymentsInfo.slippageBps);
 
-        _paymentsInfo.long.safeApprove(_paymentsInfo.swapV3Router, amount);
-        swapped = ISwapRouter(_paymentsInfo.swapV3Router).exactInput(
-            swapParams
-        );
+        ISwapRouter.ExactInputParams memory swapParams = ISwapRouter.ExactInputParams({
+            path: path,
+            recipient: recipient,
+            deadline: block.timestamp,
+            amountIn: amount,
+            amountOutMinimum: amountOutMinimum
+        });
+
+        // Reset -> set pattern to support non-standard ERC20s that require zeroing allowance first
+        tokenIn.safeApproveWithRetry(paymentsInfo.swapV3Router, amount);
+
+        swapped = ISwapRouter(paymentsInfo.swapV3Router).exactInput(swapParams);
+
+        // Clear allowance to reduce residual approvals surface area
+        tokenIn.safeApprove(paymentsInfo.swapV3Router, 0);
 
         emit Swapped(recipient, amount, swapped);
     }
