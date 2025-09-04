@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.27;
 
-import {IUniswapV3Factory as ISwapFactory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {IQuoter} from "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
+import {IPancakeV3Factory as ISwapFactory} from "@pancakeswap/v3-core/contracts/interfaces/IPancakeV3Factory.sol";
+import {ISwapRouter} from "@pancakeswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {IQuoter} from "@pancakeswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 
 import {BelongCheckInBase, SafeTransferLib, Helper} from "./BelongCheckInBase.sol";
 
-/// @title BelongCheckIn
+/// @title BelongCheckInBSC
 /// @notice Orchestrates venue deposits, customer payments, and promoter payouts for a
 ///         referral-based commerce program with dual-token accounting (USDC/LONG).
 /// @dev
@@ -16,7 +16,7 @@ import {BelongCheckInBase, SafeTransferLib, Helper} from "./BelongCheckInBase.so
 /// - Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps USDC→LONG on Uniswap V3.
 /// - Applies tiered fees/discounts depending on staked balance in `Staking`.
 /// - Signature-gated actions are authorized through a platform signer configured in `Factory`.
-contract BelongCheckIn is BelongCheckInBase {
+contract BelongCheckInBSC is BelongCheckInBase {
     using SafeTransferLib for address;
     using Helper for uint256;
 
