@@ -78,7 +78,7 @@ Minimal example:
   "Helper": { "address": "0x..." },
   "LONG": { "address": "0x...", "parameters": ["0xMintTo","0xAdmin","0xPauser"] },
   "Staking": { "address": "0x...", "parameters": ["0xOwner","0xTreasury","0xLONG"] },
-  "BelongCheckIn": { "address": "0x...", "parameters": ["0xOwner", { "uniswapPoolFees": 3000, "...": "..." }] },
+  "BelongCheckIn": { "address": "0x...", "parameters": ["0xOwner", { "swapPoolFees": 3000, "...": "..." }] },
   "Escrow": { "address": "0x...", "parameters": ["0xBelongCheckIn"] }
 }
 
@@ -276,7 +276,7 @@ After running, check `deployments/chainId-<chainId>.json` for addresses and para
   "Helper": { "address": "0x..." },
   "SignatureVerifier": { "address": "0x..." },
   "LONG": { "address": "0x...", "parameters": ["0x...", "1000000", "0x...", "0x..."] },
-  "BelongCheckIn": { "address": "0x...", "parameters": ["0x...", "0x...", "0x...", { "uniswapPoolFees": 3000, ... }] },
+  "BelongCheckIn": { "address": "0x...", "parameters": ["0x...", "0x...", "0x...", { "swapPoolFees": 3000, ... }] },
   "Escrow": { "address": "0x...", "parameters": ["0x..."] },
   "Staking": { "address": "0x...", "parameters": ["0x...", "0x...", "0x..."] }
 }

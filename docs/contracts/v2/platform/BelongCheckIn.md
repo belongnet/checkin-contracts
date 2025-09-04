@@ -255,14 +255,14 @@ struct Fees {
 
 Uniswap routing and token addresses.
 @dev
-- `uniswapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
-- `weth`, `usdc`, `long` are token addresses; `uniswapV3Router` and `uniswapV3Quoter` are periphery contracts.
+- `swapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
+- `weth`, `usdc`, `long` are token addresses; `swapV3Router` and `swapV3Quoter` are periphery contracts.
 
 ```solidity
 struct PaymentsInfo {
-  uint24 uniswapPoolFees;
-  address uniswapV3Router;
-  address uniswapV3Quoter;
+  uint24 swapPoolFees;
+  address swapV3Router;
+  address swapV3Quoter;
   address weth;
   address usdc;
   address long;
