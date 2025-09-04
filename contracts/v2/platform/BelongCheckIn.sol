@@ -72,6 +72,9 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @notice Reverts when a provided bps value exceeds the configured scaling domain.
     error BPSTooHigh();
 
+    /// @notice Thrown when no valid swap path is found for a USDC→LONG OR LONG→USDC swap.
+    error NoValidSwapPath();
+
     // ========== Events ==========
 
     /// @notice Emitted when global parameters are updated.
@@ -575,13 +578,29 @@ contract BelongCheckIn is Initializable, Ownable {
 
         PaymentsInfo memory _paymentsInfo = belongCheckInStorage.paymentsInfo;
 
-        bytes memory path = abi.encodePacked(
-            _paymentsInfo.usdc,
-            _paymentsInfo.swapPoolFees,
-            _paymentsInfo.weth,
-            _paymentsInfo.swapPoolFees,
-            _paymentsInfo.long
-        );
+        bytes memory path;
+        if (
+            IUniswapV3Factory(_paymentsInfo.swapV3Factory).getPool(
+                _paymentsInfo.usdc, _paymentsInfo.long, _paymentsInfo.swapPoolFees
+            ) != address(0)
+        ) {
+            path = abi.encodePacked(_paymentsInfo.usdc, _paymentsInfo.swapPoolFees, _paymentsInfo.long);
+        } else if (
+            IUniswapV3Factory(_paymentsInfo.swapV3Factory).getPool(
+                _paymentsInfo.usdc, _paymentsInfo.weth, _paymentsInfo.swapPoolFees
+            ) != address(0)
+        ) {
+            path = abi.encodePacked(
+                _paymentsInfo.usdc,
+                _paymentsInfo.swapPoolFees,
+                _paymentsInfo.weth,
+                _paymentsInfo.swapPoolFees,
+                _paymentsInfo.long
+            );
+        } else {
+            revert NoValidSwapPath();
+        }
+
         uint256 amountOutMinimum = IUniswapQuoter(_paymentsInfo.swapV3Quoter).quoteExactInput(path, amount).amountOutMin(
             _paymentsInfo.slippageBps
         );
@@ -614,13 +633,29 @@ contract BelongCheckIn is Initializable, Ownable {
 
         PaymentsInfo memory _paymentsInfo = belongCheckInStorage.paymentsInfo;
 
-        bytes memory path = abi.encodePacked(
-            _paymentsInfo.long,
-            _paymentsInfo.swapPoolFees,
-            _paymentsInfo.weth,
-            _paymentsInfo.swapPoolFees,
-            _paymentsInfo.usdc
-        );
+        bytes memory path;
+        if (
+            IUniswapV3Factory(_paymentsInfo.swapV3Factory).getPool(
+                _paymentsInfo.long, _paymentsInfo.usdc, _paymentsInfo.swapPoolFees
+            ) != address(0)
+        ) {
+            path = abi.encodePacked(_paymentsInfo.long, _paymentsInfo.swapPoolFees, _paymentsInfo.usdc);
+        } else if (
+            IUniswapV3Factory(_paymentsInfo.swapV3Factory).getPool(
+                _paymentsInfo.long, _paymentsInfo.weth, _paymentsInfo.swapPoolFees
+            ) != address(0)
+        ) {
+            path = abi.encodePacked(
+                _paymentsInfo.long,
+                _paymentsInfo.swapPoolFees,
+                _paymentsInfo.weth,
+                _paymentsInfo.swapPoolFees,
+                _paymentsInfo.usdc
+            );
+        } else {
+            revert NoValidSwapPath();
+        }
+
         uint256 amountOutMinimum = IUniswapQuoter(_paymentsInfo.swapV3Quoter).quoteExactInput(path, amount).amountOutMin(
             _paymentsInfo.slippageBps
         );
