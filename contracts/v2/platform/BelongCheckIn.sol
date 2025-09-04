@@ -6,8 +6,10 @@ import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {MetadataReaderLib} from "solady/src/utils/MetadataReaderLib.sol";
+import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {ISwapRouter as IUniswapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IQuoter as IUniswapQuoter} from "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
+import {IPancakeV3Factory} from "@pancakeswap/v3-core/contracts/interfaces/IPancakeV3Factory.sol";
 import {ISwapRouter as IPancakeswapRouter} from "@pancakeswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IQuoter as IPancakeswapQuoter} from "@pancakeswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 
@@ -175,6 +177,7 @@ contract BelongCheckIn is Initializable, Ownable {
     struct PaymentsInfo {
         uint96 slippageBps;
         uint24 swapPoolFees;
+        address swapV3Factory;
         address swapV3Router;
         address swapV3Quoter;
         address weth;
