@@ -38,7 +38,7 @@ async function deploy() {
       throw new Error('Missing required environment variables: Factory');
     }
 
-    // Validate addresses (exclude uniswapPoolFees as it's not an address)
+    // Validate addresses (exclude swapPoolFees as it's not an address)
     for (const addr of [factory]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);

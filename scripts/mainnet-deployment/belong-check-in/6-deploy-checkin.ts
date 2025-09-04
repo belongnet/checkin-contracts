@@ -34,9 +34,9 @@ async function deploy() {
     // Read addresses from environment variables
 
     const owner = process.env.ADMIN_ADDRESS;
-    const uniswapPoolFees = process.env.UNISWAPV3_POOL_FEES;
-    const uniswapV3Router = process.env.UNISWAPV3_ROUTER_ADDRESS;
-    const uniswapV3Quoter = process.env.UNISWAPV3_QUOTER_ADDRESS;
+    const swapPoolFees = process.env.UNISWAPV3_POOL_FEES;
+    const swapV3Router = process.env.UNISWAPV3_ROUTER_ADDRESS;
+    const swapV3Quoter = process.env.UNISWAPV3_QUOTER_ADDRESS;
     const weth = process.env.WETH_ADDRESS;
     const usdc = process.env.USDC_ADDRESS;
     const signatureVerifier = deployments.SignatureVerifier.address;
@@ -48,9 +48,9 @@ async function deploy() {
       !signatureVerifier ||
       !helper ||
       !owner ||
-      !uniswapPoolFees ||
-      !uniswapV3Router ||
-      !uniswapV3Quoter ||
+      !swapPoolFees ||
+      !swapV3Router ||
+      !swapV3Quoter ||
       !weth ||
       !usdc ||
       !long
@@ -60,8 +60,8 @@ async function deploy() {
       );
     }
 
-    // Validate addresses (exclude uniswapPoolFees as it's not an address)
-    for (const addr of [signatureVerifier, helper, owner, uniswapV3Router, uniswapV3Quoter, weth, usdc, long]) {
+    // Validate addresses (exclude swapPoolFees as it's not an address)
+    for (const addr of [signatureVerifier, helper, owner, swapV3Router, swapV3Quoter, weth, usdc, long]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
@@ -69,9 +69,9 @@ async function deploy() {
 
     // Construct paymentsInfo struct
     const paymentsInfo = {
-      uniswapPoolFees,
-      uniswapV3Router,
-      uniswapV3Quoter,
+      swapPoolFees,
+      swapV3Router,
+      swapV3Quoter,
       weth,
       usdc,
       long,

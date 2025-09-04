@@ -40,12 +40,12 @@ async function deploy() {
     console.log('Everything specified!');
 
     console.log('For BelongCheckIn deployment: ');
-    const uniswapPoolFees = process.env.UNISWAPV3_POOL_FEES;
-    const uniswapV3Router = process.env.UNISWAPV3_ROUTER_ADDRESS;
-    const uniswapV3Quoter = process.env.UNISWAPV3_QUOTER_ADDRESS;
+    const swapPoolFees = process.env.UNISWAPV3_POOL_FEES;
+    const swapV3Router = process.env.UNISWAPV3_ROUTER_ADDRESS;
+    const swapV3Quoter = process.env.UNISWAPV3_QUOTER_ADDRESS;
     const weth = process.env.WETH_ADDRESS;
     const usdc = process.env.USDC_ADDRESS;
-    if (!uniswapPoolFees || !uniswapV3Router || !uniswapV3Quoter || !weth || !usdc) {
+    if (!swapPoolFees || !swapV3Router || !swapV3Quoter || !weth || !usdc) {
       throw new Error(
         'Missing required environment variables: UNISWAPV3_POOL_FEES, UNISWAPV3_ROUTER_ADDRESS, UNISWAPV3_QUOTER_ADDRESS, WETH_ADDRESS, USDC_ADDRESS',
       );
@@ -110,19 +110,19 @@ async function deploy() {
     // Deploy BelongCheckIn
     console.log('Deploying BelongCheckIn contract...');
     // Validate addresses
-    [adminAddress, uniswapV3Router, uniswapV3Quoter, weth, usdc].forEach(addr => {
+    [adminAddress, swapV3Router, swapV3Quoter, weth, usdc].forEach(addr => {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
     });
-    const poolFees = parseInt(uniswapPoolFees, 10);
-    if (isNaN(poolFees) || poolFees <= 0) {
-      throw new Error(`Invalid Uniswap pool fees: ${uniswapPoolFees}`);
+    const swapPoolFees = parseInt(swapPoolFees, 10);
+    if (isNaN(swapPoolFees) || swapPoolFees <= 0) {
+      throw new Error(`Invalid Uniswap pool fees: ${swapPoolFees}`);
     }
     const paymentsInfo = {
-      uniswapPoolFees: poolFees,
-      uniswapV3Router,
-      uniswapV3Quoter,
+      swapPoolFees: swapPoolFees,
+      swapV3Router,
+      swapV3Quoter,
       weth,
       usdc,
       long: long.address,

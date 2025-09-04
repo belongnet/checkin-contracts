@@ -33,9 +33,9 @@ async function deploy() {
     const signatureVerifier = process.env.SIGNATURE_VERIFIER_ADDRESS;
     const helper = process.env.HELPER_ADDRESS;
     const owner = process.env.OWNER_ADDRESS;
-    const uniswapPoolFees = process.env.UNISWAPV3_POOL_FEES;
-    const uniswapV3Router = process.env.UNISWAPV3_ROUTER_ADDRESS;
-    const uniswapV3Quoter = process.env.UNISWAPV3_QUOTER_ADDRESS;
+    const swapPoolFees = process.env.UNISWAPV3_POOL_FEES;
+    const swapV3Router = process.env.UNISWAPV3_ROUTER_ADDRESS;
+    const swapV3Quoter = process.env.UNISWAPV3_QUOTER_ADDRESS;
     const weth = process.env.WETH_ADDRESS;
     const usdc = process.env.USDC_ADDRESS;
     const long = process.env.LONG_ADDRESS;
@@ -45,9 +45,9 @@ async function deploy() {
       !signatureVerifier ||
       !helper ||
       !owner ||
-      !uniswapPoolFees ||
-      !uniswapV3Router ||
-      !uniswapV3Quoter ||
+      !swapPoolFees ||
+      !swapV3Router ||
+      !swapV3Quoter ||
       !weth ||
       !usdc ||
       !long
@@ -57,24 +57,24 @@ async function deploy() {
       );
     }
 
-    // Validate addresses (exclude uniswapPoolFees as it's not an address)
-    for (const addr of [signatureVerifier, helper, owner, uniswapV3Router, uniswapV3Quoter, weth, usdc, long]) {
+    // Validate addresses (exclude swapPoolFees as it's not an address)
+    for (const addr of [signatureVerifier, helper, owner, swapV3Router, swapV3Quoter, weth, usdc, long]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
 
-    // Validate uniswapPoolFees (assuming it's a number, e.g., 500, 3000, 10000)
-    const poolFees = parseInt(uniswapPoolFees, 10);
-    if (isNaN(poolFees) || poolFees <= 0) {
-      throw new Error(`Invalid Uniswap pool fees: ${uniswapPoolFees}`);
+    // Validate swapPoolFees (assuming it's a number, e.g., 500, 3000, 10000)
+    const swapPoolFees = parseInt(swapPoolFees, 10);
+    if (isNaN(swapPoolFees) || swapPoolFees <= 0) {
+      throw new Error(`Invalid Uniswap pool fees: ${swapPoolFees}`);
     }
 
     // Construct paymentsInfo struct
     const paymentsInfo = {
-      uniswapPoolFees: poolFees,
-      uniswapV3Router,
-      uniswapV3Quoter,
+      swapPoolFees: swapPoolFees,
+      swapV3Router,
+      swapV3Quoter,
       weth,
       usdc,
       long,

@@ -38,7 +38,7 @@ async function deploy() {
     );
   }
 
-  // Validate addresses (exclude uniswapPoolFees as it's not an address)
+  // Validate addresses (exclude swapPoolFees as it's not an address)
   for (const addr of [factory, escrow, staking, venueToken, promoterToken, longPF]) {
     if (!ethers.utils.isAddress(addr)) {
       throw new Error(`Invalid address: ${addr}`);
