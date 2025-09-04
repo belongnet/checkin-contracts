@@ -579,9 +579,10 @@ contract BelongCheckIn is Initializable, Ownable {
             _paymentsInfo.swapPoolFees,
             _paymentsInfo.long
         );
-        uint256 amountOutMinimum =
-            IQuoter(_paymentsInfo.uniswapV3Quoter).quoteExactInput(path, amount).amountOutMin(_paymentsInfo.slippageBps);
-        ISwapRouter.ExactInputParams memory swapParams = ISwapRouter.ExactInputParams({
+        uint256 amountOutMinimum = IUniswapQuoter(_paymentsInfo.swapV3Quoter).quoteExactInput(path, amount).amountOutMin(
+            _paymentsInfo.slippageBps
+        );
+        IUniswapRouter.ExactInputParams memory swapParams = IUniswapRouter.ExactInputParams({
             path: path,
             recipient: recipient,
             deadline: block.timestamp,
@@ -589,8 +590,8 @@ contract BelongCheckIn is Initializable, Ownable {
             amountOutMinimum: amountOutMinimum
         });
 
-        _paymentsInfo.usdc.safeApprove(_paymentsInfo.uniswapV3Router, amount);
-        swapped = ISwapRouter(_paymentsInfo.uniswapV3Router).exactInput(swapParams);
+        _paymentsInfo.usdc.safeApprove(_paymentsInfo.swapV3Router, amount);
+        swapped = IUniswapRouter(_paymentsInfo.swapV3Router).exactInput(swapParams);
 
         emit Swapped(recipient, amount, swapped);
     }
@@ -617,9 +618,10 @@ contract BelongCheckIn is Initializable, Ownable {
             _paymentsInfo.swapPoolFees,
             _paymentsInfo.usdc
         );
-        uint256 amountOutMinimum =
-            IQuoter(_paymentsInfo.uniswapV3Quoter).quoteExactInput(path, amount).amountOutMin(_paymentsInfo.slippageBps);
-        ISwapRouter.ExactInputParams memory swapParams = ISwapRouter.ExactInputParams({
+        uint256 amountOutMinimum = IUniswapQuoter(_paymentsInfo.swapV3Quoter).quoteExactInput(path, amount).amountOutMin(
+            _paymentsInfo.slippageBps
+        );
+        IUniswapRouter.ExactInputParams memory swapParams = IUniswapRouter.ExactInputParams({
             path: path,
             recipient: recipient,
             deadline: block.timestamp,
@@ -627,8 +629,8 @@ contract BelongCheckIn is Initializable, Ownable {
             amountOutMinimum: amountOutMinimum
         });
 
-        _paymentsInfo.long.safeApprove(_paymentsInfo.uniswapV3Router, amount);
-        swapped = ISwapRouter(_paymentsInfo.uniswapV3Router).exactInput(swapParams);
+        _paymentsInfo.long.safeApprove(_paymentsInfo.swapV3Router, amount);
+        swapped = IUniswapRouter(_paymentsInfo.swapV3Router).exactInput(swapParams);
 
         emit Swapped(recipient, amount, swapped);
     }
