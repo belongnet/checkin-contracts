@@ -1081,19 +1081,19 @@
             "label": "struct BelongCheckIn.PaymentsInfo",
             "members": [
               {
-                "label": "uniswapPoolFees",
+                "label": "swapPoolFees",
                 "type": "t_uint24",
                 "offset": 0,
                 "slot": "0"
               },
               {
-                "label": "uniswapV3Router",
+                "label": "swapV3Router",
                 "type": "t_address",
                 "offset": 3,
                 "slot": "0"
               },
               {
-                "label": "uniswapV3Quoter",
+                "label": "swapV3Quoter",
                 "type": "t_address",
                 "offset": 0,
                 "slot": "1"

@@ -39,9 +39,9 @@
     "parameters": [
       "0x53d2f4917C9FC210536ffDB7D1BD26dc9F2Fc319",
       {
-        "uniswapPoolFees": "3000",
-        "uniswapV3Router": "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E",
-        "uniswapV3Quoter": "0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3",
+        "swapPoolFees": "3000",
+        "swapV3Router": "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E",
+        "swapV3Quoter": "0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3",
         "weth": "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9",
         "usdc": "0xf08A50178dfcDe18524640EA6618a1f965821715",
         "long": "0xe46AeC5C3aF86725438887c78C9910efE1594175"
