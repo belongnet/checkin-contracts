@@ -44,6 +44,7 @@ describe('BelongCheckIn', () => {
   const WETH_WHALE_ADDRESS = '0x57757E3D981446D585Af0D9Ae4d7DF6D64647806';
   const ENA_WHALE_ADDRESS = '0xF977814e90dA44bFA03b6295A0616a897441aceC';
 
+  const UNISWAP_FACTORY_ADDRESS = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
   const UNISWAP_ROUTER_ADDRESS = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
   const UNISWAP_QUOTER_ADDRESS = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6';
   const POOL_FEE = 3000;
@@ -53,6 +54,7 @@ describe('BelongCheckIn', () => {
   const paymentsInfo: BelongCheckIn.PaymentsInfoStruct = {
     swapPoolFees: POOL_FEE,
     slippageBps: BigNumber.from(10).pow(27).sub(1),
+    swapV3Factory: UNISWAP_FACTORY_ADDRESS,
     swapV3Router: UNISWAP_ROUTER_ADDRESS,
     swapV3Quoter: UNISWAP_QUOTER_ADDRESS,
     weth: WETH_ADDRESS,
@@ -265,6 +267,7 @@ describe('BelongCheckIn', () => {
       const paymentsInfoFromStorage = {
         slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
         swapPoolFees: belongCheckInStorage.paymentsInfo.swapPoolFees,
+        swapV3Factory: belongCheckInStorage.paymentsInfo.swapV3Factory,
         swapV3Router: belongCheckInStorage.paymentsInfo.swapV3Router,
         swapV3Quoter: belongCheckInStorage.paymentsInfo.swapV3Quoter,
         weth: belongCheckInStorage.paymentsInfo.weth,
@@ -306,6 +309,7 @@ describe('BelongCheckIn', () => {
         belongCheckIn.initialize(belongCheckIn.address, {
           slippageBps: 10,
           swapPoolFees: 10,
+          swapV3Factory: belongCheckIn.address,
           swapV3Router: belongCheckIn.address,
           swapV3Quoter: belongCheckIn.address,
           weth: belongCheckIn.address,
@@ -324,6 +328,7 @@ describe('BelongCheckIn', () => {
       const paymentsInfoNew = {
         slippageBps: BigNumber.from(10).pow(27).sub(1),
         swapPoolFees: 5000,
+        swapV3Factory: UNISWAP_FACTORY_ADDRESS,
         swapV3Router: UNISWAP_ROUTER_ADDRESS,
         swapV3Quoter: UNISWAP_QUOTER_ADDRESS,
         weth: WETH_ADDRESS,
@@ -417,6 +422,7 @@ describe('BelongCheckIn', () => {
         swapPoolFees: belongCheckInStorage.paymentsInfo.swapPoolFees,
         swapV3Router: belongCheckInStorage.paymentsInfo.swapV3Router,
         swapV3Quoter: belongCheckInStorage.paymentsInfo.swapV3Quoter,
+        swapV3Factory: belongCheckInStorage.paymentsInfo.swapV3Factory,
         weth: belongCheckInStorage.paymentsInfo.weth,
         usdc: belongCheckInStorage.paymentsInfo.usdc,
         long: belongCheckInStorage.paymentsInfo.long,
