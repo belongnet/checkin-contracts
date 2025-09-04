@@ -6,8 +6,10 @@ import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {MetadataReaderLib} from "solady/src/utils/MetadataReaderLib.sol";
-import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {IQuoter} from "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
+import {ISwapRouter as IUniswapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {IQuoter as IUniswapQuoter} from "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
+import {ISwapRouter as IPancakeswapRouter} from "@pancakeswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {IQuoter as IPancakeswapQuoter} from "@pancakeswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 
 import {Factory} from "./Factory.sol";
 import {Escrow} from "../periphery/Escrow.sol";
