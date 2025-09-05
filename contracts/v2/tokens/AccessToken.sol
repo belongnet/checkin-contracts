@@ -29,8 +29,8 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     // ============================== Errors ==============================
 
     /// @notice Sent when the provided NativeCurrency amount is not equal to the required price.
-    /// @param ETHsent Amount of NativeCurrency sent with the transaction.
-    error IncorrectETHAmountSent(uint256 ETHsent);
+    /// @param nativeCurrencyAmountSent Amount of NativeCurrency sent with the transaction.
+    error IncorrectNativeCurrencyAmountSent(uint256 nativeCurrencyAmountSent);
 
     /// @notice Sent when the expected mint price no longer matches the effective price.
     /// @param currentPrice The effective price computed by the contract.
@@ -307,7 +307,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         amount = expectedPayingToken == NATIVE_CURRENCY_ADDRESS ? msg.value : price;
 
-        require(amount == price, IncorrectETHAmountSent(amount));
+        require(amount == price, IncorrectNativeCurrencyAmountSent(amount));
 
         uint256 fees;
         uint256 amountToCreator;
