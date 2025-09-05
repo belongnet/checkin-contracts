@@ -274,7 +274,7 @@ Slippage tolerance scaled to 27 decimals where 1e27 == 100%.
 
 _Used by Helper.amountOutMin via BelongCheckIn._swapUSDCtoLONG; valid range [0, 1e27].
 @dev
-- `swapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
+- `swapPoolFees` is the 3-byte fee tier used for both USDC↔W_NATIVE_CURRENCY and W_NATIVE_CURRENCY↔LONG hops.
 - `wNativeCurrency`, `usdc`, `long` are token addresses; `swapV3Router` and `swapV3Quoter` are periphery contracts._
 
 ```solidity
@@ -563,7 +563,7 @@ function _swapUSDCtoLONG(address recipient, uint256 amount) internal virtual ret
 
 Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
 @dev
-- Builds a multi-hop path USDC → WETH → LONG using the same fee tier.
+- Builds a multi-hop path USDC → W_NATIVE_CURRENCY → LONG using the same fee tier.
 - Uses Quoter to set a conservative `amountOutMinimum`.
 - Approves router for the exact USDC amount before calling.
 
@@ -588,7 +588,7 @@ function _swapLONGtoUSDC(address recipient, uint256 amount) internal virtual ret
 
 Swaps exact LONG amount to USDC and sends proceeds to `recipient`.
 @dev
-- Builds a multi-hop path LONG → WETH → USDC using the same fee tier.
+- Builds a multi-hop path LONG → W_NATIVE_CURRENCY → USDC using the same fee tier.
 - Uses Quoter to set a conservative `amountOutMinimum`.
 - Approves router for the exact LONG amount before calling.
 
@@ -620,5 +620,5 @@ function _buildPath(struct BelongCheckIn.PaymentsInfo _paymentsInfo, address tok
 ```
 
 _Builds the best-available path between `tokenIn` and `tokenOut`.
-     Prefers direct pool, otherwise routes via WETH using the same fee tier._
+     Prefers direct pool, otherwise routes via W_NATIVE_CURRENCY using the same fee tier._
 

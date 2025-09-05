@@ -11,10 +11,10 @@ Upgradeable ERC-721 collection with royalty support, signature-gated minting,
 - Transfer validation is enforced via `CreatorToken` when transfers are enabled.
 - `mintStaticPrice` and `mintDynamicPrice` are signature-gated (see `SignatureVerifier`).
 
-### IncorrectETHAmountSent
+### IncorrectNativeCurrencyAmountSent
 
 ```solidity
-error IncorrectETHAmountSent(uint256 ETHsent)
+error IncorrectNativeCurrencyAmountSent(uint256 nativeCurrencyAmountSent)
 ```
 
 Sent when the provided NativeCurrency amount is not equal to the required price.
@@ -23,7 +23,7 @@ Sent when the provided NativeCurrency amount is not equal to the required price.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| ETHsent | uint256 | Amount of NativeCurrency sent with the transaction. |
+| nativeCurrencyAmountSent | uint256 | Amount of NativeCurrency sent with the transaction. |
 
 ### PriceChanged
 
