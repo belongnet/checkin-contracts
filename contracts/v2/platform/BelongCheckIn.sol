@@ -381,7 +381,6 @@ contract BelongCheckIn is Initializable, Ownable {
             affiliateFee = _storage.fees.affiliatePercentage.calculateRate(venueInfo.amount);
         }
 
-        address feeCollector = _storage.contracts.factory.nftFactoryParameters().platformAddress;
         uint256 venueId = venueInfo.venue.getVenueId();
 
         if (generalVenueInfo[venueInfo.venue].remainingCredits < _storage.fees.referralCreditsAmount) {
@@ -389,9 +388,10 @@ contract BelongCheckIn is Initializable, Ownable {
                 ++generalVenueInfo[venueInfo.venue].remainingCredits;
             }
         } else {
-            _storage.paymentsInfo.usdc.safeTransferFrom(
-                venueInfo.venue, feeCollector, stakingInfo.depositFeePercentage.calculateRate(venueInfo.amount)
-            );
+            // Collect deposit fee to this contract, then apply buyback/burn split and forward remainder.
+            uint256 platformFee = stakingInfo.depositFeePercentage.calculateRate(venueInfo.amount);
+            _storage.paymentsInfo.usdc.safeTransferFrom(venueInfo.venue, address(this), platformFee);
+            _handleRevenue(_storage.paymentsInfo.usdc, platformFee);
         }
 
         _setVenueRules(venueInfo.venue, venueInfo.rules);
@@ -516,8 +516,6 @@ contract BelongCheckIn is Initializable, Ownable {
             promoterInfo.promoter
         ).stakingTiers()].promoterStakingInfo;
 
-        address feeCollector = _storage.contracts.factory.nftFactoryParameters().platformAddress;
-
         uint256 toPromoter = promoterInfo.amountInUSD;
         uint24 percentage = promoterInfo.paymentInUSDC ? stakingInfo.usdcPercentage : stakingInfo.longPercentage;
         uint256 platformFees = percentage.calculateRate(toPromoter);
@@ -526,14 +524,17 @@ contract BelongCheckIn is Initializable, Ownable {
         }
 
         if (promoterInfo.paymentInUSDC) {
-            _storage.contracts.escrow.distributeVenueDeposit(promoterInfo.venue, feeCollector, platformFees);
+            // Route platform fees here for buyback/burn split, then forward remainder.
+            _storage.contracts.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), platformFees);
+            _handleRevenue(_storage.paymentsInfo.usdc, platformFees);
             _storage.contracts.escrow.distributeVenueDeposit(promoterInfo.venue, promoterInfo.promoter, toPromoter);
         } else {
             _storage.contracts.escrow.distributeVenueDeposit(
                 promoterInfo.venue, address(this), promoterInfo.amountInUSD
             );
-
-            _swapUSDCtoLONG(feeCollector, platformFees);
+            // Swap fee portion to this contract for burning, then forward remainder to platform.
+            uint256 longFees = _swapUSDCtoLONG(address(this), platformFees);
+            _handleRevenue(_storage.paymentsInfo.long, longFees);
             _swapUSDCtoLONG(promoterInfo.promoter, toPromoter);
         }
 
@@ -669,6 +670,50 @@ contract BelongCheckIn is Initializable, Ownable {
         tokenIn.safeApprove(_paymentsInfo.swapV3Router, 0);
 
         emit Swapped(recipient, amount, swapped);
+    }
+
+    /// @dev Splits platform revenue: allocate `buybackBurnPercentage` to LONG buyback/burn, forward remainder to fee collector.
+    /// @param token Revenue token address (USDC or LONG supported).
+    /// @param amount Revenue amount received by this contract.
+    function _handleRevenue(address token, uint256 amount) internal {
+        if (amount == 0) {
+            return;
+        }
+
+        BelongCheckInStorage memory _storage = belongCheckInStorage;
+        address feeCollector = _storage.contracts.factory.nftFactoryParameters().platformAddress;
+
+        uint256 buyback = _storage.fees.buybackBurnPercentage.calculateRate(amount);
+        uint256 toBurn = token == _storage.paymentsInfo.usdc // Buyback: swap USDC portion to LONG and burn.
+            ? _swapUSDCtoLONG(address(this), buyback)
+            : token == _storage.paymentsInfo.long // Burn LONG directly, forward remainder to feeCollector.
+                ? buyback
+                : 0; // Unknown token: forward all to feeCollector to avoid trapping funds.
+        uint256 feesToCollector;
+
+        if (toBurn == 0) {
+            buyback = 0;
+        }
+        unchecked {
+            feesToCollector = amount - buyback;
+        }
+
+        if (toBurn > 0) {
+            try IERC20Burnable(_storage.paymentsInfo.long).burn(toBurn) {
+                emit BurnedLONGs(address(0), toBurn);
+            } catch {
+                try IERC20Burnable(_storage.paymentsInfo.long).transfer(DEAD, toBurn) {
+                    emit BurnedLONGs(DEAD, toBurn);
+                } catch {
+                    revert TokensCanNotBeBurned();
+                }
+            }
+        }
+
+        // Forward remaining fees to feeCollector.
+        token.safeTransfer(feeCollector, feesToCollector);
+
+        emit RevenueBuybackBurn(token, amount, buyback, toBurn, feesToCollector);
     }
 
     /// @dev Builds the best-available path between `tokenIn` and `tokenOut`.
