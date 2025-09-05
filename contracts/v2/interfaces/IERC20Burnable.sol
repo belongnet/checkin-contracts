@@ -3,6 +3,16 @@ pragma solidity 0.8.27;
 
 interface IERC20Burnable {
     /**
+     * @dev See {IERC20-transfer}.
+     *
+     * Requirements:
+     *
+     * - `to` cannot be the zero address.
+     * - the caller must have a balance of at least `value`.
+     */
+    function transfer(address to, uint256 value) external returns (bool);
+
+    /**
      * @dev Destroys a `value` amount of tokens from the caller.
      *
      * See {ERC20-_burn}.
