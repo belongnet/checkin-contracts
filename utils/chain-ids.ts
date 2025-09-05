@@ -22,7 +22,7 @@ export const chainRPCs = (chainid: ChainIds): string => {
     case ChainIds.mainnet:
       return `https://eth.llamarpc.com`;
     case ChainIds.bsc:
-      return 'https://bsc-dataseed.binance.org';
+      return 'https://binance.llamarpc.com';
     case ChainIds.polygon:
       return `https://polygon.llamarpc.com`;
     case ChainIds.blast:
