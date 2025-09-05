@@ -3,14 +3,13 @@ pragma solidity 0.8.27;
 
 import {Initializable} from "solady/src/utils/Initializable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
-import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {MetadataReaderLib} from "solady/src/utils/MetadataReaderLib.sol";
 
 import {IV3Factory} from "../interfaces/IV3Factory.sol";
 import {IV3Router} from "../interfaces/IV3Router.sol";
 import {IV3Quoter} from "../interfaces/IV3Quoter.sol";
-import {ILONGPriceFeed} from "../interfaces/ILONGPriceFeed.sol";
+import {IERC20Burnable} from "../interfaces/IERC20Burnable.sol";
 
 import {Factory} from "./Factory.sol";
 import {Escrow} from "../periphery/Escrow.sol";
@@ -24,7 +23,6 @@ import {
     StakingTiers,
     VenueRules,
     PaymentTypes,
-    BountyTypes,
     LongPaymentTypes,
     VenueInfo,
     CustomerInfo,
