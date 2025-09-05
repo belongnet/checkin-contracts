@@ -121,7 +121,7 @@ abstract contract ReferralSystem {
     /**
      * @notice Sets the referral percentages based on the number of times a code is used.
      * @dev Internal function to set referral percentages.
-     * @param percentages An array containing the referral percentages for initial, second, third, and default use.
+     * @param percentages Array of five BPS values mapping usage count (0..4) to a referral percentage.
      */
     function _setReferralPercentages(uint16[5] calldata percentages) internal {
         for (uint256 i = 0; i < percentages.length; ++i) {

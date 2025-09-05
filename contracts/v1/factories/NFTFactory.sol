@@ -135,7 +135,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
     }
 
     /**
-     * @notice Produces a new NFT i nstance.
+     * @notice Produces a new NFT instance.
      * @dev Creates a new instance of the NFT and adds the information to the storage contract.
      * @param _info Struct containing the details of the new NFT instance.
      * @param referralCode The referral code associated with this NFT instance.
@@ -202,7 +202,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
      * @notice Sets new factory parameters.
      * @dev Can only be called by the owner (BE).
      * @param nftFactoryParameters_ The NFT factory parameters to be set.
-     * @param percentages An array containing the referral percentages for initial, second, third, and default use.
+     * @param percentages Array of five BPS values mapping usage count (0..4) to a referral percentage.
      */
     function setFactoryParameters(NftFactoryParameters calldata nftFactoryParameters_, uint16[5] calldata percentages)
         external

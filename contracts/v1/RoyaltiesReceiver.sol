@@ -236,6 +236,8 @@ contract RoyaltiesReceiver {
         return payment - alreadyReleased;
     }
 
+    /// @dev Reverts unless `account` is one of the configured payees.
+    /// @param account The account to validate as a payee.
     function _onlyToPayee(address account) private view {
         (uint256 arraySize, address[ARRAY_SIZE] memory _payees) = _payeesInfo();
 
@@ -252,6 +254,9 @@ contract RoyaltiesReceiver {
         }
     }
 
+    /// @dev Returns the current payees array and its effective size (2 without referral, 3 with referral).
+    /// @return arraySize Effective number of payees (2 or 3).
+    /// @return _payees In-memory array of payees.
     function _payeesInfo() private view returns (uint256 arraySize, address[ARRAY_SIZE] memory _payees) {
         _payees = payees;
         arraySize = _payees[2] != address(0) ? 3 : 2;

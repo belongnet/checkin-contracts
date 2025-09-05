@@ -20,9 +20,10 @@ library AddressHelper {
 
     /**
      * @notice Verifies the validity of a signature for dynamic price minting parameters.
-     * @dev Encodes and hashes the dynamic price parameters, then verifies the signature against the expected signer.
+     * @dev Encodes and hashes the dynamic price parameters with the `receiver`, then verifies the signature.
      * @param signer The address expected to have signed the provided parameters.
-     * @param params A struct containing parameters for dynamic price minting, including receiver, tokenId, tokenUri, price, and signature.
+     * @param receiver Address that will receive the minted token(s).
+     * @param params Dynamic price parameters (tokenId, tokenUri, price, signature).
      * @custom:error InvalidSignature Thrown when the signature does not match the expected signer or encoded data.
      */
     function checkDynamicPriceParameters(address signer, address receiver, DynamicPriceParameters calldata params)
@@ -40,9 +41,10 @@ library AddressHelper {
 
     /**
      * @notice Verifies the validity of a signature for static price minting parameters.
-     * @dev Encodes and hashes the static price parameters, then verifies the signature against the expected signer.
+     * @dev Encodes and hashes the static price parameters with the `receiver`, then verifies the signature.
      * @param signer The address expected to have signed the provided parameters.
-     * @param params A struct containing parameters for static price minting, including receiver, tokenId, tokenUri, whitelisted status, and signature.
+     * @param receiver Address that will receive the minted token(s).
+     * @param params Static price parameters (tokenId, tokenUri, whitelisted, signature).
      * @custom:error InvalidSignature Thrown when the signature does not match the expected signer or encoded data.
      */
     function checkStaticPriceParameters(address signer, address receiver, StaticPriceParameters calldata params)

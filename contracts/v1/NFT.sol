@@ -141,11 +141,13 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
     }
 
     /**
-     * @notice Mints new NFTs with static prices to specified addresses.
-     * @dev Requires signatures from trusted addresses and validates against whitelist status.
-     * @param paramsArray An array of parameters for each mint (receiver, tokenId, tokenUri, whitelisted).
-     * @param expectedPayingToken The expected token used for payments.
-     * @param expectedMintPrice The expected price for the minting operation.
+     * @notice Mints new NFTs with static prices to a specified receiver.
+     * @dev Requires signatures from a trusted signer and validates whitelist status per item.
+     *      Reverts if `paramsArray.length` exceeds factory `maxArraySize`.
+     * @param receiver The address that will receive all newly minted tokens.
+     * @param paramsArray Array of parameters for each mint (tokenId, tokenUri, whitelisted, signature).
+     * @param expectedPayingToken The expected token used for payments (ETH pseudo-address or ERC-20).
+     * @param expectedMintPrice The expected total price for the minting operation.
      */
     function mintStaticPrice(
         address receiver,
@@ -179,10 +181,12 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
     }
 
     /**
-     * @notice Mints new NFTs with dynamic prices to specified addresses.
-     * @dev Requires signatures from trusted addresses and validates against whitelist status.
-     * @param paramsArray An array of parameters for each mint (receiver, tokenId, tokenUri, price).
-     * @param expectedPayingToken The expected token used for payments.
+     * @notice Mints new NFTs with dynamic prices to a specified receiver.
+     * @dev Requires signatures from a trusted signer. Each item provides its own price.
+     *      Reverts if `paramsArray.length` exceeds factory `maxArraySize`.
+     * @param receiver The address that will receive all newly minted tokens.
+     * @param paramsArray Array of parameters for each mint (tokenId, tokenUri, price, signature).
+     * @param expectedPayingToken The expected token used for payments (ETH pseudo-address or ERC-20).
      */
     function mintDynamicPrice(
         address receiver,
@@ -293,8 +297,11 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
     }
 
     /**
-     * @notice Handles the payment for minting NFTs, including sending fees to the platform and creator.
-     * @dev Payments can be made in ETH or another token.
+     * @notice Handles payment routing for mints (ETH or ERC-20), splitting platform and referral fees.
+     * @dev Validates that `expectedPayingToken` matches configured currency; emits {Paid}.
+     * @param price Total expected amount to charge.
+     * @param expectedPayingToken Expected payment currency (ETH pseudo-address or ERC-20).
+     * @return amount Amount actually charged (wei or token units).
      */
     function _pay(uint256 price, address expectedPayingToken) private returns (uint256 amount) {
         NftParameters memory _parameters = parameters;
