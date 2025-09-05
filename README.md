@@ -126,7 +126,7 @@ Additional case - Referral System:
 3. If the account meets all the requirements and tokenURI is successfully generated, the BE signs the data for mint. Also, if the user is in the whitelist, BE can specify it with whitelisted flag
 4. The user calls the mint functions of the NFT contract
 
-If a mint price is greater than zero, the contract will handle payments in either ETH or ERC20 tokens. For every primary sale, a portion of the payment is immediately sent to the platform as a commission, while the remainder is transferred to the creator.
+If a mint price is greater than zero, the contract will handle payments in either Native currency or ERC20 tokens. For every primary sale, a portion of the payment is immediately sent to the platform as a commission, while the remainder is transferred to the creator.
 If referral code shared to the creator, and this code was used, then some percentage from platform commissions will be transfered to the referral code creator.
 
 - The factory owner can set or change the platform commission.
