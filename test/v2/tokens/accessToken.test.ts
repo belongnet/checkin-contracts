@@ -504,7 +504,7 @@ describe('AccessToken', () => {
           },
         ),
       )
-        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectETHAmountSent')
+        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectNativeCurrencyAmountSent')
         .withArgs(ethers.utils.parseEther('0.02'));
 
       await expect(
@@ -1291,7 +1291,7 @@ describe('AccessToken', () => {
           { value: ethers.utils.parseEther('0.02') },
         ),
       )
-        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectETHAmountSent')
+        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectNativeCurrencyAmountSent')
         .withArgs(ethers.utils.parseEther('0.02'));
 
       await expect(
@@ -1309,7 +1309,7 @@ describe('AccessToken', () => {
           ethers.utils.parseEther('0.02'),
         ),
       )
-        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectETHAmountSent')
+        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectNativeCurrencyAmountSent')
         .withArgs(0);
     });
 
