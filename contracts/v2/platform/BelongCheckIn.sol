@@ -174,7 +174,7 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @notice Slippage tolerance scaled to 27 decimals where 1e27 == 100%.
     /// @dev Used by Helper.amountOutMin via BelongCheckIn._swapUSDCtoLONG; valid range [0, 1e27].
     /// @dev
-    /// - `swapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
+    /// - `swapPoolFees` is the 3-byte fee tier used for both USDC↔W_NATIVE_CURRENCY and W_NATIVE_CURRENCY↔LONG hops.
     /// - `wNativeCurrency`, `usdc`, `long` are token addresses; `swapV3Router` and `swapV3Quoter` are periphery contracts.
     struct PaymentsInfo {
         uint96 slippageBps;
@@ -596,7 +596,7 @@ contract BelongCheckIn is Initializable, Ownable {
 
     /// @notice Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
     /// @dev
-    /// - Builds a multi-hop path USDC → WETH → LONG using the same fee tier.
+    /// - Builds a multi-hop path USDC → W_NATIVE_CURRENCY → LONG using the same fee tier.
     /// - Uses Quoter to set a conservative `amountOutMinimum`.
     /// - Approves router for the exact USDC amount before calling.
     /// @param recipient The recipient of LONG. If zero or `amount` is zero, returns 0 without swapping.
@@ -609,7 +609,7 @@ contract BelongCheckIn is Initializable, Ownable {
 
     /// @notice Swaps exact LONG amount to USDC and sends proceeds to `recipient`.
     /// @dev
-    /// - Builds a multi-hop path LONG → WETH → USDC using the same fee tier.
+    /// - Builds a multi-hop path LONG → W_NATIVE_CURRENCY → USDC using the same fee tier.
     /// - Uses Quoter to set a conservative `amountOutMinimum`.
     /// - Approves router for the exact LONG amount before calling.
     /// @param recipient The recipient of USDC. If zero or `amount` is zero, returns 0 without swapping.
@@ -656,7 +656,7 @@ contract BelongCheckIn is Initializable, Ownable {
     }
 
     /// @dev Builds the best-available path between `tokenIn` and `tokenOut`.
-    ///      Prefers direct pool, otherwise routes via WETH using the same fee tier.
+    ///      Prefers direct pool, otherwise routes via W_NATIVE_CURRENCY using the same fee tier.
     function _buildPath(PaymentsInfo memory _paymentsInfo, address tokenIn, address tokenOut)
         internal
         view
@@ -668,7 +668,7 @@ contract BelongCheckIn is Initializable, Ownable {
         ) {
             path = abi.encodePacked(tokenIn, _paymentsInfo.swapPoolFees, tokenOut);
         }
-        // tokenIn -> WETH -> tokenOut
+        // tokenIn -> W_NATIVE_CURRENCY -> tokenOut
         else if (
             IV3Factory(_paymentsInfo.swapV3Factory).getPool(
                 tokenIn, _paymentsInfo.wNativeCurrency, _paymentsInfo.swapPoolFees
