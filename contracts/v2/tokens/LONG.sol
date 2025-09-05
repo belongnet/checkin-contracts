@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts ^5.0.0
+// Compatible with OpenZeppelin Contracts ^5.4.0
 pragma solidity 0.8.27;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {ERC20Burnable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import {ERC20Pausable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
-import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
-import {ERC20Bridgeable} from "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Bridgeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {ERC20BridgeableUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20BridgeableUpgradeable.sol";
+import {ERC20BurnableUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import {ERC20PausableUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
+import {ERC20PermitUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /// @title LONG
 /// @notice ERC-20 token with burn, pause, permit, and bridge authorization for Superchain deployments.
@@ -15,7 +20,15 @@ import {ERC20Bridgeable} from "@openzeppelin/contracts/token/ERC20/extensions/dr
 /// - Mints a fixed initial supply to `mintTo` in the constructor.
 /// - `pause`/`unpause` restricted to `PAUSER_ROLE`.
 /// - Enforces bridge calls to come only from the predeployed `SuperchainTokenBridge`.
-contract LONG is ERC20, ERC20Bridgeable, ERC20Burnable, ERC20Pausable, AccessControl, ERC20Permit {
+contract LONG is
+    Initializable,
+    ERC20Upgradeable,
+    ERC20BridgeableUpgradeable,
+    ERC20BurnableUpgradeable,
+    ERC20PausableUpgradeable,
+    AccessControlUpgradeable,
+    ERC20PermitUpgradeable
+{
     /// @notice Revert used by bridge guard and role checks.
     error Unauthorized();
 
@@ -25,19 +38,34 @@ contract LONG is ERC20, ERC20Bridgeable, ERC20Burnable, ERC20Pausable, AccessCon
     /// @notice Role identifier for pausing/unpausing transfers.
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
-    /// @notice Deploys LONG and mints initial supply to `mintTo`; sets admin and pauser roles.
-    /// @param mintTo Recipient of the initial token supply.
-    /// @param defaultAdmin Address granted `DEFAULT_ADMIN_ROLE`.
-    /// @param pauser Address granted `PAUSER_ROLE`.
-    constructor(address mintTo, address defaultAdmin, address pauser) ERC20("LONG", "LONG") ERC20Permit("LONG") {
-        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
-        _grantRole(PAUSER_ROLE, pauser);
-        _mint(mintTo, 750000000 * 10 ** decimals());
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
-    /// @notice Bridge guard: ensures only the canonical Superchain bridge may call.
-    /// @dev Overridden from `ERC20Bridgeable`.
-    /// @param caller The caller address to validate.
+    /// @notice Initializes LONG and mints initial supply to `recipient`; sets admin and pauser roles.
+    /// @param recipient Recipient of the initial token supply.
+    /// @param defaultAdmin Address granted `DEFAULT_ADMIN_ROLE`.
+    /// @param pauser Address granted `PAUSER_ROLE`.
+    function initialize(address recipient, address defaultAdmin, address pauser) public initializer {
+        __ERC20_init("LONG", "LONG");
+        __ERC20Bridgeable_init();
+        __ERC20Burnable_init();
+        __ERC20Pausable_init();
+        __AccessControl_init();
+        __ERC20Permit_init("LONG");
+
+        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
+        _grantRole(PAUSER_ROLE, pauser);
+
+        _mint(recipient, 750000000 * 10 ** decimals());
+    }
+
+    /**
+     * @dev Checks if the caller is the predeployed SuperchainTokenBridge. Reverts otherwise.
+     *
+     * IMPORTANT: The predeployed SuperchainTokenBridge is only available on chains in the Superchain.
+     */
     function _checkTokenBridge(address caller) internal pure override {
         if (caller != SUPERCHAIN_TOKEN_BRIDGE) revert Unauthorized();
     }
@@ -54,16 +82,21 @@ contract LONG is ERC20, ERC20Bridgeable, ERC20Burnable, ERC20Pausable, AccessCon
         _unpause();
     }
 
-    /// @inheritdoc ERC20
-    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Pausable) {
+    // The following functions are overrides required by Solidity.
+
+    /// @inheritdoc ERC20Upgradeable
+    function _update(address from, address to, uint256 value)
+        internal
+        override(ERC20Upgradeable, ERC20PausableUpgradeable)
+    {
         super._update(from, to, value);
     }
 
-    /// @inheritdoc ERC20Bridgeable
+    /// @inheritdoc ERC20BridgeableUpgradeable
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC20Bridgeable, AccessControl)
+        override(ERC20BridgeableUpgradeable, AccessControlUpgradeable)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
