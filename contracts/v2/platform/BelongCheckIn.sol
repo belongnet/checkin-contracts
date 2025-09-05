@@ -72,6 +72,8 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @notice Thrown when no valid swap path is found for a USDC→LONG OR LONG→USDC swap.
     error NoValidSwapPath();
 
+    error TokensCanNotBeBurned();
+
     // ========== Events ==========
 
     /// @notice Emitted when global parameters are updated.
@@ -133,6 +135,16 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @param amountOut The LONG output amount.
     event Swapped(address indexed recipient, uint256 amountIn, uint256 amountOut);
 
+    /// @notice Emitted when revenue is processed for buyback/burn.
+    /// @param token Revenue token address (USDC or LONG).
+    /// @param gross Total revenue processed.
+    /// @param buyback Amount allocated to buyback/burn (in revenue token units for USDC, LONG units for LONG).
+    /// @param burnedLONG Amount of LONG burned.
+    /// @param fees Amount forwarded to fee collector address.
+    event RevenueBuybackBurn(address indexed token, uint256 gross, uint256 buyback, uint256 burnedLONG, uint256 fees);
+
+    event BurnedLONGs(address burnedTo, uint256 amountBurned);
+
     // ========== Structs ==========
 
     /// @notice Top-level storage bundle for program configuration.
@@ -166,6 +178,8 @@ contract BelongCheckIn is Initializable, Ownable {
         uint24 longCustomerDiscountPercentage;
         uint24 platformSubsidyPercentage;
         uint24 processingFeePercentage;
+        /// @notice Percentage of platform revenue allocated to LONG buyback and burn (BPS: 10_000 == 100%).
+        uint24 buybackBurnPercentage;
     }
 
     /// @notice Uniswap routing and token addresses.
@@ -214,6 +228,7 @@ contract BelongCheckIn is Initializable, Ownable {
 
     // ========== State Variables ==========
 
+    address private constant DEAD = 0x000000000000000000000000000000000000dEaD;
     /// @notice Global program configuration.
     BelongCheckInStorage public belongCheckInStorage;
 
@@ -302,7 +317,8 @@ contract BelongCheckIn is Initializable, Ownable {
                 affiliatePercentage: 1000, // 10%
                 longCustomerDiscountPercentage: 300, // 3%
                 platformSubsidyPercentage: 300, // 3%
-                processingFeePercentage: 250 // 2.5%
+                processingFeePercentage: 250, // 2.5%
+                buybackBurnPercentage: 5000 // 50%
             }),
             stakingRewardsInfo
         );
