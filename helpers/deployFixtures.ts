@@ -222,14 +222,21 @@ export async function deployCreditTokens(
 
 export async function deployLONG(mintTo: string, admin: string, pauser: string): Promise<LONG> {
   const LONG: ContractFactory = await ethers.getContractFactory('LONG');
-  const long: LONG = (await LONG.deploy(mintTo, admin, pauser)) as LONG;
+  const long: LONG = (await upgrades.deployProxy(LONG, [mintTo, admin, pauser], {
+    unsafeAllow: ['constructor'],
+    unsafeAllowLinkedLibraries: true,
+  })) as LONG;
   await long.deployed();
   return long;
 }
 
 export async function deployStaking(owner: string, treasury: string, long: string): Promise<Staking> {
   const Staking: ContractFactory = await ethers.getContractFactory('Staking');
-  const staking: Staking = (await Staking.deploy(owner, treasury, long)) as Staking;
+
+  const staking: Staking = (await upgrades.deployProxy(Staking, [owner, treasury, long], {
+    unsafeAllow: ['constructor'],
+    unsafeAllowLinkedLibraries: true,
+  })) as Staking;
   await staking.deployed();
   return staking;
 }
