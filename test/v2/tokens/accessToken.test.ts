@@ -30,7 +30,7 @@ import { deployMockTransferValidatorV2, deployWETHMock } from '../../../helpers/
 
 describe('AccessToken', () => {
   const PLATFORM_COMISSION = '100';
-  const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+  const NATIVE_CURRENCY_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const chainId = 31337;
   const NFT_721_BASE_URI = 'test.com/';
@@ -51,7 +51,7 @@ describe('AccessToken', () => {
   let instanceInfoETH: AccessTokenInfoStruct = {
     metadata: { name: AccessTokenEthMetadata.name, symbol: AccessTokenEthMetadata.symbol },
     contractURI: AccessTokenEthMetadata.uri,
-    paymentToken: ETH_ADDRESS,
+    paymentToken: NATIVE_CURRENCY_ADDRESS,
     mintPrice: ethPurchasePrice,
     whitelistMintPrice: ethPurchasePrice.div(2),
     transferable: true,
@@ -105,7 +105,7 @@ describe('AccessToken', () => {
       platformAddress: owner.address,
       signerAddress: signer.address,
       platformCommission: PLATFORM_COMISSION,
-      defaultPaymentCurrency: ETH_ADDRESS,
+      defaultPaymentCurrency: NATIVE_CURRENCY_ADDRESS,
       maxArraySize: 10,
     };
 
@@ -378,7 +378,7 @@ describe('AccessToken', () => {
             signature,
           } as StaticPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         ethPurchasePrice,
         { value: ethPurchasePrice },
       );
@@ -438,7 +438,7 @@ describe('AccessToken', () => {
             signature,
           } as StaticPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         ethPurchasePrice,
         {
           value: ethPurchasePrice,
@@ -497,7 +497,7 @@ describe('AccessToken', () => {
               signature,
             } as StaticPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           ethers.utils.parseEther('0.02'),
           {
             value: ethers.utils.parseEther('0.02'),
@@ -526,7 +526,7 @@ describe('AccessToken', () => {
         ),
       )
         .to.be.revertedWithCustomError(accessTokenEth, 'TokenChanged')
-        .withArgs(ETH_ADDRESS);
+        .withArgs(NATIVE_CURRENCY_ADDRESS);
 
       await expect(
         accessTokenEth.connect(creator).mintStaticPrice(
@@ -539,7 +539,7 @@ describe('AccessToken', () => {
               signature,
             } as StaticPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           ethers.utils.parseEther('0.04'),
           {
             value: ethPurchasePrice,
@@ -559,7 +559,7 @@ describe('AccessToken', () => {
             signature,
           } as StaticPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         ethPurchasePrice,
         {
           value: ethPurchasePrice,
@@ -595,7 +595,7 @@ describe('AccessToken', () => {
               signature,
             } as StaticPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           ethPurchasePrice,
           {
             value: ethPurchasePrice,
@@ -624,7 +624,7 @@ describe('AccessToken', () => {
               signature,
             } as StaticPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           ethPurchasePrice,
           {
             value: ethPurchasePrice,
@@ -664,7 +664,7 @@ describe('AccessToken', () => {
           platformAddress: owner.address,
           signerAddress: signer.address,
           platformCommission: PLATFORM_COMISSION,
-          defaultPaymentCurrency: ETH_ADDRESS,
+          defaultPaymentCurrency: NATIVE_CURRENCY_ADDRESS,
           maxArraySize: 1,
         } as Factory.FactoryParametersStruct,
         royalties,
@@ -688,7 +688,7 @@ describe('AccessToken', () => {
               signature,
             } as StaticPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           ethPurchasePrice,
           {
             value: ethPurchasePrice,
@@ -709,7 +709,7 @@ describe('AccessToken', () => {
               signature: signature2,
             } as StaticPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           ethers.utils.parseEther('0.04'),
           {
             value: ethPurchasePrice,
@@ -729,7 +729,7 @@ describe('AccessToken', () => {
             signature,
           } as StaticPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         ethPurchasePrice.div(2),
         {
           value: ethPurchasePrice.div(2),
@@ -767,7 +767,7 @@ describe('AccessToken', () => {
 
       await accessTokenEth
         .connect(creator)
-        .mintStaticPrice(creator.address, staticParams, ETH_ADDRESS, ethPurchasePrice.mul(9), {
+        .mintStaticPrice(creator.address, staticParams, NATIVE_CURRENCY_ADDRESS, ethPurchasePrice.mul(9), {
           value: ethPurchasePrice.mul(9),
         });
     });
@@ -796,7 +796,7 @@ describe('AccessToken', () => {
               signature,
             } as DynamicPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           {
             value: ethers.utils.parseEther('0.01'),
           },
@@ -813,7 +813,7 @@ describe('AccessToken', () => {
             signature,
           } as DynamicPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         {
           value: ethers.utils.parseEther('0.02'),
         },
@@ -841,7 +841,7 @@ describe('AccessToken', () => {
           platformAddress: owner.address,
           signerAddress: signer.address,
           platformCommission: PLATFORM_COMISSION,
-          defaultPaymentCurrency: ETH_ADDRESS,
+          defaultPaymentCurrency: NATIVE_CURRENCY_ADDRESS,
           maxArraySize: 1,
         } as Factory.FactoryParametersStruct,
         royalties,
@@ -865,7 +865,7 @@ describe('AccessToken', () => {
               signature,
             } as DynamicPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           {
             value: ethers.utils.parseEther('0.02'),
           },
@@ -877,7 +877,7 @@ describe('AccessToken', () => {
           platformAddress: owner.address,
           signerAddress: signer.address,
           platformCommission: PLATFORM_COMISSION,
-          defaultPaymentCurrency: ETH_ADDRESS,
+          defaultPaymentCurrency: NATIVE_CURRENCY_ADDRESS,
           maxArraySize: 20,
         } as Factory.FactoryParametersStruct,
         royalties,
@@ -895,7 +895,7 @@ describe('AccessToken', () => {
             signature,
           } as DynamicPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         {
           value: ethers.utils.parseEther('0.02'),
         },
@@ -930,7 +930,7 @@ describe('AccessToken', () => {
         } as DynamicPriceParametersStruct);
       }
 
-      await accessTokenEth.connect(creator).mintDynamicPrice(creator.address, dynamicParams, ETH_ADDRESS, {
+      await accessTokenEth.connect(creator).mintDynamicPrice(creator.address, dynamicParams, NATIVE_CURRENCY_ADDRESS, {
         value: ethers.utils.parseEther('0.02').mul(9),
       });
     });
@@ -1255,7 +1255,7 @@ describe('AccessToken', () => {
               signature: bad_signature,
             } as StaticPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           ethPurchasePrice,
           { value: ethPurchasePrice },
         ),
@@ -1286,7 +1286,7 @@ describe('AccessToken', () => {
               signature,
             } as StaticPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           ethers.utils.parseEther('0.02'),
           { value: ethers.utils.parseEther('0.02') },
         ),
@@ -1305,7 +1305,7 @@ describe('AccessToken', () => {
               signature,
             } as StaticPriceParametersStruct,
           ],
-          ETH_ADDRESS,
+          NATIVE_CURRENCY_ADDRESS,
           ethers.utils.parseEther('0.02'),
         ),
       )
@@ -1372,7 +1372,7 @@ describe('AccessToken', () => {
             signature,
           } as StaticPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         ethPurchasePrice,
         {
           value: ethPurchasePrice,
@@ -1499,7 +1499,7 @@ describe('AccessToken', () => {
             signature,
           } as StaticPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         ethPurchasePrice,
         {
           value: ethPurchasePrice,
@@ -1539,7 +1539,7 @@ describe('AccessToken', () => {
             signature,
           } as StaticPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         ethPurchasePrice,
         {
           value: ethPurchasePrice,
@@ -1602,7 +1602,7 @@ describe('AccessToken', () => {
             signature,
           } as StaticPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         ethPurchasePrice,
         {
           value: ethPurchasePrice,
@@ -1635,15 +1635,15 @@ describe('AccessToken', () => {
       let creatorBalanceBefore = await creator.getBalance();
       let platformBalanceBefore = await owner.getBalance();
 
-      await royaltiesReceiver.connect(referral).releaseAll(await royaltiesReceiver.ETH_ADDRESS());
+      await royaltiesReceiver.connect(referral).releaseAll(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS());
 
-      expect(await royaltiesReceiver.totalReleased(await royaltiesReceiver.ETH_ADDRESS())).to.eq(
+      expect(await royaltiesReceiver.totalReleased(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS())).to.eq(
         ethers.utils.parseEther('1'),
       );
-      expect(await royaltiesReceiver.released(await royaltiesReceiver.ETH_ADDRESS(), creator.address)).to.eq(
-        ethers.utils.parseEther('0.8'),
-      );
-      expect(await royaltiesReceiver.released(await royaltiesReceiver.ETH_ADDRESS(), owner.address)).to.eq(
+      expect(
+        await royaltiesReceiver.released(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS(), creator.address),
+      ).to.eq(ethers.utils.parseEther('0.8'));
+      expect(await royaltiesReceiver.released(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS(), owner.address)).to.eq(
         ethers.utils.parseEther('0.2'),
       );
 
@@ -1690,15 +1690,17 @@ describe('AccessToken', () => {
       creatorBalanceBefore = await creator.getBalance();
       platformBalanceBefore = await owner.getBalance();
 
-      await royaltiesReceiver.connect(referral).release(await royaltiesReceiver.ETH_ADDRESS(), creator.address);
+      await royaltiesReceiver
+        .connect(referral)
+        .release(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS(), creator.address);
 
-      expect(await royaltiesReceiver.totalReleased(await royaltiesReceiver.ETH_ADDRESS())).to.eq(
+      expect(await royaltiesReceiver.totalReleased(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS())).to.eq(
         ethers.utils.parseEther('1.8'),
       );
-      expect(await royaltiesReceiver.released(await royaltiesReceiver.ETH_ADDRESS(), creator.address)).to.eq(
-        ethers.utils.parseEther('1.6'),
-      );
-      expect(await royaltiesReceiver.released(await royaltiesReceiver.ETH_ADDRESS(), owner.address)).to.eq(
+      expect(
+        await royaltiesReceiver.released(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS(), creator.address),
+      ).to.eq(ethers.utils.parseEther('1.6'));
+      expect(await royaltiesReceiver.released(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS(), owner.address)).to.eq(
         ethers.utils.parseEther('0.2'),
       );
 
@@ -1795,7 +1797,7 @@ describe('AccessToken', () => {
             signature,
           } as StaticPriceParametersStruct,
         ],
-        ETH_ADDRESS,
+        NATIVE_CURRENCY_ADDRESS,
         ethPurchasePrice,
         {
           value: ethPurchasePrice,
@@ -1831,20 +1833,20 @@ describe('AccessToken', () => {
       let platformBalanceBefore = await owner.getBalance();
       let referralBalanceBefore = await referral.getBalance();
 
-      await royaltiesReceiverEth.connect(pete).releaseAll(royaltiesReceiverEth.ETH_ADDRESS());
+      await royaltiesReceiverEth.connect(pete).releaseAll(royaltiesReceiverEth.NATIVE_CURRENCY_ADDRESS());
 
-      expect(await royaltiesReceiverEth.totalReleased(royaltiesReceiverEth.ETH_ADDRESS())).to.eq(
+      expect(await royaltiesReceiverEth.totalReleased(royaltiesReceiverEth.NATIVE_CURRENCY_ADDRESS())).to.eq(
         ethers.utils.parseEther('1'),
       );
-      expect(await royaltiesReceiverEth.released(royaltiesReceiverEth.ETH_ADDRESS(), creator.address)).to.eq(
-        ethers.utils.parseEther('0.8'),
-      );
-      expect(await royaltiesReceiverEth.released(royaltiesReceiverEth.ETH_ADDRESS(), owner.address)).to.eq(
+      expect(
+        await royaltiesReceiverEth.released(royaltiesReceiverEth.NATIVE_CURRENCY_ADDRESS(), creator.address),
+      ).to.eq(ethers.utils.parseEther('0.8'));
+      expect(await royaltiesReceiverEth.released(royaltiesReceiverEth.NATIVE_CURRENCY_ADDRESS(), owner.address)).to.eq(
         ethers.utils.parseEther('0.14'),
       );
-      expect(await royaltiesReceiverEth.released(royaltiesReceiverEth.ETH_ADDRESS(), referral.address)).to.eq(
-        ethers.utils.parseEther('0.06'),
-      );
+      expect(
+        await royaltiesReceiverEth.released(royaltiesReceiverEth.NATIVE_CURRENCY_ADDRESS(), referral.address),
+      ).to.eq(ethers.utils.parseEther('0.06'));
 
       let creatorBalanceAfter = await creator.getBalance();
       let platformBalanceAfter = await owner.getBalance();

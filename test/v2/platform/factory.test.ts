@@ -29,7 +29,7 @@ import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2, deployWETHMock } from '../../../helpers/deployMockFixtures';
 
 describe('Factory', () => {
-  const ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+  const NATIVE_CURRENCY_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const chainId = 31337;
 
@@ -65,7 +65,7 @@ describe('Factory', () => {
       platformAddress: owner.address,
       signerAddress: signer.address,
       platformCommission: 100,
-      defaultPaymentCurrency: ETH_ADDRESS,
+      defaultPaymentCurrency: NATIVE_CURRENCY_ADDRESS,
       maxArraySize: 10,
     };
 
@@ -100,7 +100,7 @@ describe('Factory', () => {
       expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(owner.address);
       expect((await factory.nftFactoryParameters()).platformCommission).to.be.equal(factoryParams.platformCommission);
       expect((await factory.nftFactoryParameters()).signerAddress).to.be.equal(signer.address);
-      expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(ETH_ADDRESS);
+      expect((await factory.nftFactoryParameters()).defaultPaymentCurrency).to.be.equal(NATIVE_CURRENCY_ADDRESS);
       expect((await factory.nftFactoryParameters()).maxArraySize).to.be.equal(factoryParams.maxArraySize);
       expect((await factory.nftFactoryParameters()).transferValidator).to.be.equal(validator.address);
 
@@ -145,7 +145,7 @@ describe('Factory', () => {
       const info: AccessTokenInfoStruct = {
         metadata: { name: nftName, symbol: nftSymbol },
         contractURI: contractURI,
-        paymentToken: ETH_ADDRESS,
+        paymentToken: NATIVE_CURRENCY_ADDRESS,
         mintPrice: price,
         whitelistMintPrice: price,
         transferable: true,
@@ -309,7 +309,7 @@ describe('Factory', () => {
         {
           metadata: { name: nftName2, symbol: nftSymbol2 },
           contractURI: contractURI2,
-          paymentToken: ETH_ADDRESS,
+          paymentToken: NATIVE_CURRENCY_ADDRESS,
           mintPrice: price2,
           whitelistMintPrice: price2,
           transferable: true,
@@ -335,7 +335,7 @@ describe('Factory', () => {
         {
           metadata: { name: nftName3, symbol: nftSymbol3 },
           contractURI: contractURI3,
-          paymentToken: ETH_ADDRESS,
+          paymentToken: NATIVE_CURRENCY_ADDRESS,
           mintPrice: price3,
           whitelistMintPrice: price3,
           transferable: true,
@@ -373,7 +373,7 @@ describe('Factory', () => {
 
       const nft1 = await ethers.getContractAt('AccessToken', instanceInfo1.nftAddress);
       let [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft1.parameters();
-      expect(infoReturned.paymentToken).to.be.equal(ETH_ADDRESS);
+      expect(infoReturned.paymentToken).to.be.equal(NATIVE_CURRENCY_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
       expect(infoReturned.mintPrice).to.be.equal(price1);
       expect(infoReturned.contractURI).to.be.equal(contractURI1);
@@ -382,7 +382,7 @@ describe('Factory', () => {
 
       const nft2 = await ethers.getContractAt('AccessToken', instanceInfo2.nftAddress);
       [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft2.parameters();
-      expect(infoReturned.paymentToken).to.be.equal(ETH_ADDRESS);
+      expect(infoReturned.paymentToken).to.be.equal(NATIVE_CURRENCY_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
       expect(infoReturned.mintPrice).to.be.equal(price2);
       expect(infoReturned.contractURI).to.be.equal(contractURI2);
@@ -391,7 +391,7 @@ describe('Factory', () => {
 
       const nft3 = await ethers.getContractAt('AccessToken', instanceInfo3.nftAddress);
       [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft3.parameters();
-      expect(infoReturned.paymentToken).to.be.equal(ETH_ADDRESS);
+      expect(infoReturned.paymentToken).to.be.equal(NATIVE_CURRENCY_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
       expect(infoReturned.mintPrice).to.be.equal(price3);
       expect(infoReturned.contractURI).to.be.equal(contractURI3);
@@ -715,7 +715,7 @@ describe('Factory', () => {
           {
             metadata: { name: nftName, symbol: nftSymbol },
             contractURI: contractURI,
-            paymentToken: ETH_ADDRESS,
+            paymentToken: NATIVE_CURRENCY_ADDRESS,
             mintPrice: price,
             whitelistMintPrice: price,
             transferable: true,
@@ -733,7 +733,7 @@ describe('Factory', () => {
           {
             metadata: { name: nftName, symbol: nftSymbol },
             contractURI: contractURI,
-            paymentToken: ETH_ADDRESS,
+            paymentToken: NATIVE_CURRENCY_ADDRESS,
             mintPrice: price,
             whitelistMintPrice: price,
             transferable: true,
@@ -750,7 +750,7 @@ describe('Factory', () => {
         {
           metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
-          paymentToken: ETH_ADDRESS,
+          paymentToken: NATIVE_CURRENCY_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -788,7 +788,7 @@ describe('Factory', () => {
         {
           metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
-          paymentToken: ETH_ADDRESS,
+          paymentToken: NATIVE_CURRENCY_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -821,7 +821,7 @@ describe('Factory', () => {
         {
           metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
-          paymentToken: ETH_ADDRESS,
+          paymentToken: NATIVE_CURRENCY_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -854,7 +854,7 @@ describe('Factory', () => {
         {
           metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
-          paymentToken: ETH_ADDRESS,
+          paymentToken: NATIVE_CURRENCY_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -887,7 +887,7 @@ describe('Factory', () => {
         {
           metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
-          paymentToken: ETH_ADDRESS,
+          paymentToken: NATIVE_CURRENCY_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -920,7 +920,7 @@ describe('Factory', () => {
         {
           metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
-          paymentToken: ETH_ADDRESS,
+          paymentToken: NATIVE_CURRENCY_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -991,7 +991,7 @@ describe('Factory', () => {
         {
           metadata: { name: nftName, symbol: nftSymbol },
           contractURI: contractURI,
-          paymentToken: ETH_ADDRESS,
+          paymentToken: NATIVE_CURRENCY_ADDRESS,
           mintPrice: price,
           whitelistMintPrice: price,
           transferable: true,
@@ -1008,7 +1008,7 @@ describe('Factory', () => {
           {
             metadata: { name: nftName, symbol: nftSymbol },
             contractURI: contractURI,
-            paymentToken: ETH_ADDRESS,
+            paymentToken: NATIVE_CURRENCY_ADDRESS,
             mintPrice: price,
             whitelistMintPrice: price,
             transferable: true,
