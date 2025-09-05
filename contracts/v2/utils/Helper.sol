@@ -59,7 +59,7 @@ library Helper {
     /// @param amount The base amount to apply the percentage to.
     /// @return rate The resulting amount after applying the rate.
     function calculateRate(uint256 percentage, uint256 amount) external pure returns (uint256 rate) {
-        rate = (amount * percentage) / SCALING_FACTOR;
+        return amount.fullMulDiv(percentage, SCALING_FACTOR);
     }
 
     /// @notice Resolves the staking tier based on the staked amount of LONG (18 decimals).
@@ -130,7 +130,7 @@ library Helper {
     /// @return minOut Minimum acceptable output amount after slippage.
     function amountOutMin(uint256 quote, uint256 slippageBps) internal pure returns (uint256) {
         // multiply first, then divide, to keep precision
-        return (quote * (BPS - slippageBps)) / BPS;
+        return quote.fullMulDiv((BPS - slippageBps), BPS);
     }
 
     /// @dev Reads price and decimals from a Chainlink feed; supports v3 `latestRoundData()`
