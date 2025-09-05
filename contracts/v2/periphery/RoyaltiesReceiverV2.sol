@@ -81,9 +81,9 @@ contract RoyaltiesReceiverV2 is Initializable {
     mapping(address => Releases) private erc20Releases;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    // constructor() {
-    //     _disableInitializers();
-    // }
+    constructor() {
+        _disableInitializers();
+    }
 
     /**
      * @notice Initializes the contract with payees and a Factory reference.
