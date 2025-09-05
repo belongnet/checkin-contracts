@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
+import {Initializable} from "solady/src/utils/Initializable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {ERC4626} from "solady/src/tokens/ERC4626.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
@@ -15,7 +16,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 /// - Emergency flow burns shares and pays out `assets - penalty`, transferring penalty to `treasury`.
 /// - Owner can configure the minimum stake period and penalty percentage.
 /// - Underlying asset address is returned by {asset()} and is immutable after construction.
-contract Staking is ERC4626, Ownable {
+contract Staking is Initializable, ERC4626, Ownable {
     using SafeTransferLib for address;
 
     // ============================== Errors ==============================
@@ -81,7 +82,7 @@ contract Staking is ERC4626, Ownable {
 
     /// @notice Underlying LONG asset address.
     /// @dev Immutable after construction; returned by {asset()}.
-    address private immutable LONG;
+    address private LONG;
 
     // ============================== Storage ==============================
 
@@ -89,10 +90,10 @@ contract Staking is ERC4626, Ownable {
     address public treasury;
 
     /// @notice Global minimum staking/lock duration in seconds (applies per stake entry).
-    uint256 public minStakePeriod = 1 days;
+    uint256 public minStakePeriod;
 
     /// @notice Penalty percentage applied in emergency flows, scaled by {SCALING_FACTOR}.
-    uint256 public penaltyPercentage = 1000; // 10%
+    uint256 public penaltyPercentage; // 10%
 
     /// @notice User stake entries stored as arrays per staker.
     /// @dev Public getter: `stakes(user, i)` → `(shares, timestamp)`.
@@ -100,12 +101,19 @@ contract Staking is ERC4626, Ownable {
 
     // ============================== Constructor ==============================
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice Initializes the staking vault.
     /// @param _owner Address to be set as the owner.
     /// @param _treasury Treasury address to receive emergency penalties.
     /// @param long Address of the LONG ERC20 token (underlying asset).
-    constructor(address _owner, address _treasury, address long) {
+    function initialize(address _owner, address _treasury, address long) external initializer {
         LONG = long;
+        minStakePeriod = 1 days;
+        penaltyPercentage = 1000;
         _setTreasury(_treasury);
         _initializeOwner(_owner);
     }
