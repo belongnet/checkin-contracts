@@ -18,7 +18,7 @@ import {
   AccessTokenInfoStructOutput,
   ERC1155InfoStruct,
 } from '../../../typechain-types/contracts/v2/platform/Factory';
-import { getPercentage } from '../../../helpers/getPercentage';
+import { getPercentage } from '../../../helpers/math';
 import {
   deployAccessTokenImplementation,
   deployCreditTokenImplementation,
