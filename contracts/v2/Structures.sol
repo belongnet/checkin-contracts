@@ -11,12 +11,12 @@ struct NftMetadata {
 /// @title AccessTokenInfo
 /// @notice Initialization/configuration data for an AccessToken (ERC-721) collection.
 /// @dev
-/// - `paymentToken` can be a token address or the ETH pseudo-address
+/// - `paymentToken` can be a token address or the NativeCurrency pseudo-address
 ///   (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE).
 /// - `feeNumerator` is used for ERC-2981 royalty configuration.
 /// - `signature` is validated off-chain by a platform signer.
 struct AccessTokenInfo {
-    /// @notice ERC-20 used for payments, or ETH pseudo-address for native ETH.
+    /// @notice ERC-20 used for payments, or NativeCurrency pseudo-address for native NativeCurrency.
     address paymentToken;
     /// @notice ERC-2981 royalty numerator (denominator defined by receiver).
     uint96 feeNumerator;

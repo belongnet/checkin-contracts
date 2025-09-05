@@ -19,7 +19,7 @@ import {StaticPriceParameters, DynamicPriceParameters, AccessTokenInfo} from "..
 /// @dev
 /// - Deployed via `Factory` using UUPS (Solady) upgradeability.
 /// - Royalties use ERC-2981 with a fee receiver deployed by the factory when `feeNumerator > 0`.
-/// - Payments can be in ETH or an ERC-20 token; platform fee and referral split are applied.
+/// - Payments can be in NativeCurrency or an ERC-20 token; platform fee and referral split are applied.
 /// - Transfer validation is enforced via `CreatorToken` when transfers are enabled.
 /// - `mintStaticPrice` and `mintDynamicPrice` are signature-gated (see `SignatureVerifier`).
 contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable, CreatorToken {
@@ -28,8 +28,8 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
     // ============================== Errors ==============================
 
-    /// @notice Sent when the provided ETH amount is not equal to the required price.
-    /// @param ETHsent Amount of ETH sent with the transaction.
+    /// @notice Sent when the provided NativeCurrency amount is not equal to the required price.
+    /// @param ETHsent Amount of NativeCurrency sent with the transaction.
     error IncorrectETHAmountSent(uint256 ETHsent);
 
     /// @notice Sent when the expected mint price no longer matches the effective price.
@@ -56,8 +56,8 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
     /// @notice Emitted after a successful mint payment.
     /// @param sender Payer address.
-    /// @param paymentCurrency ETH pseudo-address or ERC-20 token used for payment.
-    /// @param value Amount paid (wei for ETH; token units for ERC-20).
+    /// @param paymentCurrency NativeCurrency pseudo-address or ERC-20 token used for payment.
+    /// @param value Amount paid (wei for NativeCurrency; token units for ERC-20).
     event Paid(address indexed sender, address paymentCurrency, uint256 value);
 
     /// @notice Emitted when mint parameters are updated by the owner.
@@ -86,8 +86,8 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
     // ============================== State ==============================
 
-    /// @notice Pseudo-address used to represent ETH in payment flows.
-    address public constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    /// @notice Pseudo-address used to represent NativeCurrency in payment flows.
+    address public constant NATIVE_CURRENCY_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice Number of tokens minted so far.
     uint256 public totalSupply;
@@ -127,7 +127,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     // ============================== Admin ==============================
 
     /// @notice Owner-only: updates paying token and mint prices; toggles auto-approval of validator.
-    /// @param _payingToken New paying token (use `ETH_ADDRESS` for ETH).
+    /// @param _payingToken New paying token (use `NATIVE_CURRENCY_ADDRESS` for NativeCurrency).
     /// @param _mintPrice New public mint price.
     /// @param _whitelistMintPrice New whitelist mint price.
     /// @param autoApprove If true, `isApprovedForAll` auto-approves the transfer validator.
@@ -149,7 +149,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// @notice Signature-gated batch mint with static prices (public or whitelist).
     /// @dev
     /// - Validates each entry via factory signer (`checkStaticPriceParameters`).
-    /// - Computes total due based on whitelist flags and charges payer in ETH or ERC-20.
+    /// - Computes total due based on whitelist flags and charges payer in NativeCurrency or ERC-20.
     /// - Reverts if `paramsArray.length` exceeds factory’s `maxArraySize`.
     /// @param receiver Address that will receive all minted tokens.
     /// @param paramsArray Array of static price mint parameters (id, uri, whitelist flag).
@@ -292,20 +292,20 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         _safeMint(to, tokenId);
     }
 
-    /// @notice Handles payment routing for mints (ETH or ERC-20).
+    /// @notice Handles payment routing for mints (NativeCurrency or ERC-20).
     /// @dev
     /// - Validates `expectedPayingToken` against configured payment token.
     ///  - Splits platform commission and referral share, then forwards remainder to creator.
     ///  - Emits {Paid}.
     /// @param price Expected total price to charge.
-    /// @param expectedPayingToken Expected payment currency (ETH or ERC-20).
+    /// @param expectedPayingToken Expected payment currency (NativeCurrency or ERC-20).
     /// @return amount Amount actually charged (wei or token units).
     function _pay(uint256 price, address expectedPayingToken) private returns (uint256 amount) {
         AccessTokenParameters memory _parameters = parameters;
 
         require(expectedPayingToken == _parameters.info.paymentToken, TokenChanged(_parameters.info.paymentToken));
 
-        amount = expectedPayingToken == ETH_ADDRESS ? msg.value : price;
+        amount = expectedPayingToken == NATIVE_CURRENCY_ADDRESS ? msg.value : price;
 
         require(amount == price, IncorrectETHAmountSent(amount));
 
@@ -329,7 +329,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
             }
         }
 
-        if (expectedPayingToken == ETH_ADDRESS) {
+        if (expectedPayingToken == NATIVE_CURRENCY_ADDRESS) {
             if (feesToPlatform > 0) {
                 _parameters.factory.nftFactoryParameters().platformAddress.safeTransferETH(feesToPlatform);
             }
