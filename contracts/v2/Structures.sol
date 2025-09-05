@@ -137,7 +137,7 @@ struct VenueInfo {
 struct CustomerInfo {
     // Backend configurable
     bool paymentInUSDC;
-    uint24 visitBountyAmount;
+    uint128 visitBountyAmount;
     uint24 spendBountyPercentage;
     // Actors
     address customer;

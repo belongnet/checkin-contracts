@@ -110,7 +110,7 @@ contract BelongCheckIn is Initializable, Ownable {
         address indexed venueToPayFor,
         address indexed promoter,
         uint256 amount,
-        uint24 visitBountyAmount,
+        uint128 visitBountyAmount,
         uint24 spendBountyPercentage
     );
 
@@ -186,14 +186,14 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @dev Used by Helper.amountOutMin via BelongCheckIn._swapUSDCtoLONG; valid range [0, 1e27].
     /// @dev
     /// - `swapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
-    /// - `weth`, `usdc`, `long` are token addresses; `swapV3Router` and `swapV3Quoter` are periphery contracts.
+    /// - `wNativeCurrency`, `usdc`, `long` are token addresses; `swapV3Router` and `swapV3Quoter` are periphery contracts.
     struct PaymentsInfo {
         uint96 slippageBps;
         uint24 swapPoolFees;
         address swapV3Factory;
         address swapV3Router;
         address swapV3Quoter;
-        address weth;
+        address wNativeCurrency;
         address usdc;
         address long;
         uint256 maxPriceFeedDelay;
@@ -209,7 +209,7 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @dev `depositFeePercentage` scaled by 1e4; `convenienceFeeAmount` is a flat USDC amount (native decimals).
     struct VenueStakingRewardInfo {
         uint24 depositFeePercentage;
-        uint24 convenienceFeeAmount;
+        uint128 convenienceFeeAmount;
     }
 
     /// @notice Per-tier promoter payout configuration.
@@ -221,8 +221,8 @@ contract BelongCheckIn is Initializable, Ownable {
 
     /// @notice Bundle of venue and promoter tier settings for a given staking tier.
     struct RewardsInfo {
-        VenueStakingRewardInfo venueStakingInfo;
         PromoterStakingRewardInfo promoterStakingInfo;
+        VenueStakingRewardInfo venueStakingInfo;
     }
 
     // ========== State Variables ==========
@@ -257,7 +257,7 @@ contract BelongCheckIn is Initializable, Ownable {
         address _owner,
         PaymentsInfo calldata _paymentsInfo
     ) external initializer {
-        uint24 convenienceFeeAmount = uint24(
+        uint128 convenienceFeeAmount = uint96(
             5 * 10 ** _paymentsInfo.usdc.readDecimals()
         ); // 5 USDC
         RewardsInfo[5] memory stakingRewardsInfo = [
@@ -861,14 +861,14 @@ contract BelongCheckIn is Initializable, Ownable {
         else if (
             IV3Factory(_paymentsInfo.swapV3Factory).getPool(
                 tokenIn,
-                _paymentsInfo.weth,
+                _paymentsInfo.wNativeCurrency,
                 _paymentsInfo.swapPoolFees
             ) != address(0)
         ) {
             path = abi.encodePacked(
                 tokenIn,
                 _paymentsInfo.swapPoolFees,
-                _paymentsInfo.weth,
+                _paymentsInfo.wNativeCurrency,
                 _paymentsInfo.swapPoolFees,
                 tokenOut
             );
