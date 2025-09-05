@@ -35,7 +35,7 @@ import {
 /// @dev
 /// - Uses ERC1155 credits (`CreditToken`) to track venue balances and promoter entitlements in USD units.
 /// - Delegates custody and distribution of USDC/LONG to `Escrow`.
-/// - Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps USDC→LONG on Uniswap V3.
+/// - Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps USDC→LONG on DEX V3 (e.g. UniswapV3 or PancakeswapV3).
 /// - Applies tiered fees/discounts depending on staked balance in `Staking`.
 /// - Signature-gated actions are authorized through a platform signer configured in `Factory`.
 contract BelongCheckIn is Initializable, Ownable {
