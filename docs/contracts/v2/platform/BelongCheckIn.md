@@ -71,6 +71,22 @@ error WrongPaymentTypeProvided()
 
 Thrown when a venue provides an invalid or disabled payment type.
 
+### BPSTooHigh
+
+```solidity
+error BPSTooHigh()
+```
+
+Reverts when a provided bps value exceeds the configured scaling domain.
+
+### NoValidSwapPath
+
+```solidity
+error NoValidSwapPath()
+```
+
+Thrown when no valid swap path is found for a USDC→LONG OR LONG→USDC swap.
+
 ### ParametersSet
 
 ```solidity
@@ -136,7 +152,7 @@ Emitted when a venue deposits USDC to the program.
 ### CustomerPaid
 
 ```solidity
-event CustomerPaid(address customer, address venueToPayFor, address promoter, uint256 amount, uint24 visitBountyAmount, uint24 spendBountyPercentage)
+event CustomerPaid(address customer, address venueToPayFor, address promoter, uint256 amount, uint128 visitBountyAmount, uint24 spendBountyPercentage)
 ```
 
 Emitted when a customer pays a venue (in USDC or LONG).
@@ -149,7 +165,7 @@ Emitted when a customer pays a venue (in USDC or LONG).
 | venueToPayFor | address | The venue receiving the payment. |
 | promoter | address | The promoter credited, if any. |
 | amount | uint256 | The payment amount (USDC native decimals for USDC; LONG wei for LONG). |
-| visitBountyAmount | uint24 | Flat bounty component (USDC native decimals) if paying in USDC; standardized in logic for LONG. |
+| visitBountyAmount | uint128 | Flat bounty component (USDC native decimals) if paying in USDC; standardized in logic for LONG. |
 | spendBountyPercentage | uint24 | Percentage bounty on spend (scaled by 1e4 where 10000 == 100%). |
 
 ### PromoterPaymentsDistributed
@@ -254,18 +270,24 @@ struct Fees {
 ### PaymentsInfo
 
 Uniswap routing and token addresses.
+Slippage tolerance scaled to 27 decimals where 1e27 == 100%.
+
+_Used by Helper.amountOutMin via BelongCheckIn._swapUSDCtoLONG; valid range [0, 1e27].
 @dev
 - `swapPoolFees` is the 3-byte fee tier used for both USDC↔WETH and WETH↔LONG hops.
-- `weth`, `usdc`, `long` are token addresses; `swapV3Router` and `swapV3Quoter` are periphery contracts.
+- `wNativeCurrency`, `usdc`, `long` are token addresses; `swapV3Router` and `swapV3Quoter` are periphery contracts._
 
 ```solidity
 struct PaymentsInfo {
+  uint96 slippageBps;
   uint24 swapPoolFees;
+  address swapV3Factory;
   address swapV3Router;
   address swapV3Quoter;
-  address weth;
+  address wNativeCurrency;
   address usdc;
   address long;
+  uint256 maxPriceFeedDelay;
 }
 ```
 
@@ -289,7 +311,7 @@ _`depositFeePercentage` scaled by 1e4; `convenienceFeeAmount` is a flat USDC amo
 ```solidity
 struct VenueStakingRewardInfo {
   uint24 depositFeePercentage;
-  uint24 convenienceFeeAmount;
+  uint128 convenienceFeeAmount;
 }
 ```
 
@@ -312,8 +334,8 @@ Bundle of venue and promoter tier settings for a given staking tier.
 
 ```solidity
 struct RewardsInfo {
-  struct BelongCheckIn.VenueStakingRewardInfo venueStakingInfo;
   struct BelongCheckIn.PromoterStakingRewardInfo promoterStakingInfo;
+  struct BelongCheckIn.VenueStakingRewardInfo venueStakingInfo;
 }
 ```
 
@@ -533,16 +555,16 @@ Returns Uniswap/asset configuration.
 | ---- | ---- | ----------- |
 | paymentsInfo_ | struct BelongCheckIn.PaymentsInfo | The `PaymentsInfo` struct currently in use. |
 
-### _swap
+### _swapUSDCtoLONG
 
 ```solidity
-function _swap(address recipient, uint256 amount) internal returns (uint256 swapped)
+function _swapUSDCtoLONG(address recipient, uint256 amount) internal virtual returns (uint256 swapped)
 ```
 
 Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
 @dev
 - Builds a multi-hop path USDC → WETH → LONG using the same fee tier.
-- Uses Quoter to set a conservative `amountOutMinimum` (quotes can be front-run; consider slippage buffers at call sites if needed).
+- Uses Quoter to set a conservative `amountOutMinimum`.
 - Approves router for the exact USDC amount before calling.
 
 #### Parameters
@@ -557,4 +579,46 @@ Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | swapped | uint256 | The amount of LONG received. |
+
+### _swapLONGtoUSDC
+
+```solidity
+function _swapLONGtoUSDC(address recipient, uint256 amount) internal virtual returns (uint256 swapped)
+```
+
+Swaps exact LONG amount to USDC and sends proceeds to `recipient`.
+@dev
+- Builds a multi-hop path LONG → WETH → USDC using the same fee tier.
+- Uses Quoter to set a conservative `amountOutMinimum`.
+- Approves router for the exact LONG amount before calling.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| recipient | address | The recipient of USDC. If zero or `amount` is zero, returns 0 without swapping. |
+| amount | uint256 | The LONG input amount to swap (LONG native decimals). |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| swapped | uint256 | The amount of USDC received. |
+
+### _swapExact
+
+```solidity
+function _swapExact(address tokenIn, address tokenOut, address recipient, uint256 amount) internal returns (uint256 swapped)
+```
+
+_Common swap executor with minimal approvals and conservative slippage._
+
+### _buildPath
+
+```solidity
+function _buildPath(struct BelongCheckIn.PaymentsInfo _paymentsInfo, address tokenIn, address tokenOut) internal view returns (bytes path)
+```
+
+_Builds the best-available path between `tokenIn` and `tokenOut`.
+     Prefers direct pool, otherwise routes via WETH using the same fee tier._
 

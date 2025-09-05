@@ -7,7 +7,7 @@ Upgradeable ERC-721 collection with royalty support, signature-gated minting,
 @dev
 - Deployed via `Factory` using UUPS (Solady) upgradeability.
 - Royalties use ERC-2981 with a fee receiver deployed by the factory when `feeNumerator > 0`.
-- Payments can be in ETH or an ERC-20 token; platform fee and referral split are applied.
+- Payments can be in NativeCurrency or an ERC-20 token; platform fee and referral split are applied.
 - Transfer validation is enforced via `CreatorToken` when transfers are enabled.
 - `mintStaticPrice` and `mintDynamicPrice` are signature-gated (see `SignatureVerifier`).
 
@@ -17,13 +17,13 @@ Upgradeable ERC-721 collection with royalty support, signature-gated minting,
 error IncorrectETHAmountSent(uint256 ETHsent)
 ```
 
-Sent when the provided ETH amount is not equal to the required price.
+Sent when the provided NativeCurrency amount is not equal to the required price.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| ETHsent | uint256 | Amount of ETH sent with the transaction. |
+| ETHsent | uint256 | Amount of NativeCurrency sent with the transaction. |
 
 ### PriceChanged
 
@@ -98,8 +98,8 @@ Emitted after a successful mint payment.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | sender | address | Payer address. |
-| paymentCurrency | address | ETH pseudo-address or ERC-20 token used for payment. |
-| value | uint256 | Amount paid (wei for ETH; token units for ERC-20). |
+| paymentCurrency | address | NativeCurrency pseudo-address or ERC-20 token used for payment. |
+| value | uint256 | Amount paid (wei for NativeCurrency; token units for ERC-20). |
 
 ### NftParametersChanged
 
@@ -134,13 +134,13 @@ struct AccessTokenParameters {
 }
 ```
 
-### ETH_ADDRESS
+### NATIVE_CURRENCY_ADDRESS
 
 ```solidity
-address ETH_ADDRESS
+address NATIVE_CURRENCY_ADDRESS
 ```
 
-Pseudo-address used to represent ETH in payment flows.
+Pseudo-address used to represent NativeCurrency in payment flows.
 
 ### totalSupply
 
@@ -201,7 +201,7 @@ Owner-only: updates paying token and mint prices; toggles auto-approval of valid
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _payingToken | address | New paying token (use `ETH_ADDRESS` for ETH). |
+| _payingToken | address | New paying token (use `NATIVE_CURRENCY_ADDRESS` for NativeCurrency). |
 | _mintPrice | uint128 | New public mint price. |
 | _whitelistMintPrice | uint128 | New whitelist mint price. |
 | autoApprove | bool | If true, `isApprovedForAll` auto-approves the transfer validator. |
@@ -215,7 +215,7 @@ function mintStaticPrice(address receiver, struct StaticPriceParameters[] params
 Signature-gated batch mint with static prices (public or whitelist).
 @dev
 - Validates each entry via factory signer (`checkStaticPriceParameters`).
-- Computes total due based on whitelist flags and charges payer in ETH or ERC-20.
+- Computes total due based on whitelist flags and charges payer in NativeCurrency or ERC-20.
 - Reverts if `paramsArray.length` exceeds factory’s `maxArraySize`.
 
 #### Parameters

@@ -66,7 +66,7 @@ Emitted whenever a venue's escrow balances are updated.
 ### DistributedLONGDiscount
 
 ```solidity
-event DistributedLONGDiscount(address venue, uint256 amount)
+event DistributedLONGDiscount(address venue, address to, uint256 amount)
 ```
 
 Emitted when LONG discount funds are disbursed to a venue.
@@ -75,7 +75,8 @@ Emitted when LONG discount funds are disbursed to a venue.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| venue | address | Venue receiving the LONG subsidy. |
+| venue | address | Venue whose LONG balance decreased. |
+| to | address | Recipient of the LONG transfer. |
 | amount | uint256 | Amount of LONG transferred. |
 
 ### DistributedVenueDeposit
@@ -172,7 +173,7 @@ _Called by BelongCheckIn when new funds are received and routed to escrow._
 ### distributeLONGDiscount
 
 ```solidity
-function distributeLONGDiscount(address venue, uint256 amount) external
+function distributeLONGDiscount(address venue, address to, uint256 amount) external
 ```
 
 Disburses LONG discount funds from a venue's LONG balance to the venue.
@@ -183,7 +184,8 @@ _Reverts if the venue does not have enough LONG recorded._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| venue | address | Venue receiving the LONG transfer. |
+| venue | address | Venue whose LONG balance will decrease. |
+| to | address | Recipient of the LONG transfer. |
 | amount | uint256 | Amount of LONG to transfer. |
 
 ### distributeVenueDeposit

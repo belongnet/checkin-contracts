@@ -13,7 +13,7 @@ struct NftMetadata {
 
 Initialization/configuration data for an AccessToken (ERC-721) collection.
 @dev
-- `paymentToken` can be a token address or the ETH pseudo-address
+- `paymentToken` can be a token address or the NativeCurrency pseudo-address
   (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE).
 - `feeNumerator` is used for ERC-2981 royalty configuration.
 - `signature` is validated off-chain by a platform signer.
@@ -105,7 +105,7 @@ enum PaymentTypes {
 
 ## BountyTypes
 
-Allowed promoter bounty schemes.
+Venue-allowed promoter bounty schemes.
 
 ```solidity
 enum BountyTypes {
@@ -113,6 +113,18 @@ enum BountyTypes {
   VisitBounty,
   SpendBounty,
   Both
+}
+```
+
+## LongPaymentTypes
+
+Venue-allowed Long payment options.
+
+```solidity
+enum LongPaymentTypes {
+  NoType,
+  AutoStake,
+  AutoConvert
 }
 ```
 
@@ -124,6 +136,7 @@ Venue-level configuration for payment and bounty types.
 struct VenueRules {
   enum PaymentTypes paymentType;
   enum BountyTypes bountyType;
+  enum LongPaymentTypes longPaymentType;
 }
 ```
 
@@ -149,7 +162,7 @@ Signed payload authorizing a customer payment to a venue (and optional promoter 
 ```solidity
 struct CustomerInfo {
   bool paymentInUSDC;
-  uint24 visitBountyAmount;
+  uint128 visitBountyAmount;
   uint24 spendBountyPercentage;
   address customer;
   address venueToPayFor;

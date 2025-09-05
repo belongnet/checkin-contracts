@@ -2,11 +2,10 @@
 
 ## RoyaltiesReceiverV2
 
-A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
+Manages and releases royalty payments in native NativeCurrency and ERC20 tokens.
 
-_Handles payment distribution based on shares assigned to payees. Fork of OZ's PaymentSplitter with some changes.
-The only change is that common `release()` functions are replaced with `releaseAll()` functions,
-which allow the caller to transfer funds for both the creator and the platform._
+_Fork of OZ PaymentSplitter with changes: common `release()` variants are replaced with
+     `releaseAll()` functions to release funds for creator, platform and optional referral in one call._
 
 ### AccountNotDuePayment
 
@@ -45,15 +44,15 @@ Emitted when a new payee is added to the contract.
 event PaymentReleased(address token, address to, uint256 amount)
 ```
 
-Emitted when a payment in native Ether is released.
+Emitted when a payment is released in native NativeCurrency or an ERC20 token.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| token | address | The address of the ERC20 token if address(0) then native currency. |
+| token | address | The ERC20 token address, or `NATIVE_CURRENCY_ADDRESS` for native currency. |
 | to | address | The address receiving the payment. |
-| amount | uint256 | The amount of Ether released. |
+| amount | uint256 | The amount released. |
 
 ### PaymentReceived
 
@@ -95,13 +94,13 @@ struct RoyaltiesReceivers {
 }
 ```
 
-### ETH_ADDRESS
+### NATIVE_CURRENCY_ADDRESS
 
 ```solidity
-address ETH_ADDRESS
+address NATIVE_CURRENCY_ADDRESS
 ```
 
-The constant address representing ETH.
+The constant address representing NativeCurrency.
 
 ### TOTAL_SHARES
 
@@ -137,7 +136,15 @@ List of payee addresses. Returns the address of the payee at the given index.
 function initialize(struct RoyaltiesReceiverV2.RoyaltiesReceivers _royaltiesReceivers, contract Factory _factory, bytes32 referralCode_) external
 ```
 
-Initializes the contract with a list of payees and their respective shares.
+Initializes the contract with payees and a Factory reference.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _royaltiesReceivers | struct RoyaltiesReceiverV2.RoyaltiesReceivers | Payee addresses for creator, platform and optional referral. |
+| _factory | contract Factory | Factory instance to read royalties parameters and referrals. |
+| referralCode_ | bytes32 | Referral code associated with this receiver. |
 
 ### shares
 
@@ -145,13 +152,29 @@ Initializes the contract with a list of payees and their respective shares.
 function shares(address account) public view returns (uint256)
 ```
 
+Returns shares (in BPS, out of TOTAL_SHARES) for a given account.
+
+_Platform share may be reduced by a referral share if a referral payee is set._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| account | address | The account to query (creator, platform or referral). |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | The share assigned to the account in BPS (out of TOTAL_SHARES). |
+
 ### receive
 
 ```solidity
 receive() external payable
 ```
 
-Logs the receipt of Ether. Called when the contract receives Ether.
+Logs the receipt of NativeCurrency. Triggered on plain NativeCurrency transfers.
 
 ### releaseAll
 
@@ -159,13 +182,13 @@ Logs the receipt of Ether. Called when the contract receives Ether.
 function releaseAll(address token) external
 ```
 
-Releases all pending payments for a given currency to the payees.
+Releases all pending payments for a currency to the payees.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| token | address | The address of the currecny to be released (ERC20 token address or address(0) for native Ether). |
+| token | address | The currency to release: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency. |
 
 ### release
 
@@ -173,14 +196,14 @@ Releases all pending payments for a given currency to the payees.
 function release(address token, address to) external
 ```
 
-Releases pending ERC20 token payments for a given token to the payee.
+Releases pending payments for a currency to a specific payee.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| token | address | The address of the currecny to be released (ERC20 token address or address(0) for native Ether). |
-| to | address |  |
+| token | address | The currency to release: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency. |
+| to | address | The payee address to release to. |
 
 ### totalReleased
 
@@ -188,13 +211,13 @@ Releases pending ERC20 token payments for a given token to the payee.
 function totalReleased(address token) external view returns (uint256)
 ```
 
-Returns the total amount of a specific currency already released to payees.
+Returns the total amount of a currency already released to payees.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| token | address | The address of the currecny to be released (ERC20 token address or address(0) for native Ether). |
+| token | address | The currency queried: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency. |
 
 #### Return Values
 
@@ -208,13 +231,13 @@ Returns the total amount of a specific currency already released to payees.
 function released(address token, address account) external view returns (uint256)
 ```
 
-Returns the amount of a specific ERC20 token already released to a specific payee.
+Returns the amount of a specific currency already released to a specific payee.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| token | address | The address of the ERC20 token. |
+| token | address | The currency queried: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency. |
 | account | address | The address of the payee. |
 
 #### Return Values

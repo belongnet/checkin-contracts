@@ -174,11 +174,40 @@ Returns the referral rate for a user and code, based on the number of times the 
 function calculateRate(uint256 amount, uint256 percentage) public pure returns (uint256 rate)
 ```
 
+Calculates `percentage` of `amount` using BPS scaling (10_000 == 100%).
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | Base amount. |
+| percentage | uint256 | Percentage in BPS. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| rate | uint256 | Calculated portion of the amount. |
+
 ### getReferralCodeByCreator
 
 ```solidity
 function getReferralCodeByCreator(address creator) public view returns (bytes32)
 ```
+
+Computes the deterministic referral code for a creator address.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| creator | address | Creator address. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bytes32 | The keccak256 hash used as a referral code. |
 
 ### getReferralCreator
 
