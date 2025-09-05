@@ -132,6 +132,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
     longCustomerDiscountPercentage: 300,
     platformSubsidyPercentage: 300,
     processingFeePercentage: 250,
+    buybackBurnPercentage: 5000,
   };
   let implementations: Factory.ImplementationsStruct, contracts: BelongCheckIn.ContractsStruct;
 
@@ -288,6 +289,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         longCustomerDiscountPercentage: belongCheckInStorage.fees.longCustomerDiscountPercentage,
         platformSubsidyPercentage: belongCheckInStorage.fees.platformSubsidyPercentage,
         processingFeePercentage: belongCheckInStorage.fees.processingFeePercentage,
+        buybackBurnPercentage: belongCheckInStorage.fees.buybackBurnPercentage,
       };
       expect(feesFromStorage).to.deep.eq(fees);
       expect(belongCheckInStorage.fees).to.deep.eq(await belongCheckIn.fees());
@@ -346,6 +348,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         longCustomerDiscountPercentage: 100,
         platformSubsidyPercentage: 100,
         processingFeePercentage: 100,
+        buybackBurnPercentage: 1000,
       };
       const convenienceFeeAmountNew = 1000000;
       const usdcPercentageNew = 100;
@@ -439,6 +442,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         longCustomerDiscountPercentage: belongCheckInStorage.fees.longCustomerDiscountPercentage,
         platformSubsidyPercentage: belongCheckInStorage.fees.platformSubsidyPercentage,
         processingFeePercentage: belongCheckInStorage.fees.processingFeePercentage,
+        buybackBurnPercentage: belongCheckInStorage.fees.buybackBurnPercentage,
       }).to.deep.eq(feesNew);
       // Convert stakingRewards tuple to object for each tier
       for (let tierValue = 0; tierValue < stakingRewardsNew.length; tierValue++) {
@@ -597,7 +601,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const USDC_balance_after = await USDC.balanceOf(USDC_whale.address);
       expect(USDC_balance_before.sub(willBeTaken)).to.eq(USDC_balance_after);
 
-      expect(await USDC.balanceOf(treasury.address)).to.eq(paymentToTreasury);
+      expect(await USDC.balanceOf(treasury.address)).to.eq(paymentToTreasury.div(2));
 
       await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
       await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
@@ -605,6 +609,8 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         .to.emit(belongCheckIn, 'Swapped')
         .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
       await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
+      await expect(tx).to.emit(belongCheckIn, 'RevenueBuybackBurn');
+      await expect(tx).to.emit(belongCheckIn, 'BurnedLONGs');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(0);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.bountyType).to.eq(1);
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(1);
@@ -3702,7 +3708,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before, true);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before)).to.eq(escrowBalance_after);
-      expect(feeReceiverBalance_before.add(platformFees)).to.eq(feeReceiverBalance_after);
+      expect(feeReceiverBalance_before.add(platformFees)).to.eq(feeReceiverBalance_after.mul(2));
       expect(promoterBalance_before.add(toPromoter)).to.eq(promoterBalance_after);
       expect(promoterBalance_promoterToken_before.sub(promoterBalance_promoterToken_before)).to.eq(
         promoterBalance_promoterToken_after,
@@ -3911,7 +3917,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         .withArgs(referral.address, USDC_whale.address, promoterBalance_promoterToken_before.div(2), true);
 
       expect(escrowBalance_before.sub(promoterBalance_promoterToken_before.div(2))).to.eq(escrowBalance_after);
-      expect(feeReceiverBalance_before.add(platformFees)).to.eq(feeReceiverBalance_after);
+      expect(feeReceiverBalance_before.add(platformFees)).to.eq(feeReceiverBalance_after.mul(2));
       expect(promoterBalance_before.add(toPromoter)).to.eq(promoterBalance_after);
       expect(promoterBalance_promoterToken_before.sub(promoterBalance_promoterToken_before.div(2))).to.eq(
         promoterBalance_promoterToken_after,
