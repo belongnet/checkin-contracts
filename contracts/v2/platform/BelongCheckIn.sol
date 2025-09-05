@@ -35,8 +35,9 @@ import {
 /// @dev
 /// - Uses ERC1155 credits (`CreditToken`) to track venue balances and promoter entitlements in USD units.
 /// - Delegates custody and distribution of USDC/LONG to `Escrow`.
-/// - Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps USDC→LONG on DEX V3 (e.g. UniswapV3 or PancakeswapV3).
+/// - Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps on a V3 DEX router/quoter.
 /// - Applies tiered fees/discounts depending on staked balance in `Staking`.
+/// - Applies buyback-and-burn on platform revenue per `Fees.buybackBurnPercentage`.
 /// - Signature-gated actions are authorized through a platform signer configured in `Factory`.
 contract BelongCheckIn is Initializable, Ownable {
     using SignatureVerifier for address;
@@ -72,6 +73,7 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @notice Thrown when no valid swap path is found for a USDC→LONG OR LONG→USDC swap.
     error NoValidSwapPath();
 
+    /// @notice Thrown when LONG cannot be burned or transferred to the burn address.
     error TokensCanNotBeBurned();
 
     // ========== Events ==========
@@ -139,10 +141,13 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @param token Revenue token address (USDC or LONG).
     /// @param gross Total revenue processed.
     /// @param buyback Amount allocated to buyback/burn (in revenue token units for USDC, LONG units for LONG).
-    /// @param burnedLONG Amount of LONG burned.
+    /// @param burnedLONG Amount of LONG burned (or 0 if burn failed and was handled differently).
     /// @param fees Amount forwarded to fee collector address.
     event RevenueBuybackBurn(address indexed token, uint256 gross, uint256 buyback, uint256 burnedLONG, uint256 fees);
 
+    /// @notice Emitted when LONG is burned or sent to a burn address as a fallback.
+    /// @param burnedTo Address to which LONG was sent (zero address if direct burn, `DEAD` if transferred).
+    /// @param amountBurned Amount of LONG burned or transferred to the burn address.
     event BurnedLONGs(address burnedTo, uint256 amountBurned);
 
     // ========== Structs ==========
@@ -228,6 +233,7 @@ contract BelongCheckIn is Initializable, Ownable {
 
     // ========== State Variables ==========
 
+    /// @notice Fallback burn address used if direct `burn` reverts.
     address private constant DEAD = 0x000000000000000000000000000000000000dEaD;
     /// @notice Global program configuration.
     BelongCheckInStorage public belongCheckInStorage;
@@ -361,8 +367,9 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
     /// - Applies staking-tier-based `depositFeePercentage` unless remaining free credits > 0.
-    /// - Charges convenience + affiliate fees in USDC, swaps convenience fee to LONG, and forwards USDC to `Escrow`.
-    /// - Mints venue credits (ERC1155) representing USD units deposited.
+    /// - Charges convenience + affiliate fees in USDC; convenience fee is swapped to LONG and escrowed as LONG discount.
+    /// - Applies buyback/burn split on the platform’s deposit fee portion per `Fees.buybackBurnPercentage`.
+    /// - Forwards net USDC deposit to `Escrow` and mints venue credits (ERC1155) representing USD units deposited.
     /// @param venueInfo Signed venue deposit parameters (venue, amount, referral code, rules, uri).
     function venueDeposit(VenueInfo calldata venueInfo) external {
         BelongCheckInStorage memory _storage = belongCheckInStorage;
@@ -496,8 +503,8 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
     /// - Applies tiered platform fee based on `Staking` balance of the promoter.
-    /// - For USDC payout: pulls from `Escrow` venue deposit to feeCollector and promoter.
-    /// - For LONG payout: pulls USDC from `Escrow`, swaps to LONG (fee + promoter portions), and transfers out.
+    /// - For USDC payout: pulls fee and promoter portions from `Escrow`; fee portion is routed here to apply buyback/burn.
+    /// - For LONG payout: pulls USDC from `Escrow`, swaps to LONG; fee portion is routed here for buyback/burn.
     /// - Burns promoter credits by the settled USD amount.
     /// @param promoterInfo Signed settlement parameters (promoter, venue, amountInUSD, payout currency flag).
     function distributePromoterPayments(PromoterInfo memory promoterInfo) external {
