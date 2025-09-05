@@ -1,7 +1,7 @@
 import hre, { ethers, network } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { IERC20Metadata } from '../typechain-types';
-import { chainRPCs } from '../utils/chain-ids';
+import { ChainIds, chainRPCs } from '../utils/chain-ids';
 
 export async function getSignerFromAddress(address: string): Promise<SignerWithAddress> {
   await hre.network.provider.request({
@@ -24,7 +24,7 @@ export async function startSimulateMainnet() {
     params: [
       {
         forking: {
-          jsonRpcUrl: chainRPCs(1),
+          jsonRpcUrl: chainRPCs(ChainIds.mainnet),
           blockNumber: 23269482,
           enable: true,
         },
@@ -33,7 +33,22 @@ export async function startSimulateMainnet() {
   });
 }
 
-export async function stopSimulateMainnet() {
+export async function startSimulateBSC() {
+  await network.provider.request({
+    method: 'hardhat_reset',
+    params: [
+      {
+        forking: {
+          jsonRpcUrl: chainRPCs(ChainIds.bsc),
+          blockNumber: 60090344,
+          enable: true,
+        },
+      },
+    ],
+  });
+}
+
+export async function stopSimulate() {
   await network.provider.request({
     method: 'hardhat_reset',
     params: [],
