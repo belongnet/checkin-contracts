@@ -93,10 +93,17 @@ abstract contract ReferralSystemV2 {
         return rate;
     }
 
+    /// @notice Calculates `percentage` of `amount` using BPS scaling (10_000 == 100%).
+    /// @param amount Base amount.
+    /// @param percentage Percentage in BPS.
+    /// @return rate Calculated portion of the amount.
     function calculateRate(uint256 amount, uint256 percentage) public pure returns (uint256 rate) {
         rate = (amount * percentage) / SCALING_FACTOR;
     }
 
+    /// @notice Computes the deterministic referral code for a creator address.
+    /// @param creator Creator address.
+    /// @return The keccak256 hash used as a referral code.
     function getReferralCodeByCreator(address creator) public view returns (bytes32) {
         return keccak256(abi.encodePacked(creator, address(this), block.chainid));
     }

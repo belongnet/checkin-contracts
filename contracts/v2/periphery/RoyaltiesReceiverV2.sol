@@ -7,11 +7,10 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {Factory} from "../platform/Factory.sol";
 
 /**
- * @title RoyaltiesReceiver
- * @notice A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
- * @dev Handles payment distribution based on shares assigned to payees. Fork of OZ's PaymentSplitter with some changes.
- * The only change is that common `release()` functions are replaced with `releaseAll()` functions,
- * which allow the caller to transfer funds for both the creator and the platform.
+ * @title RoyaltiesReceiverV2
+ * @notice Manages and releases royalty payments in native NativeCurrency and ERC20 tokens.
+ * @dev Fork of OZ PaymentSplitter with changes: common `release()` variants are replaced with
+ *      `releaseAll()` functions to release funds for creator, platform and optional referral in one call.
  */
 contract RoyaltiesReceiverV2 is Initializable {
     using SafeTransferLib for address;
@@ -27,10 +26,10 @@ contract RoyaltiesReceiverV2 is Initializable {
     /// @param shares The number of shares assigned to the payee.
     event PayeeAdded(address indexed account, uint256 shares);
 
-    /// @notice Emitted when a payment in native Ether is released.
-    /// @param token The address of the ERC20 token if address(0) then native currency.
+    /// @notice Emitted when a payment is released in native NativeCurrency or an ERC20 token.
+    /// @param token The ERC20 token address, or `NATIVE_CURRENCY_ADDRESS` for native currency.
     /// @param to The address receiving the payment.
-    /// @param amount The amount of Ether released.
+    /// @param amount The amount released.
     event PaymentReleased(address indexed token, address indexed to, uint256 amount);
 
     /// @notice Emitted when the contract receives native Ether.
@@ -60,8 +59,8 @@ contract RoyaltiesReceiverV2 is Initializable {
         address referral;
     }
 
-    /// @notice The constant address representing ETH.
-    address public constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    /// @notice The constant address representing NativeCurrency.
+    address public constant NATIVE_CURRENCY_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice Total shares amount.
     uint256 public constant TOTAL_SHARES = 10000;
@@ -87,7 +86,10 @@ contract RoyaltiesReceiverV2 is Initializable {
     // }
 
     /**
-     * @notice Initializes the contract with a list of payees and their respective shares.
+     * @notice Initializes the contract with payees and a Factory reference.
+     * @param _royaltiesReceivers Payee addresses for creator, platform and optional referral.
+     * @param _factory Factory instance to read royalties parameters and referrals.
+     * @param referralCode_ Referral code associated with this receiver.
      */
     function initialize(RoyaltiesReceivers calldata _royaltiesReceivers, Factory _factory, bytes32 referralCode_)
         external
@@ -98,6 +100,10 @@ contract RoyaltiesReceiverV2 is Initializable {
         referralCode = referralCode_;
     }
 
+    /// @notice Returns shares (in BPS, out of TOTAL_SHARES) for a given account.
+    /// @dev Platform share may be reduced by a referral share if a referral payee is set.
+    /// @param account The account to query (creator, platform or referral).
+    /// @return The share assigned to the account in BPS (out of TOTAL_SHARES).
     function shares(address account) public view returns (uint256) {
         RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
 
@@ -126,15 +132,15 @@ contract RoyaltiesReceiverV2 is Initializable {
     }
 
     /**
-     * @notice Logs the receipt of Ether. Called when the contract receives Ether.
+     * @notice Logs the receipt of NativeCurrency. Triggered on plain NativeCurrency transfers.
      */
     receive() external payable {
         emit PaymentReceived(msg.sender, msg.value);
     }
 
     /**
-     * @notice Releases all pending payments for a given currency to the payees.
-     * @param token The address of the currecny to be released (ERC20 token address or address(0) for native Ether).
+     * @notice Releases all pending payments for a currency to the payees.
+     * @param token The currency to release: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency.
      */
     function releaseAll(address token) external {
         RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
@@ -148,8 +154,9 @@ contract RoyaltiesReceiverV2 is Initializable {
     }
 
     /**
-     * @notice Releases pending ERC20 token payments for a given token to the payee.
-     * @param token The address of the currecny to be released (ERC20 token address or address(0) for native Ether).
+     * @notice Releases pending payments for a currency to a specific payee.
+     * @param token The currency to release: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency.
+     * @param to The payee address to release to.
      */
     function release(address token, address to) external {
         _onlyToPayee(to);
@@ -158,12 +165,12 @@ contract RoyaltiesReceiverV2 is Initializable {
     }
 
     /**
-     * @notice Returns the total amount of a specific currency already released to payees.
-     * @param token The address of the currecny to be released (ERC20 token address or address(0) for native Ether).
+     * @notice Returns the total amount of a currency already released to payees.
+     * @param token The currency queried: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency.
      * @return The total amount released.
      */
     function totalReleased(address token) external view returns (uint256) {
-        if (token == ETH_ADDRESS) {
+        if (token == NATIVE_CURRENCY_ADDRESS) {
             return nativeReleases.totalReleased;
         } else {
             return erc20Releases[token].totalReleased;
@@ -171,13 +178,13 @@ contract RoyaltiesReceiverV2 is Initializable {
     }
 
     /**
-     * @notice Returns the amount of a specific ERC20 token already released to a specific payee.
-     * @param token The address of the ERC20 token.
+     * @notice Returns the amount of a specific currency already released to a specific payee.
+     * @param token The currency queried: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency.
      * @param account The address of the payee.
      * @return The amount of tokens released to the payee.
      */
     function released(address token, address account) external view returns (uint256) {
-        if (token == ETH_ADDRESS) {
+        if (token == NATIVE_CURRENCY_ADDRESS) {
             return nativeReleases.released[account];
         } else {
             return erc20Releases[token].released[account];
@@ -186,11 +193,11 @@ contract RoyaltiesReceiverV2 is Initializable {
 
     /**
      * @dev Internal function to release the pending payment for a payee.
-     * @param token The ERC20 token address, or address(0) for native Ether.
+     * @param token The ERC20 token address, or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency.
      * @param account The payee's address receiving the payment.
      */
     function _release(address token, address account) private {
-        bool isNativeRelease = token == ETH_ADDRESS;
+        bool isNativeRelease = token == NATIVE_CURRENCY_ADDRESS;
         uint256 payment = _pendingPayment(isNativeRelease, token, account);
 
         if (payment == 0) {
@@ -211,8 +218,10 @@ contract RoyaltiesReceiverV2 is Initializable {
     }
 
     /**
-     * @dev Internal logic for computing the pending payment for an account.
-     * @param account The address of the payee.
+     * @dev Computes the pending payment for an account in a given currency.
+     * @param isNativeRelease True if the currency is native NativeCurrency, false for ERC20.
+     * @param token The ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency.
+     * @param account The payee to compute pending payment for.
      * @return The amount of funds still owed to the payee.
      */
     function _pendingPayment(bool isNativeRelease, address token, address account) private view returns (uint256) {
@@ -228,6 +237,8 @@ contract RoyaltiesReceiverV2 is Initializable {
         return payment - releases.released[account];
     }
 
+    /// @dev Reverts unless `account` is one of the configured payees.
+    /// @param account The account to validate as a payee.
     function _onlyToPayee(address account) private view {
         RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
 
