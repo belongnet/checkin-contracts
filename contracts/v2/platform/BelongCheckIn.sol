@@ -262,53 +262,53 @@ contract BelongCheckIn is Initializable, Ownable {
         ); // 5 USDC
         RewardsInfo[5] memory stakingRewardsInfo = [
             RewardsInfo(
-                VenueStakingRewardInfo({
-                    depositFeePercentage: 1000, //10%
-                    convenienceFeeAmount: convenienceFeeAmount // $5
-                }),
                 PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
                     longPercentage: 800 // 8%
+                }),
+                VenueStakingRewardInfo({
+                    depositFeePercentage: 1000, //10%
+                    convenienceFeeAmount: convenienceFeeAmount // $5
                 })
             ),
             RewardsInfo(
-                VenueStakingRewardInfo({
-                    depositFeePercentage: 900, // 9%
-                    convenienceFeeAmount: convenienceFeeAmount // $5
-                }),
                 PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
                     longPercentage: 700 // 7%
+                }),
+                VenueStakingRewardInfo({
+                    depositFeePercentage: 900, // 9%
+                    convenienceFeeAmount: convenienceFeeAmount // $5
                 })
             ),
             RewardsInfo(
-                VenueStakingRewardInfo({
-                    depositFeePercentage: 800, // 8%
-                    convenienceFeeAmount: convenienceFeeAmount // $5
-                }),
                 PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
                     longPercentage: 600 // 6%
+                }),
+                VenueStakingRewardInfo({
+                    depositFeePercentage: 800, // 8%
+                    convenienceFeeAmount: convenienceFeeAmount // $5
                 })
             ),
             RewardsInfo(
-                VenueStakingRewardInfo({
-                    depositFeePercentage: 700, // 7%
-                    convenienceFeeAmount: convenienceFeeAmount // $5
-                }),
                 PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
                     longPercentage: 500 // 5%
+                }),
+                VenueStakingRewardInfo({
+                    depositFeePercentage: 700, // 7%
+                    convenienceFeeAmount: convenienceFeeAmount // $5
                 })
             ),
             RewardsInfo(
-                VenueStakingRewardInfo({
-                    depositFeePercentage: 500, // 5%
-                    convenienceFeeAmount: convenienceFeeAmount // $5
-                }),
                 PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
                     longPercentage: 400 // 4%
+                }),
+                VenueStakingRewardInfo({
+                    depositFeePercentage: 500, // 5%
+                    convenienceFeeAmount: convenienceFeeAmount // $5
                 })
             )
         ];
