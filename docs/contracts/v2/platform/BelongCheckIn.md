@@ -7,8 +7,9 @@ Orchestrates venue deposits, customer payments, and promoter payouts for a
 @dev
 - Uses ERC1155 credits (`CreditToken`) to track venue balances and promoter entitlements in USD units.
 - Delegates custody and distribution of USDC/LONG to `Escrow`.
-- Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps USDC→LONG on Uniswap V3.
+- Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps on a V3 DEX router/quoter.
 - Applies tiered fees/discounts depending on staked balance in `Staking`.
+- Applies buyback-and-burn on platform revenue per `Fees.buybackBurnPercentage`.
 - Signature-gated actions are authorized through a platform signer configured in `Factory`.
 
 ### WrongReferralCode
@@ -86,6 +87,14 @@ error NoValidSwapPath()
 ```
 
 Thrown when no valid swap path is found for a USDC→LONG OR LONG→USDC swap.
+
+### TokensCanNotBeBurned
+
+```solidity
+error TokensCanNotBeBurned()
+```
+
+Thrown when LONG cannot be burned or transferred to the burn address.
 
 ### ParametersSet
 
@@ -217,6 +226,39 @@ Emitted after a USDC→LONG swap via Uniswap V3.
 | amountIn | uint256 | The USDC input amount. |
 | amountOut | uint256 | The LONG output amount. |
 
+### RevenueBuybackBurn
+
+```solidity
+event RevenueBuybackBurn(address token, uint256 gross, uint256 buyback, uint256 burnedLONG, uint256 fees)
+```
+
+Emitted when revenue is processed for buyback/burn.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| token | address | Revenue token address (USDC or LONG). |
+| gross | uint256 | Total revenue processed. |
+| buyback | uint256 | Amount allocated to buyback/burn (in revenue token units for USDC, LONG units for LONG). |
+| burnedLONG | uint256 | Amount of LONG burned (or 0 if burn failed and was handled differently). |
+| fees | uint256 | Amount forwarded to fee collector address. |
+
+### BurnedLONGs
+
+```solidity
+event BurnedLONGs(address burnedTo, uint256 amountBurned)
+```
+
+Emitted when LONG is burned or sent to a burn address as a fallback.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| burnedTo | address | Address to which LONG was sent (zero address if direct burn, `DEAD` if transferred). |
+| amountBurned | uint256 | Amount of LONG burned or transferred to the burn address. |
+
 ### BelongCheckInStorage
 
 Top-level storage bundle for program configuration.
@@ -264,6 +306,7 @@ struct Fees {
   uint24 longCustomerDiscountPercentage;
   uint24 platformSubsidyPercentage;
   uint24 processingFeePercentage;
+  uint24 buybackBurnPercentage;
 }
 ```
 
@@ -450,8 +493,9 @@ Handles a venue USDC deposit, affiliate fee processing, convenience fee, and esc
 @dev
 - Signature-validated via platform signer from `Factory`.
 - Applies staking-tier-based `depositFeePercentage` unless remaining free credits > 0.
-- Charges convenience + affiliate fees in USDC, swaps convenience fee to LONG, and forwards USDC to `Escrow`.
-- Mints venue credits (ERC1155) representing USD units deposited.
+- Charges convenience + affiliate fees in USDC; convenience fee is swapped to LONG and escrowed as LONG discount.
+- Applies buyback/burn split on the platform’s deposit fee portion per `Fees.buybackBurnPercentage`.
+- Forwards net USDC deposit to `Escrow` and mints venue credits (ERC1155) representing USD units deposited.
 
 #### Parameters
 
@@ -488,8 +532,8 @@ Settles promoter credits into a payout in either USDC or LONG.
 @dev
 - Signature-validated via platform signer from `Factory`.
 - Applies tiered platform fee based on `Staking` balance of the promoter.
-- For USDC payout: pulls from `Escrow` venue deposit to feeCollector and promoter.
-- For LONG payout: pulls USDC from `Escrow`, swaps to LONG (fee + promoter portions), and transfers out.
+- For USDC payout: pulls fee and promoter portions from `Escrow`; fee portion is routed here to apply buyback/burn.
+- For LONG payout: pulls USDC from `Escrow`, swaps to LONG; fee portion is routed here for buyback/burn.
 - Burns promoter credits by the settled USD amount.
 
 #### Parameters
@@ -612,6 +656,21 @@ function _swapExact(address tokenIn, address tokenOut, address recipient, uint25
 ```
 
 _Common swap executor with minimal approvals and conservative slippage._
+
+### _handleRevenue
+
+```solidity
+function _handleRevenue(address token, uint256 amount) internal
+```
+
+_Splits platform revenue: allocate `buybackBurnPercentage` to LONG buyback/burn, forward remainder to fee collector._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| token | address | Revenue token address (USDC or LONG supported). |
+| amount | uint256 | Revenue amount received by this contract. |
 
 ### _buildPath
 
