@@ -457,8 +457,10 @@ contract BelongCheckIn is Initializable, Ownable {
             uint256 longAmount = subsidyMinusFees + longFromCustomer;
 
             if (rules.longPaymentType == LongPaymentTypes.AutoStake) {
-                _storage.paymentsInfo.long.safeApprove(address(_storage.contracts.staking), longAmount);
+                // Approve only what is needed, then clear allowance after deposit.
+                _storage.paymentsInfo.long.safeApproveWithRetry(address(_storage.contracts.staking), longAmount);
                 _storage.contracts.staking.deposit(longAmount, customerInfo.venueToPayFor);
+                _storage.paymentsInfo.long.safeApprove(address(_storage.contracts.staking), 0);
             } else if (rules.longPaymentType == LongPaymentTypes.AutoConvert) {
                 _swapLONGtoUSDC(customerInfo.venueToPayFor, longAmount);
             } else {
@@ -504,20 +506,20 @@ contract BelongCheckIn is Initializable, Ownable {
 
         uint256 toPromoter = promoterInfo.amountInUSD;
         uint24 percentage = promoterInfo.paymentInUSDC ? stakingInfo.usdcPercentage : stakingInfo.longPercentage;
-        uint256 plaformFees = percentage.calculateRate(toPromoter);
+        uint256 platformFees = percentage.calculateRate(toPromoter);
         unchecked {
-            toPromoter -= plaformFees;
+            toPromoter -= platformFees;
         }
 
         if (promoterInfo.paymentInUSDC) {
-            _storage.contracts.escrow.distributeVenueDeposit(promoterInfo.venue, feeCollector, plaformFees);
+            _storage.contracts.escrow.distributeVenueDeposit(promoterInfo.venue, feeCollector, platformFees);
             _storage.contracts.escrow.distributeVenueDeposit(promoterInfo.venue, promoterInfo.promoter, toPromoter);
         } else {
             _storage.contracts.escrow.distributeVenueDeposit(
                 promoterInfo.venue, address(this), promoterInfo.amountInUSD
             );
 
-            _swapUSDCtoLONG(feeCollector, plaformFees);
+            _swapUSDCtoLONG(feeCollector, platformFees);
             _swapUSDCtoLONG(promoterInfo.promoter, toPromoter);
         }
 
