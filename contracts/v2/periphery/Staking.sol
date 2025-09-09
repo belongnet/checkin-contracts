@@ -76,7 +76,7 @@ contract Staking is Initializable, ERC4626, Ownable {
     // ============================== Constants ==============================
 
     /// @notice Percentage scaling factor where 10_000 equals 100%.
-    uint16 public constant SCALING_FACTOR = 10000;
+    uint256 public constant SCALING_FACTOR = 10_000;
 
     // ============================== Immutables ==============================
 
@@ -113,7 +113,7 @@ contract Staking is Initializable, ERC4626, Ownable {
     function initialize(address _owner, address _treasury, address long) external initializer {
         LONG = long;
         minStakePeriod = 1 days;
-        penaltyPercentage = 1000;
+        penaltyPercentage = 1000; // 10%
         _setTreasury(_treasury);
         _initializeOwner(_owner);
     }
