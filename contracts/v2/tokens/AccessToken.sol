@@ -6,6 +6,7 @@ import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC2981} from "solady/src/tokens/ERC2981.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
+import {ReentrancyGuard} from "solady/src/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 import {CreatorToken} from "../../utils/CreatorToken.sol";
@@ -22,7 +23,7 @@ import {StaticPriceParameters, DynamicPriceParameters, AccessTokenInfo} from "..
 /// - Payments can be in NativeCurrency or an ERC-20 token; platform fee and referral split are applied.
 /// - Transfer validation is enforced via `CreatorToken` when transfers are enabled.
 /// - `mintStaticPrice` and `mintDynamicPrice` are signature-gated (see `SignatureVerifier`).
-contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable, CreatorToken {
+contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable, ReentrancyGuard, CreatorToken {
     using SafeTransferLib for address;
     using SignatureVerifier for address;
 
@@ -160,7 +161,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         StaticPriceParameters[] calldata paramsArray,
         address expectedPayingToken,
         uint256 expectedMintPrice
-    ) external payable {
+    ) external payable nonReentrant {
         Factory factory = parameters.factory;
         require(paramsArray.length <= factory.nftFactoryParameters().maxArraySize, WrongArraySize());
 
@@ -194,7 +195,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         address receiver,
         DynamicPriceParameters[] calldata paramsArray,
         address expectedPayingToken
-    ) external payable {
+    ) external payable nonReentrant {
         Factory factory = parameters.factory;
         require(paramsArray.length <= factory.nftFactoryParameters().maxArraySize, WrongArraySize());
 
