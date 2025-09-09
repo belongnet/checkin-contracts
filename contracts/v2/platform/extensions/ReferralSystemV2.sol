@@ -133,32 +133,30 @@ abstract contract ReferralSystemV2 {
      * @param referralUser The address of the user being referred.
      */
     function _setReferralUser(bytes32 hashedCode, address referralUser) internal {
-        if (hashedCode == bytes32(0)) {
-            return;
-        }
-
+        if (hashedCode == bytes32(0)) return;
         ReferralCode memory referral = referrals[hashedCode];
 
         require(referral.creator != address(0), ReferralCreatorNotExists());
         require(referralUser != referral.creator, ReferralUserIsReferralCreator());
 
         // Check if the user is already in the array
+        address[] storage users = referrals[hashedCode].referralUsers;
+
         bool inArray;
-        for (uint256 i = 0; i < referral.referralUsers.length; ++i) {
-            if (referral.referralUsers[i] == referralUser) {
+        uint256 len = users.length;
+        for (uint256 i; i < len; ++i) {
+            if (users[i] == referralUser) {
                 // User already added; no need to add again
                 inArray = true;
                 break;
             }
         }
+        if (!inArray) users.push(referralUser);
 
-        if (!inArray) {
-            referrals[hashedCode].referralUsers.push(referralUser);
-        }
-
-        if (usedCode[referralUser][hashedCode] < 4) {
+        uint256 used = usedCode[referralUser][hashedCode];
+        if (used < 4) {
             unchecked {
-                ++usedCode[referralUser][hashedCode];
+                usedCode[referralUser][hashedCode] = used + 1;
             }
         }
 
