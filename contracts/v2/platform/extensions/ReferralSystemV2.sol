@@ -24,7 +24,7 @@ abstract contract ReferralSystemV2 {
     /// @param code The referral code the user has not used.
     error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
 
-    error PecentageExceedsMax(uint16 percentage);
+    error PercentageExceedsMax(uint16 percentage);
 
     // ========== Events ==========
 
@@ -65,7 +65,7 @@ abstract contract ReferralSystemV2 {
     mapping(bytes32 code => ReferralCode referralCode) internal referrals;
 
     /// @notice Maps referral users to their respective used codes and counts the number of times the code was used.
-    mapping(address referralUser => mapping(bytes32 code => uint256 timesUsed)) public usedCode;
+    mapping(address referralUser => mapping(bytes32 code => uint8 timesUsed)) public usedCode;
 
     // ========== Functions ==========
 
@@ -88,7 +88,7 @@ abstract contract ReferralSystemV2 {
      * @notice Returns the referral rate for a user and code, based on the number of times the code was used.
      */
     function getReferralRate(address referralUser, bytes32 code, uint256 amount) public view returns (uint256 rate) {
-        uint256 used = usedCode[referralUser][code];
+        uint8 used = usedCode[referralUser][code];
         require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
 
         return calculateRate(amount, usedToPercentage[used]);
@@ -165,8 +165,8 @@ abstract contract ReferralSystemV2 {
     }
 
     function _setReferralParameters(uint16[5] calldata percentages) internal {
-        for (uint256 i = 0; i < percentages.length; ++i) {
-            require(percentages[i] <= SCALING_FACTOR, PecentageExceedsMax(percentages[i]));
+        for (uint256 i; i < percentages.length; ++i) {
+            require(percentages[i] <= SCALING_FACTOR, PercentageExceedsMax(percentages[i]));
             usedToPercentage[i] = percentages[i];
         }
 
