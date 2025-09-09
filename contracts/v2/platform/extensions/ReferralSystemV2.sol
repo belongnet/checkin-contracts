@@ -54,6 +54,7 @@ abstract contract ReferralSystemV2 {
 
     /// @notice The scaling factor for referral percentages.
     uint16 public constant SCALING_FACTOR = 10000;
+    uint8 public constant MAX_TIER_INDEX = 4; // tiers: 0..4
 
     // ========== State Variables ==========
 
@@ -153,8 +154,8 @@ abstract contract ReferralSystemV2 {
         }
         if (!inArray) users.push(referralUser);
 
-        uint256 used = usedCode[referralUser][hashedCode];
-        if (used < 4) {
+        uint8 used = usedCode[referralUser][hashedCode];
+        if (used < MAX_TIER_INDEX) {
             unchecked {
                 usedCode[referralUser][hashedCode] = used + 1;
             }
