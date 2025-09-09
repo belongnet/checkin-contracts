@@ -88,9 +88,9 @@ abstract contract ReferralSystemV2 {
      */
     function getReferralRate(address referralUser, bytes32 code, uint256 amount) public view returns (uint256 rate) {
         uint256 used = usedCode[referralUser][code];
-        rate = calculateRate(amount, usedToPercentage[used]);
         require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
-        return rate;
+
+        return calculateRate(amount, usedToPercentage[used]);
     }
 
     /// @notice Calculates `percentage` of `amount` using BPS scaling (10_000 == 100%).
