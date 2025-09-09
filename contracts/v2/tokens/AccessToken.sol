@@ -167,7 +167,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         AccessTokenInfo memory info = parameters.info;
 
         uint256 amountToPay;
-        for (uint256 i = 0; i < paramsArray.length; ++i) {
+        for (uint256 i; i < paramsArray.length; ++i) {
             factory.nftFactoryParameters().signerAddress.checkStaticPriceParameters(receiver, paramsArray[i]);
 
             uint256 price = paramsArray[i].whitelisted ? info.whitelistMintPrice : info.mintPrice;
@@ -199,7 +199,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         require(paramsArray.length <= factory.nftFactoryParameters().maxArraySize, WrongArraySize());
 
         uint256 amountToPay;
-        for (uint256 i = 0; i < paramsArray.length; ++i) {
+        for (uint256 i; i < paramsArray.length; ++i) {
             factory.nftFactoryParameters().signerAddress.checkDynamicPriceParameters(receiver, paramsArray[i]);
 
             unchecked {
