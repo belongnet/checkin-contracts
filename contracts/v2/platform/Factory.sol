@@ -42,6 +42,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Thrown when a collection with the same `(name, symbol)` already exists.
     error TokenAlreadyExists();
 
+    error VestingWalletAlreadyExists();
+
     /// @notice Thrown when `amountToCreator + amountToPlatform > 10000` (i.e., >100% in BPS).
     error TotalRoyaltiesExceed100Pecents();
 
@@ -54,6 +56,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Thrown when the deployed CreditToken address does not match the predicted address.
     error CreditTokenAddressMismatch();
 
+    error VestingWalletAddressMismatch();
+
     // ========== Events ==========
 
     /// @notice Emitted after successful creation of an AccessToken collection.
@@ -65,6 +69,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param _hash Keccak256 hash of `(name, symbol)`.
     /// @param info Deployed collection details.
     event CreditTokenCreated(bytes32 indexed _hash, CreditTokenInstanceInfo info);
+
+    event VestingWalletCreated(bytes32 indexed _hash, VestingWalletInstanceInfo info);
 
     /// @notice Emitted when factory/global parameters are updated.
     /// @param factoryParameters New factory parameters.
