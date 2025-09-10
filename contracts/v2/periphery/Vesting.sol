@@ -160,6 +160,22 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         return vestedAmount(uint64(block.timestamp)) - released;
     }
 
+    function start() public view returns (uint64) {
+        return vestingStorage.startTimestamp;
+    }
+
+    function cliff() public view returns (uint64) {
+        return vestingStorage.startTimestamp + vestingStorage.cliffDurationSeconds;
+    }
+
+    function duration() public view returns (uint64) {
+        return vestingStorage.durationSeconds;
+    }
+
+    function end() public view returns (uint64) {
+        return cliff() + duration();
+    }
+
     function tranchesLength() external view returns (uint256) {
         return tranches.length;
     }
