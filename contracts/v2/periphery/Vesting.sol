@@ -33,19 +33,21 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     // ========= Immutables / Config =========
-    address public immutable token;
-    address public immutable beneficiary;
 
-    uint64 public immutable start; // TGE
-    uint64 public immutable cliff; // start + cliffDuration
-    uint64 public immutable duration; // linear duration (sec)
-    uint64 public immutable end; // cliff + duration
-
-    uint256 public immutable totalAllocation;
-    uint256 public immutable tgeAmount; // one-off at start
-    uint256 public immutable linearAllocation; // linear part after cliff
+    struct VestingWalletStorage {
+        address token;
+        address beneficiary;
+        uint64 startTimestamp; // TGE
+        uint64 cliffDurationSeconds; // start + cliffDuration
+        uint64 durationSeconds; // linear duration (sec)
+        uint64 end; // cliff + duration
+        uint256 totalAllocation;
+        uint256 tgeAmount; // one-off at start
+        uint256 linearAllocation; // linear part after cliff
+    }
 
     // ========= State =========
+    VestingWalletStorage public vestingStorage;
     uint256 public released;
     bool public tranchesConfigurationFinalized;
 
