@@ -13,8 +13,9 @@ import {
   VestingWalletExtended,
 } from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { AccessTokenInfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
+import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
 import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
+import { hashAccessTokenInfo, hashERC1155Info, hashVestingInfo } from './math';
 
 export type TokenMetadata = { name: string; symbol: string; uri: string };
 
@@ -110,13 +111,7 @@ export async function deployAccessToken(
   collectionExpire: BigNumberish = BN.from('86400'),
 ): Promise<{ accessToken: AccessToken; royaltiesReceiver: RoyaltiesReceiverV2 }> {
   const chainId = (await ethers.provider.getNetwork()).chainId;
-  const message = EthCrypto.hash.keccak256([
-    { type: 'string', value: tokenMetadata.name },
-    { type: 'string', value: tokenMetadata.symbol },
-    { type: 'string', value: tokenMetadata.uri },
-    { type: 'uint96' as any, value: 600 },
-    { type: 'uint256', value: chainId },
-  ]);
+  const message = hashAccessTokenInfo(tokenMetadata.name, tokenMetadata.symbol, tokenMetadata.uri, 600, chainId);
   const signature = EthCrypto.sign(signer.privateKey, message);
 
   const instanceInfo: AccessTokenInfoStruct = {
@@ -166,52 +161,39 @@ export async function deployCreditTokens(
   promoterToken: CreditToken;
 }> {
   const chainId = (await ethers.provider.getNetwork()).chainId;
-  const venueTokenMessage = EthCrypto.hash.keccak256([
-    { type: 'string', value: venueTokenMetadata.name },
-    { type: 'string', value: venueTokenMetadata.symbol },
-    { type: 'string', value: venueTokenMetadata.uri },
-    { type: 'uint256', value: chainId },
-  ]);
+
+  const vtInfo: ERC1155InfoStruct = {
+    name: venueTokenMetadata.name,
+    symbol: venueTokenMetadata.symbol,
+    defaultAdmin: admin.address,
+    manager: manager,
+    minter: minter,
+    burner: burner,
+    uri: venueTokenMetadata.uri,
+    transferable: transferableVenue,
+  };
+  const venueTokenMessage = hashERC1155Info(vtInfo, chainId);
   const venueTokenSignature = EthCrypto.sign(signerPk, venueTokenMessage);
 
-  const promoterTokenMessage = EthCrypto.hash.keccak256([
-    { type: 'string', value: promoterTokenMetadata.name },
-    { type: 'string', value: promoterTokenMetadata.symbol },
-    { type: 'string', value: promoterTokenMetadata.uri },
-    { type: 'uint256', value: chainId },
-  ]);
+  const ptInfo: ERC1155InfoStruct = {
+    name: promoterTokenMetadata.name,
+    symbol: promoterTokenMetadata.symbol,
+    defaultAdmin: admin.address,
+    manager: manager,
+    minter: minter,
+    burner: burner,
+    uri: promoterTokenMetadata.uri,
+    transferable: transferablePromoter,
+  };
+  const promoterTokenMessage = hashERC1155Info(ptInfo, chainId);
   const promoterTokenSignature = EthCrypto.sign(signerPk, promoterTokenMessage);
 
   const factory = await ethers.getContractAt('Factory', factoryAddress);
 
-  const tx1 = await factory.connect(admin).produceCreditToken(
-    {
-      name: venueTokenMetadata.name,
-      symbol: venueTokenMetadata.symbol,
-      defaultAdmin: admin.address,
-      manager: manager,
-      minter: minter,
-      burner: burner,
-      uri: venueTokenMetadata.uri,
-      transferable: transferableVenue,
-    },
-    venueTokenSignature,
-  );
+  const tx1 = await factory.connect(admin).produceCreditToken(vtInfo, venueTokenSignature);
   await tx1.wait(1);
 
-  const tx2 = await factory.connect(admin).produceCreditToken(
-    {
-      name: promoterTokenMetadata.name,
-      symbol: promoterTokenMetadata.symbol,
-      defaultAdmin: admin.address,
-      manager: manager,
-      minter: minter,
-      burner: burner,
-      uri: promoterTokenMetadata.uri,
-      transferable: transferablePromoter,
-    },
-    promoterTokenSignature,
-  );
+  const tx2 = await factory.connect(admin).produceCreditToken(ptInfo, promoterTokenSignature);
   await tx2.wait(1);
 
   const venueTokenInstanceInfo = await factory.getCreditTokenInstanceInfo(
@@ -236,19 +218,7 @@ export async function deployVestingWallet(
   owner: SignerWithAddress,
 ): Promise<VestingWalletExtended> {
   const chainId = (await ethers.provider.getNetwork()).chainId;
-  const vestingWalletMessage = EthCrypto.hash.keccak256([
-    { type: 'address', value: owner.address },
-    { type: 'uint64', value: await vestingWalletInfo.startTimestamp },
-    { type: 'uint64', value: await vestingWalletInfo.cliffDurationSeconds },
-    { type: 'uint64', value: await vestingWalletInfo.durationSeconds },
-    { type: 'address', value: await vestingWalletInfo.token },
-    { type: 'address', value: await vestingWalletInfo.beneficiary },
-    { type: 'uint64', value: await vestingWalletInfo.totalAllocation },
-    { type: 'uint64', value: await vestingWalletInfo.tgeAmount },
-    { type: 'address', value: await vestingWalletInfo.linearAllocation },
-    { type: 'address', value: await vestingWalletInfo.description },
-    { type: 'uint256', value: chainId },
-  ]);
+  const vestingWalletMessage = hashVestingInfo(owner.address, vestingWalletInfo, chainId);
   const venueTokenSignature = EthCrypto.sign(signerPk, vestingWalletMessage);
 
   const factory = await ethers.getContractAt('Factory', factoryAddress);
