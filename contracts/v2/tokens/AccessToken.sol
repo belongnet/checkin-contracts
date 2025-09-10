@@ -107,7 +107,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
     modifier expectedTokenCheck(address token) {
         address paymentToken = parameters.info.paymentToken;
-        require(expectedPayingToken == token, TokenChanged(token));
+        require(paymentToken == token, TokenChanged(token));
         _;
     }
 
