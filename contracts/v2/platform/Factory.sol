@@ -300,6 +300,38 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         emit CreditTokenCreated(hashedSalt, creditTokenInstanceInfo);
     }
 
+    function deployVestingWallet(address _owner, VestingWalletInfo calldata vestingWalletInfo, bytes calldata signature)
+        external
+        returns (address vestingWallet)
+    {
+        _nftFactoryParameters.signerAddress.checkVestingWalletInfo(signature, _owner, vestingWalletInfo);
+
+        bytes32 hashedSalt = keccak256(abi.encodePacked(_owner, vestingWalletInfo.description));
+
+        require(_vestingWalletInstanceInfo[hashedSalt].vestingWallet == address(0), VestingWalletAlreadyExists());
+
+        address vestingWalletImplementation = _currentImplementations.vestingWallet;
+        address predictedVestingWallet =
+            vestingWalletImplementation.predictDeterministicAddressERC1967(hashedSalt, address(this));
+
+        vestingWallet = vestingWalletImplementation.deployDeterministicERC1967(hashedSalt);
+        require(predictedVestingWallet == vestingWallet, VestingWalletAddressMismatch());
+        VestingWalletExtended(vestingWallet).initialize(_owner, vestingWalletInfo);
+
+        VestingWalletInstanceInfo memory vestingWalletInstanceInfo = VestingWalletInstanceInfo({
+            startTimestamp: vestingWalletInfo.startTimestamp,
+            cliffDurationSeconds: vestingWalletInfo.cliffDurationSeconds,
+            durationSeconds: vestingWalletInfo.durationSeconds,
+            token: vestingWalletInfo.token,
+            vestingWallet: vestingWallet,
+            description: vestingWalletInfo.description
+        });
+
+        _vestingWalletInstanceInfo[hashedSalt] = vestingWalletInstanceInfo;
+
+        emit VestingWalletCreated(hashedSalt, vestingWalletInstanceInfo);
+    }
+
     // ========== Admin ==========
 
     /// @notice Updates factory parameters, royalties, implementations, and referral percentages.
