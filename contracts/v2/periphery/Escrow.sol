@@ -2,7 +2,6 @@
 pragma solidity 0.8.27;
 
 import {Initializable} from "solady/src/utils/Initializable.sol";
-import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 import {BelongCheckIn} from "../platform/BelongCheckIn.sol";
@@ -16,7 +15,7 @@ import {VenueInfo} from "../Structures.sol";
 /// - Only the BelongCheckIn contract may call mutating methods via {onlyBelongCheckIn}.
 /// - Uses SafeTransferLib for robust ERC20 transfers.
 /// - Designed for use behind an upgradeable proxy.
-contract Escrow is Initializable, Ownable {
+contract Escrow is Initializable {
     using SafeTransferLib for address;
 
     // ============================== Errors ==============================
