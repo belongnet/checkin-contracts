@@ -190,7 +190,8 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
             _baseMint(paramsArray[i].tokenId, receiver, paramsArray[i].tokenUri);
         }
 
-        require(_pay(amountToPay, expectedPayingToken) == expectedMintPrice, PriceChanged(expectedMintPrice));
+        require(amountToPay == expectedMintPrice, PriceChanged(amountToPay));
+        _pay(amountToPay, expectedPayingToken);
     }
 
     /// @notice Signature-gated batch mint with per-item dynamic prices.
@@ -312,11 +313,11 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// @param price Expected total price to charge.
     /// @param expectedPayingToken Expected payment currency (NativeCurrency or ERC-20).
     /// @return amount Amount actually charged (wei or token units).
-    function _pay(uint256 price, address expectedPayingToken) private returns (uint256 amount) {
+    function _pay(uint256 price, address expectedPayingToken) private {
         AccessTokenParameters memory _parameters = parameters;
         Factory.NftFactoryParameters memory factoryParameters = _parameters.factory.nftFactoryParameters();
 
-        amount = expectedPayingToken == NATIVE_CURRENCY_ADDRESS ? msg.value : price;
+        uint256 amount = expectedPayingToken == NATIVE_CURRENCY_ADDRESS ? msg.value : price;
 
         require(amount == price, IncorrectNativeCurrencyAmountSent(amount));
 
