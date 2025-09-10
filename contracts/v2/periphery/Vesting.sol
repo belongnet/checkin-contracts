@@ -140,6 +140,15 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         }
     }
 
+    function finalizeTranchesConfiguration() external onlyOwner notFinalizedTrancheAdding {
+        uint256 _totalAllocation = vestingStorage.totalAllocation;
+        uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + tranchesTotal;
+        require(_currentAllocation == _totalAllocation, AllocationNotBalanced(_currentAllocation, _totalAllocation));
+
+        tranchesConfigurationFinalized = true;
+        emit Finalized(block.timestamp);
+    }
+
     function release() external {
         uint256 _released = released;
         uint256 amount = vestedAmount(uint64(block.timestamp)) - _released;
@@ -150,15 +159,6 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         _token.safeTransfer(vestingStorage.beneficiary, amount);
 
         emit ERC20Released(_token, amount);
-    }
-
-    function finalizeTranchesConfiguration() external onlyOwner notFinalizedTrancheAdding {
-        uint256 _totalAllocation = vestingStorage.totalAllocation;
-        uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + tranchesTotal;
-        require(_currentAllocation == _totalAllocation, AllocationNotBalanced(_currentAllocation, _totalAllocation));
-
-        tranchesConfigurationFinalized = true;
-        emit Finalized(block.timestamp);
     }
 
     // ========= Math =========
