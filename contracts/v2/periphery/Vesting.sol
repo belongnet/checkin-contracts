@@ -16,10 +16,7 @@ contract VestingWalletExtended is Ownable {
     error TrancheAfterEnd(uint64 timestamp);
     error BadDurations(uint64 duration, uint64 cliff);
     error AllocationMismatch(uint256 tge, uint256 linear, uint256 total);
-    error AllocationNotBalanced(
-        uint256 currentAllocation,
-        uint256 totalAllocation
-    );
+    error AllocationNotBalanced(uint256 currentAllocation, uint256 totalAllocation);
     error OverAllocation(uint256 currentAllocation, uint256 totalAllocation);
 
     // ========= Events =========
@@ -69,13 +66,9 @@ contract VestingWalletExtended is Ownable {
         uint256 _tgeAmount,
         uint256 _linearAllocation
     ) {
+        require(_token != address(0) && _beneficiary != address(0), ZeroAddressPassed());
         require(
-            _token != address(0) && _beneficiary != address(0),
-            ZeroAddressPassed()
-        );
-        require(
-            _durationSeconds == 0 ||
-                _cliffDurationSeconds + _durationSeconds > 0,
+            _durationSeconds == 0 || _cliffDurationSeconds + _durationSeconds > 0,
             BadDurations(_durationSeconds, _cliffDurationSeconds)
         );
         require(
@@ -100,32 +93,21 @@ contract VestingWalletExtended is Ownable {
         _initializeOwner(msg.sender);
     }
 
-    function addTranche(
-        uint64 timestamp,
-        uint256 amount
-    ) external onlyOwner notFinalizedTrancheAdding {
+    function addTranche(uint64 timestamp, uint256 amount) external onlyOwner notFinalizedTrancheAdding {
         require(timestamp >= start, TrancheBeforeStart(timestamp));
         require(timestamp <= end, TrancheAfterEnd(timestamp));
 
         Tranche[] storage _tranches = tranches;
 
         if (_tranches.length > 0) {
-            require(
-                timestamp >= _tranches[_tranches.length - 1].timestamp,
-                NonMonotonic(timestamp)
-            );
+            require(timestamp >= _tranches[_tranches.length - 1].timestamp, NonMonotonic(timestamp));
         }
 
         uint256 _tranchesTotal = tranchesTotal + amount;
         uint256 _totalAllocation = totalAllocation;
 
-        uint256 _currentAllocation = tgeAmount +
-            linearAllocation +
-            _tranchesTotal;
-        require(
-            _currentAllocation <= _totalAllocation,
-            OverAllocation(_currentAllocation, _totalAllocation)
-        );
+        uint256 _currentAllocation = tgeAmount + linearAllocation + _tranchesTotal;
+        require(_currentAllocation <= _totalAllocation, OverAllocation(_currentAllocation, _totalAllocation));
 
         tranchesTotal = _tranchesTotal;
         _tranches.push(Tranche(timestamp, amount));
@@ -147,28 +129,17 @@ contract VestingWalletExtended is Ownable {
         emit ERC20Released(_token, amount);
     }
 
-    function finalizeTranchesConfiguration()
-        external
-        onlyOwner
-        notFinalizedTrancheAdding
-    {
+    function finalizeTranchesConfiguration() external onlyOwner notFinalizedTrancheAdding {
         uint256 _totalAllocation = totalAllocation;
 
-        uint256 _currentAllocation = tgeAmount +
-            linearAllocation +
-            tranchesTotal;
-        require(
-            _currentAllocation == _totalAllocation,
-            AllocationNotBalanced(_currentAllocation, _totalAllocation)
-        );
+        uint256 _currentAllocation = tgeAmount + linearAllocation + tranchesTotal;
+        require(_currentAllocation == _totalAllocation, AllocationNotBalanced(_currentAllocation, _totalAllocation));
 
         tranchesConfigurationFinalized = true;
         emit Finalized(block.timestamp);
     }
 
-    function vestedAmount(
-        uint64 timestamp
-    ) public view returns (uint256 total) {
+    function vestedAmount(uint64 timestamp) public view returns (uint256 total) {
         // 1) TGE
         if (timestamp >= start) {
             total = tgeAmount;
@@ -177,7 +148,7 @@ contract VestingWalletExtended is Ownable {
         // 2) Step-based
         Tranche[] storage _tranches = tranches;
         uint256 len = _tranches.length;
-        for (uint256 i; i < len; ) {
+        for (uint256 i; i < len;) {
             if (timestamp >= _tranches[i].timestamp) {
                 total += _tranches[i].amount;
                 unchecked {
