@@ -85,7 +85,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
         Tranche[] storage _tranches = tranches;
         uint256 tranchesLen = _tranches.length;
-        uint64 lastTimestamp = tranchesLen == 0 ? block.timestamp : _tranches[tranchesLen - 1].timestamp;
+        uint64 lastTimestamp = tranchesLen == 0 ? 0 : _tranches[tranchesLen - 1].timestamp;
         if (tranchesLen > 0) {
             require(tranche.timestamp >= lastTimestamp, NonMonotonic(tranche.timestamp));
         }
@@ -109,7 +109,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
         Tranche[] storage _tranches = tranches;
         uint256 tranchesLen = _tranches.length;
-        uint64 lastTimestamp = tranchesLen == 0 ? block.timestamp : _tranches[tranchesLen - 1].timestamp;
+        uint64 lastTimestamp = tranchesLen == 0 ? 0 : _tranches[tranchesLen - 1].timestamp;
 
         uint256 amountsSum;
         for (uint256 i; i < tranchesArrayLength; ++i) {
