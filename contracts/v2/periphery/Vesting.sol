@@ -90,9 +90,9 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         }
 
         uint256 _tranchesTotal = tranchesTotal + amount;
-        uint256 _totalAllocation = totalAllocation;
+        uint256 _totalAllocation = vestingStorage.totalAllocation;
 
-        uint256 _currentAllocation = tgeAmount + linearAllocation + _tranchesTotal;
+        uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + _tranchesTotal;
         require(_currentAllocation <= _totalAllocation, OverAllocation(_currentAllocation, _totalAllocation));
 
         tranchesTotal = _tranchesTotal;
@@ -105,20 +105,20 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         uint256 _released = released;
         uint256 amount = vestedAmount(uint64(block.timestamp)) - _released;
         require(amount > 0, NothingToRelease());
-        address _token = token;
+        address _token = vestingStorage.token;
 
         _released += amount;
         released = _released;
 
-        _token.safeTransfer(beneficiary, amount);
+        _token.safeTransfer(vestingStorage.beneficiary, amount);
 
         emit ERC20Released(_token, amount);
     }
 
     function finalizeTranchesConfiguration() external onlyOwner notFinalizedTrancheAdding {
-        uint256 _totalAllocation = totalAllocation;
+        uint256 _totalAllocation = vestingStorage.totalAllocation;
 
-        uint256 _currentAllocation = tgeAmount + linearAllocation + tranchesTotal;
+        uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + tranchesTotal;
         require(_currentAllocation == _totalAllocation, AllocationNotBalanced(_currentAllocation, _totalAllocation));
 
         tranchesConfigurationFinalized = true;
@@ -146,14 +146,14 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         }
 
         // 3) Linear
-        uint64 _duration = durationSeconds;
+        uint64 _duration = vestingStorage.durationSeconds;
         uint64 _cliff = cliff();
         if (_duration > 0 && timestamp >= _cliff) {
             uint256 elapsed = uint256(timestamp - _cliff);
             if (elapsed > _duration) {
                 elapsed = _duration;
             }
-            total += (linearAllocation * elapsed) / _duration;
+            total += (vestingStorage.linearAllocation * elapsed) / _duration;
         }
     }
 
