@@ -13,6 +13,7 @@ import {
   SignatureVerifier,
   Staking,
   BelongCheckIn,
+  VestingWalletExtended,
 } from '../../../typechain-types';
 import {
   deployCreditTokens,
@@ -23,6 +24,7 @@ import {
   deployStaking,
   deployBelongCheckIn,
   deployEscrow,
+  deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
 import { getSignerFromAddress, getToken, startSimulateMainnet, stopSimulate } from '../../../helpers/fork';
 import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
@@ -155,11 +157,13 @@ describe('BelongCheckIn ETH Uniswap', () => {
     const accessTokenImplementation: AccessToken = await deployAccessTokenImplementation(signatureVerifier.address);
     const royaltiesReceiverV2Implementation: RoyaltiesReceiverV2 = await deployRoyaltiesReceiverV2Implementation();
     const creditTokenImplementation: CreditToken = await deployCreditTokenImplementation();
+    const vestingWallet: VestingWalletExtended = await deployVestingWalletImplementation();
 
     implementations = {
       accessToken: accessTokenImplementation.address,
       creditToken: creditTokenImplementation.address,
       royaltiesReceiver: royaltiesReceiverV2Implementation.address,
+      vestingWallet: vestingWallet.address,
     };
 
     const factory: Factory = await deployFactory(
@@ -244,7 +248,7 @@ describe('BelongCheckIn ETH Uniswap', () => {
 
   describe('Deployment', () => {
     it('Should be deployed correctly', async () => {
-      const { belongCheckIn, escrow, helper, pf1, pf2, pf3, admin } = await loadFixture(fixture);
+      const { belongCheckIn, escrow, pf1, pf2, pf3, admin } = await loadFixture(fixture);
 
       expect(belongCheckIn.address).to.be.properAddress;
       expect(escrow.address).to.be.properAddress;

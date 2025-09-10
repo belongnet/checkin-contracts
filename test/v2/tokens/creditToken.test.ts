@@ -10,6 +10,7 @@ import {
   SignatureVerifier,
   MockTransferValidatorV2,
   LONG,
+  VestingWalletExtended,
 } from '../../../typechain-types';
 import {
   deployAccessTokenImplementation,
@@ -18,6 +19,7 @@ import {
   deployRoyaltiesReceiverV2Implementation,
   deployLONG,
   deployCreditTokens,
+  deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2 } from '../../../helpers/deployMockFixtures';
@@ -37,11 +39,13 @@ describe('CreditToken', () => {
     const accessTokenImplementation: AccessToken = await deployAccessTokenImplementation(signatureVerifier.address);
     const royaltiesReceiverV2Implementation: RoyaltiesReceiverV2 = await deployRoyaltiesReceiverV2Implementation();
     const creditTokenImplementation: CreditToken = await deployCreditTokenImplementation();
+    const vestingWallet: VestingWalletExtended = await deployVestingWalletImplementation();
 
     implementations = {
       accessToken: accessTokenImplementation.address,
       creditToken: creditTokenImplementation.address,
       royaltiesReceiver: royaltiesReceiverV2Implementation.address,
+      vestingWallet: vestingWallet.address,
     };
 
     const factory: Factory = await deployFactory(

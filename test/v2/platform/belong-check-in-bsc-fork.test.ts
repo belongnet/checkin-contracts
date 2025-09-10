@@ -13,6 +13,7 @@ import {
   SignatureVerifier,
   Staking,
   BelongCheckIn,
+  VestingWalletExtended,
 } from '../../../typechain-types';
 import {
   deployCreditTokens,
@@ -23,6 +24,7 @@ import {
   deployStaking,
   deployBelongCheckIn,
   deployEscrow,
+  deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
 import { getSignerFromAddress, getToken, startSimulateBSC, stopSimulate } from '../../../helpers/fork';
 import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
@@ -155,11 +157,13 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
     const accessTokenImplementation: AccessToken = await deployAccessTokenImplementation(signatureVerifier.address);
     const royaltiesReceiverV2Implementation: RoyaltiesReceiverV2 = await deployRoyaltiesReceiverV2Implementation();
     const creditTokenImplementation: CreditToken = await deployCreditTokenImplementation();
+    const vestingWallet: VestingWalletExtended = await deployVestingWalletImplementation();
 
     implementations = {
       accessToken: accessTokenImplementation.address,
       creditToken: creditTokenImplementation.address,
       royaltiesReceiver: royaltiesReceiverV2Implementation.address,
+      vestingWallet: vestingWallet.address,
     };
 
     const factory: Factory = await deployFactory(

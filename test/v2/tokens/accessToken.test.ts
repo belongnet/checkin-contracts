@@ -9,6 +9,7 @@ import {
   CreditToken,
   SignatureVerifier,
   MockTransferValidatorV2,
+  VestingWalletExtended,
 } from '../../../typechain-types';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
@@ -23,6 +24,7 @@ import {
   deployCreditTokenImplementation,
   deployFactory,
   deployRoyaltiesReceiverV2Implementation,
+  deployVestingWalletImplementation,
   TokenMetadata,
 } from '../../../helpers/deployFixtures';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
@@ -88,11 +90,13 @@ describe('AccessToken', () => {
     const accessTokenImplementation: AccessToken = await deployAccessTokenImplementation(signatureVerifier.address);
     const royaltiesReceiverV2Implementation: RoyaltiesReceiverV2 = await deployRoyaltiesReceiverV2Implementation();
     const creditTokenImplementation: CreditToken = await deployCreditTokenImplementation();
+    const vestingWallet: VestingWalletExtended = await deployVestingWalletImplementation();
 
     implementations = {
       accessToken: accessTokenImplementation.address,
       creditToken: creditTokenImplementation.address,
       royaltiesReceiver: royaltiesReceiverV2Implementation.address,
+      vestingWallet: vestingWallet.address,
     };
 
     royalties = {
