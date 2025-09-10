@@ -28,15 +28,15 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     // ========= Types =========
     struct Tranche {
-        uint64 timestamp;
-        uint192 amount;
+        uint64 timestamp; // unlock at (UTC, seconds)
+        uint192 amount; // fits 2^192-1
     }
 
     // ========= Immutables / Config =========
 
     struct VestingWalletStorage {
         uint64 startTimestamp; // TGE
-        uint64 cliffDurationSeconds; // start + cliffDuration
+        uint64 cliffDurationSeconds; // after start (start + cliffDuration)
         uint64 durationSeconds; // linear duration (sec)
         address token;
         address beneficiary;
@@ -47,6 +47,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     // ========= State =========
     VestingWalletStorage public vestingStorage;
+
     uint256 public released;
     bool public tranchesConfigurationFinalized;
 
@@ -59,6 +60,8 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         _;
     }
 
+    // ========= Initialize =========
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -66,10 +69,13 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     function initialize(address _owner, VestingWalletStorage calldata vestingParams) external initializer {
         require(vestingParams.token != address(0) && vestingParams.beneficiary != address(0), ZeroAddressPassed());
+
+        // allow pure step-based (duration=0), or valid cliff+duration
         require(
             vestingParams.durationSeconds == 0 || vestingParams.cliffDurationSeconds + vestingParams.durationSeconds > 0,
             BadDurations(vestingParams.durationSeconds, vestingParams.cliffDurationSeconds)
         );
+        // TGE + Linear <= Total (tranches adding later)
         require(
             vestingParams.tgeAmount + vestingParams.linearAllocation <= vestingParams.totalAllocation,
             AllocationMismatch(vestingParams.tgeAmount, vestingParams.linearAllocation, vestingParams.totalAllocation)
@@ -78,6 +84,8 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         vestingStorage = vestingParams;
         _initializeOwner(_owner);
     }
+
+    // ========= Mutations =========
 
     function addTranche(uint64 timestamp, uint256 amount) external onlyOwner notFinalizedTrancheAdding {
         require(timestamp >= start(), TrancheBeforeStart(timestamp));
@@ -117,7 +125,6 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     function finalizeTranchesConfiguration() external onlyOwner notFinalizedTrancheAdding {
         uint256 _totalAllocation = vestingStorage.totalAllocation;
-
         uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + tranchesTotal;
         require(_currentAllocation == _totalAllocation, AllocationNotBalanced(_currentAllocation, _totalAllocation));
 
@@ -125,14 +132,15 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         emit Finalized(block.timestamp);
     }
 
+    // ========= Math =========
+
     function vestedAmount(uint64 timestamp) public view returns (uint256 total) {
         // 1) TGE
         if (timestamp >= start()) {
             total = vestingStorage.tgeAmount;
         }
 
-        // 2) Step-based
-        Tranche[] storage _tranches = tranches;
+        // 2) Step-based (early break)
         uint256 len = _tranches.length;
         for (uint256 i; i < len;) {
             if (timestamp >= _tranches[i].timestamp) {
@@ -161,6 +169,8 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         return vestedAmount(uint64(block.timestamp)) - released;
     }
 
+    // ========= Views =========
+
     function start() public view returns (uint64) {
         return vestingStorage.startTimestamp;
     }
@@ -180,6 +190,8 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     function tranchesLength() external view returns (uint256) {
         return tranches.length;
     }
+
+    // ========= UUPS =========
 
     /// @notice Authorizes UUPS upgrades; restricted to owner.
     /// @param /*newImplementation*/ New implementation (unused in guard).
