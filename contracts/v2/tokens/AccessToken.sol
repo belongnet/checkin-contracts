@@ -89,6 +89,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
     /// @notice Pseudo-address used to represent NativeCurrency in payment flows.
     address public constant NATIVE_CURRENCY_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    uint16 public constant PLATFORM_COMISSION_DENOMINATOR = 10_000;
 
     /// @notice Number of tokens minted so far.
     uint256 public totalSupply;
@@ -310,11 +311,9 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         require(amount == price, IncorrectNativeCurrencyAmountSent(amount));
 
-        uint256 fees;
+        uint256 fees = (amount * factoryParameters.platformCommission) / PLATFORM_COMISSION_DENOMINATOR;
         uint256 amountToCreator;
         unchecked {
-            fees = (amount * _parameters.factory.nftFactoryParameters().platformCommission) / _feeDenominator();
-
             amountToCreator = amount - fees;
         }
 
