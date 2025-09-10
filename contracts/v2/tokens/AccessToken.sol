@@ -171,14 +171,15 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         address expectedPayingToken,
         uint256 expectedMintPrice
     ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
-        Factory factory = parameters.factory;
-        require(paramsArray.length <= factory.nftFactoryParameters().maxArraySize, WrongArraySize());
+        Factory.NftFactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
+
+        require(paramsArray.length <= factoryParameters.maxArraySize, WrongArraySize());
 
         AccessTokenInfo memory info = parameters.info;
 
         uint256 amountToPay;
         for (uint256 i; i < paramsArray.length; ++i) {
-            factory.nftFactoryParameters().signerAddress.checkStaticPriceParameters(receiver, paramsArray[i]);
+            factoryParameters.signerAddress.checkStaticPriceParameters(receiver, paramsArray[i]);
 
             uint256 price = paramsArray[i].whitelisted ? info.whitelistMintPrice : info.mintPrice;
 
@@ -205,12 +206,13 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         DynamicPriceParameters[] calldata paramsArray,
         address expectedPayingToken
     ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
-        Factory factory = parameters.factory;
-        require(paramsArray.length <= factory.nftFactoryParameters().maxArraySize, WrongArraySize());
+        Factory.NftFactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
+
+        require(paramsArray.length <= factoryParameters.maxArraySize, WrongArraySize());
 
         uint256 amountToPay;
         for (uint256 i; i < paramsArray.length; ++i) {
-            factory.nftFactoryParameters().signerAddress.checkDynamicPriceParameters(receiver, paramsArray[i]);
+            factoryParameters.signerAddress.checkDynamicPriceParameters(receiver, paramsArray[i]);
 
             unchecked {
                 amountToPay += paramsArray[i].price;
@@ -312,8 +314,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// @return amount Amount actually charged (wei or token units).
     function _pay(uint256 price, address expectedPayingToken) private returns (uint256 amount) {
         AccessTokenParameters memory _parameters = parameters;
-
-        require(expectedPayingToken == _parameters.info.paymentToken, TokenChanged(_parameters.info.paymentToken));
+        Factory.NftFactoryParameters memory factoryParameters = _parameters.factory.nftFactoryParameters();
 
         amount = expectedPayingToken == NATIVE_CURRENCY_ADDRESS ? msg.value : price;
 
@@ -339,7 +340,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         if (expectedPayingToken == NATIVE_CURRENCY_ADDRESS) {
             if (feesToPlatform > 0) {
-                _parameters.factory.nftFactoryParameters().platformAddress.safeTransferETH(feesToPlatform);
+                factoryParameters.platformAddress.safeTransferETH(feesToPlatform);
             }
             if (referralFees > 0) {
                 refferalCreator.safeTransferETH(referralFees);
@@ -348,8 +349,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
             _parameters.creator.safeTransferETH(amountToCreator);
         } else {
             if (feesToPlatform > 0) {
-                expectedPayingToken.safeTransferFrom(
-                    msg.sender, _parameters.factory.nftFactoryParameters().platformAddress, feesToPlatform
+                expectedPayingToken.safeTransfer(factoryParameters.platformAddress, feesToPlatform
                 );
             }
             if (referralFees > 0) {
