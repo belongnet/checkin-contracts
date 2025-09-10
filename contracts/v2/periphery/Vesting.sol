@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
+import {Initializable} from "solady/src/utils/Initializable.sol";
+import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
-contract VestingWalletExtended is Ownable {
+contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     using SafeTransferLib for address;
 
     // ========= Errors =========
