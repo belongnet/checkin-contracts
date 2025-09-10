@@ -350,14 +350,16 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
             _parameters.creator.safeTransferETH(amountToCreator);
         } else {
+            expectedPayingToken.safeTransferFrom(msg.sender, address(this), amount);
+
             if (fees > 0) {
                 expectedPayingToken.safeTransfer(factoryParameters.platformAddress, fees);
             }
             if (referralFees > 0) {
-                expectedPayingToken.safeTransferFrom(msg.sender, refferalCreator, referralFees);
+                expectedPayingToken.safeTransfer(refferalCreator, referralFees);
             }
 
-            expectedPayingToken.safeTransferFrom(msg.sender, _parameters.creator, amountToCreator);
+            expectedPayingToken.safeTransfer(_parameters.creator, amountToCreator);
         }
 
         emit Paid(msg.sender, expectedPayingToken, amount);
