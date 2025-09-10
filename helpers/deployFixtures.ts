@@ -214,6 +214,7 @@ export async function deployCreditTokens(
 export async function deployVestingWallet(
   vestingWalletInfo: VestingWalletInfoStruct,
   factoryAddress: string,
+  long: string,
   signerPk: string,
   owner: SignerWithAddress,
 ): Promise<VestingWalletExtended> {
@@ -222,6 +223,9 @@ export async function deployVestingWallet(
   const venueTokenSignature = EthCrypto.sign(signerPk, vestingWalletMessage);
 
   const factory = await ethers.getContractAt('Factory', factoryAddress);
+  const LONG = await ethers.getContractAt('LONG', long);
+
+  await LONG.approve(factory.address, vestingWalletInfo.totalAllocation);
 
   const produceCreditToken = await factory
     .connect(owner)
