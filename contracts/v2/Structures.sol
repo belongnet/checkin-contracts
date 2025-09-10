@@ -51,6 +51,18 @@ struct ERC1155Info {
     bool transferable;
 }
 
+struct VestingWalletInfo {
+    uint64 startTimestamp; // TGE
+    uint64 cliffDurationSeconds; // after start (start + cliffDuration)
+    uint64 durationSeconds; // linear duration (sec)
+    address token;
+    address beneficiary;
+    uint256 totalAllocation;
+    uint256 tgeAmount; // one-off at start
+    uint256 linearAllocation; // linear part after cliff
+    string description;
+}
+
 /// @title StaticPriceParameters
 /// @notice Mint payload for static-priced mints validated by a platform signer.
 struct StaticPriceParameters {

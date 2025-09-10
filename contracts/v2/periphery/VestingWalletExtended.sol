@@ -6,6 +6,8 @@ import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
+import {VestingWalletInfo} from "../Structures.sol";
+
 contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     using SafeTransferLib for address;
 
@@ -34,17 +36,6 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     // ========= Immutables / Config =========
 
-    struct VestingWalletStorage {
-        uint64 startTimestamp; // TGE
-        uint64 cliffDurationSeconds; // after start (start + cliffDuration)
-        uint64 durationSeconds; // linear duration (sec)
-        address token;
-        address beneficiary;
-        uint256 totalAllocation;
-        uint256 tgeAmount; // one-off at start
-        uint256 linearAllocation; // linear part after cliff
-    }
-
     // ========= State =========
 
     bool public tranchesConfigurationFinalized;
@@ -53,7 +44,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     Tranche[] public tranches;
 
-    VestingWalletStorage public vestingStorage;
+    VestingWalletInfo public vestingStorage;
 
     // Guard
     modifier notFinalizedTrancheAdding() {
@@ -68,7 +59,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         _disableInitializers();
     }
 
-    function initialize(address _owner, VestingWalletStorage calldata vestingParams) external initializer {
+    function initialize(address _owner, VestingWalletInfo calldata vestingParams) external initializer {
         require(vestingParams.token != address(0) && vestingParams.beneficiary != address(0), ZeroAddressPassed());
 
         // allow pure step-based (duration=0), or valid cliff+duration
@@ -201,6 +192,10 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     // ========= Views =========
+
+    function description() public view returns (string memory) {
+        return vestingStorage.description;
+    }
 
     function start() public view returns (uint64) {
         return vestingStorage.startTimestamp;
