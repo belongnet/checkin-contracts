@@ -245,50 +245,46 @@ contract Staking is Initializable, ERC4626, Ownable {
 
     /// @dev Gas-efficient withdrawal with single pass consumption of unlocked shares.
     function _withdraw(address by, address to, address _owner, uint256 assets, uint256 shares) internal override {
-        Stake[] memory userStakes = stakes[_owner];
-        uint256 _minStakePeriod = minStakePeriod;
-
-        uint256 unlockedShares = 0;
-        for (uint256 i = 0; i < userStakes.length; ++i) {
-            if (block.timestamp >= userStakes[i].timestamp + _minStakePeriod) {
-                unlockedShares += userStakes[i].shares;
-            }
-        }
-
-        if (unlockedShares < shares) revert MinStakePeriodNotMet();
-
-        _removeUnlockedSharesFor(_owner, shares);
-
+        _consumeUnlockedSharesOrRevert(_owner, shares);
         super._withdraw(by, to, _owner, assets, shares);
     }
 
     // ============================== Stake Bookkeeping ==============================
 
-    /// @notice Removes unlocked shares from the stake array until `shares` are satisfied.
-    /// @dev Swap-and-pop for full consumption; partial consumption reduces the entry in-place.
-    /// @param staker Address whose stake entries are modified.
-    /// @param shares Number of unlocked shares to remove.
-    function _removeUnlockedSharesFor(address staker, uint256 shares) internal {
+    /// @notice Consumes exactly `need` unlocked shares or reverts.
+    /// @dev Single pass; swap-and-pop removal; partial consumption in-place.
+    function _consumeUnlockedSharesOrRevert(address staker, uint256 need) internal {
         Stake[] storage userStakes = stakes[staker];
-        uint256 _minStakePeriod = minStakePeriod;
-        uint256 remaining = shares;
+        uint256 _min = minStakePeriod;
+        uint256 nowTs = block.timestamp;
+        uint256 remaining = need;
 
-        for (uint256 i = 0; i < userStakes.length && remaining > 0;) {
-            Stake memory stake = userStakes[i];
-            if (block.timestamp >= stake.timestamp + _minStakePeriod) {
-                if (stake.shares <= remaining) {
-                    remaining -= stake.shares;
+        for (uint256 i; i < userStakes.length && remaining > 0;) {
+            Stake memory s = userStakes[i];
+            if (nowTs >= s.timestamp + _min) {
+                uint256 take = s.shares <= remaining ? s.shares : remaining;
+                if (take == s.shares) {
+                    // full consume → swap and pop
+                    remaining -= take;
                     userStakes[i] = userStakes[userStakes.length - 1];
                     userStakes.pop();
+                    // don't ++i: a new element is now at index i
                 } else {
-                    userStakes[i].shares = stake.shares - remaining;
+                    // partial consume
+                    userStakes[i].shares = s.shares - take;
                     remaining = 0;
-                    ++i;
+                    unchecked {
+                        ++i;
+                    }
                 }
             } else {
-                ++i;
+                unchecked {
+                    ++i;
+                }
             }
         }
+
+        if (remaining != 0) revert MinStakePeriodNotMet();
     }
 
     /// @notice Removes shares from stake entries regardless of lock status (used in emergency paths).
