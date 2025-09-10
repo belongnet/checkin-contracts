@@ -92,9 +92,10 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         require(tranche.timestamp <= end(), TrancheAfterEnd(tranche.timestamp));
 
         Tranche[] storage _tranches = tranches;
-        uint256 tranchesLength = _tranches.length;
-        if (tranchesLength > 0) {
-            require(tranche.timestamp >= _tranches[tranchesLength - 1].timestamp, NonMonotonic(tranche.timestamp));
+        uint256 tranchesLen = _tranches.length;
+        uint64 lastTimestamp = tranchesLen == 0 ? block.timestamp : _tranches[tranchesLen - 1].timestamp;
+        if (tranchesLen > 0) {
+            require(tranche.timestamp >= lastTimestamp, NonMonotonic(tranche.timestamp));
         }
 
         uint256 _tranchesTotal = tranchesTotal + tranche.amount;
