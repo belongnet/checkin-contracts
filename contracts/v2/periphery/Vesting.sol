@@ -92,19 +92,18 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         require(timestamp <= end(), TrancheAfterEnd(timestamp));
 
         Tranche[] storage _tranches = tranches;
-
-        if (_tranches.length > 0) {
-            require(timestamp >= _tranches[_tranches.length - 1].timestamp, NonMonotonic(timestamp));
+        uint256 len = _tranches.length;
+        if (len > 0) {
+            require(timestamp >= _tranches[len - 1].timestamp, NonMonotonic(timestamp));
         }
 
         uint256 _tranchesTotal = tranchesTotal + amount;
         uint256 _totalAllocation = vestingStorage.totalAllocation;
-
         uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + _tranchesTotal;
         require(_currentAllocation <= _totalAllocation, OverAllocation(_currentAllocation, _totalAllocation));
 
         tranchesTotal = _tranchesTotal;
-        _tranches.push(Tranche(timestamp, amount));
+        _tranches.push(Tranche({timestamp: timestamp, amount: uint192(amount)}));
 
         emit TrancheAdded(timestamp, amount);
     }
@@ -115,9 +114,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         require(amount > 0, NothingToRelease());
         address _token = vestingStorage.token;
 
-        _released += amount;
-        released = _released;
-
+        released = _released + amount;
         _token.safeTransfer(vestingStorage.beneficiary, amount);
 
         emit ERC20Released(_token, amount);
@@ -141,10 +138,11 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         }
 
         // 2) Step-based (early break)
-        uint256 len = _tranches.length;
+        uint256 len = tranches.length;
         for (uint256 i; i < len;) {
-            if (timestamp >= _tranches[i].timestamp) {
-                total += _tranches[i].amount;
+            Tranche memory tranche = tranches[i];
+            if (timestamp >= tranche.timestamp) {
+                total += tranche.amount;
                 unchecked {
                     ++i;
                 }
