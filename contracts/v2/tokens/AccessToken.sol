@@ -328,20 +328,21 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         }
 
         bytes32 referralCode = _parameters.referralCode;
-        address refferalCreator = _parameters.factory.getReferralCreator(referralCode);
-
-        uint256 feesToPlatform = fees;
         uint256 referralFees;
-        if (referralCode != bytes32(0)) {
+        address refferalCreator;
+        if (referralCode != bytes(0)) {
             referralFees = _parameters.factory.getReferralRate(_parameters.creator, referralCode, fees);
-            unchecked {
-                feesToPlatform -= referralFees;
+            if (referralFees > 0) {
+                refferalCreator = _parameters.factory.getReferralCreator(referralCode);
+                unchecked {
+                    fees -= referralFees;
+                }
             }
         }
 
         if (expectedPayingToken == NATIVE_CURRENCY_ADDRESS) {
-            if (feesToPlatform > 0) {
-                factoryParameters.platformAddress.safeTransferETH(feesToPlatform);
+            if (fees > 0) {
+                factoryParameters.platformAddress.safeTransferETH(fees);
             }
             if (referralFees > 0) {
                 refferalCreator.safeTransferETH(referralFees);
@@ -349,9 +350,8 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
             _parameters.creator.safeTransferETH(amountToCreator);
         } else {
-            if (feesToPlatform > 0) {
-                expectedPayingToken.safeTransfer(factoryParameters.platformAddress, feesToPlatform
-                );
+            if (fees > 0) {
+                expectedPayingToken.safeTransfer(factoryParameters.platformAddress, fees);
             }
             if (referralFees > 0) {
                 expectedPayingToken.safeTransferFrom(msg.sender, refferalCreator, referralFees);
