@@ -60,16 +60,12 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         _;
     }
 
-    constructor(
-        address _token,
-        address _beneficiary,
-        uint64 _startTimestamp,
-        uint64 _cliffDurationSeconds,
-        uint64 _durationSeconds,
-        uint256 _totalAllocation,
-        uint256 _tgeAmount,
-        uint256 _linearAllocation
-    ) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _owner, VestingWalletStorage calldata vestingParams) external initializer {
         require(_token != address(0) && _beneficiary != address(0), ZeroAddressPassed());
         require(
             _durationSeconds == 0 || _cliffDurationSeconds + _durationSeconds > 0,
