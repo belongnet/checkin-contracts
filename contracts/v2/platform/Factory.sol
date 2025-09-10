@@ -101,14 +101,6 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
     /// @notice Summary information about a deployed CreditToken collection.
     struct CreditTokenInstanceInfo {
-        /// @notice Default admin role holder.
-        address defaultAdmin;
-        /// @notice Manager role holder.
-        address manager;
-        /// @notice Minter role holder.
-        address minter;
-        /// @notice Burner role holder.
-        address burner;
         /// @notice Deployed CreditToken (minimal proxy) address.
         address creditToken;
         /// @notice Collection name.
@@ -283,10 +275,6 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         CreditToken(creditToken).initialize(creditTokenInfo);
 
         CreditTokenInstanceInfo memory creditTokenInstanceInfo = CreditTokenInstanceInfo({
-            defaultAdmin: creditTokenInfo.defaultAdmin,
-            manager: creditTokenInfo.manager,
-            minter: creditTokenInfo.minter,
-            burner: creditTokenInfo.burner,
             creditToken: creditToken,
             name: creditTokenInfo.name,
             symbol: creditTokenInfo.symbol
