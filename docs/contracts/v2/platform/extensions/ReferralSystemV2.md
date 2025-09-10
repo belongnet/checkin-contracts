@@ -51,10 +51,10 @@ Error thrown when a user attempts to get a referral rate for a code they haven't
 | referralUser | address | The address of the user who did not use the code. |
 | code | bytes32 | The referral code the user has not used. |
 
-### PecentageExceedsMax
+### PercentageExceedsMax
 
 ```solidity
-error PecentageExceedsMax(uint16 percentage)
+error PercentageExceedsMax(uint16 percentage)
 ```
 
 ### ReferralParametersSet
@@ -120,6 +120,12 @@ uint16 SCALING_FACTOR
 
 The scaling factor for referral percentages.
 
+### MAX_TIER_INDEX
+
+```solidity
+uint8 MAX_TIER_INDEX
+```
+
 ### usedToPercentage
 
 ```solidity
@@ -139,7 +145,7 @@ Maps referral codes to their respective details (creator and users).
 ### usedCode
 
 ```solidity
-mapping(address => mapping(bytes32 => uint256)) usedCode
+mapping(address => mapping(bytes32 => uint8)) usedCode
 ```
 
 Maps referral users to their respective used codes and counts the number of times the code was used.

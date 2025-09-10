@@ -203,18 +203,19 @@ _Can only be called by the contract owner._
 function mintStaticPrice(address receiver, struct StaticPriceParameters[] paramsArray, address expectedPayingToken, uint256 expectedMintPrice) external payable
 ```
 
-Mints new NFTs with static prices to specified addresses.
+Mints new NFTs with static prices to a specified receiver.
 
-_Requires signatures from trusted addresses and validates against whitelist status._
+_Requires signatures from a trusted signer and validates whitelist status per item.
+     Reverts if `paramsArray.length` exceeds factory `maxArraySize`._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| receiver | address |  |
-| paramsArray | struct StaticPriceParameters[] | An array of parameters for each mint (receiver, tokenId, tokenUri, whitelisted). |
-| expectedPayingToken | address | The expected token used for payments. |
-| expectedMintPrice | uint256 | The expected price for the minting operation. |
+| receiver | address | The address that will receive all newly minted tokens. |
+| paramsArray | struct StaticPriceParameters[] | Array of parameters for each mint (tokenId, tokenUri, whitelisted, signature). |
+| expectedPayingToken | address | The expected token used for payments (ETH pseudo-address or ERC-20). |
+| expectedMintPrice | uint256 | The expected total price for the minting operation. |
 
 ### mintDynamicPrice
 
@@ -222,17 +223,18 @@ _Requires signatures from trusted addresses and validates against whitelist stat
 function mintDynamicPrice(address receiver, struct DynamicPriceParameters[] paramsArray, address expectedPayingToken) external payable
 ```
 
-Mints new NFTs with dynamic prices to specified addresses.
+Mints new NFTs with dynamic prices to a specified receiver.
 
-_Requires signatures from trusted addresses and validates against whitelist status._
+_Requires signatures from a trusted signer. Each item provides its own price.
+     Reverts if `paramsArray.length` exceeds factory `maxArraySize`._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| receiver | address |  |
-| paramsArray | struct DynamicPriceParameters[] | An array of parameters for each mint (receiver, tokenId, tokenUri, price). |
-| expectedPayingToken | address | The expected token used for payments. |
+| receiver | address | The address that will receive all newly minted tokens. |
+| paramsArray | struct DynamicPriceParameters[] | Array of parameters for each mint (tokenId, tokenUri, price, signature). |
+| expectedPayingToken | address | The expected token used for payments (ETH pseudo-address or ERC-20). |
 
 ### tokenURI
 

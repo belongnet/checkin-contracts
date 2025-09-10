@@ -130,6 +130,12 @@ struct RoyaltiesReceiverV2.RoyaltiesReceivers royaltiesReceivers
 
 List of payee addresses. Returns the address of the payee at the given index.
 
+### constructor
+
+```solidity
+constructor() public
+```
+
 ### initialize
 
 ```solidity

@@ -179,7 +179,7 @@ _Internal function to set referral percentages._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| percentages | uint16[5] | An array containing the referral percentages for initial, second, third, and default use. |
+| percentages | uint16[5] | Array of five BPS values mapping usage count (0..4) to a referral percentage. |
 
 ### getReferralRate
 

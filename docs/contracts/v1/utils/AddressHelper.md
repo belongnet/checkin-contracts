@@ -22,15 +22,15 @@ function checkDynamicPriceParameters(address signer, address receiver, struct Dy
 
 Verifies the validity of a signature for dynamic price minting parameters.
 
-_Encodes and hashes the dynamic price parameters, then verifies the signature against the expected signer._
+_Encodes and hashes the dynamic price parameters with the `receiver`, then verifies the signature._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | The address expected to have signed the provided parameters. |
-| receiver | address |  |
-| params | struct DynamicPriceParameters | A struct containing parameters for dynamic price minting, including receiver, tokenId, tokenUri, price, and signature. |
+| receiver | address | Address that will receive the minted token(s). |
+| params | struct DynamicPriceParameters | Dynamic price parameters (tokenId, tokenUri, price, signature). |
 
 ### checkStaticPriceParameters
 
@@ -40,13 +40,13 @@ function checkStaticPriceParameters(address signer, address receiver, struct Sta
 
 Verifies the validity of a signature for static price minting parameters.
 
-_Encodes and hashes the static price parameters, then verifies the signature against the expected signer._
+_Encodes and hashes the static price parameters with the `receiver`, then verifies the signature._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | The address expected to have signed the provided parameters. |
-| receiver | address |  |
-| params | struct StaticPriceParameters | A struct containing parameters for static price minting, including receiver, tokenId, tokenUri, whitelisted status, and signature. |
+| receiver | address | Address that will receive the minted token(s). |
+| params | struct StaticPriceParameters | Static price parameters (tokenId, tokenUri, whitelisted, signature). |
 

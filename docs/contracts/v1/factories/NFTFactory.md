@@ -141,7 +141,7 @@ Initializes the contract with NFT factory parameters and referral percentages.
 function produce(struct InstanceInfo _info, bytes32 referralCode) external returns (address nftAddress)
 ```
 
-Produces a new NFT i nstance.
+Produces a new NFT instance.
 
 _Creates a new instance of the NFT and adds the information to the storage contract._
 
@@ -173,7 +173,7 @@ _Can only be called by the owner (BE)._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | nftFactoryParameters_ | struct NftFactoryParameters | The NFT factory parameters to be set. |
-| percentages | uint16[5] | An array containing the referral percentages for initial, second, third, and default use. |
+| percentages | uint16[5] | Array of five BPS values mapping usage count (0..4) to a referral percentage. |
 
 ### nftFactoryParameters
 

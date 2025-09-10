@@ -142,6 +142,12 @@ address NATIVE_CURRENCY_ADDRESS
 
 Pseudo-address used to represent NativeCurrency in payment flows.
 
+### PLATFORM_COMISSION_DENOMINATOR
+
+```solidity
+uint16 PLATFORM_COMISSION_DENOMINATOR
+```
+
 ### totalSupply
 
 ```solidity
@@ -165,6 +171,12 @@ struct AccessToken.AccessTokenParameters parameters
 ```
 
 Immutable-like parameters set during initialization.
+
+### expectedTokenCheck
+
+```solidity
+modifier expectedTokenCheck(address token)
+```
 
 ### constructor
 

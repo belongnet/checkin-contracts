@@ -141,7 +141,7 @@ struct Stake {
 ### SCALING_FACTOR
 
 ```solidity
-uint16 SCALING_FACTOR
+uint256 SCALING_FACTOR
 ```
 
 Percentage scaling factor where 10_000 equals 100%.
@@ -183,7 +183,13 @@ _Public getter: `stakes(user, i)` → `(shares, timestamp)`._
 ### constructor
 
 ```solidity
-constructor(address _owner, address _treasury, address long) public
+constructor() public
+```
+
+### initialize
+
+```solidity
+function initialize(address _owner, address _treasury, address long) external
 ```
 
 Initializes the staking vault.
@@ -372,22 +378,17 @@ Emits a {Deposit} event._
 function _withdraw(address by, address to, address _owner, uint256 assets, uint256 shares) internal
 ```
 
-### _removeUnlockedSharesFor
+_Gas-efficient withdrawal with single pass consumption of unlocked shares._
+
+### _consumeUnlockedSharesOrRevert
 
 ```solidity
-function _removeUnlockedSharesFor(address staker, uint256 shares) internal
+function _consumeUnlockedSharesOrRevert(address staker, uint256 need) internal
 ```
 
-Removes unlocked shares from the stake array until `shares` are satisfied.
+Consumes exactly `need` unlocked shares or reverts.
 
-_Swap-and-pop for full consumption; partial consumption reduces the entry in-place._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| staker | address | Address whose stake entries are modified. |
-| shares | uint256 | Number of unlocked shares to remove. |
+_Single pass; swap-and-pop removal; partial consumption in-place._
 
 ### _removeAnySharesFor
 
@@ -395,7 +396,7 @@ _Swap-and-pop for full consumption; partial consumption reduces the entry in-pla
 function _removeAnySharesFor(address staker, uint256 shares) internal
 ```
 
-Removes shares from stake entries regardless of lock status (used in emergency paths).
+Removes shares from stake entries regardless of lock status (used in emergency flows).
 
 _Swap-and-pop for full consumption; partial consumption reduces the entry in-place._
 

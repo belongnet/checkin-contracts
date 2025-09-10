@@ -35,16 +35,22 @@ Role identifier for pausing/unpausing transfers.
 ### constructor
 
 ```solidity
-constructor(address mintTo, address defaultAdmin, address pauser) public
+constructor() public
 ```
 
-Deploys LONG and mints initial supply to `mintTo`; sets admin and pauser roles.
+### initialize
+
+```solidity
+function initialize(address recipient, address defaultAdmin, address pauser) public
+```
+
+Initializes LONG and mints initial supply to `recipient`; sets admin and pauser roles.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| mintTo | address | Recipient of the initial token supply. |
+| recipient | address | Recipient of the initial token supply. |
 | defaultAdmin | address | Address granted `DEFAULT_ADMIN_ROLE`. |
 | pauser | address | Address granted `PAUSER_ROLE`. |
 
@@ -54,15 +60,9 @@ Deploys LONG and mints initial supply to `mintTo`; sets admin and pauser roles.
 function _checkTokenBridge(address caller) internal pure
 ```
 
-Bridge guard: ensures only the canonical Superchain bridge may call.
+_Checks if the caller is the predeployed SuperchainTokenBridge. Reverts otherwise.
 
-_Overridden from `ERC20Bridgeable`._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| caller | address | The caller address to validate. |
+IMPORTANT: The predeployed SuperchainTokenBridge is only available on chains in the Superchain._
 
 ### pause
 
