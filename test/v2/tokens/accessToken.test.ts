@@ -526,7 +526,7 @@ describe('AccessToken', () => {
         ),
       )
         .to.be.revertedWithCustomError(accessTokenEth, 'TokenChanged')
-        .withArgs(NATIVE_CURRENCY_ADDRESS);
+        .withArgs(creator.address);
 
       await expect(
         accessTokenEth.connect(creator).mintStaticPrice(
