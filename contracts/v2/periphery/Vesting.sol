@@ -65,31 +65,18 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     function initialize(address _owner, VestingWalletStorage calldata vestingParams) external initializer {
-        require(_token != address(0) && _beneficiary != address(0), ZeroAddressPassed());
+        require(vestingParams.token != address(0) && vestingParams.beneficiary != address(0), ZeroAddressPassed());
         require(
-            _durationSeconds == 0 || _cliffDurationSeconds + _durationSeconds > 0,
-            BadDurations(_durationSeconds, _cliffDurationSeconds)
+            vestingParams.durationSeconds == 0 || vestingParams.cliffDurationSeconds + vestingParams.durationSeconds > 0,
+            BadDurations(vestingParams.durationSeconds, vestingParams.cliffDurationSeconds)
         );
         require(
-            _tgeAmount + _linearAllocation <= _totalAllocation,
-            AllocationMismatch(_tgeAmount, _linearAllocation, _totalAllocation)
+            vestingParams.tgeAmount + vestingParams.linearAllocation <= vestingParams.totalAllocation,
+            AllocationMismatch(vestingParams.tgeAmount, vestingParams.linearAllocation, vestingParams.totalAllocation)
         );
 
-        uint64 cliff_ = _startTimestamp + _cliffDurationSeconds;
-
-        token = _token;
-        beneficiary = _beneficiary;
-
-        start = _startTimestamp;
-        cliff = cliff_;
-        duration = _durationSeconds;
-        end = cliff_ + _durationSeconds;
-
-        totalAllocation = _totalAllocation;
-        tgeAmount = _tgeAmount;
-        linearAllocation = _linearAllocation;
-
-        _initializeOwner(msg.sender);
+        vestingStorage = vestingParams;
+        _initializeOwner(_owner);
     }
 
     function addTranche(uint64 timestamp, uint256 amount) external onlyOwner notFinalizedTrancheAdding {
