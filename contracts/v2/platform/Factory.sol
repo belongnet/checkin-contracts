@@ -9,8 +9,9 @@ import {ReferralSystemV2} from "./extensions/ReferralSystemV2.sol";
 import {AccessToken} from "../tokens/AccessToken.sol";
 import {CreditToken} from "../tokens/CreditToken.sol";
 import {RoyaltiesReceiverV2} from "../periphery/RoyaltiesReceiverV2.sol";
+import {VestingWalletExtended} from "../periphery/VestingWalletExtended.sol";
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
-import {AccessTokenInfo, NftMetadata, ERC1155Info} from "../Structures.sol";
+import {AccessTokenInfo, NftMetadata, ERC1155Info, VestingWalletInfo} from "../Structures.sol";
 
 /// @notice Summary information about a deployed AccessToken collection.
 struct NftInstanceInfo {
