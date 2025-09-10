@@ -80,8 +80,8 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     function addTranche(uint64 timestamp, uint256 amount) external onlyOwner notFinalizedTrancheAdding {
-        require(timestamp >= start, TrancheBeforeStart(timestamp));
-        require(timestamp <= end, TrancheAfterEnd(timestamp));
+        require(timestamp >= start(), TrancheBeforeStart(timestamp));
+        require(timestamp <= end(), TrancheAfterEnd(timestamp));
 
         Tranche[] storage _tranches = tranches;
 
@@ -127,8 +127,8 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     function vestedAmount(uint64 timestamp) public view returns (uint256 total) {
         // 1) TGE
-        if (timestamp >= start) {
-            total = tgeAmount;
+        if (timestamp >= start()) {
+            total = vestingStorage.tgeAmount;
         }
 
         // 2) Step-based
@@ -146,9 +146,10 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         }
 
         // 3) Linear
-        uint64 _duration = duration;
-        if (_duration > 0 && timestamp >= cliff) {
-            uint256 elapsed = uint256(timestamp - cliff);
+        uint64 _duration = durationSeconds;
+        uint64 _cliff = cliff();
+        if (_duration > 0 && timestamp >= _cliff) {
+            uint256 elapsed = uint256(timestamp - _cliff);
             if (elapsed > _duration) {
                 elapsed = _duration;
             }
