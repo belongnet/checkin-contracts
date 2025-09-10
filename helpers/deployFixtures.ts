@@ -10,9 +10,11 @@ import {
   RoyaltiesReceiverV2,
   Staking,
   BelongCheckIn,
+  VestingWalletExtended,
 } from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { AccessTokenInfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
+import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 
 export type TokenMetadata = { name: string; symbol: string; uri: string };
 
@@ -37,6 +39,13 @@ export async function deployCreditTokenImplementation(): Promise<CreditToken> {
   const creditToken: CreditToken = (await CreditToken.deploy()) as CreditToken;
   await creditToken.deployed();
   return creditToken;
+}
+
+export async function deployVestingWalletImplementation(): Promise<VestingWalletExtended> {
+  const VestingWallet: ContractFactory = await ethers.getContractFactory('VestingWalletExtended');
+  const vestingWallet: VestingWalletExtended = (await VestingWallet.deploy()) as VestingWalletExtended;
+  await vestingWallet.deployed();
+  return vestingWallet;
 }
 
 export async function deployFactory(
@@ -218,6 +227,40 @@ export async function deployCreditTokens(
     venueToken: await ethers.getContractAt('CreditToken', venueTokenInstanceInfo.creditToken),
     promoterToken: await ethers.getContractAt('CreditToken', promoterTokenInstanceInfo.creditToken),
   };
+}
+
+export async function deployVestingWallet(
+  vestingWalletInfo: VestingWalletInfoStruct,
+  factoryAddress: string,
+  signerPk: string,
+  owner: SignerWithAddress,
+): Promise<VestingWalletExtended> {
+  const chainId = (await ethers.provider.getNetwork()).chainId;
+  const vestingWalletMessage = EthCrypto.hash.keccak256([
+    { type: 'address', value: owner.address },
+    { type: 'uint64', value: await vestingWalletInfo.startTimestamp },
+    { type: 'uint64', value: await vestingWalletInfo.cliffDurationSeconds },
+    { type: 'uint64', value: await vestingWalletInfo.durationSeconds },
+    { type: 'address', value: await vestingWalletInfo.token },
+    { type: 'address', value: await vestingWalletInfo.beneficiary },
+    { type: 'uint64', value: await vestingWalletInfo.totalAllocation },
+    { type: 'uint64', value: await vestingWalletInfo.tgeAmount },
+    { type: 'address', value: await vestingWalletInfo.linearAllocation },
+    { type: 'address', value: await vestingWalletInfo.description },
+    { type: 'uint256', value: chainId },
+  ]);
+  const venueTokenSignature = EthCrypto.sign(signerPk, vestingWalletMessage);
+
+  const factory = await ethers.getContractAt('Factory', factoryAddress);
+
+  const produceCreditToken = await factory
+    .connect(owner)
+    .deployVestingWallet(owner.address, vestingWalletInfo, venueTokenSignature);
+  await produceCreditToken.wait(1);
+
+  const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(await vestingWalletInfo.description);
+
+  return await ethers.getContractAt('VestingWalletExtended', vestingWalletInstanceInfo.vestingWallet);
 }
 
 export async function deployLONG(mintTo: string, admin: string, pauser: string): Promise<LONG> {
