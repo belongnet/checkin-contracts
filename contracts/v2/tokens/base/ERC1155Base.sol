@@ -63,14 +63,14 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
         name = info.name;
         symbol = info.symbol;
 
+        _setUri(info.uri);
+        _setTransferable(info.transferable);
+
         _initializeOwner(info.defaultAdmin);
         _setRole(info.defaultAdmin, DEFAULT_ADMIN_ROLE, true);
         _setRole(info.manager, MANAGER_ROLE, true);
         _setRole(info.minter, MINTER_ROLE, true);
         _setRole(info.burner, BURNER_ROLE, true);
-
-        _setUri(info.uri);
-        _setTransferable(info.transferable);
     }
 
     /// @notice Updates the collection-level URI.

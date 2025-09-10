@@ -116,7 +116,9 @@ contract Staking is Initializable, ERC4626, Ownable {
         LONG = long;
         minStakePeriod = 1 days;
         penaltyPercentage = 1000; // 10%
+
         _setTreasury(_treasury);
+
         _initializeOwner(_owner);
     }
 
