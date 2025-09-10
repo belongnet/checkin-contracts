@@ -179,4 +179,8 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     function tranchesLength() external view returns (uint256) {
         return tranches.length;
     }
+
+    /// @notice Authorizes UUPS upgrades; restricted to owner.
+    /// @param /*newImplementation*/ New implementation (unused in guard).
+    function _authorizeUpgrade(address /*newImplementation*/ ) internal override onlyOwner {}
 }
