@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {Initializable} from "solady/src/utils/Initializable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {LibClone} from "solady/src/utils/LibClone.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 import {ReferralSystemV2} from "./extensions/ReferralSystemV2.sol";
 import {AccessToken} from "../tokens/AccessToken.sol";
@@ -36,6 +37,7 @@ struct NftInstanceInfo {
 contract Factory is Initializable, Ownable, ReferralSystemV2 {
     using SignatureVerifier for address;
     using LibClone for address;
+    using SafeTransferLib for address;
 
     // ========== Errors ==========
 
@@ -57,6 +59,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     error CreditTokenAddressMismatch();
 
     error VestingWalletAddressMismatch();
+
+    error NotEnoughFundsToVest();
 
     // ========== Events ==========
 
@@ -304,6 +308,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         external
         returns (address vestingWallet)
     {
+        require(
+            vestingWalletInfo.token.balanceOf(msg.sender) >= vestingWalletInfo.totalAllocation, NotEnoughFundsToVest()
+        );
+
         _nftFactoryParameters.signerAddress.checkVestingWalletInfo(signature, _owner, vestingWalletInfo);
 
         bytes32 hashedSalt = keccak256(bytes(vestingWalletInfo.description));
@@ -317,6 +325,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         vestingWallet = vestingWalletImplementation.deployDeterministicERC1967(hashedSalt);
         require(predictedVestingWallet == vestingWallet, VestingWalletAddressMismatch());
         VestingWalletExtended(vestingWallet).initialize(_owner, vestingWalletInfo);
+
+        vestingWalletInfo.token.safeTransferFrom(msg.sender, vestingWallet, vestingWalletInfo.totalAllocation);
 
         VestingWalletInstanceInfo memory vestingWalletInstanceInfo = VestingWalletInstanceInfo({
             startTimestamp: vestingWalletInfo.startTimestamp,
