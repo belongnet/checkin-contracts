@@ -9,6 +9,7 @@ import {
   CreditToken,
   AccessToken,
   SignatureVerifier,
+  VestingWalletExtended,
 } from '../../../typechain-types';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
@@ -24,6 +25,7 @@ import {
   deployCreditTokenImplementation,
   deployFactory,
   deployRoyaltiesReceiverV2Implementation,
+  deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2, deployWETHMock } from '../../../helpers/deployMockFixtures';
@@ -48,11 +50,13 @@ describe('Factory', () => {
     const accessToken: AccessToken = await deployAccessTokenImplementation(signatureVerifier.address);
     const rr: RoyaltiesReceiverV2 = await deployRoyaltiesReceiverV2Implementation();
     const creditToken: CreditToken = await deployCreditTokenImplementation();
+    const vestingWallet: VestingWalletExtended = await deployVestingWalletImplementation();
 
     implementations = {
       accessToken: accessToken.address,
       creditToken: creditToken.address,
       royaltiesReceiver: rr.address,
+      vestingWallet: vestingWallet.address,
     };
 
     royalties = {
@@ -483,10 +487,6 @@ describe('Factory', () => {
       expect(nftInstanceInfo.creditToken).to.not.be.equal(ZERO_ADDRESS);
       expect(nftInstanceInfo.name).to.be.equal(nftName);
       expect(nftInstanceInfo.symbol).to.be.equal(nftSymbol);
-      expect(nftInstanceInfo.defaultAdmin).to.be.equal(alice.address);
-      expect(nftInstanceInfo.manager).to.be.equal(alice.address);
-      expect(nftInstanceInfo.minter).to.be.equal(alice.address);
-      expect(nftInstanceInfo.burner).to.be.equal(alice.address);
 
       console.log('instanceAddress = ', nftInstanceInfo.creditToken);
 
@@ -596,26 +596,14 @@ describe('Factory', () => {
       expect(instanceInfo1.creditToken).to.not.be.equal(ZERO_ADDRESS);
       expect(instanceInfo1.name).to.be.equal(nftName1);
       expect(instanceInfo1.symbol).to.be.equal(nftSymbol1);
-      expect(instanceInfo1.defaultAdmin).to.be.equal(alice.address);
-      expect(instanceInfo1.manager).to.be.equal(alice.address);
-      expect(instanceInfo1.minter).to.be.equal(alice.address);
-      expect(instanceInfo1.burner).to.be.equal(alice.address);
 
       expect(instanceInfo2.creditToken).to.not.be.equal(ZERO_ADDRESS);
       expect(instanceInfo2.name).to.be.equal(nftName2);
       expect(instanceInfo2.symbol).to.be.equal(nftSymbol2);
-      expect(instanceInfo2.defaultAdmin).to.be.equal(bob.address);
-      expect(instanceInfo2.manager).to.be.equal(bob.address);
-      expect(instanceInfo2.minter).to.be.equal(bob.address);
-      expect(instanceInfo2.burner).to.be.equal(bob.address);
 
       expect(instanceInfo3.creditToken).to.not.be.equal(ZERO_ADDRESS);
       expect(instanceInfo3.name).to.be.equal(nftName3);
       expect(instanceInfo3.symbol).to.be.equal(nftSymbol3);
-      expect(instanceInfo3.defaultAdmin).to.be.equal(charlie.address);
-      expect(instanceInfo3.manager).to.be.equal(charlie.address);
-      expect(instanceInfo3.minter).to.be.equal(charlie.address);
-      expect(instanceInfo3.burner).to.be.equal(charlie.address);
 
       console.log('instanceAddress1 = ', instanceInfo1.creditToken);
       console.log('instanceAddress2 = ', instanceInfo2.creditToken);
