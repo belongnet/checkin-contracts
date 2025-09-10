@@ -109,6 +109,17 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         string symbol;
     }
 
+    struct VestingWalletInstanceInfo {
+        uint64 startTimestamp; // TGE
+        uint64 cliffDurationSeconds; // after start (start + cliffDuration)
+        uint64 durationSeconds; // linear duration (sec)
+        address token;
+        /// @notice Deployed VestingWallet (minimal proxy) address.
+        address vestingWallet;
+        /// @notice Description.
+        string description;
+    }
+
     /// @notice Royalties split configuration for secondary sales.
     /// @dev Values are in BPS (10_000 == 100%). Sum must not exceed 10_000.
     struct RoyaltiesParameters {
@@ -124,6 +135,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         address accessToken;
         address creditToken;
         address royaltiesReceiver;
+        address vestingWallet;
     }
 
     // ========== Storage ==========
@@ -136,6 +148,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
     /// @notice Mapping `(name, symbol)` hash → CreditToken collection info.
     mapping(bytes32 hashedNameSymbol => CreditTokenInstanceInfo info) private _creditTokenInstanceInfo;
+
+    /// @notice Mapping `(owner, description)` hash → VestingWallet info.
+    mapping(bytes32 hashedNameSymbol => VestingWalletInstanceInfo info) private _vestingWalletInstanceInfo;
 
     /// @notice Current royalties split parameters.
     RoyaltiesParameters private _royaltiesParameters;
