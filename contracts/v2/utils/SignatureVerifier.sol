@@ -6,6 +6,7 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {
     AccessTokenInfo,
     ERC1155Info,
+    VestingWalletInfo,
     VenueInfo,
     VenueRules,
     CustomerInfo,
@@ -87,6 +88,35 @@ library SignatureVerifier {
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(creditTokenInfo.name, creditTokenInfo.symbol, creditTokenInfo.uri, block.chainid)
+                ),
+                signature
+            ),
+            InvalidSignature()
+        );
+    }
+
+    function checkVestingWalletInfo(
+        address signer,
+        bytes calldata signature,
+        address owner,
+        VestingWalletInfo calldata vestingWalletInfo
+    ) external view {
+        require(
+            signer.isValidSignatureNow(
+                keccak256(
+                    abi.encodePacked(
+                        owner,
+                        vestingWalletInfo.startTimestamp,
+                        vestingWalletInfo.cliffDurationSeconds,
+                        vestingWalletInfo.durationSeconds,
+                        vestingWalletInfo.token,
+                        vestingWalletInfo.beneficiary,
+                        vestingWalletInfo.totalAllocation,
+                        vestingWalletInfo.tgeAmount,
+                        vestingWalletInfo.linearAllocation,
+                        vestingWalletInfo.description,
+                        block.chainid
+                    )
                 ),
                 signature
             ),
