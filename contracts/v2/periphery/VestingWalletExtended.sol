@@ -46,13 +46,14 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     // ========= State =========
-    VestingWalletStorage public vestingStorage;
 
-    uint256 public released;
     bool public tranchesConfigurationFinalized;
+    uint256 public released;
+    uint256 public tranchesTotal; // ∑ tranche.amount
 
     Tranche[] public tranches;
-    uint256 public tranchesTotal; // ∑ tranche.amount
+
+    VestingWalletStorage public vestingStorage;
 
     // Guard
     modifier notFinalizedTrancheAdding() {
