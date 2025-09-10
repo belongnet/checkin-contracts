@@ -20,7 +20,7 @@ export enum ChainIds {
 export const chainRPCs = (chainid: ChainIds): string => {
   switch (chainid) {
     case ChainIds.mainnet:
-      return `https://eth.llamarpc.com`;
+      return `https://ethereum-rpc.publicnode.com`;
     case ChainIds.bsc:
       return 'https://binance.llamarpc.com';
     case ChainIds.polygon:
