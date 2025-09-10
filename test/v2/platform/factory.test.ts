@@ -582,7 +582,7 @@ describe('Factory', () => {
     it('should correct deploy VestingWallet instance', async () => {
       const { LONG, signatureVerifier, factory, owner, alice, signer } = await loadFixture(fixture);
 
-      const description = 'VestingWallet 1';
+      const description = 'VestingWallet';
 
       const now = await time.latest();
       const startTimestamp = now + 5;
@@ -686,9 +686,7 @@ describe('Factory', () => {
 
       await LONG.approve(factory.address, vestingWalletInfo1.totalAllocation);
 
-      const tx1 = await factory
-        .connect(owner)
-        .deployVestingWallet(owner.address, vestingWalletInfo1, venueTokenSignature1);
+      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo1, venueTokenSignature1);
 
       const now2 = await time.latest();
       const startTimestamp2 = now2 + 5;
@@ -712,9 +710,7 @@ describe('Factory', () => {
 
       await LONG.approve(factory.address, vestingWalletInfo2.totalAllocation);
 
-      const tx2 = await factory
-        .connect(owner)
-        .deployVestingWallet(owner.address, vestingWalletInfo2, venueTokenSignature2);
+      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo2, venueTokenSignature2);
 
       const now3 = await time.latest();
       const startTimestamp3 = now3 + 5;
@@ -738,9 +734,7 @@ describe('Factory', () => {
 
       await LONG.approve(factory.address, vestingWalletInfo3.totalAllocation);
 
-      const tx3 = await factory
-        .connect(owner)
-        .deployVestingWallet(owner.address, vestingWalletInfo3, venueTokenSignature3);
+      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo3, venueTokenSignature3);
 
       const vestingWalletInstanceInfo1 = await factory.getVestingWalletInstanceInfo(description1);
       const vestingWalletInstanceInfo2 = await factory.getVestingWalletInstanceInfo(description2);
