@@ -103,6 +103,14 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// @notice Immutable-like parameters set during initialization.
     AccessTokenParameters public parameters;
 
+    // ============================== Modifiers ==============================
+
+    modifier expectedTokenCheck(address token) {
+        address paymentToken = parameters.info.paymentToken;
+        require(expectedPayingToken == token, TokenChanged(token));
+        _;
+    }
+
     // ============================== Initialization ==============================
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -162,7 +170,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         StaticPriceParameters[] calldata paramsArray,
         address expectedPayingToken,
         uint256 expectedMintPrice
-    ) external payable nonReentrant {
+    ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
         Factory factory = parameters.factory;
         require(paramsArray.length <= factory.nftFactoryParameters().maxArraySize, WrongArraySize());
 
@@ -196,7 +204,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         address receiver,
         DynamicPriceParameters[] calldata paramsArray,
         address expectedPayingToken
-    ) external payable nonReentrant {
+    ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
         Factory factory = parameters.factory;
         require(paramsArray.length <= factory.nftFactoryParameters().maxArraySize, WrongArraySize());
 
