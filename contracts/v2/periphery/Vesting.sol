@@ -109,6 +109,37 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         emit TrancheAdded(tranche);
     }
 
+    function addTranches(Tranche[] calldata tranchesArray) external onlyOwner notFinalizedTrancheAdding {
+        uint256 tranchesArrayLength = tranchesArray.length;
+
+        uint64 _start = start();
+        uint64 _end = end();
+
+        Tranche[] storage _tranches = tranches;
+        uint256 tranchesLen = _tranches.length;
+        uint64 lastTimestamp = tranchesLen == 0 ? block.timestamp : _tranches[tranchesLen - 1].timestamp;
+
+        uint256 amountsSum;
+        for (uint256 i; i < tranchesArrayLength; ++i) {
+            require(tranchesArray[i].timestamp >= _start, TrancheBeforeStart(tranchesArray[i].timestamp));
+            require(tranchesArray[i].timestamp <= _end, TrancheAfterEnd(tranchesArray[i].timestamp));
+            require(tranchesArray[i].timestamp >= lastTimestamp, NonMonotonic(tranchesArray[i].timestamp));
+            lastTimestamp = tranchesArray[i].timestamp;
+            amountsSum += tranchesArray[i].amount;
+        }
+
+        uint256 _tranchesTotal = tranchesTotal + amountsSum;
+        uint256 _totalAllocation = vestingStorage.totalAllocation;
+        uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + _tranchesTotal;
+        require(_currentAllocation <= _totalAllocation, OverAllocation(_currentAllocation, _totalAllocation));
+
+        tranchesTotal = _tranchesTotal;
+        for (uint256 i; i < tranchesArrayLength; ++i) {
+            _tranches.push(tranchesArray[i]);
+            emit TrancheAdded(tranchesArray[i]);
+        }
+    }
+
     function release() external {
         uint256 _released = released;
         uint256 amount = vestedAmount(uint64(block.timestamp)) - _released;
