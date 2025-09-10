@@ -106,6 +106,8 @@ contract Staking is Initializable, ERC4626, Ownable {
         _disableInitializers();
     }
 
+    // ============================== Initialize ==============================
+
     /// @notice Initializes the staking vault.
     /// @param _owner Address to be set as the owner.
     /// @param _treasury Treasury address to receive emergency penalties.
@@ -212,6 +214,7 @@ contract Staking is Initializable, ERC4626, Ownable {
         LONG.safeTransfer(treasury, penalty);
 
         emit EmergencyWithdraw(by, to, _owner, assets, shares);
+        // also emit standard ERC4626 Withdraw for indexers/analytics
         emit Withdraw(by, to, _owner, assets, shares);
     }
 
@@ -236,10 +239,11 @@ contract Staking is Initializable, ERC4626, Ownable {
 
     function _deposit(address by, address to, uint256 assets, uint256 shares) internal override {
         super._deposit(by, to, assets, shares);
-
+        // lock freshly minted shares
         stakes[to].push(Stake({shares: shares, timestamp: block.timestamp}));
     }
 
+    /// @dev Gas-efficient withdrawal with single pass consumption of unlocked shares.
     function _withdraw(address by, address to, address _owner, uint256 assets, uint256 shares) internal override {
         Stake[] memory userStakes = stakes[_owner];
         uint256 _minStakePeriod = minStakePeriod;
@@ -301,6 +305,7 @@ contract Staking is Initializable, ERC4626, Ownable {
                 remaining -= stakeShares;
                 userStakes[i] = userStakes[userStakes.length - 1];
                 userStakes.pop();
+                // don't ++i: a new element is now at index i
             } else {
                 userStakes[i].shares = stakeShares - remaining;
                 remaining = 0;
