@@ -330,7 +330,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         bytes32 referralCode = _parameters.referralCode;
         uint256 referralFees;
         address refferalCreator;
-        if (referralCode != bytes(0)) {
+        if (referralCode != bytes32(0)) {
             referralFees = _parameters.factory.getReferralRate(_parameters.creator, referralCode, fees);
             if (referralFees > 0) {
                 refferalCreator = _parameters.factory.getReferralCreator(referralCode);
