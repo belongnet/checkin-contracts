@@ -23,7 +23,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     // ========= Events =========
     event ERC20Released(address indexed token, uint256 amount);
-    event TrancheAdded(uint64 timestamp, uint256 amount);
+    event TrancheAdded(Tranche tranche);
     event Finalized(uint256 timestamp);
 
     // ========= Types =========
@@ -87,25 +87,25 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     // ========= Mutations =========
 
-    function addTranche(uint64 timestamp, uint256 amount) external onlyOwner notFinalizedTrancheAdding {
-        require(timestamp >= start(), TrancheBeforeStart(timestamp));
-        require(timestamp <= end(), TrancheAfterEnd(timestamp));
+    function addTranche(Tranche calldata tranche) external onlyOwner notFinalizedTrancheAdding {
+        require(tranche.timestamp >= start(), TrancheBeforeStart(tranche.timestamp));
+        require(tranche.timestamp <= end(), TrancheAfterEnd(tranche.timestamp));
 
         Tranche[] storage _tranches = tranches;
-        uint256 len = _tranches.length;
-        if (len > 0) {
-            require(timestamp >= _tranches[len - 1].timestamp, NonMonotonic(timestamp));
+        uint256 tranchesLength = _tranches.length;
+        if (tranchesLength > 0) {
+            require(tranche.timestamp >= _tranches[tranchesLength - 1].timestamp, NonMonotonic(tranche.timestamp));
         }
 
-        uint256 _tranchesTotal = tranchesTotal + amount;
+        uint256 _tranchesTotal = tranchesTotal + tranche.amount;
         uint256 _totalAllocation = vestingStorage.totalAllocation;
         uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + _tranchesTotal;
         require(_currentAllocation <= _totalAllocation, OverAllocation(_currentAllocation, _totalAllocation));
 
         tranchesTotal = _tranchesTotal;
-        _tranches.push(Tranche({timestamp: timestamp, amount: uint192(amount)}));
+        _tranches.push(tranche);
 
-        emit TrancheAdded(timestamp, amount);
+        emit TrancheAdded(tranche);
     }
 
     function release() external {
