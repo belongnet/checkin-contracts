@@ -287,7 +287,7 @@ contract Staking is Initializable, ERC4626, Ownable {
         if (remaining != 0) revert MinStakePeriodNotMet();
     }
 
-    /// @notice Removes shares from stake entries regardless of lock status (used in emergency paths).
+    /// @notice Removes shares from stake entries regardless of lock status (used in emergency flows).
     /// @dev Swap-and-pop for full consumption; partial consumption reduces the entry in-place.
     /// @param staker Address whose stake entries are modified.
     /// @param shares Number of shares to remove.
@@ -295,7 +295,7 @@ contract Staking is Initializable, ERC4626, Ownable {
         Stake[] storage userStakes = stakes[staker];
         uint256 remaining = shares;
 
-        for (uint256 i = 0; i < userStakes.length && remaining > 0;) {
+        for (uint256 i; i < userStakes.length && remaining > 0;) {
             uint256 stakeShares = userStakes[i].shares;
             if (stakeShares <= remaining) {
                 remaining -= stakeShares;
@@ -305,7 +305,9 @@ contract Staking is Initializable, ERC4626, Ownable {
             } else {
                 userStakes[i].shares = stakeShares - remaining;
                 remaining = 0;
-                ++i;
+                unchecked {
+                    ++i;
+                }
             }
         }
     }
