@@ -29,18 +29,17 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     // ========= Types =========
     struct Tranche {
         uint64 timestamp;
-        uint256 amount;
+        uint192 amount;
     }
 
     // ========= Immutables / Config =========
 
     struct VestingWalletStorage {
-        address token;
-        address beneficiary;
         uint64 startTimestamp; // TGE
         uint64 cliffDurationSeconds; // start + cliffDuration
         uint64 durationSeconds; // linear duration (sec)
-        uint64 end; // cliff + duration
+        address token;
+        address beneficiary;
         uint256 totalAllocation;
         uint256 tgeAmount; // one-off at start
         uint256 linearAllocation; // linear part after cliff
