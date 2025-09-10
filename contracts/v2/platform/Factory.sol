@@ -150,7 +150,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     mapping(bytes32 hashedNameSymbol => CreditTokenInstanceInfo info) private _creditTokenInstanceInfo;
 
     /// @notice Mapping `(owner, description)` hash → VestingWallet info.
-    mapping(bytes32 hashedNameSymbol => VestingWalletInstanceInfo info) private _vestingWalletInstanceInfo;
+    mapping(bytes32 _hash => VestingWalletInstanceInfo info) private _vestingWalletInstanceInfo;
 
     /// @notice Current royalties split parameters.
     RoyaltiesParameters private _royaltiesParameters;
@@ -306,7 +306,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     {
         _nftFactoryParameters.signerAddress.checkVestingWalletInfo(signature, _owner, vestingWalletInfo);
 
-        bytes32 hashedSalt = keccak256(abi.encodePacked(_owner, vestingWalletInfo.description));
+        bytes32 hashedSalt = keccak256(bytes(vestingWalletInfo.description));
 
         require(_vestingWalletInstanceInfo[hashedSalt].vestingWallet == address(0), VestingWalletAlreadyExists());
 
@@ -392,6 +392,14 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         returns (CreditTokenInstanceInfo memory)
     {
         return _creditTokenInstanceInfo[_metadataHash(name, symbol)];
+    }
+
+    function getVestingWalletInstanceInfo(string calldata description)
+        external
+        view
+        returns (VestingWalletInstanceInfo memory)
+    {
+        return _vestingWalletInstanceInfo[keccak256(bytes(description))];
     }
 
     // ========== Internal ==========
