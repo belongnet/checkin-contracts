@@ -171,7 +171,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         address expectedPayingToken,
         uint256 expectedMintPrice
     ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
-        Factory.NftFactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
+        Factory.FactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
 
         require(paramsArray.length <= factoryParameters.maxArraySize, WrongArraySize());
 
@@ -207,7 +207,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         DynamicPriceParameters[] calldata paramsArray,
         address expectedPayingToken
     ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
-        Factory.NftFactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
+        Factory.FactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
 
         require(paramsArray.length <= factoryParameters.maxArraySize, WrongArraySize());
 
@@ -315,7 +315,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// @return amount Amount actually charged (wei or token units).
     function _pay(uint256 price, address expectedPayingToken) private {
         AccessTokenParameters memory _parameters = parameters;
-        Factory.NftFactoryParameters memory factoryParameters = _parameters.factory.nftFactoryParameters();
+        Factory.FactoryParameters memory factoryParameters = _parameters.factory.nftFactoryParameters();
 
         uint256 amount = expectedPayingToken == NATIVE_CURRENCY_ADDRESS ? msg.value : price;
 
