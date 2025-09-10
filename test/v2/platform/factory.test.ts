@@ -949,7 +949,7 @@ describe('Factory', () => {
       ).to.be.revertedWithCustomError(factory, 'Unauthorized');
       referralPercentages[1] = 10001;
       await expect(factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages))
-        .to.be.revertedWithCustomError(factory, 'PecentageExceedsMax')
+        .to.be.revertedWithCustomError(factory, 'PercentageExceedsMax')
         .withArgs(10001);
       referralPercentages[1] = 1;
 
