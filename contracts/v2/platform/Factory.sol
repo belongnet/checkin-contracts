@@ -44,6 +44,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Thrown when a collection with the same `(name, symbol)` already exists.
     error TokenAlreadyExists();
 
+    /// @notice Thrown when a vesting wallet with the same description already exists.
     error VestingWalletAlreadyExists();
 
     /// @notice Thrown when `amountToCreator + amountToPlatform > 10000` (i.e., >100% in BPS).
@@ -58,11 +59,19 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Thrown when the deployed CreditToken address does not match the predicted address.
     error CreditTokenAddressMismatch();
 
+    /// @notice Thrown when the deployed VestingWallet proxy address does not match the predicted address.
     error VestingWalletAddressMismatch();
 
+    /// @notice Thrown when the caller does not hold enough tokens to fully fund the vesting wallet.
     error NotEnoughFundsToVest();
 
+    /// @notice Invalid combination of `durationSeconds` and `cliffDurationSeconds`.
+    /// @param duration Provided linear duration in seconds.
+    /// @param cliff Provided cliff duration in seconds.
     error BadDurations(uint64 duration, uint64 cliff);
+    /// @notice Current allocation sum does not fit under `totalAllocation`.
+    /// @param currentAllocation Sum of TGE and linear allocation.
+    /// @param total Provided total allocation.
     error AllocationMismatch(uint256 currentAllocation, uint256 total);
 
     // ========== Events ==========
@@ -77,6 +86,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param info Deployed collection details.
     event CreditTokenCreated(bytes32 indexed _hash, CreditTokenInstanceInfo info);
 
+    /// @notice Emitted after successful deployment and funding of a VestingWallet.
+    /// @param _hash Keccak256 hash of `description` used as deterministic salt.
+    /// @param info Deployed vesting details.
     event VestingWalletCreated(bytes32 indexed _hash, VestingWalletInstanceInfo info);
 
     /// @notice Emitted when factory/global parameters are updated.
@@ -117,13 +129,17 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     }
 
     struct VestingWalletInstanceInfo {
-        uint64 startTimestamp; // TGE
-        uint64 cliffDurationSeconds; // after start (start + cliffDuration)
-        uint64 durationSeconds; // linear duration (sec)
+        /// @notice Vesting start timestamp (TGE).
+        uint64 startTimestamp;
+        /// @notice Cliff duration in seconds (linear section begins at `start + cliff`).
+        uint64 cliffDurationSeconds;
+        /// @notice Linear vesting duration in seconds counted from `cliff`.
+        uint64 durationSeconds;
+        /// @notice ERC-20 token vested by this wallet.
         address token;
-        /// @notice Deployed VestingWallet (minimal proxy) address.
+        /// @notice Deployed VestingWallet (ERC1967 proxy) address.
         address vestingWallet;
-        /// @notice Description.
+        /// @notice Human-readable description used for deterministic salt.
         string description;
     }
 
@@ -190,6 +206,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         _initializeOwner(msg.sender);
     }
 
+    /// @notice Upgrades stored royalties parameters and implementation addresses (reinitializer v2).
+    /// @param _royalties New royalties parameters (BPS).
+    /// @param _implementations New implementation addresses.
     function upgradeToV2(RoyaltiesParameters calldata _royalties, Implementations calldata _implementations)
         external
         reinitializer(2)
@@ -306,6 +325,17 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         emit CreditTokenCreated(hashedSalt, creditTokenInstanceInfo);
     }
 
+    /// @notice Deploys and funds a VestingWallet proxy with a validated schedule.
+    /// @dev
+    /// - Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
+    /// - Requires caller to hold at least `totalAllocation` of the vesting token.
+    /// - Allows pure step-based vesting when `durationSeconds == 0` and `linearAllocation == 0`.
+    /// - Deterministic salt is `keccak256(bytes(description))`; creation fails if duplicate.
+    /// - Transfers `totalAllocation` from caller to the newly deployed vesting wallet.
+    /// @param _owner Owner address for the vesting wallet proxy.
+    /// @param vestingWalletInfo Full vesting configuration and description.
+    /// @param signature Signature from platform signer validating `_owner` and `vestingWalletInfo`.
+    /// @return vestingWallet The deployed VestingWallet proxy address.
     function deployVestingWallet(address _owner, VestingWalletInfo calldata vestingWalletInfo, bytes calldata signature)
         external
         returns (address vestingWallet)
@@ -421,6 +451,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         return _creditTokenInstanceInfo[_metadataHash(name, symbol)];
     }
 
+    /// @notice Returns stored vesting wallet info by description.
+    /// @dev Uses `keccak256(bytes(description))` as the lookup key.
+    /// @param description Human-readable description used at deployment.
+    /// @return The {VestingWalletInstanceInfo} record, if created.
     function getVestingWalletInstanceInfo(string calldata description)
         external
         view
