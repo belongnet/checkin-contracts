@@ -194,8 +194,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         external
         reinitializer(2)
     {
-        FactoryParameters memory factoryParameters = _nftFactoryParameters;
-        _setFactoryParameters(factoryParameters, _royalties, _implementations);
+        _setFactoryParameters(_nftFactoryParameters, _royalties, _implementations);
     }
 
     // ========== Creation Flows ==========
