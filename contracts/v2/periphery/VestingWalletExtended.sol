@@ -16,6 +16,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     error NothingToRelease();
     error TrancheBeforeStart(uint64 timestamp);
     error VestingFinalized();
+    error VestingNotFinalized();
     error NonMonotonic(uint64 timestamp);
     error TrancheAfterEnd(uint64 timestamp);
     error AllocationNotBalanced(uint256 currentAllocation, uint256 totalAllocation);
@@ -47,6 +48,12 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     // Guard
     modifier notFinalizedTrancheAdding() {
         if (tranchesConfigurationFinalized) revert VestingFinalized();
+        _;
+    }
+
+    // Guard
+    modifier shouldBeFinalized() {
+        if (!tranchesConfigurationFinalized) revert VestingNotFinalized();
         _;
     }
 
@@ -126,7 +133,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         emit Finalized(block.timestamp);
     }
 
-    function release() external {
+    function release() external shouldBeFinalized {
         uint256 _released = released;
         uint256 amount = vestedAmount(uint64(block.timestamp)) - _released;
         require(amount > 0, NothingToRelease());
