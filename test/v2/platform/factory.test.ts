@@ -129,6 +129,37 @@ describe('Factory', () => {
         factory.initialize(factoryParams, royalties, implementations, referralPercentages),
       ).to.be.revertedWithCustomError(factory, 'InvalidInitialization');
     });
+
+    it('upgradeToV2()', async () => {
+      const { factory } = await loadFixture(fixture);
+
+      const _implementations = {
+        accessToken: factory.address,
+        creditToken: factory.address,
+        royaltiesReceiver: factory.address,
+        vestingWallet: factory.address,
+      };
+
+      const _royalties = {
+        amountToCreator: 2020,
+        amountToPlatform: 3030,
+      };
+
+      const tx = await factory.upgradeToV2(_royalties, _implementations);
+
+      await expect(tx).to.emit(factory, 'FactoryParametersSet');
+      expect((await factory.royaltiesParameters()).amountToCreator).to.eq(_royalties.amountToCreator);
+      expect((await factory.royaltiesParameters()).amountToPlatform).to.eq(_royalties.amountToPlatform);
+      expect((await factory.implementations()).accessToken).to.eq(_implementations.accessToken);
+      expect((await factory.implementations()).creditToken).to.eq(_implementations.creditToken);
+      expect((await factory.implementations()).royaltiesReceiver).to.eq(_implementations.royaltiesReceiver);
+      expect((await factory.implementations()).vestingWallet).to.eq(_implementations.vestingWallet);
+
+      await expect(factory.upgradeToV2(_royalties, _implementations)).to.be.revertedWithCustomError(
+        factory,
+        'InvalidInitialization',
+      );
+    });
   });
 
   describe('Deploy AccessToken', () => {
@@ -588,6 +619,32 @@ describe('Factory', () => {
       const startTimestamp = now + 5;
       const cliffDurationSeconds = 60;
       const durationSeconds = 360;
+
+      let info: VestingWalletInfoStruct = {
+        startTimestamp,
+        cliffDurationSeconds: 0,
+        durationSeconds: 0,
+        token: LONG.address,
+        beneficiary: alice.address,
+        totalAllocation: ethers.utils.parseEther('100'), // 100 LONG
+        tgeAmount: ethers.utils.parseEther('100'), // 10 LONG at TGE
+        linearAllocation: ethers.utils.parseEther('60'), // 60 LONG linearly after cliff for 360s
+        description,
+      };
+
+      let message = hashVestingInfo(owner.address, info, chainId);
+      let signature = EthCrypto.sign(signer.privateKey, message);
+
+      await expect(factory.connect(owner).deployVestingWallet(owner.address, info, signature))
+        .to.be.revertedWithCustomError(factory, 'BadDurations')
+        .withArgs(0, 0);
+
+      info.durationSeconds = 1;
+      message = hashVestingInfo(owner.address, info, chainId);
+      signature = EthCrypto.sign(signer.privateKey, message);
+      await expect(factory.connect(owner).deployVestingWallet(owner.address, info, signature))
+        .to.be.revertedWithCustomError(factory, 'AllocationMismatch')
+        .withArgs(BigNumber.from(info.linearAllocation).add(await info.tgeAmount), info.totalAllocation);
 
       const vestingWalletInfo: VestingWalletInfoStruct = {
         startTimestamp,
