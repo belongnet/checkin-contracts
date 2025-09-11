@@ -806,6 +806,25 @@ describe('AccessToken', () => {
           },
         ),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
+      await expect(
+        accessTokenEth.connect(creator).mintDynamicPrice(
+          creator.address,
+          [
+            {
+              tokenId: 0,
+              price: ethers.utils.parseEther('0.01'),
+              tokenUri: NFT_721_BASE_URI,
+              signature,
+            } as DynamicPriceParametersStruct,
+          ],
+          creator.address,
+          {
+            value: ethers.utils.parseEther('0.01'),
+          },
+        ),
+      )
+        .to.be.revertedWithCustomError(accessTokenEth, `TokenChanged`)
+        .withArgs(creator.address);
 
       await accessTokenEth.connect(creator).mintDynamicPrice(
         creator.address,
