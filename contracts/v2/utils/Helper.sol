@@ -99,7 +99,7 @@ library Helper {
         view
         returns (uint256 priceAmount)
     {
-        (uint256 tokenPriceInUsd, uint8 pfDecimals) = _getPrice(tokenPriceFeed, maxPriceFeedDelay);
+        (uint256 tokenPriceInUsd, uint8 pfDecimals) = getPrice(tokenPriceFeed, maxPriceFeedDelay);
         // (amount * price) / 10^priceFeedDecimals
         uint256 usdValue = amount.fullMulDiv(tokenPriceInUsd, 10 ** pfDecimals);
         // Standardize the USD value to 27 decimals
@@ -140,8 +140,8 @@ library Helper {
     /// @param maxPriceFeedDelay Maximum allowed age (in seconds) for the feed data relative to `block.timestamp`.
     /// @return price Latest positive price as uint256.
     /// @return decimals Feed decimals.
-    function _getPrice(address priceFeed, uint256 maxPriceFeedDelay)
-        private
+    function getPrice(address priceFeed, uint256 maxPriceFeedDelay)
+        public
         view
         returns (uint256 price, uint8 decimals)
     {
