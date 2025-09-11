@@ -28,8 +28,9 @@ import {
 import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2 } from '../../../helpers/deployMockFixtures';
+import { hashVestingInfo } from '../../../helpers/math';
 
-describe.only('VestingWalletExtended', () => {
+describe('VestingWalletExtended', () => {
   const description = 'VestingWallet';
   const E = (x: string) => ethers.utils.parseEther(x);
 
@@ -163,14 +164,36 @@ describe.only('VestingWalletExtended', () => {
           .add(await info.durationSeconds),
       );
     });
+
+    it('can not be initialized again', async () => {
+      const { vestingWallet } = await loadFixture(fixture);
+
+      await expect(
+        vestingWallet.initialize(vestingWallet.address, {
+          startTimestamp: 1,
+          cliffDurationSeconds: 2,
+          durationSeconds: 3,
+          token: vestingWallet.address,
+          beneficiary: vestingWallet.address,
+          totalAllocation: 3,
+          tgeAmount: 4,
+          linearAllocation: 5,
+          description,
+        } as VestingWalletInfoStruct),
+      ).to.be.revertedWithCustomError(vestingWallet, 'InvalidInitialization');
+    });
   });
 
   describe('Tranche management (single & batch)', () => {
     it('addTranche()', async () => {
-      const { vestingWallet, admin, start, cliffDur, dur } = await loadFixture(fixture);
+      const { vestingWallet, admin, start, cliffDur, dur, bob } = await loadFixture(fixture);
 
       const timestamp = start + 10;
       const amount = E('10'); // first tranche
+
+      await expect(
+        vestingWallet.connect(bob).addTranche({ timestamp: start + 10, amount: E('1') }),
+      ).to.be.revertedWithCustomError(vestingWallet, 'Unauthorized');
 
       const tx = vestingWallet.connect(admin).addTranche({ timestamp, amount });
 
@@ -194,11 +217,16 @@ describe.only('VestingWalletExtended', () => {
     });
 
     it('addTranches() (batch)', async () => {
-      const { vestingWallet, admin, start, cliffDur, dur } = await loadFixture(fixture);
+      const { vestingWallet, admin, start, cliffDur, dur, bob } = await loadFixture(fixture);
+
+      await expect(
+        vestingWallet.connect(bob).addTranches([{ timestamp: start + 10, amount: E('1') }]),
+      ).to.be.revertedWithCustomError(vestingWallet, 'Unauthorized');
 
       const end = start + cliffDur + dur;
 
       // Remaining room for tranches = total - tge - linear = 30
+      const timestamp = start + 10;
       const amount = E('10');
       const amount2 = E('20');
       const timestamps = [start + 5, start + 70]; // monotonic, within [start, end], note: > cliff for second
@@ -216,28 +244,37 @@ describe.only('VestingWalletExtended', () => {
       expect(await vestingWallet.tranchesLength()).to.eq(2);
       expect(await vestingWallet.tranchesTotal()).to.eq(amount.add(amount2));
 
+      // non-monotonic should revert
+      await expect(
+        vestingWallet.connect(admin).addTranches([{ timestamp: timestamp - 1, amount }]),
+      ).to.be.revertedWithCustomError(vestingWallet, 'NonMonotonic');
+      // before start
+      await expect(
+        vestingWallet.connect(admin).addTranches([{ timestamp: start - 1, amount }]),
+      ).to.be.revertedWithCustomError(vestingWallet, 'TrancheBeforeStart');
+      // after end
+      await expect(
+        vestingWallet.connect(admin).addTranches([{ timestamp: end + 1, amount }]),
+      ).to.be.revertedWithCustomError(vestingWallet, 'TrancheAfterEnd');
+
       // OverAllocation: try to add more than remaining (remaining is 0 now)
       await expect(
         vestingWallet.connect(admin).addTranche({ timestamp: end, amount: E('1') }),
       ).to.be.revertedWithCustomError(vestingWallet, 'OverAllocation');
-    });
-
-    it('onlyOwner guards addTranche/addTranches', async () => {
-      const { vestingWallet, bob, start } = await loadFixture(fixture);
-
       await expect(
-        vestingWallet.connect(bob).addTranche({ timestamp: start + 10, amount: E('1') }),
-      ).to.be.revertedWithCustomError(vestingWallet, 'Unauthorized');
-
-      await expect(
-        vestingWallet.connect(bob).addTranches([{ timestamp: start + 10, amount: E('1') }]),
-      ).to.be.revertedWithCustomError(vestingWallet, 'Unauthorized');
+        vestingWallet.connect(admin).addTranches([{ timestamp: end, amount: E('1') }]),
+      ).to.be.revertedWithCustomError(vestingWallet, 'OverAllocation');
     });
   });
 
   describe('Finalize configuration', () => {
     it('finalize(): when tge + linear + tranchesTotal == total', async () => {
-      const { vestingWallet, admin, start } = await loadFixture(fixture);
+      const { vestingWallet, admin, start, bob } = await loadFixture(fixture);
+
+      await expect(vestingWallet.connect(bob).finalizeTranchesConfiguration()).to.be.revertedWithCustomError(
+        vestingWallet,
+        'Unauthorized',
+      );
 
       // Put exactly the remaining 30 in tranches.
       await vestingWallet.connect(admin).addTranches([
@@ -245,13 +282,27 @@ describe.only('VestingWalletExtended', () => {
         { timestamp: start + 70, amount: E('20') },
       ]);
 
+      await expect(vestingWallet.release()).to.be.revertedWithCustomError(vestingWallet, 'VestingNotFinalized');
+
       const tx = vestingWallet.connect(admin).finalizeTranchesConfiguration();
 
       await expect(tx).to.emit(vestingWallet, 'Finalized');
 
+      await expect(vestingWallet.connect(admin).finalizeTranchesConfiguration()).to.be.revertedWithCustomError(
+        vestingWallet,
+        'VestingFinalized',
+      );
+
       // No more adding
       await expect(
         vestingWallet.connect(admin).addTranche({ timestamp: start + 80, amount: E('1') }),
+      ).to.be.revertedWithCustomError(vestingWallet, 'VestingFinalized');
+
+      await expect(
+        vestingWallet.connect(admin).addTranches([
+          { timestamp: start + 5, amount: E('10') },
+          { timestamp: start + 70, amount: E('20') },
+        ]),
       ).to.be.revertedWithCustomError(vestingWallet, 'VestingFinalized');
     });
 
@@ -263,14 +314,6 @@ describe.only('VestingWalletExtended', () => {
       await expect(vestingWallet.connect(admin).finalizeTranchesConfiguration()).to.be.revertedWithCustomError(
         vestingWallet,
         'AllocationNotBalanced',
-      );
-    });
-
-    it('onlyOwner guard', async () => {
-      const { vestingWallet, bob } = await loadFixture(fixture);
-      await expect(vestingWallet.connect(bob).finalizeTranchesConfiguration()).to.be.revertedWithCustomError(
-        vestingWallet,
-        'Unauthorized',
       );
     });
   });
@@ -366,14 +409,14 @@ describe.only('VestingWalletExtended', () => {
       expect(await LONG.balanceOf(alice.address)).to.eq(info.totalAllocation);
       expect(await LONG.balanceOf(vestingWallet.address)).to.eq(0);
       expect(releasableEnd).to.be.gt(0);
+
+      await expect(vestingWallet.release()).to.be.revertedWithCustomError(vestingWallet, 'NothingToRelease');
     });
   });
 
   describe('Step-based only (duration = 0, linear = 0)', () => {
     it('works with pure TGE + tranches (no linear part)', async () => {
-      const { vestingWalletStepBased, admin, alice, LONG, startStepBased, cliffDur, dur, info } = await loadFixture(
-        fixture,
-      );
+      const { vestingWalletStepBased, admin, LONG, startStepBased } = await loadFixture(fixture);
 
       // Add 8 tokens as a single tranche right at start
       await vestingWalletStepBased.connect(admin).addTranche({ timestamp: startStepBased, amount: E('8') });
@@ -387,6 +430,60 @@ describe.only('VestingWalletExtended', () => {
       expect(after.sub(before)).to.eq(E('10'));
       expect(await vestingWalletStepBased.releasable()).to.eq(0);
       expect(await LONG.balanceOf(vestingWalletStepBased.address)).to.eq(0);
+    });
+  });
+
+  describe('Initialize check', () => {
+    it('works with pure TGE + tranches (no linear part)', async () => {
+      const [admin, pauser] = await ethers.getSigners();
+      const signer = EthCrypto.createIdentity();
+      const LONG: LONG = await deployLONG(admin.address, admin.address, pauser.address);
+
+      const signatureVerifier: SignatureVerifier = await deploySignatureVerifier();
+      const validator: MockTransferValidatorV2 = await deployMockTransferValidatorV2();
+      const accessTokenImplementation: AccessToken = await deployAccessTokenImplementation(signatureVerifier.address);
+      const rrImpl: RoyaltiesReceiverV2 = await deployRoyaltiesReceiverV2Implementation();
+      const creditTokenImpl: CreditToken = await deployCreditTokenImplementation();
+      const vestingImpl: VestingWalletExtended = await deployVestingWalletImplementation();
+
+      const factory: Factory = await deployFactory(
+        admin.address,
+        signer.address,
+        signatureVerifier.address,
+        validator.address,
+        {
+          accessToken: accessTokenImplementation.address,
+          creditToken: creditTokenImpl.address,
+          royaltiesReceiver: rrImpl.address,
+          vestingWallet: vestingImpl.address,
+        },
+      );
+
+      const chainId = (await ethers.provider.getNetwork()).chainId;
+      const start = (await time.latest()) + 1_000;
+      const cliffDur = 60;
+      const dur = 360;
+
+      let info: VestingWalletInfoStruct = {
+        startTimestamp: start,
+        cliffDurationSeconds: cliffDur,
+        durationSeconds: dur,
+        token: LONG.address,
+        beneficiary: admin.address,
+        totalAllocation: E('100'), // 100 LONG
+        tgeAmount: E('100'), // 10 LONG at TGE
+        linearAllocation: E('60'), // 60 LONG linearly after cliff for 360s
+        description,
+      };
+
+      let vestingWalletMessage = hashVestingInfo(admin.address, info, chainId);
+      let venueTokenSignature = EthCrypto.sign(signer.privateKey, vestingWalletMessage);
+
+      await LONG.approve(factory.address, info.totalAllocation);
+
+      await expect(factory.connect(admin).deployVestingWallet(admin.address, info, venueTokenSignature))
+        .to.be.revertedWithCustomError(factory, 'AllocationMismatch')
+        .withArgs(info.linearAllocation.add(info.tgeAmount), info.totalAllocation);
     });
   });
 });
