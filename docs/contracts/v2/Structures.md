@@ -50,6 +50,24 @@ struct ERC1155Info {
 }
 ```
 
+## VestingWalletInfo
+
+Parameters configuring a vesting wallet schedule and metadata.
+
+```solidity
+struct VestingWalletInfo {
+  uint64 startTimestamp;
+  uint64 cliffDurationSeconds;
+  uint64 durationSeconds;
+  address token;
+  address beneficiary;
+  uint256 totalAllocation;
+  uint256 tgeAmount;
+  uint256 linearAllocation;
+  string description;
+}
+```
+
 ## StaticPriceParameters
 
 Mint payload for static-priced mints validated by a platform signer.

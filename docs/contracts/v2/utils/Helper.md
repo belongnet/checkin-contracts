@@ -280,3 +280,27 @@ Note: This implementation uses the 27-decimal `BPS` constant as the scaling doma
 | ---- | ---- | ----------- |
 | [0] | uint256 | minOut Minimum acceptable output amount after slippage. |
 
+### getPrice
+
+```solidity
+function getPrice(address priceFeed, uint256 maxPriceFeedDelay) public view returns (uint256 price, uint8 decimals)
+```
+
+_Reads price and decimals from a Chainlink feed; supports v3 `latestRoundData()`
+and legacy v2 interfaces via `latestRound()`, `latestTimestamp()`, and `latestAnswer()` fallbacks.
+Performs basic validations: non-zero round id, positive answer, and `updatedAt` not older than `maxPriceFeedDelay`._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| priceFeed | address | Chainlink aggregator proxy address. |
+| maxPriceFeedDelay | uint256 | Maximum allowed age (in seconds) for the feed data relative to `block.timestamp`. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| price | uint256 | Latest positive price as uint256. |
+| decimals | uint8 | Feed decimals. |
+

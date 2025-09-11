@@ -3,7 +3,8 @@
 ## SignatureVerifier
 
 Stateless helpers to verify backend-signed payloads for collection creation,
-        credit token creation, venue/customer/promoter actions, and mint parameter checks.
+        credit token creation, vesting wallet deployment, venue/customer/promoter actions,
+        and mint parameter checks.
 @dev
 - Uses `SignatureCheckerLib.isValidSignatureNow` for EOA or ERC1271 signatures.
 - All hashes include `block.chainid` to bind signatures to a specific chain.
@@ -56,12 +57,14 @@ function checkAccessTokenInfo(address signer, struct AccessTokenInfo accessToken
 
 Verifies AccessToken collection creation payload.
 
+_Hash covers: `name`, `symbol`, `contractURI`, `feeNumerator`, and `chainId`._
+
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
-| accessTokenInfo | struct AccessTokenInfo | Payload to verify (name, symbol, contractURI, feeNumerator, signature). |
+| accessTokenInfo | struct AccessTokenInfo | Payload to verify. Only the fields listed above are signed. |
 
 ### checkCreditTokenInfo
 
@@ -71,13 +74,35 @@ function checkCreditTokenInfo(address signer, bytes signature, struct ERC1155Inf
 
 Verifies CreditToken (ERC1155) collection creation payload.
 
+_Hash covers: `name`, `symbol`, `uri`, and `chainId`._
+
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
 | signature | bytes | Detached signature validating `creditTokenInfo`. |
-| creditTokenInfo | struct ERC1155Info | Payload (name, symbol, uri, roles). |
+| creditTokenInfo | struct ERC1155Info | Payload. Only the fields listed above are signed. |
+
+### checkVestingWalletInfo
+
+```solidity
+function checkVestingWalletInfo(address signer, bytes signature, address owner, struct VestingWalletInfo vestingWalletInfo) external view
+```
+
+Verifies VestingWallet deployment payload including owner and schedule parameters.
+
+_Hash covers: `owner`, `startTimestamp`, `cliffDurationSeconds`, `durationSeconds`,
+     `token`, `beneficiary`, `totalAllocation`, `tgeAmount`, `linearAllocation`, `description`, and `chainId`._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| signer | address | Authorized signer address. |
+| signature | bytes | Detached signature validating `vestingWalletInfo` and `_owner`. |
+| owner | address | Owner address for the vesting wallet proxy. |
+| vestingWalletInfo | struct VestingWalletInfo | Full vesting schedule configuration and metadata. |
 
 ### checkVenueInfo
 
@@ -85,14 +110,16 @@ Verifies CreditToken (ERC1155) collection creation payload.
 function checkVenueInfo(address signer, struct VenueInfo venueInfo) external view
 ```
 
-Verifies venue deposit intent and parameters.
+Verifies venue deposit intent and metadata.
+
+_Hash covers: `venue`, `referralCode`, `uri`, and `chainId`._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
-| venueInfo | struct VenueInfo | Venue payload (venue, referral, uri). |
+| venueInfo | struct VenueInfo | Venue payload. Only the fields listed above are signed. |
 
 ### checkCustomerInfo
 
@@ -102,13 +129,16 @@ function checkCustomerInfo(address signer, struct CustomerInfo customerInfo, str
 
 Verifies customer payment payload and enforces venue rule compatibility.
 
+_Hash covers: `paymentInUSDC`, `visitBountyAmount`, `spendBountyPercentage`,
+     `customer`, `venueToPayFor`, `promoter`, `amount`, and `chainId`._
+
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
-| customerInfo | struct CustomerInfo | Customer payment data (currency flags, bounties, actors, amount). |
-| rules | struct VenueRules | Venue rules against which to validate payment/bounty types. |
+| customerInfo | struct CustomerInfo | Customer payment data. Only the fields listed above are signed. |
+| rules | struct VenueRules | Venue rules against which to validate payment and bounty types. |
 
 ### checkPromoterPaymentDistribution
 
@@ -118,12 +148,14 @@ function checkPromoterPaymentDistribution(address signer, struct PromoterInfo pr
 
 Verifies promoter payout distribution payload.
 
+_Hash covers: `promoter`, `venue`, `amountInUSD`, and `chainId`._
+
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
-| promoterInfo | struct PromoterInfo | Payout details to be validated. |
+| promoterInfo | struct PromoterInfo | Payout details. Only the fields listed above are signed. |
 
 ### checkDynamicPriceParameters
 
@@ -133,13 +165,15 @@ function checkDynamicPriceParameters(address signer, address receiver, struct Dy
 
 Verifies dynamic price mint parameters for a given receiver.
 
+_Hash covers: `receiver`, `tokenId`, `tokenUri`, `price`, and `chainId`._
+
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
 | receiver | address | Address that will receive the minted token(s). |
-| params | struct DynamicPriceParameters | Dynamic price payload (id, uri, price, signature). |
+| params | struct DynamicPriceParameters | Dynamic price payload. |
 
 ### checkStaticPriceParameters
 
@@ -149,11 +183,13 @@ function checkStaticPriceParameters(address signer, address receiver, struct Sta
 
 Verifies static price mint parameters for a given receiver.
 
+_Hash covers: `receiver`, `tokenId`, `tokenUri`, `whitelisted`, and `chainId`._
+
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
 | receiver | address | Address that will receive the minted token(s). |
-| params | struct StaticPriceParameters | Static price payload (id, uri, whitelist flag, signature). |
+| params | struct StaticPriceParameters | Static price payload. |
 

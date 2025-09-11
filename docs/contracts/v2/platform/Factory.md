@@ -31,6 +31,14 @@ error TokenAlreadyExists()
 
 Thrown when a collection with the same `(name, symbol)` already exists.
 
+### VestingWalletAlreadyExists
+
+```solidity
+error VestingWalletAlreadyExists()
+```
+
+Thrown when a vesting wallet with the same description already exists.
+
 ### TotalRoyaltiesExceed100Pecents
 
 ```solidity
@@ -63,6 +71,52 @@ error CreditTokenAddressMismatch()
 
 Thrown when the deployed CreditToken address does not match the predicted address.
 
+### VestingWalletAddressMismatch
+
+```solidity
+error VestingWalletAddressMismatch()
+```
+
+Thrown when the deployed VestingWallet proxy address does not match the predicted address.
+
+### NotEnoughFundsToVest
+
+```solidity
+error NotEnoughFundsToVest()
+```
+
+Thrown when the caller does not hold enough tokens to fully fund the vesting wallet.
+
+### BadDurations
+
+```solidity
+error BadDurations(uint64 duration, uint64 cliff)
+```
+
+Invalid combination of `durationSeconds` and `cliffDurationSeconds`.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| duration | uint64 | Provided linear duration in seconds. |
+| cliff | uint64 | Provided cliff duration in seconds. |
+
+### AllocationMismatch
+
+```solidity
+error AllocationMismatch(uint256 currentAllocation, uint256 total)
+```
+
+Current allocation sum does not fit under `totalAllocation`.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| currentAllocation | uint256 | Sum of TGE and linear allocation. |
+| total | uint256 | Provided total allocation. |
+
 ### AccessTokenCreated
 
 ```solidity
@@ -92,6 +146,21 @@ Emitted after successful creation of a CreditToken collection.
 | ---- | ---- | ----------- |
 | _hash | bytes32 | Keccak256 hash of `(name, symbol)`. |
 | info | struct Factory.CreditTokenInstanceInfo | Deployed collection details. |
+
+### VestingWalletCreated
+
+```solidity
+event VestingWalletCreated(bytes32 _hash, struct Factory.VestingWalletInstanceInfo info)
+```
+
+Emitted after successful deployment and funding of a VestingWallet.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _hash | bytes32 | Keccak256 hash of `description` used as deterministic salt. |
+| info | struct Factory.VestingWalletInstanceInfo | Deployed vesting details. |
 
 ### FactoryParametersSet
 
@@ -132,13 +201,22 @@ Summary information about a deployed CreditToken collection.
 
 ```solidity
 struct CreditTokenInstanceInfo {
-  address defaultAdmin;
-  address manager;
-  address minter;
-  address burner;
   address creditToken;
   string name;
   string symbol;
+}
+```
+
+### VestingWalletInstanceInfo
+
+```solidity
+struct VestingWalletInstanceInfo {
+  uint64 startTimestamp;
+  uint64 cliffDurationSeconds;
+  uint64 durationSeconds;
+  address token;
+  address vestingWallet;
+  string description;
 }
 ```
 
@@ -167,6 +245,7 @@ struct Implementations {
   address accessToken;
   address creditToken;
   address royaltiesReceiver;
+  address vestingWallet;
 }
 ```
 
@@ -210,6 +289,15 @@ _Must be called exactly once on the proxy instance._
 ```solidity
 function upgradeToV2(struct Factory.RoyaltiesParameters _royalties, struct Factory.Implementations _implementations) external
 ```
+
+Upgrades stored royalties parameters and implementation addresses (reinitializer v2).
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _royalties | struct Factory.RoyaltiesParameters | New royalties parameters (BPS). |
+| _implementations | struct Factory.Implementations | New implementation addresses. |
 
 ### produce
 
@@ -261,6 +349,34 @@ Produces a new CreditToken (ERC1155) collection as a minimal proxy clone.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | creditToken | address | The deployed CreditToken clone address. |
+
+### deployVestingWallet
+
+```solidity
+function deployVestingWallet(address _owner, struct VestingWalletInfo vestingWalletInfo, bytes signature) external returns (address vestingWallet)
+```
+
+Deploys and funds a VestingWallet proxy with a validated schedule.
+@dev
+- Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
+- Requires caller to hold at least `totalAllocation` of the vesting token.
+- Allows pure step-based vesting when `durationSeconds == 0` and `linearAllocation == 0`.
+- Deterministic salt is `keccak256(bytes(description))`; creation fails if duplicate.
+- Transfers `totalAllocation` from caller to the newly deployed vesting wallet.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _owner | address | Owner address for the vesting wallet proxy. |
+| vestingWalletInfo | struct VestingWalletInfo | Full vesting configuration and description. |
+| signature | bytes | Signature from platform signer validating `_owner` and `vestingWalletInfo`. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| vestingWallet | address | The deployed VestingWallet proxy address. |
 
 ### setFactoryParameters
 
@@ -364,4 +480,26 @@ Returns stored info for a CreditToken collection by `(name, symbol)`.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | struct Factory.CreditTokenInstanceInfo | The {CreditTokenInstanceInfo} record, if created. |
+
+### getVestingWalletInstanceInfo
+
+```solidity
+function getVestingWalletInstanceInfo(string description) external view returns (struct Factory.VestingWalletInstanceInfo)
+```
+
+Returns stored vesting wallet info by description.
+
+_Uses `keccak256(bytes(description))` as the lookup key._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| description | string | Human-readable description used at deployment. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | struct Factory.VestingWalletInstanceInfo | The {VestingWalletInstanceInfo} record, if created. |
 
