@@ -19,7 +19,8 @@ import {
 
 /// @title SignatureVerifier
 /// @notice Stateless helpers to verify backend-signed payloads for collection creation,
-///         credit token creation, venue/customer/promoter actions, and mint parameter checks.
+///         credit token creation, vesting wallet deployment, venue/customer/promoter actions,
+///         and mint parameter checks.
 /// @dev
 /// - Uses `SignatureCheckerLib.isValidSignatureNow` for EOA or ERC1271 signatures.
 /// - All hashes include `block.chainid` to bind signatures to a specific chain.
@@ -46,8 +47,9 @@ library SignatureVerifier {
     // ============================== Verifiers ==============================
 
     /// @notice Verifies AccessToken collection creation payload.
+    /// @dev Hash covers: `name`, `symbol`, `contractURI`, `feeNumerator`, and `chainId`.
     /// @param signer Authorized signer address.
-    /// @param accessTokenInfo Payload to verify (name, symbol, contractURI, feeNumerator, signature).
+    /// @param accessTokenInfo Payload to verify. Only the fields listed above are signed.
     function checkAccessTokenInfo(address signer, AccessTokenInfo memory accessTokenInfo) external view {
         require(
             bytes(accessTokenInfo.metadata.name).length > 0 && bytes(accessTokenInfo.metadata.symbol).length > 0,
@@ -72,9 +74,10 @@ library SignatureVerifier {
     }
 
     /// @notice Verifies CreditToken (ERC1155) collection creation payload.
+    /// @dev Hash covers: `name`, `symbol`, `uri`, and `chainId`.
     /// @param signer Authorized signer address.
     /// @param signature Detached signature validating `creditTokenInfo`.
-    /// @param creditTokenInfo Payload (name, symbol, uri, roles).
+    /// @param creditTokenInfo Payload. Only the fields listed above are signed.
     function checkCreditTokenInfo(address signer, bytes calldata signature, ERC1155Info calldata creditTokenInfo)
         external
         view
@@ -95,6 +98,13 @@ library SignatureVerifier {
         );
     }
 
+    /// @notice Verifies VestingWallet deployment payload including owner and schedule parameters.
+    /// @dev Hash covers: `owner`, `startTimestamp`, `cliffDurationSeconds`, `durationSeconds`,
+    ///      `token`, `beneficiary`, `totalAllocation`, `tgeAmount`, `linearAllocation`, `description`, and `chainId`.
+    /// @param signer Authorized signer address.
+    /// @param signature Detached signature validating `vestingWalletInfo` and `_owner`.
+    /// @param owner Owner address for the vesting wallet proxy.
+    /// @param vestingWalletInfo Full vesting schedule configuration and metadata.
     function checkVestingWalletInfo(
         address signer,
         bytes calldata signature,
@@ -124,9 +134,10 @@ library SignatureVerifier {
         );
     }
 
-    /// @notice Verifies venue deposit intent and parameters.
+    /// @notice Verifies venue deposit intent and metadata.
+    /// @dev Hash covers: `venue`, `referralCode`, `uri`, and `chainId`.
     /// @param signer Authorized signer address.
-    /// @param venueInfo Venue payload (venue, referral, uri).
+    /// @param venueInfo Venue payload. Only the fields listed above are signed.
     function checkVenueInfo(address signer, VenueInfo calldata venueInfo) external view {
         require(
             signer.isValidSignatureNow(
@@ -138,9 +149,11 @@ library SignatureVerifier {
     }
 
     /// @notice Verifies customer payment payload and enforces venue rule compatibility.
+    /// @dev Hash covers: `paymentInUSDC`, `visitBountyAmount`, `spendBountyPercentage`,
+    ///      `customer`, `venueToPayFor`, `promoter`, `amount`, and `chainId`.
     /// @param signer Authorized signer address.
-    /// @param customerInfo Customer payment data (currency flags, bounties, actors, amount).
-    /// @param rules Venue rules against which to validate payment/bounty types.
+    /// @param customerInfo Customer payment data. Only the fields listed above are signed.
+    /// @param rules Venue rules against which to validate payment and bounty types.
     function checkCustomerInfo(address signer, CustomerInfo calldata customerInfo, VenueRules memory rules)
         external
         view
@@ -185,8 +198,9 @@ library SignatureVerifier {
     }
 
     /// @notice Verifies promoter payout distribution payload.
+    /// @dev Hash covers: `promoter`, `venue`, `amountInUSD`, and `chainId`.
     /// @param signer Authorized signer address.
-    /// @param promoterInfo Payout details to be validated.
+    /// @param promoterInfo Payout details. Only the fields listed above are signed.
     function checkPromoterPaymentDistribution(address signer, PromoterInfo memory promoterInfo) external view {
         require(
             signer.isValidSignatureNow(
@@ -200,9 +214,10 @@ library SignatureVerifier {
     }
 
     /// @notice Verifies dynamic price mint parameters for a given receiver.
+    /// @dev Hash covers: `receiver`, `tokenId`, `tokenUri`, `price`, and `chainId`.
     /// @param signer Authorized signer address.
     /// @param receiver Address that will receive the minted token(s).
-    /// @param params Dynamic price payload (id, uri, price, signature).
+    /// @param params Dynamic price payload.
     function checkDynamicPriceParameters(address signer, address receiver, DynamicPriceParameters calldata params)
         external
         view
@@ -217,9 +232,10 @@ library SignatureVerifier {
     }
 
     /// @notice Verifies static price mint parameters for a given receiver.
+    /// @dev Hash covers: `receiver`, `tokenId`, `tokenUri`, `whitelisted`, and `chainId`.
     /// @param signer Authorized signer address.
     /// @param receiver Address that will receive the minted token(s).
-    /// @param params Static price payload (id, uri, whitelist flag, signature).
+    /// @param params Static price payload.
     function checkStaticPriceParameters(address signer, address receiver, StaticPriceParameters calldata params)
         external
         view
