@@ -46,7 +46,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     VestingWalletInfo public vestingStorage;
 
     // Guard
-    modifier notFinalizedTrancheAdding() {
+    modifier vestingNotFinalized() {
         if (tranchesConfigurationFinalized) revert VestingFinalized();
         _;
     }
@@ -71,7 +71,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     // ========= Mutations =========
 
-    function addTranche(Tranche calldata tranche) external onlyOwner notFinalizedTrancheAdding {
+    function addTranche(Tranche calldata tranche) external onlyOwner vestingNotFinalized {
         require(tranche.timestamp >= start(), TrancheBeforeStart(tranche.timestamp));
         require(tranche.timestamp <= end(), TrancheAfterEnd(tranche.timestamp));
 
@@ -93,7 +93,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         emit TrancheAdded(tranche);
     }
 
-    function addTranches(Tranche[] calldata tranchesArray) external onlyOwner notFinalizedTrancheAdding {
+    function addTranches(Tranche[] calldata tranchesArray) external onlyOwner vestingNotFinalized {
         uint256 tranchesArrayLength = tranchesArray.length;
 
         uint64 _start = start();
@@ -124,7 +124,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         }
     }
 
-    function finalizeTranchesConfiguration() external onlyOwner notFinalizedTrancheAdding {
+    function finalizeTranchesConfiguration() external onlyOwner vestingNotFinalized {
         uint256 _totalAllocation = vestingStorage.totalAllocation;
         uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + tranchesTotal;
         require(_currentAllocation == _totalAllocation, AllocationNotBalanced(_currentAllocation, _totalAllocation));
