@@ -193,7 +193,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
     );
 
     const escrow: Escrow = await deployEscrow(belongCheckIn.address);
-    const { pf1, pf2, pf3 } = await deployPriceFeeds();
+    const { pf1, pf2, pf2_2, pf2_3, pf3 } = await deployPriceFeeds();
     const { venueToken, promoterToken } = await deployCreditTokens(
       true,
       false,
@@ -227,6 +227,8 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       escrow,
       pf1,
       pf2,
+      pf2_2,
+      pf2_3,
       pf3,
       admin,
       treasury,
@@ -248,7 +250,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
 
   describe('Deployment', () => {
     it('Should be deployed correctly', async () => {
-      const { belongCheckIn, escrow, pf1, pf2, pf3, admin } = await loadFixture(fixture);
+      const { belongCheckIn, escrow, helper, pf1, pf2, pf2_2, pf2_3, pf3, admin } = await loadFixture(fixture);
 
       expect(belongCheckIn.address).to.be.properAddress;
       expect(escrow.address).to.be.properAddress;
@@ -328,6 +330,21 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
           maxPriceFeedDelay: 10,
         } as BelongCheckIn.PaymentsInfoStruct),
       ).to.be.revertedWithCustomError(belongCheckIn, 'InvalidInitialization');
+
+      await expect(helper.getPrice(pf2.address, 3600))
+        .to.be.revertedWithCustomError(helper, 'IncorrectRoundId')
+        .withArgs(pf2.address, 0);
+      const { updatedAt: updatedAt_pf2_2 } = await pf2_2.latestRoundData();
+      await expect(helper.getPrice(pf2_2.address, 3600))
+        .to.be.revertedWithCustomError(helper, 'IncorrectLatestUpdatedTimestamp')
+        .withArgs(pf2_2.address, updatedAt_pf2_2);
+      await expect(helper.getPrice(pf2_3.address, 3600))
+        .to.be.revertedWithCustomError(helper, 'IncorrectAnswer')
+        .withArgs(pf2_3.address, -10);
+      const { updatedAt: updatedAt_pf3 } = await pf3.latestRoundData();
+      await expect(helper.getPrice(pf3.address, 0))
+        .to.be.revertedWithCustomError(helper, 'IncorrectLatestUpdatedTimestamp')
+        .withArgs(pf3.address, updatedAt_pf3);
     });
   });
 
