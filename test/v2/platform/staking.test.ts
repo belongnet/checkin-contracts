@@ -36,6 +36,15 @@ describe('Staking', () => {
       expect(await staking.asset()).to.eq(long.address);
       expect(await staking.owner()).to.eq(admin.address);
     });
+
+    it('can not be initialized again', async () => {
+      const { staking } = await loadFixture(fixture);
+
+      await expect(staking.initialize(staking.address, staking.address, staking.address)).to.be.revertedWithCustomError(
+        staking,
+        'InvalidInitialization',
+      );
+    });
   });
 
   describe('Staking features', () => {
