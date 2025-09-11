@@ -23,7 +23,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     error OverAllocation(uint256 currentAllocation, uint256 totalAllocation);
 
     // ========= Events =========
-    event ERC20Released(address indexed token, uint256 amount);
+    event Released(address indexed token, uint256 amount);
     event TrancheAdded(Tranche tranche);
     event Finalized(uint256 timestamp);
 
@@ -142,7 +142,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         released = _released + amount;
         _token.safeTransfer(vestingStorage.beneficiary, amount);
 
-        emit ERC20Released(_token, amount);
+        emit Released(_token, amount);
     }
 
     // ========= Math =========
