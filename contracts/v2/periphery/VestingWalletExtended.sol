@@ -18,8 +18,6 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     error VestingFinalized();
     error NonMonotonic(uint64 timestamp);
     error TrancheAfterEnd(uint64 timestamp);
-    error BadDurations(uint64 duration, uint64 cliff);
-    error AllocationMismatch(uint256 tge, uint256 linear, uint256 total);
     error AllocationNotBalanced(uint256 currentAllocation, uint256 totalAllocation);
     error OverAllocation(uint256 currentAllocation, uint256 totalAllocation);
 
@@ -60,19 +58,6 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     function initialize(address _owner, VestingWalletInfo calldata vestingParams) external initializer {
-        require(vestingParams.token != address(0) && vestingParams.beneficiary != address(0), ZeroAddressPassed());
-
-        // allow pure step-based (duration=0), or valid cliff+duration
-        require(
-            vestingParams.durationSeconds == 0 || vestingParams.cliffDurationSeconds + vestingParams.durationSeconds > 0,
-            BadDurations(vestingParams.durationSeconds, vestingParams.cliffDurationSeconds)
-        );
-        // TGE + Linear <= Total (tranches adding later)
-        require(
-            vestingParams.tgeAmount + vestingParams.linearAllocation <= vestingParams.totalAllocation,
-            AllocationMismatch(vestingParams.tgeAmount, vestingParams.linearAllocation, vestingParams.totalAllocation)
-        );
-
         vestingStorage = vestingParams;
         _initializeOwner(_owner);
     }

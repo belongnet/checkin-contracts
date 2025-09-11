@@ -62,6 +62,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
     error NotEnoughFundsToVest();
 
+    error BadDurations(uint64 duration, uint64 cliff);
+    error AllocationMismatch(uint256 currentAllocation, uint256 total);
+
     // ========== Events ==========
 
     /// @notice Emitted after successful creation of an AccessToken collection.
@@ -310,6 +313,21 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     {
         require(
             vestingWalletInfo.token.balanceOf(msg.sender) >= vestingWalletInfo.totalAllocation, NotEnoughFundsToVest()
+        );
+
+        // allow pure step-based (duration=0), or valid cliff+duration
+        if (vestingWalletInfo.durationSeconds == 0) {
+            require(
+                vestingWalletInfo.linearAllocation == 0,
+                BadDurations(vestingWalletInfo.durationSeconds, vestingWalletInfo.cliffDurationSeconds)
+            );
+        }
+
+        // TGE + Linear <= Total (tranches adding later)
+        uint256 currentAllocation = vestingWalletInfo.tgeAmount + vestingWalletInfo.linearAllocation;
+        require(
+            currentAllocation <= vestingWalletInfo.totalAllocation,
+            AllocationMismatch(currentAllocation, vestingWalletInfo.totalAllocation)
         );
 
         _nftFactoryParameters.signerAddress.checkVestingWalletInfo(signature, _owner, vestingWalletInfo);
