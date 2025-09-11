@@ -7,6 +7,7 @@ import {
   LONGPriceFeedMockV2,
   LONGPriceFeedMockV3,
 } from '../typechain-types';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 
 export async function deployWETHMock(): Promise<WETHMock> {
   const WETHMock: ContractFactory = await ethers.getContractFactory('WETHMock');
@@ -27,6 +28,8 @@ export async function deployMockTransferValidatorV2(): Promise<MockTransferValid
 export async function deployPriceFeeds(): Promise<{
   pf1: LONGPriceFeedMockV1;
   pf2: LONGPriceFeedMockV2;
+  pf2_2: LONGPriceFeedMockV2;
+  pf2_3: LONGPriceFeedMockV2;
   pf3: LONGPriceFeedMockV3;
 }> {
   const LONGPriceFeedMockV1: ContractFactory = await ethers.getContractFactory('LONGPriceFeedMockV1');
@@ -34,12 +37,36 @@ export async function deployPriceFeeds(): Promise<{
   await longPriceFeedMockV1.deployed();
 
   const LONGPriceFeedMockV2: ContractFactory = await ethers.getContractFactory('LONGPriceFeedMockV2');
-  const longPriceFeedMockV2: LONGPriceFeedMockV2 = (await LONGPriceFeedMockV2.deploy()) as LONGPriceFeedMockV2;
+  const longPriceFeedMockV2: LONGPriceFeedMockV2 = (await LONGPriceFeedMockV2.deploy(
+    0,
+    await time.latest(),
+    50000000,
+  )) as LONGPriceFeedMockV2;
+  await longPriceFeedMockV2.deployed();
+
+  const longPriceFeedMockV2_2: LONGPriceFeedMockV2 = (await LONGPriceFeedMockV2.deploy(
+    252525,
+    (await time.latest()) + 10000,
+    50000000,
+  )) as LONGPriceFeedMockV2;
+  await longPriceFeedMockV2.deployed();
+
+  const longPriceFeedMockV2_3: LONGPriceFeedMockV2 = (await LONGPriceFeedMockV2.deploy(
+    252525,
+    (await time.latest()) - 2020,
+    -10,
+  )) as LONGPriceFeedMockV2;
   await longPriceFeedMockV2.deployed();
 
   const LONGPriceFeedMockV3: ContractFactory = await ethers.getContractFactory('LONGPriceFeedMockV3');
   const longPriceFeedMockV3: LONGPriceFeedMockV3 = (await LONGPriceFeedMockV3.deploy()) as LONGPriceFeedMockV3;
   await longPriceFeedMockV3.deployed();
 
-  return { pf1: longPriceFeedMockV1, pf2: longPriceFeedMockV2, pf3: longPriceFeedMockV3 };
+  return {
+    pf1: longPriceFeedMockV1,
+    pf2: longPriceFeedMockV2,
+    pf2_2: longPriceFeedMockV2_2,
+    pf2_3: longPriceFeedMockV2_3,
+    pf3: longPriceFeedMockV3,
+  };
 }
