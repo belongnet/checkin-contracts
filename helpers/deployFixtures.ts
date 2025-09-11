@@ -227,10 +227,10 @@ export async function deployVestingWallet(
 
   await LONG.approve(factory.address, vestingWalletInfo.totalAllocation);
 
-  const produceCreditToken = await factory
+  const deployVestingWallet = await factory
     .connect(owner)
     .deployVestingWallet(owner.address, vestingWalletInfo, venueTokenSignature);
-  await produceCreditToken.wait(1);
+  await deployVestingWallet.wait(1);
 
   const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(await vestingWalletInfo.description);
 
