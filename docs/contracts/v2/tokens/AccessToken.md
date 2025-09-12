@@ -148,6 +148,10 @@ Pseudo-address used to represent NativeCurrency in payment flows.
 uint16 PLATFORM_COMISSION_DENOMINATOR
 ```
 
+Denominator for platform commission calculations (basis points).
+
+_A value of 10_000 corresponds to 100% (i.e., BPS math)._
+
 ### totalSupply
 
 ```solidity
@@ -177,6 +181,14 @@ Immutable-like parameters set during initialization.
 ```solidity
 modifier expectedTokenCheck(address token)
 ```
+
+Ensures the provided payment token matches the configured token.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| token | address | Expected payment token (NativeCurrency pseudo-address or ERC-20). |
 
 ### constructor
 

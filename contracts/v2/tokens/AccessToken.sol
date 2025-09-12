@@ -89,6 +89,9 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
     /// @notice Pseudo-address used to represent NativeCurrency in payment flows.
     address public constant NATIVE_CURRENCY_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    /// @notice Denominator for platform commission calculations (basis points).
+    /// @dev A value of 10_000 corresponds to 100% (i.e., BPS math).
     uint16 public constant PLATFORM_COMISSION_DENOMINATOR = 10_000;
 
     /// @notice Number of tokens minted so far.
@@ -105,6 +108,8 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
     // ============================== Modifiers ==============================
 
+    /// @notice Ensures the provided payment token matches the configured token.
+    /// @param token Expected payment token (NativeCurrency pseudo-address or ERC-20).
     modifier expectedTokenCheck(address token) {
         address paymentToken = parameters.info.paymentToken;
         require(paymentToken == token, TokenChanged(token));
