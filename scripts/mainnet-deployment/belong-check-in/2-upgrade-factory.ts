@@ -19,84 +19,84 @@ async function main() {
   }
 
   // Initialize deployments object
-  let deployments = {};
+  let deployments: any = {};
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
 
-  if (UPGRADE) {
-    console.log('Upgrading Factory contract...');
-
-    // Read addresses from environment variables
-    const SignatureVerifier = deployments.SignatureVerifier.address;
-    const Factory = deployments.Factory.proxy;
-    const accessToken = deployments.AccessTokenImplementation.address;
-    const royaltiesReceiver = deployments.RoyaltiesReceiverV2Implementation.address;
-    const creditToken = deployments.CreditTokenImplementation.address;
+  if (UPGRADE && deployments.factory) {
+    console.log('Upgrade Factory: ');
 
     // Validate environment variables
-    if (!SignatureVerifier || !Factory || !accessToken || !royaltiesReceiver || !creditToken) {
+    if (
+      !deployments.libraries.sigantureVerifier ||
+      !deployments.implementations.accessToken ||
+      !deployments.implementations.creditToken ||
+      !deployments.implementations.royaltiesReceiver ||
+      !deployments.implementations.vestingWallet ||
+      !deployments.factory.proxy
+    ) {
       throw new Error(
-        'Missing required environment variables: SignatureVerifier, Factory, AccessTokenImplementation, RoyaltiesReceiverV2Implementation,CreditTokenImplementation',
+        `Missing required environment variables:\nSigantureVerifier: ${deployments.libraries.sigantureVerifier}\nAccessToken: ${deployments.libraries.accessToken}\nCreditTokenImplementation: ${deployments.libraries.creditToken}\nRoyaltiesReceiverV2Implementation: ${deployments.libraries.royaltiesReceiver}\nVestingWalletImplementation: ${deployments.libraries.vestingWallet}\nFactoryProxy: ${deployments.libraries.proxy}`,
       );
     }
 
     // Validate addresses
-    for (const addr of [SignatureVerifier, Factory, accessToken, royaltiesReceiver, creditToken]) {
+    for (const addr of [
+      deployments.libraries.sigantureVerifier,
+      deployments.implementations.accessToken,
+      deployments.implementations.royaltiesReceiver,
+      deployments.implementations.creditToken,
+      deployments.implementations.vestingWallet,
+      deployments.factory.proxy,
+    ]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
 
     const FactoryV2 = await ethers.getContractFactory('Factory', {
-      libraries: { SignatureVerifier },
+      libraries: { SignatureVerifier: deployments.libraries.sigantureVerifier },
     });
 
     // (Optional) pre-check: will fail if layout breaks
-    await upgrades.validateUpgrade(Factory, FactoryV2, {
+    await upgrades.validateUpgrade(deployments.factory.proxy, FactoryV2, {
       kind: 'transparent',
       unsafeAllow: ['constructor'],
       unsafeAllowLinkedLibraries: true,
     });
 
     const royalties = { amountToCreator: 8000, amountToPlatform: 2000 };
-    const implementations = {
-      accessToken,
-      creditToken,
-      royaltiesReceiver,
-    };
 
-    const upgraded = await upgrades.upgradeProxy(Factory, FactoryV2, {
+    console.log('Upgrading Factory contract...');
+    const factory = await upgrades.upgradeProxy(deployments.factory.proxy, FactoryV2, {
       kind: 'transparent',
-      call: { fn: 'upgradeToV2', args: [royalties, implementations] },
+      call: { fn: 'upgradeToV2', args: [royalties, deployments.implementations] },
       unsafeAllow: ['constructor'],
       unsafeAllowLinkedLibraries: true,
     });
-
     await waitForNextBlock();
 
-    const newImpl = await upgrades.erc1967.getImplementationAddress(upgraded.address);
-    console.log('Upgraded proxy still at: ', upgraded.address);
-    console.log('New implementation at: ', newImpl);
+    const newImplementation = await upgrades.erc1967.getImplementationAddress(factory.address);
 
     // Update deployments object
-    deployments = {
-      ...deployments,
-      Factory: {
-        proxy: upgraded.address,
-        implementation: newImpl,
-      },
-    };
+    deployments.factory.proxy = factory.address;
+    deployments.factory.implementation = newImplementation;
+    // Write to file
+    fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
+    console.log('Upgraded Factory proxy still at: ', factory.address);
+    console.log('New Factory implementation at: ', newImplementation);
+
     console.log('Done.');
   }
 
   if (VERIFY) {
-    console.log('Verification:');
+    console.log('Verification: ');
     try {
-      if (!deployments.Factory?.proxy) {
+      if (!deployments.factory?.proxy) {
         throw new Error('No Factory deployment data found for verification.');
       }
-      await verifyContract(deployments.Factory.proxy);
+      await verifyContract(deployments.factory.proxy);
       console.log('Factory verification successful.');
     } catch (error) {
       console.error('Factory verification failed: ', error);
