@@ -16,46 +16,57 @@ async function deploy() {
   }
 
   // Initialize deployments object
-  let deployments = {};
+  let deployments: any = {};
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
 
-  console.log('Setting BelongCheckIn up...');
+  console.log('Set BelongCheckIn up: ');
 
-  const belongCheckIn = deployments.BelongCheckIn.proxy;
-  const factory = deployments.Factory.proxy;
-  const escrow = deployments.Escrow.address;
-  const staking = deployments.Staking.address;
-  const venueToken = deployments.VenueToken.address;
-  const promoterToken = deployments.PromoterToken.address;
   const longPF = process.env.LONG_PRICE_FEED;
 
   // Validate environment variables
-  if (!belongCheckIn || !factory || !escrow || !staking || !venueToken || !promoterToken || !longPF) {
+  if (
+    !deployments.checkIn.address ||
+    !deployments.factory.proxy ||
+    !deployments.checkIn.escrow ||
+    !deployments.tokens.staking ||
+    !deployments.tokens.venueToken.address ||
+    !deployments.tokens.promoterToken.address ||
+    !longPF
+  ) {
     throw new Error(
-      'Missing required environment variables: BelongCheckIn, Factory, Escrow, Staking, VenueToken, PromoterToken, LongPriceFeed',
+      `Missing required environment variables:\nBelongCheckIn: ${deployments.checkIn.address}\nFactory: ${deployments.factory.proxy}\nEscrow: ${deployments.checkIn.escrow}\nStaking: ${deployments.tokens.staking}\nVenueToken: ${deployments.tokens.venueToken.address}\nPromoterToken: ${deployments.tokens.promoterToken.address}\LONG_PRICE_FEED: ${longPF}\n`,
     );
   }
 
   // Validate addresses (exclude swapPoolFees as it's not an address)
-  for (const addr of [factory, escrow, staking, venueToken, promoterToken, longPF]) {
+  for (const addr of [
+    deployments.checkIn.address,
+    deployments.factory.proxy,
+    deployments.checkIn.escrow,
+    deployments.tokens.staking,
+    deployments.tokens.venueToken.address,
+    deployments.tokens.promoterToken.address,
+    longPF,
+  ]) {
     if (!ethers.utils.isAddress(addr)) {
       throw new Error(`Invalid address: ${addr}`);
     }
   }
 
-  const belongCheckIn: BelongCheckIn = await ethers.getContractAt('BelongCheckIn', belongCheckIn);
+  const belongCheckIn: BelongCheckIn = await ethers.getContractAt('BelongCheckIn', deployments.checkIn.address);
 
   const contracts = {
-    factory,
-    escrow,
-    staking,
-    venueToken,
-    promoterToken,
+    factory: deployments.factory.proxy,
+    escrow: deployments.checkIn.escrow,
+    staking: deployments.tokens.staking,
+    venueToken: deployments.tokens.venueToken.address,
+    promoterToken: deployments.tokens.promoterToken.address,
     longPF,
   };
 
+  console.log('Setting BelongCheckIn up...');
   await belongCheckIn.setContracts(contracts);
 
   console.log('Done.');
