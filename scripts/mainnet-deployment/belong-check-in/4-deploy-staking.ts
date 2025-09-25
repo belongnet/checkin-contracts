@@ -23,42 +23,41 @@ async function deploy() {
   }
 
   // Initialize deployments object
-  let deployments = {};
+  let deployments: any = {};
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
 
+  if (!deployments.tokens) {
+    deployments.tokens = {};
+  }
+
   if (DEPLOY) {
-    console.log('Deploying Staking contract...');
+    console.log('Deploy Staking: ');
 
     // Read addresses from environment variables
     const owner = process.env.ADMIN_ADDRESS;
     const treasury = process.env.TREASURY_ADDRESS;
-    const long = deployments.LONG.address;
 
     // Validate environment variables
-    if (!owner || !treasury || !long) {
-      throw new Error('Missing required environment variables: OWNER_ADDRESS, TREASURY_ADDRESS, LONG_ADDRESS');
+    if (!owner || !treasury || !deployments.tokens.long) {
+      throw new Error(
+        `Missing required environment variables:\nADMIN_ADDRESS: ${process.env.ADMIN_ADDRESS}\nTREASURY_ADDRESS: ${process.env.TREASURY_ADDRESS}\nLong: ${deployments.tokens.long}`,
+      );
     }
 
     // Validate addresses
-    for (const addr of [owner, treasury, long]) {
+    for (const addr of [owner, treasury, deployments.tokens.long]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
 
-    const staking: Staking = await deployStaking(owner, treasury, long);
+    console.log('Deploying Staking contract...');
+    const staking: Staking = await deployStaking(owner, treasury, deployments.tokens.long);
 
     // Update deployments object
-    deployments = {
-      ...deployments,
-      Staking: {
-        address: staking.address,
-        parameters: [owner, treasury, long],
-      },
-    };
-
+    deployments.tokens.staking = staking.address;
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
     console.log('Deployed Staking to: ', staking.address);
@@ -66,12 +65,12 @@ async function deploy() {
   }
 
   if (VERIFY) {
-    console.log('Verification:');
+    console.log('Verification: ');
     try {
-      if (!deployments.Staking?.address || !deployments.Staking?.parameters) {
+      if (!deployments.tokens.staking) {
         throw new Error('No Staking deployment data found for verification.');
       }
-      await verifyContract(deployments.Staking.address, deployments.Staking.parameters);
+      await verifyContract(deployments.tokens.staking);
       console.log('Staking verification successful.');
     } catch (error) {
       console.error('Staking verification failed: ', error);
