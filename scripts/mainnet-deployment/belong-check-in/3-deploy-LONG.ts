@@ -23,13 +23,17 @@ async function deploy() {
   }
 
   // Initialize deployments object
-  let deployments = {};
+  let deployments: any = {};
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
 
+  if (!deployments.tokens) {
+    deployments.tokens = {};
+  }
+
   if (DEPLOY) {
-    console.log('Deploying: ');
+    console.log('Deploy LONG: ');
     // Read addresses from environment variables
     const mintToAddress = process.env.MINT_LONG_TO;
     const adminAddress = process.env.ADMIN_ADDRESS;
@@ -38,7 +42,7 @@ async function deploy() {
     // Validate environment variables
     if (!mintToAddress || !adminAddress || !pauserAddress) {
       throw new Error(
-        'Missing required environment variables: MINT_LONG_TO, LONG_AMOUNT_TO_MINT, ADMIN_ADDRESS, PAUSER_ADDRESS',
+        `Missing required environment variables:\nMINT_LONG_TO: ${mintToAddress}\nADMIN_ADDRESS: ${adminAddress}\nPAUSER_ADDRESS: ${pauserAddress}`,
       );
     }
 
@@ -48,32 +52,25 @@ async function deploy() {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
-
     console.log('Deploying LONG contract...');
     const long: LONG = await deployLONG(mintToAddress, adminAddress, pauserAddress);
 
     // Update deployments object
-    deployments = {
-      ...deployments,
-      LONG: {
-        address: long.address,
-        parameters: [mintToAddress, adminAddress, pauserAddress],
-      },
-    };
-
+    deployments.tokens.long = long.address;
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
     console.log('Deployed LONG to: ', long.address);
+
     console.log('Done.');
   }
 
   if (VERIFY) {
     console.log('Verification: ');
     try {
-      if (!deployments.LONG?.address || !deployments.LONG?.parameters) {
+      if (!deployments.tokens.long) {
         throw new Error('No LONG deployment data found for verification.');
       }
-      await verifyContract(deployments.LONG.address, deployments.LONG.parameters);
+      await verifyContract(deployments.tokens.long);
       console.log('LONG verification successful.');
     } catch (error) {
       console.error('LONG verification failed: ', error);
