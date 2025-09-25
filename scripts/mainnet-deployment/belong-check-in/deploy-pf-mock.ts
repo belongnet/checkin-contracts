@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { ContractFactory } from 'ethers';
-import { LONGPriceFeedMockV3, NFT } from '../../../typechain-types';
+import { LONGPriceFeedMockV3 } from '../../../typechain-types';
 import dotenv from 'dotenv';
 dotenv.config();
 
