@@ -1,77 +1,60 @@
 {
-  "SignatureVerifier": {
-    "address": "0x83618D58A1A4648BC31B7b7CD0DB08EFD39708bB"
+  "libraries": {
+    "sigantureVerifier": "0x48B840e4900eE7392088003C1402b91bcc0e73A4",
+    "helper": "0xeCD6a84CC2f3bE8678587cc53303883adB3Aca06"
   },
-  "AccessTokenImplementation": {
-    "address": "0xd97aD56221cc9a68cB310cfF328F21bC5E24156a"
+  "implementations": {
+    "accessToken": "0xf85F79379d573Ac2b5fF165fc93Ed050851cD4eB",
+    "creditToken": "0x855C2cE5117700640aFB9fd780c54F92C951cE22",
+    "royaltiesReceiver": "0x90c7F2Cc827Ac089682b707F0CB2ae2c9856EC14",
+    "vestingWallet": "0xeb837b0039e7F31f1d561D08f929eF89D884914C"
   },
-  "RoyaltiesReceiverV2Implementation": {
-    "address": "0x42eA62312B97F87343Ba5a9D3599bfF73A3eD4E7"
+  "factory": {
+    "proxy": "0xd302CEc28dE1F3168e87AE59A3Ae0B1244a7243c",
+    "implementation": "0x99da0D53ae4DbD6545214547eC981D026123df2f"
   },
-  "CreditTokenImplementation": {
-    "address": "0x9C2aD75498C8B952c9C7cBb4F7B7Ac8dA795887C"
+  "tokens": {
+    "long": "0x63D2F24F3586E3D16D542dE218d8c4caae4f21D1",
+    "staking": "0x0446eB2c8618909c41EC23Ce03A94c7b285ECD23",
+    "venueToken": {
+      "address": "0x5E0E6e044F3C001d8DFc31b3E2634Ecb0CAeB135",
+      "parameters": [
+        {
+          "name": "VenueToken",
+          "symbol": "VET",
+          "uri": "contractURI/VenueToken",
+          "transferable": true
+        }
+      ]
+    },
+    "promoterToken": {
+      "address": "0x44C4158a5dBa12dc7586CF3ECDBFd72B2b090ABD",
+      "parameters": [
+        {
+          "name": "PromoterToken",
+          "symbol": "PMT",
+          "uri": "contractURI/PromoterToken",
+          "transferable": true
+        }
+      ]
+    }
   },
-  "Factory": {
-    "proxy": "0xCa673987F1D74552fC25Dd7975848FE6f5F21abC",
-    "implementation": "0xc794db3285257943c2d1cabe549fa744c95185d5"
-  },
-  "LONG": {
-    "address": "0xe46AeC5C3aF86725438887c78C9910efE1594175",
-    "parameters": [
-      "0x53d2f4917C9FC210536ffDB7D1BD26dc9F2Fc319",
-      "0x53d2f4917C9FC210536ffDB7D1BD26dc9F2Fc319",
-      "0x53d2f4917C9FC210536ffDB7D1BD26dc9F2Fc319"
-    ]
-  },
-  "Staking": {
-    "address": "0xc9788f7BdF861708c6EefEb91dECF454c6F2A41C",
-    "parameters": [
-      "0x53d2f4917C9FC210536ffDB7D1BD26dc9F2Fc319",
-      "0x53d2f4917C9FC210536ffDB7D1BD26dc9F2Fc319",
-      "0xe46AeC5C3aF86725438887c78C9910efE1594175"
-    ]
-  },
-  "Helper": {
-    "address": "0xe0B2A33dbea03ed8fb8bA2289Cc2aAA8E30a4Bf1"
-  },
-  "BelongCheckIn": {
-    "proxy": "0x4beE9f94C187e80BDab296749c910E4667e13f66",
-    "parameters": [
-      "0x53d2f4917C9FC210536ffDB7D1BD26dc9F2Fc319",
-      {
-        "swapPoolFees": "3000",
-        "swapV3Router": "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E",
-        "swapV3Quoter": "0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3",
-        "weth": "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9",
-        "usdc": "0xf08A50178dfcDe18524640EA6618a1f965821715",
-        "long": "0xe46AeC5C3aF86725438887c78C9910efE1594175"
-      }
-    ]
-  },
-  "Escrow": {
-    "address": "0xB143A7e48aD5d6C66e446BB9aAAb391157c42150",
-    "parameters": ["0x4beE9f94C187e80BDab296749c910E4667e13f66"]
-  },
-  "VenueToken": {
-    "address": "0x5a57253200D4B051fCE4c3835378B591aAEeb349",
-    "parameters": [
-      {
-        "name": "VenueToken",
-        "symbol": "VET",
-        "uri": "contractURI/VenueToken",
-        "transferable": true
-      }
-    ]
-  },
-  "PromoterToken": {
-    "address": "0x749D63b7eAE25a09B0e0e8230C09Ca693daA3E41",
-    "parameters": [
-      {
-        "name": "PromoterToken",
-        "symbol": "PMT",
-        "uri": "contractURI/PromoterToken",
-        "transferable": true
-      }
-    ]
+  "checkIn": {
+    "address": "0x48C372aE48f0FbADcdbe734Bf0EDab94fB3fd5fe",
+    "paymentsInfo": {
+      "slippageBps": {
+        "type": "BigNumber",
+        "hex": "0x033b2e3c9fd0803ce7ffffff"
+      },
+      "swapPoolFees": "3000",
+      "swapV3Factory": "0x0227628f3F023bb0B980b67D528571c95c6DaC1c",
+      "swapV3Router": "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E",
+      "swapV3Quoter": "0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3",
+      "wNativeCurrency": "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9",
+      "usdc": "0xf08A50178dfcDe18524640EA6618a1f965821715",
+      "long": "0x63D2F24F3586E3D16D542dE218d8c4caae4f21D1",
+      "maxPriceFeedDelay": 86400
+    },
+    "escrow": "0x7a3e1663df7CAB99B6CfCe1813dA1A0C0276A0CA"
   }
 }
