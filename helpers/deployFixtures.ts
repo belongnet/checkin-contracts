@@ -53,7 +53,7 @@ export async function deployFactory(
   platformAddress: string,
   signerAddress: string,
   signatureVerifier: string,
-  validator: string,
+  transferValidator: string,
   implementations: Factory.ImplementationsStruct,
   factoryParams?: Factory.FactoryParametersStruct,
   platformCommission: BigNumberish = 100,
@@ -67,7 +67,7 @@ export async function deployFactory(
 ): Promise<Factory> {
   if (factoryParams === undefined) {
     factoryParams = {
-      transferValidator: validator,
+      transferValidator,
       platformAddress,
       signerAddress,
       platformCommission,
