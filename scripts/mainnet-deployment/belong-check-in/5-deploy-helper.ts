@@ -23,24 +23,23 @@ async function deploy() {
   }
 
   // Initialize deployments object
-  let deployments = {};
+  let deployments: any = {};
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
 
+  if (!deployments.libraries) {
+    deployments.libraries = {};
+  }
+
   if (DEPLOY) {
-    console.log('Deploying: ');
+    console.log('Deploy Helper: ');
 
     console.log('Deploying Helper contract...');
     const helper: Helper = await deployHelper();
 
     // Update deployments object
-    deployments = {
-      ...deployments,
-      Helper: {
-        address: helper.address,
-      },
-    };
+    deployments.libraries.helper = helper.address;
 
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
@@ -51,13 +50,13 @@ async function deploy() {
   if (VERIFY) {
     console.log('Verification: ');
     try {
-      if (!deployments.Helper?.address) {
+      if (!deployments.libraries.helper) {
         throw new Error('No Helper deployment data found for verification.');
       }
-      await verifyContract(deployments.Helper.address);
+      await verifyContract(deployments.libraries.helper);
       console.log('Helper verification successful.');
     } catch (error) {
-      console.error('Helper verification failed:', error);
+      console.error('Helper verification failed: ', error);
     }
     console.log('Done.');
   }
