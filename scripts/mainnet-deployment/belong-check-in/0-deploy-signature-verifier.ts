@@ -7,8 +7,10 @@ import { SignatureVerifier } from '../../../typechain-types';
 
 dotenv.config();
 
-const DEPLOY = true;
-const VERIFY = true;
+const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
+const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
+const DEPLOY = ENV_DEPLOY ?? true; // <-- ENV_UPGRADE is `false` (not nullish), so UPGRADE=false
+const VERIFY = ENV_VERIFY ?? true; // same
 
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -21,41 +23,40 @@ async function deploy() {
   }
 
   // Initialize deployments object
-  let deployments = {};
+  let deployments: any = {};
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
+  // Ensure libraries and SigantureVerifier objects exist
+  if (!deployments.libraries) {
+    deployments.libraries = {};
+  }
 
-  if (DEPLOY) {
-    console.log('Deploying: ');
+  if (DEPLOY && !deployments.libraries.SigantureVerifier) {
+    console.log('Deploy SignatureVerifier: ');
 
     console.log('Deploying SignatureVerifier contract...');
     const signatureVerifier: SignatureVerifier = await deploySignatureVerifier();
 
     // Update deployments object
-    deployments = {
-      ...deployments,
-      SigantureVerifier: {
-        address: signatureVerifier.address,
-      },
-    };
-
+    deployments.libraries.sigantureVerifier = signatureVerifier.address;
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
     console.log('Deployed SignatureVerifier to: ', signatureVerifier.address);
+
     console.log('Done.');
   }
 
   if (VERIFY) {
     console.log('Verification: ');
     try {
-      if (!deployments.SigantureVerifier?.address) {
+      if (!deployments.libraries.sigantureVerifier) {
         throw new Error('No SignatureVerifier deployment data found for verification.');
       }
-      await verifyContract(deployments.SigantureVerifier.address);
+      await verifyContract(deployments.libraries.sigantureVerifier);
       console.log('SigantureVerifier verification successful.');
     } catch (error) {
-      console.error('SigantureVerifier verification failed:', error);
+      console.error('SigantureVerifier verification failed: ', error);
     }
     console.log('Done.');
   }
