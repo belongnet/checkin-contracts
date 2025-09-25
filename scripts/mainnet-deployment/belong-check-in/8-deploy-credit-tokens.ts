@@ -23,23 +23,27 @@ async function deploy() {
   }
 
   // Initialize deployments object
-  let deployments = {};
+  let deployments: any = {};
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
 
-  if (DEPLOY) {
-    console.log('Setting VenueToken and PromoterToken...');
+  if (!deployments.tokens) {
+    deployments.tokens = {};
+  }
 
-    const factory = deployments.Factory.proxy;
+  if (DEPLOY) {
+    console.log('Deploy VenueToken and PromoterToken: ');
+
+    const signerPK = process.env.SIGNER_PK;
 
     // Validate environment variables
-    if (!factory) {
-      throw new Error('Missing required environment variables: Factory');
+    if (!deployments.factory.proxy || !signerPK) {
+      throw new Error(`Missing required environment variables:\nFactory: ${deployments.factory.proxy}\nSIGNER_PK`);
     }
 
     // Validate addresses (exclude swapPoolFees as it's not an address)
-    for (const addr of [factory]) {
+    for (const addr of [deployments.factory.proxy]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
@@ -56,62 +60,65 @@ async function deploy() {
       uri: 'contractURI/PromoterToken',
     };
 
-    const { venueToken, promoterToken } = await deployCreditTokens(true, true, factory, process.env.SIGNER_PK, admin);
+    console.log('Deploying VenueToken and PromoterToken contracts...');
+    const { venueToken, promoterToken } = await deployCreditTokens(
+      true,
+      true,
+      deployments.factory.proxy,
+      signerPK,
+      admin,
+    );
 
     // Update deployments object
-    deployments = {
-      ...deployments,
-      VenueToken: {
-        address: venueToken.address,
-        parameters: [
-          {
-            name: venueMetadata.name,
-            symbol: venueMetadata.symbol,
-            uri: venueMetadata.uri,
-            transferable: true,
-          },
-        ],
-      },
-      PromoterToken: {
-        address: promoterToken.address,
-        parameters: [
-          {
-            name: promoterMetadata.name,
-            symbol: promoterMetadata.symbol,
-            uri: promoterMetadata.uri,
-            transferable: true,
-          },
-        ],
-      },
+    deployments.tokens.venueToken = {
+      address: venueToken.address,
+      parameters: [
+        {
+          name: venueMetadata.name,
+          symbol: venueMetadata.symbol,
+          uri: venueMetadata.uri,
+          transferable: true,
+        },
+      ],
     };
-
+    deployments.tokens.promoterToken = {
+      address: promoterToken.address,
+      parameters: [
+        {
+          name: promoterMetadata.name,
+          symbol: promoterMetadata.symbol,
+          uri: promoterMetadata.uri,
+          transferable: true,
+        },
+      ],
+    };
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
 
-    console.log('Deployed VenueToken to:', venueToken.address);
-    console.log('Deployed PromoterToken to:', promoterToken.address);
+    console.log('Deployed VenueToken to: ', venueToken.address);
+    console.log('Deployed PromoterToken to: ', promoterToken.address);
     console.log('Done.');
   }
 
   if (VERIFY) {
-    console.log('Verification:');
+    console.log('Verification: ');
     try {
-      if (!deployments.VenueToken?.address || !deployments.VenueToken?.parameters) {
+      if (!deployments.tokens.venueToken.address) {
         throw new Error('No VenueToken deployment data found for verification.');
       }
-      await verifyContract(deployments.VenueToken.address);
+      await verifyContract(deployments.tokens.venueToken.address);
       console.log('VenueToken verification successful.');
     } catch (error) {
-      console.error('VenueToken verification failed:', error);
+      console.error('VenueToken verification failed: ', error);
     }
     try {
-      if (!deployments.PromoterToken?.address || !deployments.PromoterToken?.parameters) {
+      if (!deployments.tokens.promoterToken.address) {
         throw new Error('No PromoterToken deployment data found for verification.');
       }
-      await verifyContract(deployments.PromoterToken.address);
+      await verifyContract(deployments.tokens.promoterToken.address);
       console.log('PromoterToken verification successful.');
     } catch (error) {
-      console.error('PromoterToken verification failed:', error);
+      console.error('PromoterToken verification failed: ', error);
     }
     console.log('Done.');
   }
