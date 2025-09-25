@@ -23,54 +23,49 @@ async function deploy() {
   }
 
   // Initialize deployments object
-  let deployments = {};
+  let deployments: any = {};
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
 
-  if (DEPLOY) {
-    console.log('Deploying Escrow contract...');
+  if (!deployments.checkIn) {
+    deployments.checkIn = {};
+  }
 
-    // Read addresses from environment variables
-    const belongCheckIn = deployments.BelongCheckIn.address;
+  if (DEPLOY) {
+    console.log('Deploy Escrow: ');
 
     // Validate environment variables
-    if (!belongCheckIn) {
-      throw new Error('Missing required environment variable: TAP_EARN_ADDRESS');
+    if (!deployments.checkIn.address) {
+      throw new Error(`Missing required environment variable:\nBelongCheckIn: ${deployments.checkIn.address}`);
     }
 
     // Validate address
-    if (!ethers.utils.isAddress(belongCheckIn)) {
-      throw new Error(`Invalid address: ${belongCheckIn}`);
+    if (!ethers.utils.isAddress(deployments.checkIn.address)) {
+      throw new Error(`Invalid address: ${deployments.checkIn.address}`);
     }
 
-    const escrow: Escrow = await deployEscrow(belongCheckIn);
+    console.log('Deploying Escrow contract...');
+    const escrow: Escrow = await deployEscrow(deployments.checkIn.address);
 
     // Update deployments object
-    deployments = {
-      ...deployments,
-      Escrow: {
-        address: escrow.address,
-        parameters: [belongCheckIn],
-      },
-    };
-
+    deployments.checkIn.escrow = escrow.address;
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
-    console.log('Deployed Escrow to:', escrow.address);
+    console.log('Deployed Escrow to: ', escrow.address);
     console.log('Done.');
   }
 
   if (VERIFY) {
-    console.log('Verification:');
+    console.log('Verification: ');
     try {
-      if (!deployments.Escrow?.address) {
+      if (!deployments.checkIn.escrow) {
         throw new Error('No Escrow deployment data found for verification.');
       }
-      await verifyContract(deployments.Escrow.address);
+      await verifyContract(deployments.checkIn.escrow);
       console.log('Escrow verification successful.');
     } catch (error) {
-      console.error('Escrow verification failed:', error);
+      console.error('Escrow verification failed: ', error);
     }
     console.log('Done.');
   }
