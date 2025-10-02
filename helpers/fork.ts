@@ -25,7 +25,7 @@ export async function startSimulateMainnet() {
       {
         forking: {
           jsonRpcUrl: chainRPCs(ChainIds.mainnet),
-          blockNumber: 23484805,
+          blockNumber: 23490636,
           enable: true,
         },
       },
@@ -40,7 +40,7 @@ export async function startSimulateBSC() {
       {
         forking: {
           jsonRpcUrl: chainRPCs(ChainIds.bsc),
-          blockNumber: 63126800,
+          blockNumber: 63220493,
           enable: true,
         },
       },

@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 export enum ChainIds {
   mainnet = 1,
   sepolia = 11155111,
@@ -20,9 +23,13 @@ export enum ChainIds {
 export const chainRPCs = (chainid: ChainIds): string => {
   switch (chainid) {
     case ChainIds.mainnet:
-      return `https://ethereum-rpc.publicnode.com`;
+      return process.env.INFURA_ID_PROJECT
+        ? `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
+        : `https://eth.llamarpc.com`;
     case ChainIds.bsc:
-      return 'https://binance.llamarpc.com';
+      return process.env.INFURA_ID_PROJECT
+        ? `https://bsc-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
+        : 'https://binance.llamarpc.com';
     case ChainIds.polygon:
       return `https://polygon.llamarpc.com`;
     case ChainIds.blast:
