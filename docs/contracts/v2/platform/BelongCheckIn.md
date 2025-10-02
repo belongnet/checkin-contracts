@@ -2,15 +2,14 @@
 
 ## BelongCheckIn
 
-Orchestrates venue deposits, customer payments, and promoter payouts for a
-        referral-based commerce program with dual-token accounting (USDC/LONG).
+Coordinates venue deposits, customer check-ins, and promoter settlements for the Belong program.
 @dev
-- Uses ERC1155 credits (`CreditToken`) to track venue balances and promoter entitlements in USD units.
-- Delegates custody and distribution of USDC/LONG to `Escrow`.
-- Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps on a V3 DEX router/quoter.
-- Applies tiered fees/discounts depending on staked balance in `Staking`.
-- Applies buyback-and-burn on platform revenue per `Fees.buybackBurnPercentage`.
-- Signature-gated actions are authorized through a platform signer configured in `Factory`.
+- Maintains venue and promoter balances as denominated ERC1155 credits (1 credit == 1 USD unit).
+- Delegates token custody to {Escrow} while enforcing platform fees, referral incentives, and staking perks.
+- Prices and swaps LONG through a configured Uniswap V3 router/quoter pairing and a Chainlink price feed.
+- Applies staking-tier-dependent deposit fees, customer discounts, and promoter fee splits.
+- Streams platform revenue through a buyback-and-burn routine before forwarding the remainder to Factory.platformAddress.
+- All externally triggered flows require EIP-712 signatures produced by the platform signer held in {Factory}.
 
 ### WrongReferralCode
 
@@ -95,6 +94,22 @@ error TokensCanNotBeBurned()
 ```
 
 Thrown when LONG cannot be burned or transferred to the burn address.
+
+### SwapFailed
+
+```solidity
+error SwapFailed(address tokenIn, address tokenOut, uint256 amount)
+```
+
+Thrown when a Uniswap V3 swap fails for the provided tokens/amount.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| tokenIn | address | Asset that was being swapped from. |
+| tokenOut | address | Asset that was being swapped to. |
+| amount | uint256 | Exact input amount that failed to execute. |
 
 ### ParametersSet
 
@@ -424,18 +439,18 @@ Disables initializers for the implementation contract.
 function initialize(address _owner, struct BelongCheckIn.PaymentsInfo _paymentsInfo) external
 ```
 
-Initializes core parameters and default tier tables; sets the owner.
+Initializes core parameters, default tier tables, and transfers ownership.
 @dev
-- Computes a default $5 USDC convenience fee using `MetadataReaderLib.readDecimals()`.
-- Installs default `Fees` and `RewardsInfo[5]` arrays.
-- Must be called exactly once.
+- Derives a $5 convenience charge in native USDC decimals through `MetadataReaderLib.readDecimals`.
+- Seeds default {Fees} and full 5-tier {RewardsInfo} tables used until `setParameters` is invoked.
+- Callable exactly once; subsequent calls revert via {Initializable}.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _owner | address | The address granted ownership. |
-| _paymentsInfo | struct BelongCheckIn.PaymentsInfo | Uniswap/asset configuration to be stored. |
+| _owner | address | Address that will gain `onlyOwner` privileges. |
+| _paymentsInfo | struct BelongCheckIn.PaymentsInfo | Initial swap + asset configuration to persist. |
 
 ### setParameters
 
@@ -443,15 +458,15 @@ Initializes core parameters and default tier tables; sets the owner.
 function setParameters(struct BelongCheckIn.PaymentsInfo _paymentsInfo, struct BelongCheckIn.Fees _fees, struct BelongCheckIn.RewardsInfo[5] _stakingRewards) external
 ```
 
-Owner-only method to update core parameters in a single call.
+Owner-only convenience wrapper to replace swap configuration, fee knobs, and tier tables atomically.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _paymentsInfo | struct BelongCheckIn.PaymentsInfo | New Uniswap/asset configuration. |
-| _fees | struct BelongCheckIn.Fees | New platform fee configuration (scaled by 1e4). |
-| _stakingRewards | struct BelongCheckIn.RewardsInfo[5] | New tier table (array index maps to `StakingTiers`). |
+| _paymentsInfo | struct BelongCheckIn.PaymentsInfo | Fresh Uniswap + asset configuration to persist. |
+| _fees | struct BelongCheckIn.Fees | Revised fee settings scaled by 1e4 (basis points domain). |
+| _stakingRewards | struct BelongCheckIn.RewardsInfo[5] | Replacement 5-element rewards array (index matches {StakingTiers}). |
 
 ### setContracts
 
@@ -459,13 +474,13 @@ Owner-only method to update core parameters in a single call.
 function setContracts(struct BelongCheckIn.Contracts _contracts) external
 ```
 
-Owner-only method to update external contract references.
+Owner-only method to update external contract references used by the module.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _contracts | struct BelongCheckIn.Contracts | Struct of contract references (Factory, Escrow, Staking, tokens, price feed). |
+| _contracts | struct BelongCheckIn.Contracts | Set of contract dependencies (Factory, Escrow, Staking, venue/promoter tokens, price feed). |
 
 ### updateVenueRules
 
@@ -473,15 +488,15 @@ Owner-only method to update external contract references.
 function updateVenueRules(struct VenueRules rules) external
 ```
 
-Allows a venue to update its rules after a balance check.
+Allows a venue to change its rule configuration provided it still holds venue credits.
 
-_Reverts with `NotAVenue()` if caller has zero venue credits._
+_Reverts with `NotAVenue()` when the caller has no outstanding credits (i.e. has not deposited yet)._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| rules | struct VenueRules | The new `VenueRules` to set for the caller. |
+| rules | struct VenueRules | The updated `VenueRules` payload for the caller. |
 
 ### venueDeposit
 
@@ -489,19 +504,19 @@ _Reverts with `NotAVenue()` if caller has zero venue credits._
 function venueDeposit(struct VenueInfo venueInfo) external
 ```
 
-Handles a venue USDC deposit, affiliate fee processing, convenience fee, and escrow funding.
+Handles a venue USDC deposit, accounting for fee exemptions, affiliate rewards, and escrow funding.
 @dev
 - Signature-validated via platform signer from `Factory`.
-- Applies staking-tier-based `depositFeePercentage` unless remaining free credits > 0.
-- Charges convenience + affiliate fees in USDC; convenience fee is swapped to LONG and escrowed as LONG discount.
-- Applies buyback/burn split on the platform’s deposit fee portion per `Fees.buybackBurnPercentage`.
-- Forwards net USDC deposit to `Escrow` and mints venue credits (ERC1155) representing USD units deposited.
+- Tracks “free deposit” credits; the platform fee is skipped until the configured allowance is exhausted.
+- Charges convenience plus affiliate fees in USDC, swaps them to LONG where applicable, and records the resulting LONG in escrow.
+- Applies the buyback/burn split to the platform fee portion before forwarding the remainder to the fee collector.
+- Forwards the full venue deposit to {Escrow} and mints venue credits to mirror the USD balance.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| venueInfo | struct VenueInfo | Signed venue deposit parameters (venue, amount, referral code, rules, uri). |
+| venueInfo | struct VenueInfo | Signed venue deposit parameters (venue, amount, referral code, venue rules, metadata URI). |
 
 ### payToVenue
 
@@ -512,15 +527,15 @@ function payToVenue(struct CustomerInfo customerInfo) external
 Processes a customer payment to a venue, optionally attributing promoter rewards.
 @dev
 - Signature-validated via platform signer from `Factory`.
-- If a promoter is present, burns venue credits and mints promoter credits in USD units.
-- If `paymentInUSDC` is true: transfers USDC from customer to venue.
-- If false: applies subsidy minus processing fee via `Escrow`, then transfers discounted LONG from customer to venue.
+- Burns venue credits / mints promoter credits when a promoter participates in the visit.
+- USDC payments move USDC directly from customer to venue.
+- LONG payments pull the platform subsidy from escrow, collect the customer’s discounted LONG, then deliver/route LONG per venue rules.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| customerInfo | struct CustomerInfo | Signed customer payment parameters (customer, venue, promoter, amount, flags, bounties). |
+| customerInfo | struct CustomerInfo | Signed customer payment parameters (customer, venue, promoter, amount, payment flags, bounty data). |
 
 ### distributePromoterPayments
 
@@ -528,19 +543,19 @@ Processes a customer payment to a venue, optionally attributing promoter rewards
 function distributePromoterPayments(struct PromoterInfo promoterInfo) external
 ```
 
-Settles promoter credits into a payout in either USDC or LONG.
+Settles promoter credits into an on-chain payout in either USDC or LONG.
 @dev
 - Signature-validated via platform signer from `Factory`.
-- Applies tiered platform fee based on `Staking` balance of the promoter.
-- For USDC payout: pulls fee and promoter portions from `Escrow`; fee portion is routed here to apply buyback/burn.
-- For LONG payout: pulls USDC from `Escrow`, swaps to LONG; fee portion is routed here for buyback/burn.
-- Burns promoter credits by the settled USD amount.
+- Applies tiered platform fees based on the promoter’s staked LONG in {Staking}.
+- USDC payouts draw both fee and promoter portions from escrow; fees are streamed through `_handleRevenue`.
+- LONG payouts draw USDC from escrow, swap the full amount using the V3 router, and subject the swapped fee portion to the buyback routine.
+- Always burns promoter ERC1155 credits by the settled USD amount to prevent re-claims.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| promoterInfo | struct PromoterInfo | Signed settlement parameters (promoter, venue, amountInUSD, payout currency flag). |
+| promoterInfo | struct PromoterInfo | Signed settlement parameters (promoter, venue, USD amount, payout currency flag). |
 
 ### emergencyCancelPayment
 
@@ -548,14 +563,14 @@ Settles promoter credits into a payout in either USDC or LONG.
 function emergencyCancelPayment(address venue, address promoter) external
 ```
 
-Owner-only emergency function to cancel all promoter credits for a venue and restore them to the venue.
+Owner-only escape hatch that restores a venue’s credits by cancelling a promoter’s balance.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| venue | address | The venue whose credits will be restored. |
-| promoter | address | The promoter whose credits will be burned. |
+| venue | address | Venue that will regain the promoter’s USD credits. |
+| promoter | address | Promoter whose outstanding credits are burned. |
 
 ### contracts
 
@@ -563,13 +578,13 @@ Owner-only emergency function to cancel all promoter credits for a venue and res
 function contracts() external view returns (struct BelongCheckIn.Contracts contracts_)
 ```
 
-Returns external contract references.
+Returns current contract dependencies.
 
 #### Return Values
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| contracts_ | struct BelongCheckIn.Contracts | The `Contracts` struct currently in use. |
+| contracts_ | struct BelongCheckIn.Contracts | The persisted {Contracts} struct. |
 
 ### fees
 
@@ -583,7 +598,7 @@ Returns platform fee configuration.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| fees_ | struct BelongCheckIn.Fees | The `Fees` struct currently in use. |
+| fees_ | struct BelongCheckIn.Fees | The persisted {Fees} struct. |
 
 ### paymentsInfo
 
@@ -597,7 +612,7 @@ Returns Uniswap/asset configuration.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| paymentsInfo_ | struct BelongCheckIn.PaymentsInfo | The `PaymentsInfo` struct currently in use. |
+| paymentsInfo_ | struct BelongCheckIn.PaymentsInfo | The persisted {PaymentsInfo} struct. |
 
 ### _swapUSDCtoLONG
 
@@ -605,7 +620,7 @@ Returns Uniswap/asset configuration.
 function _swapUSDCtoLONG(address recipient, uint256 amount) internal virtual returns (uint256 swapped)
 ```
 
-Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
+Swaps an exact USDC amount to LONG, then delivers proceeds to `recipient`.
 @dev
 - Builds a multi-hop path USDC → W_NATIVE_CURRENCY → LONG using the same fee tier.
 - Uses Quoter to set a conservative `amountOutMinimum`.
@@ -630,7 +645,7 @@ Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
 function _swapLONGtoUSDC(address recipient, uint256 amount) internal virtual returns (uint256 swapped)
 ```
 
-Swaps exact LONG amount to USDC and sends proceeds to `recipient`.
+Swaps an exact LONG amount to USDC, then delivers proceeds to `recipient`.
 @dev
 - Builds a multi-hop path LONG → W_NATIVE_CURRENCY → USDC using the same fee tier.
 - Uses Quoter to set a conservative `amountOutMinimum`.
@@ -655,7 +670,7 @@ Swaps exact LONG amount to USDC and sends proceeds to `recipient`.
 function _swapExact(address tokenIn, address tokenOut, address recipient, uint256 amount) internal returns (uint256 swapped)
 ```
 
-_Common swap executor with minimal approvals and conservative slippage._
+_Common swap executor that builds the path, quotes slippage-aware minimums, and clears approvals on completion._
 
 ### _handleRevenue
 
@@ -663,13 +678,13 @@ _Common swap executor with minimal approvals and conservative slippage._
 function _handleRevenue(address token, uint256 amount) internal
 ```
 
-_Splits platform revenue: allocate `buybackBurnPercentage` to LONG buyback/burn, forward remainder to fee collector._
+_Splits platform revenue: swaps a configurable portion for LONG and burns it, then forwards the remainder to the fee collector._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| token | address | Revenue token address (USDC or LONG supported). |
+| token | address | Revenue token address (USDC/LONG supported; unknown tokens are forwarded intact). |
 | amount | uint256 | Revenue amount received by this contract. |
 
 ### _buildPath
@@ -678,6 +693,5 @@ _Splits platform revenue: allocate `buybackBurnPercentage` to LONG buyback/burn,
 function _buildPath(struct BelongCheckIn.PaymentsInfo _paymentsInfo, address tokenIn, address tokenOut) internal view returns (bytes path)
 ```
 
-_Builds the best-available path between `tokenIn` and `tokenOut`.
-     Prefers direct pool, otherwise routes via W_NATIVE_CURRENCY using the same fee tier._
+_Builds the optimal encoded path for the configured V3 router, preferring a direct pool and otherwise routing through the configured wrapped native token._
 
