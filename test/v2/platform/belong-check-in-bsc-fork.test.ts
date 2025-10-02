@@ -159,6 +159,11 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
     const creditTokenImplementation: CreditToken = await deployCreditTokenImplementation();
     const vestingWallet: VestingWalletExtended = await deployVestingWalletImplementation();
 
+    const treasuryUsdcBalance = await USDC.balanceOf(treasury.address);
+    if (!treasuryUsdcBalance.isZero()) {
+      await USDC.connect(treasury).transfer(USDC_whale.address, treasuryUsdcBalance);
+    }
+
     implementations = {
       accessToken: accessTokenImplementation.address,
       creditToken: creditTokenImplementation.address,
@@ -921,9 +926,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       } = await loadFixture(fixture);
       await staking.setMinStakePeriod(1);
 
-      console.log(await CAKE.balanceOf(CAKE_whale.address));
       await CAKE.connect(CAKE_whale).transfer(USDC_whale.address, ethers.utils.parseEther('50000'));
-      console.log(await CAKE.balanceOf(USDC_whale.address));
       await CAKE.connect(USDC_whale).approve(staking.address, ethers.utils.parseEther('50000'));
       await staking.connect(USDC_whale).deposit(ethers.utils.parseEther('50000'), USDC_whale.address);
 
@@ -998,7 +1001,6 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         helper,
         admin,
         referral,
-        treasury,
         signer,
         referralCode,
         USDC,
@@ -1006,9 +1008,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         USDC_whale,
         CAKE_whale,
       } = await loadFixture(fixture);
-      console.log(await CAKE.balanceOf(CAKE_whale.address));
       await CAKE.connect(CAKE_whale).transfer(USDC_whale.address, ethers.utils.parseEther('249999'));
-      console.log(await CAKE.balanceOf(USDC_whale.address));
       await CAKE.connect(USDC_whale).approve(staking.address, ethers.utils.parseEther('249999'));
       await staking.connect(USDC_whale).deposit(ethers.utils.parseEther('249999'), USDC_whale.address);
 
@@ -1087,9 +1087,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         USDC_whale,
         CAKE_whale,
       } = await loadFixture(fixture);
-      console.log(await CAKE.balanceOf(CAKE_whale.address));
       await CAKE.connect(CAKE_whale).transfer(USDC_whale.address, ethers.utils.parseEther('250000'));
-      console.log(await CAKE.balanceOf(USDC_whale.address));
       await CAKE.connect(USDC_whale).approve(staking.address, ethers.utils.parseEther('250000'));
       await staking.connect(USDC_whale).deposit(ethers.utils.parseEther('250000'), USDC_whale.address);
 
@@ -1160,7 +1158,6 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         helper,
         admin,
         referral,
-        treasury,
         signer,
         referralCode,
         USDC,
@@ -1168,9 +1165,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         USDC_whale,
         CAKE_whale,
       } = await loadFixture(fixture);
-      console.log(await CAKE.balanceOf(CAKE_whale.address));
       await CAKE.connect(CAKE_whale).transfer(USDC_whale.address, ethers.utils.parseEther('500000'));
-      console.log(await CAKE.balanceOf(USDC_whale.address));
       await CAKE.connect(USDC_whale).approve(staking.address, ethers.utils.parseEther('500000'));
       await staking.connect(USDC_whale).deposit(ethers.utils.parseEther('500000'), USDC_whale.address);
 
@@ -1241,7 +1236,6 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         helper,
         admin,
         referral,
-        treasury,
         signer,
         referralCode,
         USDC,
@@ -1249,9 +1243,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         USDC_whale,
         CAKE_whale,
       } = await loadFixture(fixture);
-      console.log(await CAKE.balanceOf(CAKE_whale.address));
       await CAKE.connect(CAKE_whale).transfer(USDC_whale.address, ethers.utils.parseEther('1000000'));
-      console.log(await CAKE.balanceOf(USDC_whale.address));
       await CAKE.connect(USDC_whale).approve(staking.address, ethers.utils.parseEther('1000000'));
       await staking.connect(USDC_whale).deposit(ethers.utils.parseEther('1000000'), USDC_whale.address);
 
@@ -4987,8 +4979,6 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const escrowBalance_before = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_before = await CAKE.balanceOf(treasury.address);
       const promoterBalance_before = await CAKE.balanceOf(referral.address);
-      console.log(feeReceiverBalance_before);
-      console.log(promoterBalance_before);
       const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
@@ -4998,8 +4988,6 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
-      console.log(feeReceiverBalance_after);
-      console.log(promoterBalance_after);
 
       await expect(tx)
         .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
@@ -5113,8 +5101,6 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const escrowBalance_before = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_before = await CAKE.balanceOf(treasury.address);
       const promoterBalance_before = await CAKE.balanceOf(referral.address);
-      console.log(feeReceiverBalance_before);
-      console.log(promoterBalance_before);
       const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
@@ -5124,8 +5110,6 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
-      console.log(feeReceiverBalance_after);
-      console.log(promoterBalance_after);
 
       await expect(tx)
         .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
