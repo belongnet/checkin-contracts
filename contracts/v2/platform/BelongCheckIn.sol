@@ -30,15 +30,14 @@ import {
 } from "../Structures.sol";
 
 /// @title BelongCheckIn
-/// @notice Orchestrates venue deposits, customer payments, and promoter payouts for a
-///         referral-based commerce program with dual-token accounting (USDC/LONG).
+/// @notice Coordinates venue deposits, customer check-ins, and promoter settlements for the Belong program.
 /// @dev
-/// - Uses ERC1155 credits (`CreditToken`) to track venue balances and promoter entitlements in USD units.
-/// - Delegates custody and distribution of USDC/LONG to `Escrow`.
-/// - Prices LONG via a Chainlink feed (`ILONGPriceFeed`) and swaps on a V3 DEX router/quoter.
-/// - Applies tiered fees/discounts depending on staked balance in `Staking`.
-/// - Applies buyback-and-burn on platform revenue per `Fees.buybackBurnPercentage`.
-/// - Signature-gated actions are authorized through a platform signer configured in `Factory`.
+/// - Maintains venue and promoter balances as denominated ERC1155 credits (1 credit == 1 USD unit).
+/// - Delegates token custody to {Escrow} while enforcing platform fees, referral incentives, and staking perks.
+/// - Prices and swaps LONG through a configured Uniswap V3 router/quoter pairing and a Chainlink price feed.
+/// - Applies staking-tier-dependent deposit fees, customer discounts, and promoter fee splits.
+/// - Streams platform revenue through a buyback-and-burn routine before forwarding the remainder to Factory.platformAddress.
+/// - All externally triggered flows require EIP-712 signatures produced by the platform signer held in {Factory}.
 contract BelongCheckIn is Initializable, Ownable {
     using SignatureVerifier for address;
     using MetadataReaderLib for address;
@@ -75,6 +74,12 @@ contract BelongCheckIn is Initializable, Ownable {
 
     /// @notice Thrown when LONG cannot be burned or transferred to the burn address.
     error TokensCanNotBeBurned();
+
+    /// @notice Thrown when a Uniswap V3 swap fails for the provided tokens/amount.
+    /// @param tokenIn Asset that was being swapped from.
+    /// @param tokenOut Asset that was being swapped to.
+    /// @param amount Exact input amount that failed to execute.
+    error SwapFailed(address tokenIn, address tokenOut, uint256 amount);
 
     // ========== Events ==========
 
@@ -254,13 +259,13 @@ contract BelongCheckIn is Initializable, Ownable {
         _disableInitializers();
     }
 
-    /// @notice Initializes core parameters and default tier tables; sets the owner.
+    /// @notice Initializes core parameters, default tier tables, and transfers ownership.
     /// @dev
-    /// - Computes a default $5 USDC convenience fee using `MetadataReaderLib.readDecimals()`.
-    /// - Installs default `Fees` and `RewardsInfo[5]` arrays.
-    /// - Must be called exactly once.
-    /// @param _owner The address granted ownership.
-    /// @param _paymentsInfo Uniswap/asset configuration to be stored.
+    /// - Derives a $5 convenience charge in native USDC decimals through `MetadataReaderLib.readDecimals`.
+    /// - Seeds default {Fees} and full 5-tier {RewardsInfo} tables used until `setParameters` is invoked.
+    /// - Callable exactly once; subsequent calls revert via {Initializable}.
+    /// @param _owner Address that will gain `onlyOwner` privileges.
+    /// @param _paymentsInfo Initial swap + asset configuration to persist.
     function initialize(address _owner, PaymentsInfo calldata _paymentsInfo) external initializer {
         uint128 convenienceFeeAmount = uint96(5 * 10 ** _paymentsInfo.usdc.readDecimals()); // 5 USDC
         RewardsInfo[5] memory stakingRewardsInfo = [
@@ -332,10 +337,10 @@ contract BelongCheckIn is Initializable, Ownable {
         _initializeOwner(_owner);
     }
 
-    /// @notice Owner-only method to update core parameters in a single call.
-    /// @param _paymentsInfo New Uniswap/asset configuration.
-    /// @param _fees New platform fee configuration (scaled by 1e4).
-    /// @param _stakingRewards New tier table (array index maps to `StakingTiers`).
+    /// @notice Owner-only convenience wrapper to replace swap configuration, fee knobs, and tier tables atomically.
+    /// @param _paymentsInfo Fresh Uniswap + asset configuration to persist.
+    /// @param _fees Revised fee settings scaled by 1e4 (basis points domain).
+    /// @param _stakingRewards Replacement 5-element rewards array (index matches {StakingTiers}).
     function setParameters(
         PaymentsInfo calldata _paymentsInfo,
         Fees calldata _fees,
@@ -344,17 +349,17 @@ contract BelongCheckIn is Initializable, Ownable {
         _setParameters(_paymentsInfo, _fees, _stakingRewards);
     }
 
-    /// @notice Owner-only method to update external contract references.
-    /// @param _contracts Struct of contract references (Factory, Escrow, Staking, tokens, price feed).
+    /// @notice Owner-only method to update external contract references used by the module.
+    /// @param _contracts Set of contract dependencies (Factory, Escrow, Staking, venue/promoter tokens, price feed).
     function setContracts(Contracts calldata _contracts) external onlyOwner {
         belongCheckInStorage.contracts = _contracts;
 
         emit ContractsSet(_contracts);
     }
 
-    /// @notice Allows a venue to update its rules after a balance check.
-    /// @dev Reverts with `NotAVenue()` if caller has zero venue credits.
-    /// @param rules The new `VenueRules` to set for the caller.
+    /// @notice Allows a venue to change its rule configuration provided it still holds venue credits.
+    /// @dev Reverts with `NotAVenue()` when the caller has no outstanding credits (i.e. has not deposited yet).
+    /// @param rules The updated `VenueRules` payload for the caller.
     function updateVenueRules(VenueRules calldata rules) external {
         uint256 venueId = msg.sender.getVenueId();
         uint256 venueBalance = belongCheckInStorage.contracts.venueToken.balanceOf(msg.sender, venueId);
@@ -363,14 +368,14 @@ contract BelongCheckIn is Initializable, Ownable {
         _setVenueRules(msg.sender, rules);
     }
 
-    /// @notice Handles a venue USDC deposit, affiliate fee processing, convenience fee, and escrow funding.
+    /// @notice Handles a venue USDC deposit, accounting for fee exemptions, affiliate rewards, and escrow funding.
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
-    /// - Applies staking-tier-based `depositFeePercentage` unless remaining free credits > 0.
-    /// - Charges convenience + affiliate fees in USDC; convenience fee is swapped to LONG and escrowed as LONG discount.
-    /// - Applies buyback/burn split on the platform’s deposit fee portion per `Fees.buybackBurnPercentage`.
-    /// - Forwards net USDC deposit to `Escrow` and mints venue credits (ERC1155) representing USD units deposited.
-    /// @param venueInfo Signed venue deposit parameters (venue, amount, referral code, rules, uri).
+    /// - Tracks “free deposit” credits; the platform fee is skipped until the configured allowance is exhausted.
+    /// - Charges convenience plus affiliate fees in USDC, swaps them to LONG where applicable, and records the resulting LONG in escrow.
+    /// - Applies the buyback/burn split to the platform fee portion before forwarding the remainder to the fee collector.
+    /// - Forwards the full venue deposit to {Escrow} and mints venue credits to mirror the USD balance.
+    /// @param venueInfo Signed venue deposit parameters (venue, amount, referral code, venue rules, metadata URI).
     function venueDeposit(VenueInfo calldata venueInfo) external {
         BelongCheckInStorage memory _storage = belongCheckInStorage;
 
@@ -425,10 +430,10 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @notice Processes a customer payment to a venue, optionally attributing promoter rewards.
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
-    /// - If a promoter is present, burns venue credits and mints promoter credits in USD units.
-    /// - If `paymentInUSDC` is true: transfers USDC from customer to venue.
-    /// - If false: applies subsidy minus processing fee via `Escrow`, then transfers discounted LONG from customer to venue.
-    /// @param customerInfo Signed customer payment parameters (customer, venue, promoter, amount, flags, bounties).
+    /// - Burns venue credits / mints promoter credits when a promoter participates in the visit.
+    /// - USDC payments move USDC directly from customer to venue.
+    /// - LONG payments pull the platform subsidy from escrow, collect the customer’s discounted LONG, then deliver/route LONG per venue rules.
+    /// @param customerInfo Signed customer payment parameters (customer, venue, promoter, amount, payment flags, bounty data).
     function payToVenue(CustomerInfo calldata customerInfo) external {
         BelongCheckInStorage memory _storage = belongCheckInStorage;
         VenueRules memory rules = generalVenueInfo[customerInfo.venueToPayFor].rules;
@@ -499,14 +504,14 @@ contract BelongCheckIn is Initializable, Ownable {
         );
     }
 
-    /// @notice Settles promoter credits into a payout in either USDC or LONG.
+    /// @notice Settles promoter credits into an on-chain payout in either USDC or LONG.
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
-    /// - Applies tiered platform fee based on `Staking` balance of the promoter.
-    /// - For USDC payout: pulls fee and promoter portions from `Escrow`; fee portion is routed here to apply buyback/burn.
-    /// - For LONG payout: pulls USDC from `Escrow`, swaps to LONG; fee portion is routed here for buyback/burn.
-    /// - Burns promoter credits by the settled USD amount.
-    /// @param promoterInfo Signed settlement parameters (promoter, venue, amountInUSD, payout currency flag).
+    /// - Applies tiered platform fees based on the promoter’s staked LONG in {Staking}.
+    /// - USDC payouts draw both fee and promoter portions from escrow; fees are streamed through `_handleRevenue`.
+    /// - LONG payouts draw USDC from escrow, swap the full amount using the V3 router, and subject the swapped fee portion to the buyback routine.
+    /// - Always burns promoter ERC1155 credits by the settled USD amount to prevent re-claims.
+    /// @param promoterInfo Signed settlement parameters (promoter, venue, USD amount, payout currency flag).
     function distributePromoterPayments(PromoterInfo memory promoterInfo) external {
         BelongCheckInStorage memory _storage = belongCheckInStorage;
 
@@ -552,9 +557,9 @@ contract BelongCheckIn is Initializable, Ownable {
         );
     }
 
-    /// @notice Owner-only emergency function to cancel all promoter credits for a venue and restore them to the venue.
-    /// @param venue The venue whose credits will be restored.
-    /// @param promoter The promoter whose credits will be burned.
+    /// @notice Owner-only escape hatch that restores a venue’s credits by cancelling a promoter’s balance.
+    /// @param venue Venue that will regain the promoter’s USD credits.
+    /// @param promoter Promoter whose outstanding credits are burned.
     function emergencyCancelPayment(address venue, address promoter) external onlyOwner {
         BelongCheckInStorage memory _storage = belongCheckInStorage;
 
@@ -568,28 +573,28 @@ contract BelongCheckIn is Initializable, Ownable {
         emit PromoterPaymentCancelled(venue, promoter, promoterBalance);
     }
 
-    /// @notice Returns external contract references.
-    /// @return contracts_ The `Contracts` struct currently in use.
+    /// @notice Returns current contract dependencies.
+    /// @return contracts_ The persisted {Contracts} struct.
     function contracts() external view returns (Contracts memory contracts_) {
         return belongCheckInStorage.contracts;
     }
 
     /// @notice Returns platform fee configuration.
-    /// @return fees_ The `Fees` struct currently in use.
+    /// @return fees_ The persisted {Fees} struct.
     function fees() external view returns (Fees memory fees_) {
         return belongCheckInStorage.fees;
     }
 
     /// @notice Returns Uniswap/asset configuration.
-    /// @return paymentsInfo_ The `PaymentsInfo` struct currently in use.
+    /// @return paymentsInfo_ The persisted {PaymentsInfo} struct.
     function paymentsInfo() external view returns (PaymentsInfo memory paymentsInfo_) {
         return belongCheckInStorage.paymentsInfo;
     }
 
-    /// @notice Internal helper to atomically set global parameters and tier tables.
-    /// @param _paymentsInfo New Uniswap/asset configuration.
+    /// @notice Internal helper that atomically persists swap configuration, fee settings, and staking rewards.
+    /// @param _paymentsInfo New Uniswap/asset configuration to persist.
     /// @param _fees New platform fee configuration.
-    /// @param _stakingRewards Full 5-element tier table.
+    /// @param _stakingRewards Replacement 5-element rewards table (by staking tier).
     function _setParameters(
         PaymentsInfo calldata _paymentsInfo,
         Fees memory _fees,
@@ -607,10 +612,10 @@ contract BelongCheckIn is Initializable, Ownable {
         emit ParametersSet(_paymentsInfo, _fees, _stakingRewards);
     }
 
-    /// @notice Internal helper to set rules for a venue after validation.
-    /// @dev Reverts if `rules.paymentType == PaymentTypes.NoType`.
-    /// @param venue The venue address to update.
-    /// @param rules The new rules to apply.
+    /// @notice Internal helper that stores rule updates after validation.
+    /// @dev Reverts if `rules.paymentType == PaymentTypes.NoType` to prevent unusable configurations.
+    /// @param venue Venue whose rules will change.
+    /// @param rules Rule payload that will be stored.
     function _setVenueRules(address venue, VenueRules memory rules) private {
         require(rules.paymentType != PaymentTypes.NoType, WrongPaymentTypeProvided());
         generalVenueInfo[venue].rules = rules;
@@ -618,7 +623,7 @@ contract BelongCheckIn is Initializable, Ownable {
         emit VenueRulesSet(venue, rules);
     }
 
-    /// @notice Swaps exact USDC amount to LONG and sends proceeds to `recipient`.
+    /// @notice Swaps an exact USDC amount to LONG, then delivers proceeds to `recipient`.
     /// @dev
     /// - Builds a multi-hop path USDC → W_NATIVE_CURRENCY → LONG using the same fee tier.
     /// - Uses Quoter to set a conservative `amountOutMinimum`.
@@ -631,7 +636,7 @@ contract BelongCheckIn is Initializable, Ownable {
         return _swapExact(p.usdc, p.long, recipient, amount);
     }
 
-    /// @notice Swaps exact LONG amount to USDC and sends proceeds to `recipient`.
+    /// @notice Swaps an exact LONG amount to USDC, then delivers proceeds to `recipient`.
     /// @dev
     /// - Builds a multi-hop path LONG → W_NATIVE_CURRENCY → USDC using the same fee tier.
     /// - Uses Quoter to set a conservative `amountOutMinimum`.
@@ -644,7 +649,7 @@ contract BelongCheckIn is Initializable, Ownable {
         return _swapExact(p.long, p.usdc, recipient, amount);
     }
 
-    /// @dev Common swap executor with minimal approvals and conservative slippage.
+    /// @dev Common swap executor that builds the path, quotes slippage-aware minimums, and clears approvals on completion.
     function _swapExact(address tokenIn, address tokenOut, address recipient, uint256 amount)
         internal
         returns (uint256 swapped)
@@ -660,7 +665,7 @@ contract BelongCheckIn is Initializable, Ownable {
         uint256 amountOutMinimum =
             IV3Quoter(_paymentsInfo.swapV3Quoter).quoteExactInput(path, amount).amountOutMin(_paymentsInfo.slippageBps);
 
-        IV3Router.ExactInputParams memory swapParams = IV3Router.ExactInputParams({
+        IV3Router.ExactInputParamsV1 memory swapParamsV1 = IV3Router.ExactInputParamsV1({
             path: path,
             recipient: recipient,
             deadline: block.timestamp,
@@ -670,8 +675,21 @@ contract BelongCheckIn is Initializable, Ownable {
 
         // Reset -> set pattern to support non-standard ERC20s that require zeroing allowance first
         tokenIn.safeApproveWithRetry(_paymentsInfo.swapV3Router, amount);
-
-        swapped = IV3Router(_paymentsInfo.swapV3Router).exactInput(swapParams);
+        try IV3Router(_paymentsInfo.swapV3Router).exactInput(swapParamsV1) returns (uint256 amountOut) {
+            swapped = amountOut;
+        } catch {
+            IV3Router.ExactInputParamsV2 memory swapParamsV2 = IV3Router.ExactInputParamsV2({
+                path: path,
+                recipient: recipient,
+                amountIn: amount,
+                amountOutMinimum: amountOutMinimum
+            });
+            try IV3Router(_paymentsInfo.swapV3Router).exactInput(swapParamsV2) returns (uint256 amountOut) {
+                swapped = amountOut;
+            } catch {
+                revert SwapFailed(tokenIn, tokenOut, amount);
+            }
+        }
 
         // Clear allowance to reduce residual approvals surface area
         tokenIn.safeApprove(_paymentsInfo.swapV3Router, 0);
@@ -679,8 +697,8 @@ contract BelongCheckIn is Initializable, Ownable {
         emit Swapped(recipient, amount, swapped);
     }
 
-    /// @dev Splits platform revenue: allocate `buybackBurnPercentage` to LONG buyback/burn, forward remainder to fee collector.
-    /// @param token Revenue token address (USDC or LONG supported).
+    /// @dev Splits platform revenue: swaps a configurable portion for LONG and burns it, then forwards the remainder to the fee collector.
+    /// @param token Revenue token address (USDC/LONG supported; unknown tokens are forwarded intact).
     /// @param amount Revenue amount received by this contract.
     function _handleRevenue(address token, uint256 amount) internal {
         if (amount == 0) {
@@ -723,8 +741,7 @@ contract BelongCheckIn is Initializable, Ownable {
         emit RevenueBuybackBurn(token, amount, buyback, toBurn, feesToCollector);
     }
 
-    /// @dev Builds the best-available path between `tokenIn` and `tokenOut`.
-    ///      Prefers direct pool, otherwise routes via W_NATIVE_CURRENCY using the same fee tier.
+    /// @dev Builds the optimal encoded path for the configured V3 router, preferring a direct pool and otherwise routing through the configured wrapped native token.
     function _buildPath(PaymentsInfo memory _paymentsInfo, address tokenIn, address tokenOut)
         internal
         view
