@@ -2412,6 +2412,398 @@
         },
         "namespaces": {}
       }
+    },
+    "d1d2eb26b6b4d9b572adebb2fd3f304e4aac15f944e876f5de56dfbe760afd22": {
+      "address": "0x7BEF74A269e450dB67283d210305D629f596e0b0",
+      "txHash": "0xe8518c5f9c1bb138285e4ebb864bd6f8f76e08a79cd2262f899f6f08cbb353a3",
+      "layout": {
+        "solcVersion": "0.8.27",
+        "storage": [
+          {
+            "label": "belongCheckInStorage",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_struct(BelongCheckInStorage)3092_storage",
+            "contract": "BelongCheckIn",
+            "src": "contracts/v2/platform/BelongCheckIn.sol:244"
+          },
+          {
+            "label": "generalVenueInfo",
+            "offset": 0,
+            "slot": "15",
+            "type": "t_mapping(t_address,t_struct(GeneralVenueInfo)3153_storage)",
+            "contract": "BelongCheckIn",
+            "src": "contracts/v2/platform/BelongCheckIn.sol:248"
+          },
+          {
+            "label": "stakingRewards",
+            "offset": 0,
+            "slot": "16",
+            "type": "t_mapping(t_enum(StakingTiers)402,t_struct(RewardsInfo)3173_storage)",
+            "contract": "BelongCheckIn",
+            "src": "contracts/v2/platform/BelongCheckIn.sol:252"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_contract(CreditToken)7111": {
+            "label": "contract CreditToken",
+            "numberOfBytes": "20"
+          },
+          "t_contract(Escrow)865": {
+            "label": "contract Escrow",
+            "numberOfBytes": "20"
+          },
+          "t_contract(Factory)5779": {
+            "label": "contract Factory",
+            "numberOfBytes": "20"
+          },
+          "t_contract(Staking)2117": {
+            "label": "contract Staking",
+            "numberOfBytes": "20"
+          },
+          "t_enum(BountyTypes)414": {
+            "label": "enum BountyTypes",
+            "members": [
+              "NoType",
+              "VisitBounty",
+              "SpendBounty",
+              "Both"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_enum(LongPaymentTypes)419": {
+            "label": "enum LongPaymentTypes",
+            "members": [
+              "NoType",
+              "AutoStake",
+              "AutoConvert"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_enum(PaymentTypes)408": {
+            "label": "enum PaymentTypes",
+            "members": [
+              "NoType",
+              "USDC",
+              "LONG",
+              "Both"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_enum(StakingTiers)402": {
+            "label": "enum StakingTiers",
+            "members": [
+              "NoStakes",
+              "BronzeTier",
+              "SilverTier",
+              "GoldTier",
+              "PlatinumTier"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_struct(GeneralVenueInfo)3153_storage)": {
+            "label": "mapping(address => struct BelongCheckIn.GeneralVenueInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_enum(StakingTiers)402,t_struct(RewardsInfo)3173_storage)": {
+            "label": "mapping(enum StakingTiers => struct BelongCheckIn.RewardsInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(BelongCheckInStorage)3092_storage": {
+            "label": "struct BelongCheckIn.BelongCheckInStorage",
+            "members": [
+              {
+                "label": "contracts",
+                "type": "t_struct(Contracts)3111_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "paymentsInfo",
+                "type": "t_struct(PaymentsInfo)3146_storage",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "fees",
+                "type": "t_struct(Fees)3126_storage",
+                "offset": 0,
+                "slot": "14"
+              }
+            ],
+            "numberOfBytes": "480"
+          },
+          "t_struct(Contracts)3111_storage": {
+            "label": "struct BelongCheckIn.Contracts",
+            "members": [
+              {
+                "label": "factory",
+                "type": "t_contract(Factory)5779",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "escrow",
+                "type": "t_contract(Escrow)865",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "staking",
+                "type": "t_contract(Staking)2117",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "venueToken",
+                "type": "t_contract(CreditToken)7111",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "promoterToken",
+                "type": "t_contract(CreditToken)7111",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "longPF",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_struct(Fees)3126_storage": {
+            "label": "struct BelongCheckIn.Fees",
+            "members": [
+              {
+                "label": "referralCreditsAmount",
+                "type": "t_uint8",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "affiliatePercentage",
+                "type": "t_uint24",
+                "offset": 1,
+                "slot": "0"
+              },
+              {
+                "label": "longCustomerDiscountPercentage",
+                "type": "t_uint24",
+                "offset": 4,
+                "slot": "0"
+              },
+              {
+                "label": "platformSubsidyPercentage",
+                "type": "t_uint24",
+                "offset": 7,
+                "slot": "0"
+              },
+              {
+                "label": "processingFeePercentage",
+                "type": "t_uint24",
+                "offset": 10,
+                "slot": "0"
+              },
+              {
+                "label": "buybackBurnPercentage",
+                "type": "t_uint24",
+                "offset": 13,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(GeneralVenueInfo)3153_storage": {
+            "label": "struct BelongCheckIn.GeneralVenueInfo",
+            "members": [
+              {
+                "label": "rules",
+                "type": "t_struct(VenueRules)430_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "remainingCredits",
+                "type": "t_uint16",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(PaymentsInfo)3146_storage": {
+            "label": "struct BelongCheckIn.PaymentsInfo",
+            "members": [
+              {
+                "label": "slippageBps",
+                "type": "t_uint96",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "swapPoolFees",
+                "type": "t_uint24",
+                "offset": 12,
+                "slot": "0"
+              },
+              {
+                "label": "swapV3Factory",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "swapV3Router",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "swapV3Quoter",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "wNativeCurrency",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "usdc",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "long",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "maxPriceFeedDelay",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "7"
+              }
+            ],
+            "numberOfBytes": "256"
+          },
+          "t_struct(PromoterStakingRewardInfo)3165_storage": {
+            "label": "struct BelongCheckIn.PromoterStakingRewardInfo",
+            "members": [
+              {
+                "label": "usdcPercentage",
+                "type": "t_uint24",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "longPercentage",
+                "type": "t_uint24",
+                "offset": 3,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(RewardsInfo)3173_storage": {
+            "label": "struct BelongCheckIn.RewardsInfo",
+            "members": [
+              {
+                "label": "promoterStakingInfo",
+                "type": "t_struct(PromoterStakingRewardInfo)3165_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "venueStakingInfo",
+                "type": "t_struct(VenueStakingRewardInfo)3159_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(VenueRules)430_storage": {
+            "label": "struct VenueRules",
+            "members": [
+              {
+                "label": "paymentType",
+                "type": "t_enum(PaymentTypes)408",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "bountyType",
+                "type": "t_enum(BountyTypes)414",
+                "offset": 1,
+                "slot": "0"
+              },
+              {
+                "label": "longPaymentType",
+                "type": "t_enum(LongPaymentTypes)419",
+                "offset": 2,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(VenueStakingRewardInfo)3159_storage": {
+            "label": "struct BelongCheckIn.VenueStakingRewardInfo",
+            "members": [
+              {
+                "label": "depositFeePercentage",
+                "type": "t_uint24",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "convenienceFeeAmount",
+                "type": "t_uint128",
+                "offset": 3,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint128": {
+            "label": "uint128",
+            "numberOfBytes": "16"
+          },
+          "t_uint16": {
+            "label": "uint16",
+            "numberOfBytes": "2"
+          },
+          "t_uint24": {
+            "label": "uint24",
+            "numberOfBytes": "3"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          },
+          "t_uint96": {
+            "label": "uint96",
+            "numberOfBytes": "12"
+          }
+        },
+        "namespaces": {}
+      }
     }
   }
 }
