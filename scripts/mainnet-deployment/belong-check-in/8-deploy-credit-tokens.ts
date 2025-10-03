@@ -38,12 +38,14 @@ async function deploy() {
     const signerPK = process.env.SIGNER_PK;
 
     // Validate environment variables
-    if (!deployments.factory.proxy || !signerPK) {
-      throw new Error(`Missing required environment variables:\nFactory: ${deployments.factory.proxy}\nSIGNER_PK`);
+    if (!deployments.factory.proxy || !deployments.checkIn.address || !signerPK) {
+      throw new Error(
+        `Missing required environment variables:\nFactory: ${deployments.factory.proxy}\nCheckIn: ${deployments.checkIn.address}\nSIGNER_PK`,
+      );
     }
 
     // Validate addresses (exclude swapPoolFees as it's not an address)
-    for (const addr of [deployments.factory.proxy]) {
+    for (const addr of [deployments.factory.proxy, deployments.checkIn.address]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
@@ -67,6 +69,9 @@ async function deploy() {
       deployments.factory.proxy,
       signerPK,
       admin,
+      admin.address,
+      deployments.checkIn.address,
+      deployments.checkIn.address,
     );
 
     // Update deployments object

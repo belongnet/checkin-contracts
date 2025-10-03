@@ -33,11 +33,10 @@ async function main() {
       !deployments.implementations.accessToken ||
       !deployments.implementations.creditToken ||
       !deployments.implementations.royaltiesReceiver ||
-      !deployments.implementations.vestingWallet ||
-      !deployments.factory.proxy
+      !deployments.implementations.vestingWallet
     ) {
       throw new Error(
-        `Missing required environment variables:\nSigantureVerifier: ${deployments.libraries.sigantureVerifier}\nAccessToken: ${deployments.libraries.accessToken}\nCreditTokenImplementation: ${deployments.libraries.creditToken}\nRoyaltiesReceiverV2Implementation: ${deployments.libraries.royaltiesReceiver}\nVestingWalletImplementation: ${deployments.libraries.vestingWallet}\nFactoryProxy: ${deployments.libraries.proxy}`,
+        `Missing required environment variables:\nSigantureVerifier: ${deployments.libraries.sigantureVerifier}\nAccessToken: ${deployments.libraries.accessToken}\nCreditTokenImplementation: ${deployments.libraries.creditToken}\nRoyaltiesReceiverV2Implementation: ${deployments.libraries.royaltiesReceiver}\nVestingWalletImplementation: ${deployments.libraries.vestingWallet}`,
       );
     }
 
