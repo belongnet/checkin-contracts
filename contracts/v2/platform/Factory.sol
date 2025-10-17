@@ -255,27 +255,29 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         if (accessTokenInfo.feeNumerator > 0) {
             receiver = currentImplementations.royaltiesReceiver.cloneDeterministic(hashedSalt);
             require(predictedRoyaltiesReceiver == receiver, RoyaltiesReceiverAddressMismatch());
-            RoyaltiesReceiverV2(payable(receiver)).initialize(
-                RoyaltiesReceiverV2.RoyaltiesReceivers(
-                    msg.sender, factoryParameters.platformAddress, referrals[referralCode].creator
-                ),
-                Factory(address(this)),
-                referralCode
-            );
+            RoyaltiesReceiverV2(payable(receiver))
+                .initialize(
+                    RoyaltiesReceiverV2.RoyaltiesReceivers(
+                        msg.sender, factoryParameters.platformAddress, referrals[referralCode].creator
+                    ),
+                    Factory(address(this)),
+                    referralCode
+                );
         }
 
         nftAddress = currentImplementations.accessToken.deployDeterministicERC1967(hashedSalt);
         require(predictedAccessToken == nftAddress, AccessTokenAddressMismatch());
-        AccessToken(nftAddress).initialize(
-            AccessToken.AccessTokenParameters({
-                factory: Factory(address(this)),
-                info: accessTokenInfo,
-                creator: msg.sender,
-                feeReceiver: receiver,
-                referralCode: referralCode
-            }),
-            factoryParameters.transferValidator
-        );
+        AccessToken(nftAddress)
+            .initialize(
+                AccessToken.AccessTokenParameters({
+                    factory: Factory(address(this)),
+                    info: accessTokenInfo,
+                    creator: msg.sender,
+                    feeReceiver: receiver,
+                    referralCode: referralCode
+                }),
+                factoryParameters.transferValidator
+            );
 
         NftInstanceInfo memory accessTokenInstanceInfo = NftInstanceInfo({
             creator: msg.sender,
@@ -315,9 +317,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         CreditToken(creditToken).initialize(creditTokenInfo);
 
         CreditTokenInstanceInfo memory creditTokenInstanceInfo = CreditTokenInstanceInfo({
-            creditToken: creditToken,
-            name: creditTokenInfo.name,
-            symbol: creditTokenInfo.symbol
+            creditToken: creditToken, name: creditTokenInfo.name, symbol: creditTokenInfo.symbol
         });
 
         _creditTokenInstanceInfo[hashedSalt] = creditTokenInstanceInfo;
