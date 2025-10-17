@@ -291,5 +291,11 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
 
     /// @notice Authorizes UUPS upgrades; restricted to owner.
     /// @param /*newImplementation*/ New implementation address (unused in guard).
-    function _authorizeUpgrade(address /*newImplementation*/ ) internal override onlyOwner {}
+    function _authorizeUpgrade(
+        address /*newImplementation*/
+    )
+        internal
+        override
+        onlyOwner
+    {}
 }

@@ -386,5 +386,11 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
     /// @notice Authorizes UUPS upgrades; restricted to owner.
     /// @param /*newImplementation*/ New implementation (unused in guard).
-    function _authorizeUpgrade(address /*newImplementation*/ ) internal override onlyOwner {}
+    function _authorizeUpgrade(
+        address /*newImplementation*/
+    )
+        internal
+        override
+        onlyOwner
+    {}
 }
