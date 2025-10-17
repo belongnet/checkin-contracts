@@ -30,11 +30,11 @@ async function deploy() {
     console.log('Deploying Escrow contract...');
 
     // Read addresses from environment variables
-    const belongCheckIn = process.env.TAP_EARN_ADDRESS;
+    const belongCheckIn = process.env.CHECK_IN_ADDRESS;
 
     // Validate environment variables
     if (!belongCheckIn) {
-      throw new Error('Missing required environment variable: TAP_EARN_ADDRESS');
+      throw new Error('Missing required environment variable: CHECK_IN_ADDRESS');
     }
 
     // Validate address
