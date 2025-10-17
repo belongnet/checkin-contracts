@@ -232,7 +232,7 @@ export async function deployVestingWallet(
     .deployVestingWallet(owner.address, vestingWalletInfo, venueTokenSignature);
   await deployVestingWallet.wait(1);
 
-  const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(await vestingWalletInfo.description);
+  const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(await vestingWalletInfo.beneficiary, 0);
 
   return await ethers.getContractAt('VestingWalletExtended', vestingWalletInstanceInfo.vestingWallet);
 }
