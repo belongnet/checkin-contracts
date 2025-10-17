@@ -172,8 +172,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Mapping `(name, symbol)` hash → CreditToken collection info.
     mapping(bytes32 hashedNameSymbol => CreditTokenInstanceInfo info) private _creditTokenInstanceInfo;
 
-    /// @notice Mapping `(owner, description)` hash → VestingWallet info.
-    mapping(bytes32 _hash => VestingWalletInstanceInfo info) private _vestingWalletInstanceInfo;
+    /// @notice Mapping `beneficiary` → list of vesting wallets deployed for that beneficiary.
+    mapping(address beneficiary => VestingWalletInstanceInfo[] infos) private _vestingWalletInstanceInfos;
 
     /// @notice Current royalties split parameters.
     RoyaltiesParameters private _royaltiesParameters;
@@ -336,10 +336,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param vestingWalletInfo Full vesting configuration and description.
     /// @param signature Signature from platform signer validating `_owner` and `vestingWalletInfo`.
     /// @return vestingWallet The deployed VestingWallet proxy address.
-    function deployVestingWallet(address _owner, VestingWalletInfo calldata vestingWalletInfo, bytes calldata signature)
-        external
-        returns (address vestingWallet)
-    {
+    function deployVestingWallet(
+        address _owner,
+        VestingWalletInfo calldata vestingWalletInfo,
+        bytes calldata signature
+    ) external returns (address vestingWallet) {
         require(
             vestingWalletInfo.token.balanceOf(msg.sender) >= vestingWalletInfo.totalAllocation, NotEnoughFundsToVest()
         );
@@ -361,9 +362,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
         _nftFactoryParameters.signerAddress.checkVestingWalletInfo(signature, _owner, vestingWalletInfo);
 
-        bytes32 hashedSalt = keccak256(bytes(vestingWalletInfo.description));
-
-        require(_vestingWalletInstanceInfo[hashedSalt].vestingWallet == address(0), VestingWalletAlreadyExists());
+        bytes32 hashedSalt = keccak256(
+            abi.encodePacked(
+                vestingWalletInfo.beneficiary, _vestingWalletInstanceInfos[vestingWalletInfo.beneficiary].length
+            )
+        );
 
         address vestingWalletImplementation = _currentImplementations.vestingWallet;
         address predictedVestingWallet =
@@ -384,7 +387,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             description: vestingWalletInfo.description
         });
 
-        _vestingWalletInstanceInfo[hashedSalt] = vestingWalletInstanceInfo;
+        _vestingWalletInstanceInfos[vestingWalletInfo.beneficiary].push(vestingWalletInstanceInfo);
 
         emit VestingWalletCreated(hashedSalt, vestingWalletInstanceInfo);
     }
@@ -451,16 +454,28 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         return _creditTokenInstanceInfo[_metadataHash(name, symbol)];
     }
 
-    /// @notice Returns stored vesting wallet info by description.
-    /// @dev Uses `keccak256(bytes(description))` as the lookup key.
-    /// @param description Human-readable description used at deployment.
-    /// @return The {VestingWalletInstanceInfo} record, if created.
-    function getVestingWalletInstanceInfo(string calldata description)
+    /// @notice Returns a vesting wallet record for `beneficiary` at `index`.
+    /// @param beneficiary Wallet beneficiary supplied during deployment.
+    /// @param index Position inside the beneficiary's vesting wallet array.
+    /// @return The {VestingWalletInstanceInfo} record at the requested index.
+    function getVestingWalletInstanceInfo(address beneficiary, uint256 index)
         external
         view
         returns (VestingWalletInstanceInfo memory)
     {
-        return _vestingWalletInstanceInfo[keccak256(bytes(description))];
+        return _vestingWalletInstanceInfos[beneficiary][index];
+    }
+
+    /// @notice Returns all vesting wallet records registered for `beneficiary`.
+    /// @param beneficiary Wallet beneficiary supplied during deployment.
+    /// @param index Legacy parameter kept for ABI compatibility (unused).
+    /// @return Array of {VestingWalletInstanceInfo} records.
+    function getVestingWalletInstanceInfos(address beneficiary, uint256 index)
+        external
+        view
+        returns (VestingWalletInstanceInfo[] memory)
+    {
+        return _vestingWalletInstanceInfos[beneficiary];
     }
 
     // ========== Internal ==========
