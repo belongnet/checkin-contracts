@@ -15,13 +15,13 @@ struct NftInstanceInfo {
 
 ## Factory
 
-Produces upgradeable ERC721-like AccessToken collections and minimal-proxy ERC1155 CreditToken collections,
-        configures royalties receivers, and manages platform referral parameters.
+Produces upgradeable ERC721-like AccessToken collections, minimal-proxy ERC1155 CreditToken collections, and
+        vesting wallets while configuring royalties receivers and referral parameters for the Belong platform.
 @dev
-- Uses Solady's `LibClone` for CREATE2 deterministic deployments and ERC1967 proxy deployments.
-- Signature-gated creation flows validated by a platform signerAddress (see {FactoryParameters.signerAddress}).
-- Royalties split (creator/platform/referral) configured via `RoyaltiesReceiverV2`.
-- Referral configuration inherited from {ReferralSystemV2}.
+- Uses Solady's `LibClone` helpers for deterministic CREATE2 deployments and ERC1967 proxies.
+- Creation flows are gated by signatures produced by `FactoryParameters.signerAddress` (see {SignatureVerifier}).
+- Royalties are split between creator/platform/referral receivers via {RoyaltiesReceiverV2}.
+- Referral percentages and bookkeeping stem from {ReferralSystemV2}.
 
 ### TokenAlreadyExists
 
@@ -37,7 +37,7 @@ Thrown when a collection with the same `(name, symbol)` already exists.
 error VestingWalletAlreadyExists()
 ```
 
-Thrown when a vesting wallet with the same description already exists.
+Thrown when a beneficiary already has a vesting wallet registered.
 
 ### TotalRoyaltiesExceed100Pecents
 
@@ -159,7 +159,7 @@ Emitted after successful deployment and funding of a VestingWallet.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _hash | bytes32 | Keccak256 hash of `description` used as deterministic salt. |
+| _hash | bytes32 | Keccak256 hash of `(beneficiary, walletIndex)` used as deterministic salt. |
 | info | struct Factory.VestingWalletInstanceInfo | Deployed vesting details. |
 
 ### FactoryParametersSet
@@ -180,7 +180,7 @@ Emitted when factory/global parameters are updated.
 
 ### FactoryParameters
 
-Global configuration for the Factory.
+Global configuration knobs consumed by factory deployments and downstream contracts.
 
 _`platformCommission` is expressed in basis points (BPS), where 10_000 == 100%._
 
@@ -361,7 +361,7 @@ Deploys and funds a VestingWallet proxy with a validated schedule.
 - Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
 - Requires caller to hold at least `totalAllocation` of the vesting token.
 - Allows pure step-based vesting when `durationSeconds == 0` and `linearAllocation == 0`.
-- Deterministic salt is `keccak256(bytes(description))`; creation fails if duplicate.
+- Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
 - Transfers `totalAllocation` from caller to the newly deployed vesting wallet.
 
 #### Parameters
@@ -484,22 +484,42 @@ Returns stored info for a CreditToken collection by `(name, symbol)`.
 ### getVestingWalletInstanceInfo
 
 ```solidity
-function getVestingWalletInstanceInfo(string description) external view returns (struct Factory.VestingWalletInstanceInfo)
+function getVestingWalletInstanceInfo(address beneficiary, uint256 index) external view returns (struct Factory.VestingWalletInstanceInfo)
 ```
 
-Returns stored vesting wallet info by description.
-
-_Uses `keccak256(bytes(description))` as the lookup key._
+Returns a vesting wallet record for `beneficiary` at `index`.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| description | string | Human-readable description used at deployment. |
+| beneficiary | address | Wallet beneficiary supplied during deployment. |
+| index | uint256 | Position inside the beneficiary's vesting wallet array. |
 
 #### Return Values
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | struct Factory.VestingWalletInstanceInfo | The {VestingWalletInstanceInfo} record, if created. |
+| [0] | struct Factory.VestingWalletInstanceInfo | The {VestingWalletInstanceInfo} record at the requested index. |
+
+### getVestingWalletInstanceInfos
+
+```solidity
+function getVestingWalletInstanceInfos(address beneficiary, uint256 index) external view returns (struct Factory.VestingWalletInstanceInfo[])
+```
+
+Returns all vesting wallet records registered for `beneficiary`.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| beneficiary | address | Wallet beneficiary supplied during deployment. |
+| index | uint256 | Legacy parameter kept for ABI compatibility (unused). |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | struct Factory.VestingWalletInstanceInfo[] | Array of {VestingWalletInstanceInfo} records. |
 
