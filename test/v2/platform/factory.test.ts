@@ -678,7 +678,7 @@ describe('Factory', () => {
         .deployVestingWallet(owner.address, vestingWalletInfo, venueTokenSignature);
 
       await expect(tx).to.emit(factory, 'VestingWalletCreated');
-      const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(description);
+      const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(vestingWalletInfo.beneficiary, 0);
       expect(vestingWalletInstanceInfo.vestingWallet).to.not.be.equal(ZERO_ADDRESS);
       expect(vestingWalletInstanceInfo.description).to.be.equal(description);
 
@@ -708,13 +708,9 @@ describe('Factory', () => {
       expect(await vestingWallet.end()).to.be.equal(startTimestamp + cliffDurationSeconds + durationSeconds);
 
       expect(await LONG.balanceOf(vestingWallet.address)).to.eq(vestingWalletInfo.totalAllocation);
-
-      await expect(
-        factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo, venueTokenSignature),
-      ).to.be.revertedWithCustomError(factory, 'VestingWalletAlreadyExists');
     });
 
-    it('should correctly deploy several CreditToken nfts', async () => {
+    it('should correctly deploy several VestingWallets', async () => {
       const { LONG, factory, owner, alice, bob, charlie, signer } = await loadFixture(fixture);
 
       const description1 = 'VestingWallet 1';
@@ -755,7 +751,7 @@ describe('Factory', () => {
         cliffDurationSeconds: cliffDurationSeconds2,
         durationSeconds: durationSeconds2,
         token: LONG.address,
-        beneficiary: alice.address,
+        beneficiary: bob.address,
         totalAllocation: ethers.utils.parseEther('100'),
         tgeAmount: ethers.utils.parseEther('10'),
         linearAllocation: ethers.utils.parseEther('60'),
@@ -779,7 +775,7 @@ describe('Factory', () => {
         cliffDurationSeconds: cliffDurationSeconds3,
         durationSeconds: durationSeconds3,
         token: LONG.address,
-        beneficiary: alice.address,
+        beneficiary: charlie.address,
         totalAllocation: ethers.utils.parseEther('100'),
         tgeAmount: ethers.utils.parseEther('10'),
         linearAllocation: ethers.utils.parseEther('60'),
@@ -793,9 +789,9 @@ describe('Factory', () => {
 
       await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo3, venueTokenSignature3);
 
-      const vestingWalletInstanceInfo1 = await factory.getVestingWalletInstanceInfo(description1);
-      const vestingWalletInstanceInfo2 = await factory.getVestingWalletInstanceInfo(description2);
-      const vestingWalletInstanceInfo3 = await factory.getVestingWalletInstanceInfo(description3);
+      const vestingWalletInstanceInfo1 = await factory.getVestingWalletInstanceInfo(vestingWalletInfo1.beneficiary, 0);
+      const vestingWalletInstanceInfo2 = await factory.getVestingWalletInstanceInfo(vestingWalletInfo2.beneficiary, 0);
+      const vestingWalletInstanceInfo3 = await factory.getVestingWalletInstanceInfo(vestingWalletInfo3.beneficiary, 0);
 
       expect(vestingWalletInstanceInfo1.vestingWallet).to.not.be.equal(ZERO_ADDRESS);
       expect(vestingWalletInstanceInfo1.description).to.be.equal(description1);
