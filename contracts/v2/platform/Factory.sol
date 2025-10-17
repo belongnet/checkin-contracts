@@ -27,13 +27,13 @@ struct NftInstanceInfo {
 }
 
 /// @title NFT Factory Contract
-/// @notice Produces upgradeable ERC721-like AccessToken collections and minimal-proxy ERC1155 CreditToken collections,
-///         configures royalties receivers, and manages platform referral parameters.
+/// @notice Produces upgradeable ERC721-like AccessToken collections, minimal-proxy ERC1155 CreditToken collections, and
+///         vesting wallets while configuring royalties receivers and referral parameters for the Belong platform.
 /// @dev
-/// - Uses Solady's `LibClone` for CREATE2 deterministic deployments and ERC1967 proxy deployments.
-/// - Signature-gated creation flows validated by a platform signerAddress (see {FactoryParameters.signerAddress}).
-/// - Royalties split (creator/platform/referral) configured via `RoyaltiesReceiverV2`.
-/// - Referral configuration inherited from {ReferralSystemV2}.
+/// - Uses Solady's `LibClone` helpers for deterministic CREATE2 deployments and ERC1967 proxies.
+/// - Creation flows are gated by signatures produced by `FactoryParameters.signerAddress` (see {SignatureVerifier}).
+/// - Royalties are split between creator/platform/referral receivers via {RoyaltiesReceiverV2}.
+/// - Referral percentages and bookkeeping stem from {ReferralSystemV2}.
 contract Factory is Initializable, Ownable, ReferralSystemV2 {
     using SignatureVerifier for address;
     using LibClone for address;
@@ -44,7 +44,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Thrown when a collection with the same `(name, symbol)` already exists.
     error TokenAlreadyExists();
 
-    /// @notice Thrown when a vesting wallet with the same description already exists.
+    /// @notice Thrown when a beneficiary already has a vesting wallet registered.
     error VestingWalletAlreadyExists();
 
     /// @notice Thrown when `amountToCreator + amountToPlatform > 10000` (i.e., >100% in BPS).
@@ -87,7 +87,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     event CreditTokenCreated(bytes32 indexed _hash, CreditTokenInstanceInfo info);
 
     /// @notice Emitted after successful deployment and funding of a VestingWallet.
-    /// @param _hash Keccak256 hash of `description` used as deterministic salt.
+    /// @param _hash Keccak256 hash of `(beneficiary, walletIndex)` used as deterministic salt.
     /// @param info Deployed vesting details.
     event VestingWalletCreated(bytes32 indexed _hash, VestingWalletInstanceInfo info);
 
@@ -101,7 +101,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
     // ========== Types ==========
 
-    /// @notice Global configuration for the Factory.
+    /// @notice Global configuration knobs consumed by factory deployments and downstream contracts.
     /// @dev `platformCommission` is expressed in basis points (BPS), where 10_000 == 100%.
     struct FactoryParameters {
         /// @notice Address that collects platform fees/commissions.
@@ -139,7 +139,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         address token;
         /// @notice Deployed VestingWallet (ERC1967 proxy) address.
         address vestingWallet;
-        /// @notice Human-readable description used for deterministic salt.
+        /// @notice Human-readable description supplied by the backend for off-chain bookkeeping.
         string description;
     }
 
@@ -330,7 +330,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// - Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
     /// - Requires caller to hold at least `totalAllocation` of the vesting token.
     /// - Allows pure step-based vesting when `durationSeconds == 0` and `linearAllocation == 0`.
-    /// - Deterministic salt is `keccak256(bytes(description))`; creation fails if duplicate.
+    /// - Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
     /// - Transfers `totalAllocation` from caller to the newly deployed vesting wallet.
     /// @param _owner Owner address for the vesting wallet proxy.
     /// @param vestingWalletInfo Full vesting configuration and description.
@@ -487,7 +487,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Computes a deterministic salt for a collection metadata pair.
     /// @param name Collection name.
     /// @param symbol Collection symbol.
-    /// @return Hash salt equal to `keccak256(abi.encodePacked(name, symbol))`.
+    /// @return Salt equal to `keccak256(abi.encode(name, symbol))`.
     function _metadataHash(string memory name, string memory symbol) private pure returns (bytes32) {
         return keccak256(abi.encode(name, symbol));
     }
