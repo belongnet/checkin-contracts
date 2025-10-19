@@ -1,6 +1,6 @@
 # BelongCheckIn – Deployment & Upgrade Guide
 
-Hardhat scripts under `scripts/mainnet-deployment/belong-check-in` deploy, upgrade, and verify the BelongCheckIn stack. The main flow covers:
+Hardhat scripts under `scripts/mainnet-deployment/belong-checkin` deploy, upgrade, and verify the BelongCheckIn stack. The main flow covers:
 
 - Libraries: `SignatureVerifier`, `Helper`
 - Implementations: `AccessToken`, `CreditToken`, `RoyaltiesReceiverV2`, `VestingWallet`
@@ -153,7 +153,7 @@ Call each script with `yarn hardhat run <script> --network <network>`.
 
 1. **SignatureVerifier** – `0-deploy-signature-verifier.ts`
    - Populates `deployments.libraries.sigantureVerifier`.
-   - Example: `DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/belong-check-in/0-deploy-signature-verifier.ts --network sepolia`
+   - Example: `DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/belong-checkin/0-deploy-signature-verifier.ts --network sepolia`
 
 2. **Implementations** – `1-deploy-implementations.ts`
    - Requires `deployments.libraries.sigantureVerifier` from step 1.
