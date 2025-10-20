@@ -61,13 +61,15 @@ Belong now ships two major product lines:
 
 ### Legacy NFT Factory Stack
 
+- Deployment guide: [`docs/guides/NftTicketingGuide.md`](./docs/guides/NftTicketingGuide.md).
 - High-level narrative: [`docs/guides/NftTicketingOverview.md`](./docs/guides/NftTicketingOverview.md).
-- Docs for V2 contracts live under [`docs/contracts/v2`](./docs/contracts/v2) (Factory, ReceiverFactory, ReferralSystem, NFT, RoyaltiesReceiver, and supporting structs).
-- Utility modules supporting the factory flow are covered in [`docs/contracts/v2/utils`](./docs/contracts/v2/utils) and [`docs/contracts/utils`](./docs/contracts/utils).
+- API docs for V1 contracts live under [`docs/contracts/v1`](./docs/contracts/v1) (Factory, ReceiverFactory, ReferralSystem, NFT, RoyaltiesReceiver, and supporting structs).
+- Utility modules supporting the factory flow are covered in [`docs/contracts/v1/utils`](./docs/contracts/v1/utils) and [`docs/contracts/utils`](./docs/contracts/utils).
 - Interface references for downstream integrations reside in [`docs/contracts/interfaces`](./docs/contracts/interfaces).
 
 ### Belong CheckIn Platform (V2)
 
+- Deployment guide: [`docs/guides/BelongCheckInGuide.md`](./docs/guides/BelongCheckInGuide.md).
 - Platform overview: [`docs/guides/BelongCheckinOverview.md`](./docs/guides/BelongCheckinOverview.md).
 - Core contract reference: [`docs/contracts/v2/platform/BelongCheckIn.md`](./docs/contracts/v2/platform/BelongCheckIn.md).
 - Platform Factory wiring: [`docs/contracts/v2/platform/Factory.md`](./docs/contracts/v2/platform/Factory.md).
