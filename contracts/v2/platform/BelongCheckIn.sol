@@ -324,7 +324,7 @@ contract BelongCheckIn is Initializable, Ownable {
         _setParameters(
             _paymentsInfo,
             Fees({
-                referralCreditsAmount: 3,
+                referralCreditsAmount: 2,
                 affiliatePercentage: 1000, // 10%
                 longCustomerDiscountPercentage: 300, // 3%
                 platformSubsidyPercentage: 300, // 3%
