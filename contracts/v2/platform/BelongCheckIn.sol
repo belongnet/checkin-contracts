@@ -272,7 +272,7 @@ contract BelongCheckIn is Initializable, Ownable {
             RewardsInfo(
                 PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
-                    longPercentage: 800 // 8%
+                    longPercentage: 500 // 5%
                 }),
                 VenueStakingRewardInfo({
                     depositFeePercentage: 1000, //10%
@@ -282,7 +282,7 @@ contract BelongCheckIn is Initializable, Ownable {
             RewardsInfo(
                 PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
-                    longPercentage: 700 // 7%
+                    longPercentage: 400 // 4%
                 }),
                 VenueStakingRewardInfo({
                     depositFeePercentage: 900, // 9%
@@ -292,7 +292,7 @@ contract BelongCheckIn is Initializable, Ownable {
             RewardsInfo(
                 PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
-                    longPercentage: 600 // 6%
+                    longPercentage: 300 // 3%
                 }),
                 VenueStakingRewardInfo({
                     depositFeePercentage: 800, // 8%
@@ -302,7 +302,7 @@ contract BelongCheckIn is Initializable, Ownable {
             RewardsInfo(
                 PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
-                    longPercentage: 500 // 5%
+                    longPercentage: 200 // 2%
                 }),
                 VenueStakingRewardInfo({
                     depositFeePercentage: 700, // 7%
@@ -312,7 +312,7 @@ contract BelongCheckIn is Initializable, Ownable {
             RewardsInfo(
                 PromoterStakingRewardInfo({
                     usdcPercentage: 1000, //10%
-                    longPercentage: 400 // 4%
+                    longPercentage: 100 // 1%
                 }),
                 VenueStakingRewardInfo({
                     depositFeePercentage: 500, // 5%
