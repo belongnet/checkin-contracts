@@ -2,6 +2,7 @@
 name = "nft"
 version = "0.1.0"
 edition = "2024_07"
+license = "MIT"
 
 [lib]
 path = "src/lib.cairo"
@@ -9,8 +10,29 @@ path = "src/lib.cairo"
 # See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
 
 [dependencies]
-starknet = ">=2.8.0"
-openzeppelin = { git = "https://github.com/OpenZeppelin/cairo-contracts.git", tag = "v0.16.0" }
+starknet = "2.9.1"
+openzeppelin = { git = "https://github.com/OpenZeppelin/cairo-contracts.git", tag = "v0.20.0" }
+# argent = { path = "src/argent" }
+
+[dev-dependencies]
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry.git", tag = "v0.34.0" }
+assert_macros = "2.9.1"
 
 [[target.starknet-contract]]
 sierra = true
+
+[[tool.snforge.fork]]
+name = "SEPOLIA_LATEST"
+url = "https://starknet-sepolia.public.blastapi.io/rpc/v0_7"
+block_id.tag = "latest"
+
+[scripts]
+test = "snforge test"
+snip12 = "npx tsx scripts/snip12.ts"
+produce-message = "npx tsx scripts/produce-message.ts"
+static-price-message = "npx tsx scripts/static-price-message.ts"
+dynamic-price-message = "npx tsx scripts/dynamic-price-message.ts"
+format = "scarb fmt && npx prettier --write ."
+
+[tool.voyager]
+nftfactory = { path = "src/nftfactory/nftfactory.cairo" }

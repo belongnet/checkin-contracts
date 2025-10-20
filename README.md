@@ -1,26 +1,104 @@
 # Belong.net
 
-## HardHat Usage
+### Pre reqirements:
 
-Check [HardHat guide](./docs/guides/HardHat.md).
+If you don't have installed [Rust](https://www.rust-lang.org/tools/install) follow this line:
 
-## Foundry Usage
-
-Check [Foundry guide](./docs/guides/Foundry.md).
-
-## Remix Usage
-
-- Firstly flatten contract:
-
-```
-forge flatten ./contracts/contract.sol > ./contracts/contract_flattened.sol
+```bash
+$ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-Check [Remix guide](./docs/guides/Remix.md).
+## **Steps to deploy smart contracts:**
+
+## First step:
+
+### [Setting up your environment](./docs/config/EnvSetUp.md)
+
+## Second step:
+
+### [Setting up an account](./docs/config/AccountSetUp.md)
+
+## Third step:
+
+### [Declaring a smart contract](./docs/config/DeclaringSC.md)
+
+## Fourth step:
+
+### [Declaring a smart contract](./docs/config/DeployingSC.md)
+
+## **Testing**
+
+### [SNFoundry](https://foundry-rs.github.io/starknet-foundry/getting-started/installation.html)
+
+**Check [SNFoundry guide](./docs/SNFoundry.md) for the further interactions.**
+
+## **Steps to deploy this project:**
+
+If [First step](./README.md#first-step) and [Second step](./README.md#second-step) are done then by following [Third step](./README.md#third-step) and [Fourth step](./README.md#fourth-step) declare 3 contract classes: `NftFactory`, `Nft`, `Receiver` and deploy `NftFactory` by calling:
+
+1. Compile all contracts;
+
+```bash
+$ scarb build
+```
+
+2. Declare all contracts:
+
+- Nft:
+
+```bash
+$ starkli declare ./target/dev/nft_NFT.contract_class.json \
+--account ~/.starkli-wallets/deployer/account.json \
+--keystore ~/.starkli-wallets/deployer/keystore.json \
+--rpc https://free-rpc.nethermind.io/sepolia-juno
+```
+
+- Receiver:
+
+```bash
+$ starkli declare ./target/dev/nft_Receiver.contract_class.json \
+--account ~/.starkli-wallets/deployer/account.json \
+--keystore ~/.starkli-wallets/deployer/keystore.json \
+--rpc https://free-rpc.nethermind.io/sepolia-juno
+```
+
+- NftFactory:
+
+```bash
+$ starkli declare ./target/dev/nft_NFTFactory.contract_class.json \
+--account ~/.starkli-wallets/deployer/account.json \
+--keystore ~/.starkli-wallets/deployer/keystore.json \
+--rpc https://free-rpc.nethermind.io/sepolia-juno
+```
+
+3. Deploy NftFactory
+
+```bash
+$ starkli deploy <NFT_FACTORY_CLASS_HASH> \
+<OWNER_ADDRESS> \
+--account ~/.starkli-wallets/deployer/account.json \
+--keystore ~/.starkli-wallets/deployer/keystore.json \
+--network sepolia \
+--rpc https://free-rpc.nethermind.io/sepolia-juno
+```
 
 ## Project Overview
 
 The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. Factory will be deployed via proxy.
+
+## Proxy deploymet
+
+Proxy deployment consists of 4 steps:
+
+- deployment of `Implementation` contract
+- deployment of `Proxy` contract
+- deployment of `ProxyAdmin` contract (the smart contract which will manage all of the proxies deployed from the wallet, it has Ownable modifier, and the Ownership can be transferred)
+- then `ProxyAdmin` address will be stored in config file in the repo, and further deployment of upgrading proxies or deploying new projects will be held by it
+
+Initialization:
+
+- connecting `Implementation` to `Proxy` through `ProxyAdmin`
+- initialization of `Proxy` usign delegate call
 
 ## 1. Functional Requirements
 

@@ -2,13 +2,12 @@ node_modules
 .env
 coverage
 coverage.json
-typechain
 target
-
-#Hardhat files
-cache
-artifacts
-
-contracts/.DS_Store
-.DS_Store
-typechain-types
+dist
+venv
+.idea
+cairo
+.vscode
+.snfoundry*
+snfoundry_trace
+src/argent

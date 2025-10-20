@@ -1,0 +1,17 @@
+[sncast.testnet]
+fee-token = 'strk'
+account = 'account_argent_testnet'
+url = "https://free-rpc.nethermind.io/sepolia-juno"
+
+[sncast.default]
+fee-token = 'strk'
+account = 'account_argent_testnet'
+url = "https://free-rpc.nethermind.io/sepolia-juno"
+
+# [profile.default]
+# url = "http://127.0.0.1:5050/rpc"
+# chain_id = "SN_SEPOLIA"
+
+# [profile.forked_sepolia]
+# url = "http://127.0.0.1:5050/rpc"
+# chain_id = "SN_SEPOLIA"
