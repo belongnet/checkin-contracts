@@ -52,7 +52,12 @@ Check [Foundry guide](./docs/guides/Foundry.md).
 
 ## Project Overview
 
-The protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. Factory will be deployed via proxy.
+Belong now ships two major product lines:
+
+- **Belong CheckIn (v2 platform)** — on-chain venue deposits, customer check-ins, and promoter settlements coordinated by `contracts/v2/platform/BelongCheckIn.sol`. It relies on Escrow, Staking, and tiered fee tables to handle deposit fees, promoter rewards, and buyback/burn flows. Generated contract docs live under [`docs/contracts/v2/platform`](./docs/contracts/v2/platform), and customer/promoter/venue flows are covered in the external docs at [belongnet/docs](https://github.com/belongnet/docs/tree/main/content/3.belong-checkin).
+- **Legacy NFT Factory stack** — tooling for community membership collections, referral codes, and ERC-2981 royalty routing. The architecture description below covers this system.
+
+The legacy protocol allows users to create their own NFT collection, whose tokens represent invitations to the corresponding hub (community). All the collections are deployed via the Factory contract. Users must specify the name, the symbol, contractURI, paying token address, mint price, whitelist mint price, max collection size and the flag which shows if NFTs of the collection will be transferable or not. The name, symbol, contractURI and other parameters (such a royalties size and its receiver) need to be moderated on the backend, so BE’s signature will be needed for the collection deployment. Factory will be deployed via proxy.
 
 ## Proxy deploymet
 
