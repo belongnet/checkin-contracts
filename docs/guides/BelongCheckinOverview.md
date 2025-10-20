@@ -107,4 +107,4 @@ Choose Belong CheckIn when you need:
 - Automatic discounting and subsidy flows for LONG payments, with optional staking rewards.
 - Transparent accounting of venue deposits, promoter balances, and platform revenue.
 
-For curated NFT membership drops without visit tracking or credit tokens, use the legacy factory stack (see [`docs/guides/NftTicketingOverview.md`](./NftTicketingOverview.md)).
+For curated ERC-721 membership drops without visit tracking or credit tokens, use the token gating platform (see [`docs/guides/TokenGatingOverview.md`](./TokenGatingOverview.md)).

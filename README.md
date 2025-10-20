@@ -55,14 +55,14 @@ Check [Foundry guide](./docs/guides/Foundry.md).
 Belong now ships two major product lines:
 
 - **Belong CheckIn (v2 platform)** — on-chain venue deposits, customer check-ins, and promoter settlements coordinated by `contracts/v2/platform/BelongCheckIn.sol`. It relies on Escrow, Staking, and tiered fee tables to handle deposit fees, promoter rewards, and buyback/burn flows. Generated contract docs live under [`docs/contracts/v2/platform`](./docs/contracts/v2/platform), and customer/promoter/venue flows are covered in the external docs at [belongnet/docs](https://github.com/belongnet/docs/tree/main/content/3.belong-checkin).
-- **Legacy NFT Factory stack** — tooling for community membership collections, referral codes, and ERC-2981 royalty routing. See [`docs/guides/NftTicketingOverview.md`](./docs/guides/NftTicketingOverview.md) for the complete reference.
+- **Token Gating platform** — tooling for membership collections, referral codes, and ERC-2981 royalty routing. See [`docs/guides/TokenGatingOverview.md`](./docs/guides/TokenGatingOverview.md) for the complete reference.
 
 ## Documentation Index
 
-### Legacy NFT Factory Stack
+### Token Gating Platform
 
-- Deployment guide: [`docs/guides/NftTicketingGuide.md`](./docs/guides/NftTicketingGuide.md).
-- High-level narrative: [`docs/guides/NftTicketingOverview.md`](./docs/guides/NftTicketingOverview.md).
+- Deployment guide: [`docs/guides/TokenGatingGuide.md`](./docs/guides/TokenGatingGuide.md).
+- High-level narrative: [`docs/guides/TokenGatingOverview.md`](./docs/guides/TokenGatingOverview.md).
 - API docs for V1 contracts live under [`docs/contracts/v1`](./docs/contracts/v1) (Factory, ReceiverFactory, ReferralSystem, NFT, RoyaltiesReceiver, and supporting structs).
 - Utility modules supporting the factory flow are covered in [`docs/contracts/v1/utils`](./docs/contracts/v1/utils) and [`docs/contracts/utils`](./docs/contracts/utils).
 - Interface references for downstream integrations reside in [`docs/contracts/interfaces`](./docs/contracts/interfaces).

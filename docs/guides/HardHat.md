@@ -14,7 +14,7 @@ Rename `.env.example` to `.env` and populate provider credentials (Infura/Alchem
 
 Refer to:
 
-- [`docs/guides/NftTicketingGuide.md`](./NftTicketingGuide.md) for NFT factory–specific variables and deployment flow.
+- [`docs/guides/TokenGatingGuide.md`](./TokenGatingGuide.md) for token gating–specific variables and deployment flow.
 - [`docs/guides/BelongCheckInGuide.md`](./BelongCheckInGuide.md) for Belong CheckIn stacks.
 
 ### Compile
@@ -39,7 +39,7 @@ $ yarn coverage
 
 Detailed deployment pipelines live alongside the product-specific guides:
 
-- [`docs/guides/NftTicketingGuide.md`](./NftTicketingGuide.md) – NFT factory deployments, verification, and referral configuration.
+- [`docs/guides/TokenGatingGuide.md`](./TokenGatingGuide.md) – Token Gating deployments, verification, and referral configuration.
 - [`docs/guides/BelongCheckInGuide.md`](./BelongCheckInGuide.md) – Belong CheckIn stack deployments, upgrades, and liquidity tooling.
 
 ### [Deployed Crypto Addresses](./../addresses.md)

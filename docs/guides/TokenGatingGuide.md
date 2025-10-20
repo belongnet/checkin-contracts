@@ -1,9 +1,9 @@
-# NFT Ticketing – Deployment & Operations Guide
+# Token Gating – Deployment & Operations Guide
 
-Hardhat scripts in `package.json` deploy and manage the legacy NFT factory stack (`contracts/v1`). Primary commands include:
+Hardhat scripts in `package.json` deploy and manage the token gating stack. Primary commands include:
 
 - `deploy:factory` – Factory deployment and upgrades
-- `deploy:nft_mock` – Reference NFT for testing or verification
+- `deploy:nft_mock` – Reference AccessToken for testing or verification
 - `deploy:access_token` – Deploy an AccessToken + RoyaltiesReceiver pair through the factory
 - `verify:*` – Explorer verification helpers for factory, AccessTokens, and mocks
 
@@ -104,15 +104,15 @@ Ledger deployments use the same command; prompts such as
 
 appear while awaiting on-device confirmation.
 
-### 3. Deploy NFT Mock (optional)
+### 3. Deploy AccessToken mock (optional)
 
 ```bash
 yarn deploy:nft_mock <network>
 ```
 
-### 4. Deploy Access Token (optional)
+### 4. Deploy production AccessToken (optional)
 
-Use this when you want to roll out an AccessToken/RoyaltiesReceiver pair via the factory. It reads config from `.env` and records the result in `deployments/chainId-<id>.json`.
+Roll out an AccessToken/RoyaltiesReceiver pair through the factory. The script consumes the AccessToken variables in `.env` and records the result in `deployments/chainId-<id>.json`.
 
 ```bash
 yarn deploy:access_token <network>
@@ -134,14 +134,14 @@ NFT_FACTORY_ADDRESS=0x...
 yarn verify:factory <network>
 ```
 
-### NFT / Royalties Receiver
+### AccessToken / RoyaltiesReceiver
 
 ```ini
 NFT_ADDRESS=0x...
 NFT_CREATOR_ADDRESS=0x...
 RECEIVER_ADDRESS=0x...
-NFT_NAME="Example NFT"
-NFT_SYMBOL=EXNFT
+NFT_NAME="Example Pass"
+NFT_SYMBOL=EXP
 PAYING_TOKEN_ADDRESS=0x...        # 0x000...000 for native currency
 FEE_NUMERATOR=500                 # 5%
 TRANSFERRABLE=true
@@ -158,7 +158,7 @@ REFERRAL_CODE=0x...               # optional
 yarn verify:deployed <network>
 ```
 
-### NFT Mock
+### AccessToken mock
 
 ```ini
 NFT_MOCK=0x...
@@ -193,5 +193,5 @@ Ensure matching RPC endpoints are configured in `hardhat.config.ts`.
 
 - Archive the factory address and ABI for future upgrades.
 - Protect the backend signer credentials—collection creation & minting rely on them.
-- Smoke-test referral creation, collection deployment, and mint flows on each network before onboarding creators.
-- Update [`docs/guides/NftTicketingOverview.md`](./NftTicketingOverview.md) if fee schedules or referral policies change.
+- Smoke-test referral creation, collection deployment, and mint flows on each network before onboarding partners.
+- Update [`docs/guides/TokenGatingOverview.md`](./TokenGatingOverview.md) if fee schedules or referral policies change.
