@@ -3,11 +3,12 @@
     "test": "hardhat test",
     "coverage": "hardhat coverage",
     "compile": "hardhat compile",
-    "deploy:factory": "hardhat run ./scripts/mainnet-deployment/deploy.ts --network",
-    "deploy:nft_mock": "hardhat run ./scripts/mainnet-deployment/NFT_Mock_deploy.ts --network",
-    "verify:factory": "hardhat run ./scripts/mainnet-deployment/verify_factory.ts --network",
-    "verify:nft_mock": "hardhat run ./scripts/mainnet-deployment/NFT_Mock_verify.ts --network",
-    "verify:deployed": "hardhat run ./scripts/mainnet-deployment/verify_deployed.ts --network",
+    "deploy:factory": "hardhat run ./scripts/mainnet-deployment/nft-ticketing/0-deploy-factory.ts --network",
+    "deploy:nft_mock": "hardhat run ./scripts/mainnet-deployment/nft-ticketing/1-deploy-nft-mock.ts --network",
+    "verify:factory": "hardhat run ./scripts/mainnet-deployment/nft-ticketing/2-verify-factory.ts --network",
+    "verify:nft_mock": "hardhat run ./scripts/mainnet-deployment/nft-ticketing/3-verify-nft-mock.ts --network",
+    "verify:deployed": "hardhat run ./scripts/mainnet-deployment/nft-ticketing/verify-deployed.ts --network",
+    "deploy:access_token": "hardhat run ./scripts/mainnet-deployment/nft-ticketing/4-deploy-access-token.ts --network",
     "docgen": "hardhat docgen"
   },
   "dependencies": {

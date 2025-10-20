@@ -16,6 +16,8 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
 import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 import { hashAccessTokenInfo, hashERC1155Info, hashVestingInfo } from './math';
+import { NftFactoryParametersStruct } from '../typechain-types/contracts/v1/factories/NFTFactory';
+import { NFT } from '../typechain-types';
 
 export type TokenMetadata = { name: string; symbol: string; uri: string };
 
@@ -90,6 +92,13 @@ export async function deployFactory(
   await factory.deployed();
 
   return factory;
+}
+
+export async function deployNftWithoutFactory(args: any): Promise<NFT> {
+  const NFT: ContractFactory = await ethers.getContractFactory('NFT');
+  const nft: NFT = (await NFT.deploy(args)) as NFT;
+  await nft.deployed();
+  return nft;
 }
 
 export async function deployAccessToken(
