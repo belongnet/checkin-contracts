@@ -11,18 +11,10 @@ interface ITransferValidator721 {
     /// @param from The address transferring the token
     /// @param to The address receiving the token
     /// @param tokenId The ID of the token being transferred
-    function validateTransfer(
-        address caller,
-        address from,
-        address to,
-        uint256 tokenId
-    ) external view;
+    function validateTransfer(address caller, address from, address to, uint256 tokenId) external view;
 
     /// @notice Sets the token type for a specific collection
     /// @param collection The address of the token collection
     /// @param tokenType The token type to be assigned to the collection
-    function setTokenTypeOfCollection(
-        address collection,
-        uint16 tokenType
-    ) external;
+    function setTokenTypeOfCollection(address collection, uint16 tokenType) external;
 }

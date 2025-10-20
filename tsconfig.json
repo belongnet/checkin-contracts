@@ -12,12 +12,5 @@
     "resolveJsonModule": true
   },
   "exclude": ["node_modules", "artifacts", "cache", ".git"],
-  "include": [
-    "scripts/**/*",
-    "test/**/*",
-    "typechain-types/**/*",
-    "hardhat.config.ts",
-    "test/factory.test.ts",
-    "test/receiverFactory.test.js"
-  ]
+  "include": ["scripts/**/*", "test/**/*", "typechain-types/**/*", "hardhat.config.ts", "test/**/*"]
 }

@@ -1,0 +1,60 @@
+{
+  "libraries": {
+    "sigantureVerifier": "0x48B840e4900eE7392088003C1402b91bcc0e73A4",
+    "helper": "0xeCD6a84CC2f3bE8678587cc53303883adB3Aca06"
+  },
+  "implementations": {
+    "accessToken": "0xf85F79379d573Ac2b5fF165fc93Ed050851cD4eB",
+    "creditToken": "0x855C2cE5117700640aFB9fd780c54F92C951cE22",
+    "royaltiesReceiver": "0x90c7F2Cc827Ac089682b707F0CB2ae2c9856EC14",
+    "vestingWallet": "0xeb837b0039e7F31f1d561D08f929eF89D884914C"
+  },
+  "factory": {
+    "proxy": "0xd302CEc28dE1F3168e87AE59A3Ae0B1244a7243c",
+    "implementation": "0x99da0D53ae4DbD6545214547eC981D026123df2f"
+  },
+  "tokens": {
+    "long": "0x63D2F24F3586E3D16D542dE218d8c4caae4f21D1",
+    "staking": "0x0446eB2c8618909c41EC23Ce03A94c7b285ECD23",
+    "venueToken": {
+      "address": "0x5E0E6e044F3C001d8DFc31b3E2634Ecb0CAeB135",
+      "parameters": [
+        {
+          "name": "VenueToken",
+          "symbol": "VET",
+          "uri": "contractURI/VenueToken",
+          "transferable": true
+        }
+      ]
+    },
+    "promoterToken": {
+      "address": "0x44C4158a5dBa12dc7586CF3ECDBFd72B2b090ABD",
+      "parameters": [
+        {
+          "name": "PromoterToken",
+          "symbol": "PMT",
+          "uri": "contractURI/PromoterToken",
+          "transferable": true
+        }
+      ]
+    }
+  },
+  "checkIn": {
+    "address": "0x48C372aE48f0FbADcdbe734Bf0EDab94fB3fd5fe",
+    "paymentsInfo": {
+      "slippageBps": {
+        "type": "BigNumber",
+        "hex": "0x033b2e3c9fd0803ce7ffffff"
+      },
+      "swapPoolFees": "3000",
+      "swapV3Factory": "0x0227628f3F023bb0B980b67D528571c95c6DaC1c",
+      "swapV3Router": "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E",
+      "swapV3Quoter": "0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3",
+      "wNativeCurrency": "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9",
+      "usdc": "0xf08A50178dfcDe18524640EA6618a1f965821715",
+      "long": "0x63D2F24F3586E3D16D542dE218d8c4caae4f21D1",
+      "maxPriceFeedDelay": 86400
+    },
+    "escrow": "0x7a3e1663df7CAB99B6CfCe1813dA1A0C0276A0CA"
+  }
+}
