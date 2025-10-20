@@ -4,7 +4,8 @@ Hardhat scripts in `package.json` deploy and manage the legacy NFT factory stack
 
 - `deploy:factory` – Factory deployment and upgrades
 - `deploy:nft_mock` – Reference NFT for testing or verification
-- `verify:*` – Explorer verification helpers for factory, live collections, and mocks
+- `deploy:access_token` – Deploy an AccessToken + RoyaltiesReceiver pair through the factory
+- `verify:*` – Explorer verification helpers for factory, AccessTokens, and mocks
 
 > ⚠️ Use **Node 18 or 20** with Hardhat. Example: `nvm use 20 && yarn install`.
 
@@ -56,6 +57,20 @@ REFERRAL_PERCENT_FIRST_TIME_USAGE=...
 REFERRAL_PERCENT_SECOND_TIME_USAGE=...
 REFERRAL_PERCENT_THIRD_TIME_USAGE=...
 REFERRAL_PERCENT_DEFAULT=...
+
+# Access token deployment (optional)
+ACCESS_TOKEN_NAME="Example Pass"
+ACCESS_TOKEN_SYMBOL=EXP
+ACCESS_TOKEN_URI="ipfs://.../collection.json"
+ACCESS_TOKEN_MINT_PRICE=10000000000000000   # 0.01 ETH
+ACCESS_TOKEN_WHITELIST_PRICE=5000000000000000
+ACCESS_TOKEN_PAYMENT_TOKEN=0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
+ACCESS_TOKEN_REFERRAL_CODE=0x00
+ACCESS_TOKEN_FEE_NUMERATOR=600
+ACCESS_TOKEN_MAX_TOTAL_SUPPLY=0
+ACCESS_TOKEN_COLLECTION_EXPIRE=0
+ACCESS_TOKEN_TRANSFERABLE=true
+SIGNER_PK=<backend signer private key>
 ```
 
 Explorer keys are only required when you intend to auto-verify on that chain. Blockscout-based explorers function without API keys.
@@ -93,6 +108,14 @@ appear while awaiting on-device confirmation.
 
 ```bash
 yarn deploy:nft_mock <network>
+```
+
+### 4. Deploy Access Token (optional)
+
+Use this when you want to roll out an AccessToken/RoyaltiesReceiver pair via the factory. It reads config from `.env` and records the result in `deployments/chainId-<id>.json`.
+
+```bash
+yarn deploy:access_token <network>
 ```
 
 ---
