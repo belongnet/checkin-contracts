@@ -128,6 +128,14 @@ enum BountyTypes {
     Both
 }
 
+/// @title BountyAllocationTypes
+enum BountyAllocationTypes {
+    NoType,
+    ToPromoter,
+    ToCustomer,
+    Both
+}
+
 /// @title LongPaymentTypes
 /// @notice Venue-allowed Long payment options.
 enum LongPaymentTypes {
@@ -141,6 +149,7 @@ enum LongPaymentTypes {
 struct VenueRules {
     PaymentTypes paymentType;
     BountyTypes bountyType;
+    BountyAllocationTypes bountyAllocationType;
     LongPaymentTypes longPaymentType;
 }
 
@@ -150,7 +159,7 @@ struct VenueInfo {
     VenueRules rules;
     address venue;
     uint256 amount;
-    bytes32 referralCode;
+    bytes32 affiliateReferralCode;
     string uri;
     bytes signature;
 }
@@ -160,15 +169,20 @@ struct VenueInfo {
 struct CustomerInfo {
     // Backend configurable
     bool paymentInUSDC;
-    uint128 visitBountyAmount;
-    uint24 spendBountyPercentage;
+    Bounties toCustomer;
+    Bounties toPromoter;
     // Actors
     address customer;
     address venueToPayFor;
-    address promoter;
+    bytes32 promoterReferralCode;
     // Amounts
     uint256 amount;
     bytes signature;
+}
+
+struct Bounties {
+    uint24 spendBountyPercentage;
+    uint128 visitBountyAmount;
 }
 
 /// @title PromoterInfo
