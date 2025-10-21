@@ -1,10 +1,10 @@
-import { HardhatUserConfig } from 'hardhat/config';
+import '@nomicfoundation/hardhat-ledger';
 import '@nomicfoundation/hardhat-toolbox';
 import '@openzeppelin/hardhat-upgrades';
-import 'solidity-docgen';
-import 'hardhat-contract-sizer';
-import '@nomicfoundation/hardhat-ledger';
 import dotenv from 'dotenv';
+import 'hardhat-contract-sizer';
+import { HardhatUserConfig } from 'hardhat/config';
+import 'solidity-docgen';
 import { ChainIds } from './utils/chain-ids';
 import { blockscanConfig, createConnect, createLedgerConnect } from './utils/config';
 

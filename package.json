@@ -14,7 +14,13 @@
   "dependencies": {
     "@chainlink/contracts": "^1.4.0",
     "@nomicfoundation/hardhat-ledger": "^1.0.3",
+    "@openzeppelin/contracts": "^5.4.0",
+    "@openzeppelin/contracts-upgradeable": "^5.4.0",
     "@types/cacheable-request": "^8.3.2",
+    "@uniswap/v4-core": "^1.0.2",
+    "@uniswap/v4-periphery": "^1.0.3",
+    "solady": "^0.1.26",
+    "solmate": "^6.8.0",
     "starknet": "^6.11.0",
     "starkscan": "^0.0.11"
   },
