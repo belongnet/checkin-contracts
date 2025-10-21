@@ -30,12 +30,11 @@ library PoolTicksCounter {
     /// @param tickBefore the tick before the swap
     /// @param tickAfter the tick after the swap
     /// @return initializedTicksLoaded the number of initialized ticks loaded
-    function countInitializedTicksLoaded(
-        ICLPoolManager self,
-        PoolKey memory key,
-        int24 tickBefore,
-        int24 tickAfter
-    ) internal view returns (uint32 initializedTicksLoaded) {
+    function countInitializedTicksLoaded(ICLPoolManager self, PoolKey memory key, int24 tickBefore, int24 tickAfter)
+        internal
+        view
+        returns (uint32 initializedTicksLoaded)
+    {
         TickCache memory cache;
 
         {
@@ -55,23 +54,16 @@ library PoolTicksCounter {
             uint256 bmAfter = self.getPoolBitmapInfo(key.toId(), wordPosAfter);
             //uint256 bmAfter = PoolGetters.getTickBitmapAtWord(self, key.toId(), wordPosAfter);
             cache.tickAfterInitialized =
-                ((bmAfter & (1 << bitPosAfter)) > 0) &&
-                ((tickAfter % tickSpacing) == 0) &&
-                (tickBefore > tickAfter);
+                ((bmAfter & (1 << bitPosAfter)) > 0) && ((tickAfter % tickSpacing) == 0) && (tickBefore > tickAfter);
 
             // In the case where tickBefore is initialized, we only want to count it if we are swapping upwards.
             // Use the same logic as above to decide whether we should count tickBefore or not.
             uint256 bmBefore = self.getPoolBitmapInfo(key.toId(), wordPos);
             //uint256 bmBefore = PoolGetters.getTickBitmapAtWord(self, key.toId(), wordPos);
             cache.tickBeforeInitialized =
-                ((bmBefore & (1 << bitPos)) > 0) &&
-                ((tickBefore % tickSpacing) == 0) &&
-                (tickBefore < tickAfter);
+                ((bmBefore & (1 << bitPos)) > 0) && ((tickBefore % tickSpacing) == 0) && (tickBefore < tickAfter);
 
-            if (
-                wordPos < wordPosAfter ||
-                (wordPos == wordPosAfter && bitPos <= bitPosAfter)
-            ) {
+            if (wordPos < wordPosAfter || (wordPos == wordPosAfter && bitPos <= bitPosAfter)) {
                 cache.wordPosLower = wordPos;
                 cache.bitPosLower = bitPos;
                 cache.wordPosHigher = wordPosAfter;
@@ -95,10 +87,7 @@ library PoolTicksCounter {
             }
 
             //uint256 bmLower = PoolGetters.getTickBitmapAtWord(self, key.toId(), cache.wordPosLower);
-            uint256 bmLower = self.getPoolBitmapInfo(
-                key.toId(),
-                cache.wordPosLower
-            );
+            uint256 bmLower = self.getPoolBitmapInfo(key.toId(), cache.wordPosLower);
             uint256 masked = bmLower & mask;
             initializedTicksLoaded += countOneBits(masked);
             cache.wordPosLower++;

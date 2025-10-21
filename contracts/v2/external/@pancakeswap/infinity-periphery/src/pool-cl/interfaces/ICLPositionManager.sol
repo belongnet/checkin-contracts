@@ -19,11 +19,7 @@ interface ICLPositionManager is IPositionManager {
     /// @param tokenId the tokenId of the position that was modified
     /// @param liquidityChange the change in liquidity of the position
     /// @param feesAccrued the fees collected from the liquidity change
-    event ModifyLiquidity(
-        uint256 indexed tokenId,
-        int256 liquidityChange,
-        BalanceDelta feesAccrued
-    );
+    event ModifyLiquidity(uint256 indexed tokenId, int256 liquidityChange, BalanceDelta feesAccrued);
 
     /// @notice Get the clPoolManager
     function clPoolManager() external view returns (ICLPoolManager);
@@ -33,10 +29,7 @@ interface ICLPositionManager is IPositionManager {
     /// @param key the PoolKey of the pool to initialize
     /// @param sqrtPriceX96 the initial sqrtPriceX96 of the pool
     /// @return tick The current tick of the pool
-    function initializePool(
-        PoolKey calldata key,
-        uint160 sqrtPriceX96
-    ) external payable returns (int24);
+    function initializePool(PoolKey calldata key, uint160 sqrtPriceX96) external payable returns (int24);
 
     /// @notice Used to get the ID that will be used for the next minted liquidity position
     /// @return uint256 The next token ID
@@ -45,9 +38,7 @@ interface ICLPositionManager is IPositionManager {
     /// @param tokenId the ERC721 tokenId
     /// @return liquidity the position's liquidity, as a liquidityAmount
     /// @dev this value can be processed as an amount0 and amount1 by using the LiquidityAmounts library
-    function getPositionLiquidity(
-        uint256 tokenId
-    ) external view returns (uint128 liquidity);
+    function getPositionLiquidity(uint256 tokenId) external view returns (uint128 liquidity);
 
     /// @notice Get the detailed information for a specified position
     /// @param tokenId the ERC721 tokenId
@@ -58,9 +49,7 @@ interface ICLPositionManager is IPositionManager {
     /// @return feeGrowthInside0LastX128 the fee growth count of token0 since last time updated
     /// @return feeGrowthInside1LastX128 the fee growth count of token1 since last time updated
     /// @return _subscriber the address of the subscriber, if not set, it returns address(0)
-    function positions(
-        uint256 tokenId
-    )
+    function positions(uint256 tokenId)
         external
         view
         returns (
@@ -76,7 +65,5 @@ interface ICLPositionManager is IPositionManager {
     /// @param tokenId the ERC721 tokenId
     /// @return poolKey the pool key of the position
     /// @return CLPositionInfo a uint256 packed value holding information about the position including the range (tickLower, tickUpper)
-    function getPoolAndPositionInfo(
-        uint256 tokenId
-    ) external view returns (PoolKey memory, CLPositionInfo);
+    function getPoolAndPositionInfo(uint256 tokenId) external view returns (PoolKey memory, CLPositionInfo);
 }

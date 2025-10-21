@@ -67,8 +67,5 @@ interface ICLMigrator is IBaseMigrator {
     /// @param poolKey The pool key
     /// @param sqrtPriceX96 The initial sqrt price of the pool
     /// @return tick Pool tick
-    function initializePool(
-        PoolKey memory poolKey,
-        uint160 sqrtPriceX96
-    ) external payable returns (int24 tick);
+    function initializePool(PoolKey memory poolKey, uint160 sqrtPriceX96) external payable returns (int24 tick);
 }
