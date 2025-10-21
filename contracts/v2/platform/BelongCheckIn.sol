@@ -386,9 +386,9 @@ contract BelongCheckIn is Initializable, Ownable {
 
         address affiliate;
         uint256 affiliateFee;
-        if (venueInfo.referralCode != bytes32(0)) {
-            affiliate = _storage.contracts.factory.getReferralCreator(venueInfo.referralCode);
-            require(affiliate != address(0), WrongReferralCode(venueInfo.referralCode));
+        if (venueInfo.affiliateReferralCode != bytes32(0)) {
+            affiliate = _storage.contracts.factory.getReferralCreator(venueInfo.affiliateReferralCode);
+            require(affiliate != address(0), WrongReferralCode(venueInfo.affiliateReferralCode));
 
             affiliateFee = _storage.fees.affiliatePercentage.calculateRate(venueInfo.amount);
         }
@@ -422,7 +422,7 @@ contract BelongCheckIn is Initializable, Ownable {
 
         _storage.contracts.venueToken.mint(venueInfo.venue, venueId, venueInfo.amount, venueInfo.uri);
 
-        emit VenuePaidDeposit(venueInfo.venue, venueInfo.referralCode, venueInfo.rules, venueInfo.amount);
+        emit VenuePaidDeposit(venueInfo.venue, venueInfo.affiliateReferralCode, venueInfo.rules, venueInfo.amount);
     }
 
     /// @notice Processes a customer payment to a venue, optionally attributing promoter rewards.
@@ -440,29 +440,25 @@ contract BelongCheckIn is Initializable, Ownable {
 
         uint256 venueId = customerInfo.venueToPayFor.getVenueId();
 
-        if (customerInfo.promoter != address(0)) {
-            uint256 rewardsToPromoter = customerInfo.paymentInUSDC
-                ? customerInfo.visitBountyAmount + customerInfo.spendBountyPercentage.calculateRate(customerInfo.amount)
-                : _storage.paymentsInfo.usdc
-                    .unstandardize(
-                        // standardization
-                        _storage.paymentsInfo.usdc.standardize(customerInfo.visitBountyAmount)
-                            + customerInfo.spendBountyPercentage
-                                .calculateRate(
-                                    _storage.paymentsInfo.long
-                                        .getStandardizedPrice(
-                                            _storage.contracts.longPF,
-                                            customerInfo.amount,
-                                            _storage.paymentsInfo.maxPriceFeedDelay
-                                        )
-                                )
-                    );
-            uint256 venueBalance = _storage.contracts.venueToken.balanceOf(customerInfo.venueToPayFor, venueId);
-            require(venueBalance >= rewardsToPromoter, NotEnoughBalance(rewardsToPromoter, venueBalance));
+        address promoter = _storage.contracts.factory.getReferralCreator(customerInfo.promoterReferralCode);
 
-            _storage.contracts.venueToken.burn(customerInfo.venueToPayFor, venueId, rewardsToPromoter);
-            _storage.contracts.promoterToken
-                .mint(customerInfo.promoter, venueId, rewardsToPromoter, _storage.contracts.venueToken.uri(venueId));
+        _calculateRewards(
+            customerInfo.customer,
+            customerInfo.venueToPayFor,
+            venueId,
+            customerInfo.paymentInUSDC,
+            customerInfo.toCustomer,
+            customerInfo.amount
+        );
+        if (promoter != address(0)) {
+            _calculateRewards(
+                promoter,
+                customerInfo.venueToPayFor,
+                venueId,
+                customerInfo.paymentInUSDC,
+                customerInfo.toPromoter,
+                customerInfo.amount
+            );
         }
 
         if (customerInfo.paymentInUSDC) {
@@ -498,7 +494,7 @@ contract BelongCheckIn is Initializable, Ownable {
         emit CustomerPaid(
             customerInfo.customer,
             customerInfo.venueToPayFor,
-            customerInfo.promoter,
+            promoter,
             customerInfo.amount,
             customerInfo.visitBountyAmount,
             customerInfo.spendBountyPercentage
@@ -735,6 +731,37 @@ contract BelongCheckIn is Initializable, Ownable {
         token.safeTransfer(feeCollector, feesToCollector);
 
         emit RevenueBuybackBurn(token, amount, buyback, toBurn, feesToCollector);
+    }
+
+    function _calculateRewards(
+        address to,
+        address venue,
+        uint256 venueId,
+        bool paymentInUSDC,
+        Bounties bounties,
+        uint256 amount
+    ) internal {
+        BelongCheckInStorage memory _storage = belongCheckInStorage;
+
+        uint256 rewards = paymentInUSDC
+            ? bounties.visitBountyAmount + bounties.spendBountyPercentage.calculateRate(amount)
+            : _storage.paymentsInfo.usdc
+                .unstandardize(
+                    // standardization
+                    _storage.paymentsInfo.usdc.standardize(bounties.visitBountyAmount)
+                        + bounties.spendBountyPercentage
+                            .calculateRate(
+                                _storage.paymentsInfo.long
+                                    .getStandardizedPrice(
+                                        _storage.contracts.longPF, amount, _storage.paymentsInfo.maxPriceFeedDelay
+                                    )
+                            )
+                );
+        uint256 venueBalance = _storage.contracts.venueToken.balanceOf(venue, venueId);
+        require(venueBalance >= rewards, NotEnoughBalance(rewards, venueBalance));
+
+        _storage.contracts.venueToken.burn(customerInfo.venueToPayFor, venueId, rewards);
+        _storage.contracts.promoterToken.mint(to, venueId, rewards, _storage.contracts.venueToken.uri(venueId));
     }
 
     /// @dev Builds the optimal encoded path for the configured V3 router, preferring a direct pool and otherwise routing through the configured wrapped native token.
