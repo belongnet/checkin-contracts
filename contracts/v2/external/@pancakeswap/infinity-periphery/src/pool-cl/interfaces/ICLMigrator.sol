@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {PoolKey} from "infinity-core/src/types/PoolKey.sol";
+import {PoolKey} from "../../../../infinity-core/src/types/PoolKey.sol";
 import {IBaseMigrator} from "../../interfaces/IBaseMigrator.sol";
 import {IV3NonfungiblePositionManager} from "../../interfaces/external/IV3NonfungiblePositionManager.sol";
 
@@ -67,5 +67,8 @@ interface ICLMigrator is IBaseMigrator {
     /// @param poolKey The pool key
     /// @param sqrtPriceX96 The initial sqrt price of the pool
     /// @return tick Pool tick
-    function initializePool(PoolKey memory poolKey, uint160 sqrtPriceX96) external payable returns (int24 tick);
+    function initializePool(
+        PoolKey memory poolKey,
+        uint160 sqrtPriceX96
+    ) external payable returns (int24 tick);
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {BalanceDelta} from "infinity-core/src/types/BalanceDelta.sol";
+import {BalanceDelta} from "../../../../infinity-core/src/types/BalanceDelta.sol";
 import {CLPositionInfo} from "../libraries/CLPositionInfoLibrary.sol";
 
 /// @notice Interface that a Subscriber contract should implement to receive updates from infinity cl pool position manager
@@ -38,5 +38,9 @@ interface ICLSubscriber {
     /// @dev feesAccrued can be artificially inflated by a malicious user
     /// Pools with a single liquidity position can inflate feeGrowthGlobal (and consequently feesAccrued) by donating to themselves;
     /// automatically donating and collecting fees within the same unlockCallback may further inflate feeGrowthGlobal/feesAccrued
-    function notifyModifyLiquidity(uint256 tokenId, int256 liquidityChange, BalanceDelta feesAccrued) external;
+    function notifyModifyLiquidity(
+        uint256 tokenId,
+        int256 liquidityChange,
+        BalanceDelta feesAccrued
+    ) external;
 }

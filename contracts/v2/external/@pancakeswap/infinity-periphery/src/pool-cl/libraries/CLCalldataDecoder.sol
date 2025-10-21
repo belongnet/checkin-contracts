@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IInfinityRouter} from "../../interfaces/IInfinityRouter.sol";
 import {CalldataDecoder} from "../../libraries/CalldataDecoder.sol";
-import {PoolKey} from "infinity-core/src/types/PoolKey.sol";
+import {PoolKey} from "../../../../infinity-core/src/types/PoolKey.sol";
 
 /// @title Library for abi decoding in cl pool calldata
 library CLCalldataDecoder {
@@ -14,7 +14,9 @@ library CLCalldataDecoder {
     uint256 constant SLICE_ERROR_SELECTOR = 0x3b99b53d;
 
     /// @dev equivalent to: abi.decode(params, (IInfinityRouter.CLExactInputParams))
-    function decodeCLSwapExactInParams(bytes calldata params)
+    function decodeCLSwapExactInParams(
+        bytes calldata params
+    )
         internal
         pure
         returns (IInfinityRouter.CLSwapExactInputParams calldata swapParams)
@@ -32,10 +34,14 @@ library CLCalldataDecoder {
     }
 
     /// @dev equivalent to: abi.decode(params, (IInfinityRouter.CLExactInputSingleParams))
-    function decodeCLSwapExactInSingleParams(bytes calldata params)
+    function decodeCLSwapExactInSingleParams(
+        bytes calldata params
+    )
         internal
         pure
-        returns (IInfinityRouter.CLSwapExactInputSingleParams calldata swapParams)
+        returns (
+            IInfinityRouter.CLSwapExactInputSingleParams calldata swapParams
+        )
     {
         // CLExactInputSingleParams is a variable length struct so we just have to look up its location
         assembly ("memory-safe") {
@@ -50,7 +56,9 @@ library CLCalldataDecoder {
     }
 
     /// @dev equivalent to: abi.decode(params, (IInfinityRouter.CLExactOutputParams))
-    function decodeCLSwapExactOutParams(bytes calldata params)
+    function decodeCLSwapExactOutParams(
+        bytes calldata params
+    )
         internal
         pure
         returns (IInfinityRouter.CLSwapExactOutputParams calldata swapParams)
@@ -68,10 +76,14 @@ library CLCalldataDecoder {
     }
 
     /// @dev equivalent to: abi.decode(params, (IInfinityRouter.CLExactOutputSingleParams))
-    function decodeCLSwapExactOutSingleParams(bytes calldata params)
+    function decodeCLSwapExactOutSingleParams(
+        bytes calldata params
+    )
         internal
         pure
-        returns (IInfinityRouter.CLSwapExactOutputSingleParams calldata swapParams)
+        returns (
+            IInfinityRouter.CLSwapExactOutputSingleParams calldata swapParams
+        )
     {
         // CLExactOutputSingleParams is a variable length struct so we just have to look up its location
         assembly ("memory-safe") {
@@ -86,10 +98,18 @@ library CLCalldataDecoder {
     }
 
     /// @dev equivalent to: abi.decode(params, (uint256, uint256, uint128, uint128, bytes)) in calldata
-    function decodeCLModifyLiquidityParams(bytes calldata params)
+    function decodeCLModifyLiquidityParams(
+        bytes calldata params
+    )
         internal
         pure
-        returns (uint256 tokenId, uint256 liquidity, uint128 amount0, uint128 amount1, bytes calldata hookData)
+        returns (
+            uint256 tokenId,
+            uint256 liquidity,
+            uint128 amount0,
+            uint128 amount1,
+            bytes calldata hookData
+        )
     {
         // length validation is already handled in `params.toBytes`
         assembly ("memory-safe") {
@@ -103,10 +123,17 @@ library CLCalldataDecoder {
     }
 
     /// @dev equivalent to: abi.decode(params, (uint256, uint128, uint128, bytes)) in calldata
-    function decodeCLIncreaseLiquidityFromDeltasParams(bytes calldata params)
+    function decodeCLIncreaseLiquidityFromDeltasParams(
+        bytes calldata params
+    )
         internal
         pure
-        returns (uint256 tokenId, uint128 amount0Max, uint128 amount1Max, bytes calldata hookData)
+        returns (
+            uint256 tokenId,
+            uint128 amount0Max,
+            uint128 amount1Max,
+            bytes calldata hookData
+        )
     {
         // length validation is already handled in `params.toBytes`
         assembly ("memory-safe") {
@@ -119,7 +146,9 @@ library CLCalldataDecoder {
     }
 
     /// @dev equivalent to: abi.decode(params, (PoolKey, int24, int24, uint256, uint128, uint128, address, bytes)) in calldata
-    function decodeCLMintParams(bytes calldata params)
+    function decodeCLMintParams(
+        bytes calldata params
+    )
         internal
         pure
         returns (
@@ -147,7 +176,9 @@ library CLCalldataDecoder {
     }
 
     /// @dev equivalent to: abi.decode(params, (PoolKey, int24, int24, uint128, uint128, address, bytes)) in calldata
-    function decodeCLMintFromDeltasParams(bytes calldata params)
+    function decodeCLMintFromDeltasParams(
+        bytes calldata params
+    )
         internal
         pure
         returns (
@@ -174,10 +205,17 @@ library CLCalldataDecoder {
     }
 
     /// @dev equivalent to: abi.decode(params, (uint256, uint128, uint128, bytes)) in calldata
-    function decodeCLBurnParams(bytes calldata params)
+    function decodeCLBurnParams(
+        bytes calldata params
+    )
         internal
         pure
-        returns (uint256 tokenId, uint128 amount0Min, uint128 amount1Min, bytes calldata hookData)
+        returns (
+            uint256 tokenId,
+            uint128 amount0Min,
+            uint128 amount1Min,
+            bytes calldata hookData
+        )
     {
         // length validation is already handled in `params.toBytes`
         assembly ("memory-safe") {
