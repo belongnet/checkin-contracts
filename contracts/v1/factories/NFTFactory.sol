@@ -145,16 +145,19 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         NftFactoryParameters memory params = _nftFactoryParameters;
 
         // Name, symbol signed through BE, and checks if the size > 0.
-        if (
-            !params.signerAddress.isValidSignatureNow(
-                keccak256(
-                    abi.encodePacked(
-                        _info.metadata.name, _info.metadata.symbol, _info.contractURI, _info.feeNumerator, block.chainid
-                    )
-                ),
-                _info.signature
-            )
-        ) {
+        if (!params.signerAddress
+                .isValidSignatureNow(
+                    keccak256(
+                        abi.encodePacked(
+                            _info.metadata.name,
+                            _info.metadata.symbol,
+                            _info.contractURI,
+                            _info.feeNumerator,
+                            block.chainid
+                        )
+                    ),
+                    _info.signature
+                )) {
             revert InvalidSignature();
         }
 
@@ -187,10 +190,7 @@ contract NFTFactory is Initializable, Ownable, ReferralSystem {
         );
 
         NftInstanceInfo memory info = NftInstanceInfo({
-            creator: msg.sender,
-            nftAddress: nftAddress,
-            metadata: _info.metadata,
-            royaltiesReceiver: receiver
+            creator: msg.sender, nftAddress: nftAddress, metadata: _info.metadata, royaltiesReceiver: receiver
         });
 
         getNftInstanceInfo[_hash] = info;
