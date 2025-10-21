@@ -2,40 +2,7 @@
   "lib/forge-std": {
     "rev": "1714bee72e286e73f76e320d110e0eaf5c4e649d"
   },
-  "lib/infinity-core": {
-    "rev": "7c04695faeab8b06570cf6c277d9a9717136fb26"
-  },
-  "lib/infinity-periphery": {
-    "rev": "04585d106d55d5d3bdf1d79ec5c4275a01caa0a6"
-  },
   "lib/openzeppelin-community-contracts": {
     "rev": "dcebe28b2e7c93f7f0da5e9ce3549e3a85134a28"
-  },
-  "lib/openzeppelin-contracts": {
-    "tag": {
-      "name": "v5.4.0",
-      "rev": "c64a1edb67b6e3f4a15cca8909c9482ad33a02b0"
-    }
-  },
-  "lib/openzeppelin-contracts-upgradeable": {
-    "tag": {
-      "name": "v5.4.0",
-      "rev": "e725abddf1e01cf05ace496e950fc8e243cc7cab"
-    }
-  },
-  "lib/solady": {
-    "tag": {
-      "name": "v0.1.26",
-      "rev": "acd959aa4bd04720d640bf4e6a5c71037510cc4b"
-    }
-  },
-  "lib/v4-core": {
-    "tag": {
-      "name": "v4.0.0",
-      "rev": "e50237c43811bd9b526eff40f26772152a42daba"
-    }
-  },
-  "lib/v4-periphery": {
-    "rev": "60cd93803ac2b7fa65fd6cd351fd5fd4cc8c9db5"
   }
 }
