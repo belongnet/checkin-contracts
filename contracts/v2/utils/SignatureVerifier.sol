@@ -44,6 +44,10 @@ library SignatureVerifier {
     /// @notice Thrown when the bounty type derived from customer payload conflicts with venue rules.
     error WrongBountyType();
 
+    error NoBountiesToPromoter();
+    error NoBountiesToCustomer();
+    error NoBountyAllocationTypeSpecified();
+
     // ============================== Verifiers ==============================
 
     /// @notice Verifies AccessToken collection creation payload.
@@ -165,16 +169,20 @@ library SignatureVerifier {
             WrongPaymentType()
         );
 
-        if (customerInfo.promoter != address(0)) {
-            BountyTypes bountyType = customerInfo.visitBountyAmount > 0 && customerInfo.spendBountyPercentage > 0
-                ? BountyTypes.Both
-                : customerInfo.visitBountyAmount > 0 && customerInfo.spendBountyPercentage == 0
-                    ? BountyTypes.VisitBounty
-                    : customerInfo.visitBountyAmount == 0 && customerInfo.spendBountyPercentage > 0
-                        ? BountyTypes.SpendBounty
-                        : BountyTypes.NoType;
+        if (rules.bountyAllocationType == BountyAllocationTypes.NoType) {
+            revert NoBountyAllocationTypeSpecified();
+        } else {
+            if (rules.bountyAllocationType == BountyAllocationTypes.ToCustomer) {
+                _checkBounties(customerInfo.toPromoter);
+            } else if (rules.bountyAllocationType == BountyAllocationTypes.ToPromoter) {
+                _checkBounties(customerInfo.toCustomer);
+            }
 
-            require(rules.bountyType == bountyType && bountyType != BountyTypes.NoType, WrongBountyType());
+            _checkBountiesPayment(customerInfo.toCustomer, rules);
+
+            if (customerInfo.promoter != address(0)) {
+                _checkBountiesPayment(customerInfo.toPromoter, rules);
+            }
         }
 
         require(
@@ -182,8 +190,10 @@ library SignatureVerifier {
                 keccak256(
                     abi.encodePacked(
                         customerInfo.paymentInUSDC,
-                        customerInfo.visitBountyAmount,
-                        customerInfo.spendBountyPercentage,
+                        customerInfo.toCustomer.spendBountyPercentage,
+                        customerInfo.toCustomer.visitBountyAmount,
+                        customerInfo.toPromoter.spendBountyPercentage,
+                        customerInfo.toPromoter.visitBountyAmount,
                         customerInfo.customer,
                         customerInfo.venueToPayFor,
                         customerInfo.promoter,
@@ -249,5 +259,21 @@ library SignatureVerifier {
             ),
             InvalidSignature()
         );
+    }
+
+    function _checkBounties(Bounties calldata bounties) internal view {
+        require(bounties.spendBountyPercentage == 0 && bounties.visitBountyAmount == 0, NoBountiesRelated());
+    }
+
+    function _checkBountiesPayment(Bounties calldata bounties, VenueRules memory rules) internal view {
+        BountyTypes bountyType = bounties.visitBountyAmount > 0 && bounties.spendBountyPercentage > 0
+            ? BountyTypes.Both
+            : bounties.visitBountyAmount > 0 && bounties.spendBountyPercentage == 0
+                ? BountyTypes.VisitBounty
+                : bounties.visitBountyAmount == 0 && bounties.spendBountyPercentage > 0
+                    ? BountyTypes.SpendBounty
+                    : BountyTypes.NoType;
+
+        require(rules.bountyType == bountyType && bountyType != BountyTypes.NoType, WrongCustomerBountyType());
     }
 }
