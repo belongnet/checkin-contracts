@@ -6,11 +6,6 @@ import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {MetadataReaderLib} from "solady/src/utils/MetadataReaderLib.sol";
 
-import {IV3Factory} from "../interfaces/IV3Factory.sol";
-import {IV3Router} from "../interfaces/IV3Router.sol";
-import {IV3Quoter} from "../interfaces/IV3Quoter.sol";
-import {IERC20Burnable} from "../interfaces/IERC20Burnable.sol";
-
 import {Factory} from "./Factory.sol";
 import {Escrow} from "../periphery/Escrow.sol";
 import {Staking} from "../periphery/Staking.sol";
@@ -190,24 +185,6 @@ contract BelongCheckIn is Initializable, Ownable {
         uint24 processingFeePercentage;
         /// @notice Percentage of platform revenue allocated to LONG buyback and burn (BPS: 10_000 == 100%).
         uint24 buybackBurnPercentage;
-    }
-
-    /// @notice Uniswap routing and token addresses.
-    /// @notice Slippage tolerance scaled to 27 decimals where 1e27 == 100%.
-    /// @dev Used by Helper.amountOutMin via BelongCheckIn._swapUSDCtoLONG; valid range [0, 1e27].
-    /// @dev
-    /// - `swapPoolFees` is the 3-byte fee tier used for both USDC↔W_NATIVE_CURRENCY and W_NATIVE_CURRENCY↔LONG hops.
-    /// - `wNativeCurrency`, `usdc`, `long` are token addresses; `swapV3Router` and `swapV3Quoter` are periphery contracts.
-    struct PaymentsInfo {
-        uint96 slippageBps;
-        uint24 swapPoolFees;
-        address swapV3Factory;
-        address swapV3Router;
-        address swapV3Quoter;
-        address wNativeCurrency;
-        address usdc;
-        address long;
-        uint256 maxPriceFeedDelay;
     }
 
     /// @notice Venue-specific configuration and remaining “free” deposit credits.
