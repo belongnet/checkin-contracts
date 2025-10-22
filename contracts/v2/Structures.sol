@@ -189,7 +189,7 @@ struct Bounties {
 /// @notice Signed payload authorizing distribution of promoter payouts in USDC or LONG.
 struct PromoterInfo {
     bool paymentInUSDC;
-    address promoter;
+    bytes32 promoterReferralCode;
     address venue;
     uint256 amountInUSD;
     bytes signature;

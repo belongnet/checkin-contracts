@@ -485,14 +485,15 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         contracts_.factory.nftFactoryParameters().signerAddress.checkPromoterPaymentDistribution(promoterInfo);
 
         uint256 venueId = promoterInfo.venue.getVenueId();
+        address promoter = contracts_.factory.getReferralCreator(promoterInfo.promoterReferralCode);
 
-        uint256 promoterBalance = contracts_.promoterToken.balanceOf(promoterInfo.promoter, venueId);
+        uint256 promoterBalance = contracts_.promoterToken.balanceOf(promoter, venueId);
         require(
             promoterBalance >= promoterInfo.amountInUSD, NotEnoughBalance(promoterInfo.amountInUSD, promoterBalance)
         );
 
         PromoterStakingRewardInfo memory stakingInfo =
-        stakingRewards[contracts_.staking.balanceOf(promoterInfo.promoter).stakingTiers()].promoterStakingInfo;
+        stakingRewards[contracts_.staking.balanceOf(promoter).stakingTiers()].promoterStakingInfo;
 
         uint256 toPromoter = promoterInfo.amountInUSD;
         uint24 percentage = promoterInfo.paymentInUSDC ? stakingInfo.usdcPercentage : stakingInfo.longPercentage;
@@ -505,19 +506,19 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             // Route platform fees here for buyback/burn split, then forward remainder.
             contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), platformFees);
             _handleRevenue(payments.usdc, platformFees);
-            contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, promoterInfo.promoter, toPromoter);
+            contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, promoter, toPromoter);
         } else {
             contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), promoterInfo.amountInUSD);
             // Swap fee portion to this contract for burning, then forward remainder to platform.
             uint256 longFees = _swapUSDCtoLONG(address(this), platformFees);
             _handleRevenue(payments.long, longFees);
-            _swapUSDCtoLONG(promoterInfo.promoter, toPromoter);
+            _swapUSDCtoLONG(promoter, toPromoter);
         }
 
-        contracts_.promoterToken.burn(promoterInfo.promoter, venueId, promoterInfo.amountInUSD);
+        contracts_.promoterToken.burn(promoter, venueId, promoterInfo.amountInUSD);
 
         emit PromoterPaymentsDistributed(
-            promoterInfo.promoter, promoterInfo.venue, promoterInfo.amountInUSD, promoterInfo.paymentInUSDC
+            promoter, promoterInfo.venue, promoterInfo.amountInUSD, promoterInfo.paymentInUSDC
         );
     }
 

@@ -219,7 +219,9 @@ library SignatureVerifier {
         require(
             signer.isValidSignatureNow(
                 keccak256(
-                    abi.encodePacked(promoterInfo.promoter, promoterInfo.venue, promoterInfo.amountInUSD, block.chainid)
+                    abi.encodePacked(
+                        promoterInfo.promoterReferralCode, promoterInfo.venue, promoterInfo.amountInUSD, block.chainid
+                    )
                 ),
                 promoterInfo.signature
             ),
