@@ -18,6 +18,7 @@ export enum ChainIds {
   blast_sepolia = 168587773,
   skale_calypso_testnet = 974399131,
   amoy = 80002,
+  bsc_testnet = 97,
 }
 
 export const chainRPCs = (chainid: ChainIds): string => {
@@ -58,6 +59,10 @@ export const chainRPCs = (chainid: ChainIds): string => {
       return `https://sepolia.blast.io`;
     case ChainIds.skale_calypso_testnet:
       return 'https://testnet.skalenodes.com/v1/giant-half-dual-testnet';
+    case ChainIds.bsc_testnet:
+      return process.env.INFURA_ID_PROJECT
+        ? `https://bsc-testnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
+        : 'https://api.zan.top/bsc-testnet';
     default:
       throw Error('No networks provided');
   }
@@ -77,6 +82,8 @@ export const blockscanUrls = (chainid: ChainIds, apiKey?: string): string => {
       return `https://celoscan.io/`;
     case ChainIds.base:
       return `https://basescan.org/`;
+    case ChainIds.bsc:
+      return `https://bscscan.com/`;
     case ChainIds.linea:
       return `https://lineascan.build/`;
     case ChainIds.astar:
@@ -95,6 +102,8 @@ export const blockscanUrls = (chainid: ChainIds, apiKey?: string): string => {
       return `https://honorable-steel-rasalhague.explorer.mainnet.skalenodes.com/`;
     case ChainIds.skale_calypso_testnet:
       return `https://giant-half-dual-testnet.explorer.testnet.skalenodes.com/`;
+    case ChainIds.bsc_testnet:
+      return `https://testnet.bscscan.com/`;
     default:
       throw Error('No networks provided');
   }

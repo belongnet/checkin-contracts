@@ -6,19 +6,17 @@ import 'hardhat-contract-sizer';
 import '@nomicfoundation/hardhat-ledger';
 import dotenv from 'dotenv';
 import { ChainIds } from './utils/chain-ids';
-import { blockscanConfig, createConnect, createLedgerConnect } from './utils/config';
+import { blockscanConfig, createConnect } from './utils/config';
 
 dotenv.config();
 
-let accounts: string[] = [],
-  ledgerAccounts: string[] = [];
+let accounts: string[] = [];
 
 if (process.env.PK) {
   accounts = [process.env.PK];
 }
-if (process.env.LEDGER_ADDRESS) {
-  ledgerAccounts = [process.env.LEDGER_ADDRESS];
-}
+
+const etherscanApiKey = process.env.ETHERSCAN_API_KEY || process.env.BSCSCAN_API_KEY || '';
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -50,35 +48,38 @@ const config: HardhatUserConfig = {
     // 'ethereum': {
     //   url: 'https://eth.drpc.org',
     // },
-    mainnet: createLedgerConnect(ChainIds.mainnet, ledgerAccounts),
-    bsc: createLedgerConnect(ChainIds.bsc, ledgerAccounts),
-    polygon: createLedgerConnect(ChainIds.polygon, ledgerAccounts),
-    blast: createLedgerConnect(ChainIds.blast, ledgerAccounts),
-    celo: createLedgerConnect(ChainIds.celo, ledgerAccounts),
-    base: createLedgerConnect(ChainIds.base, ledgerAccounts),
-    linea: createLedgerConnect(ChainIds.linea, ledgerAccounts),
-    astar: createLedgerConnect(ChainIds.astar, ledgerAccounts),
-    arbitrum: createLedgerConnect(ChainIds.arbitrum, ledgerAccounts),
-    skale_europa: createLedgerConnect(ChainIds.skale_europa, ledgerAccounts),
-    skale_nebula: createLedgerConnect(ChainIds.skale_nebula, ledgerAccounts),
-    skale_calypso: createLedgerConnect(ChainIds.skale_calypso, ledgerAccounts),
+    mainnet: createConnect(ChainIds.mainnet, accounts),
+    bsc: createConnect(ChainIds.bsc, accounts),
+    polygon: createConnect(ChainIds.polygon, accounts),
+    blast: createConnect(ChainIds.blast, accounts),
+    celo: createConnect(ChainIds.celo, accounts),
+    base: createConnect(ChainIds.base, accounts),
+    linea: createConnect(ChainIds.linea, accounts),
+    astar: createConnect(ChainIds.astar, accounts),
+    arbitrum: createConnect(ChainIds.arbitrum, accounts),
+    skale_europa: createConnect(ChainIds.skale_europa, accounts),
+    skale_nebula: createConnect(ChainIds.skale_nebula, accounts),
+    skale_calypso: createConnect(ChainIds.skale_calypso, accounts),
     sepolia: createConnect(ChainIds.sepolia, accounts),
     blast_sepolia: createConnect(ChainIds.blast_sepolia, accounts),
+    bsc_testnet: createConnect(ChainIds.bsc_testnet, accounts),
     skale_calypso_testnet: createConnect(ChainIds.skale_calypso_testnet, accounts),
     amoy: createConnect(ChainIds.amoy, accounts),
   },
   etherscan: {
     apiKey: {
-      mainnet: process.env.ETHERSCAN_API_KEY! || '',
-      // 'ethereum': 'empty',
-      blast: process.env.BLASTSCAN_API_KEY! || '',
-      polygon: process.env.POLYSCAN_API_KEY || '',
-      celo: process.env.CELOSCAN_API_KEY || '',
-      base: process.env.BASESCAN_API_KEY || '',
-      linea: process.env.LINEASCAN_API_KEY || '',
-      sepolia: process.env.ETHERSCAN_API_KEY! || '',
-      amoy: process.env.POLYSCAN_API_KEY || '',
-      blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
+      mainnet: etherscanApiKey,
+      sepolia: etherscanApiKey,
+      polygon: etherscanApiKey,
+      amoy: etherscanApiKey,
+      blast: etherscanApiKey,
+      blast_sepolia: etherscanApiKey,
+      bsc: etherscanApiKey,
+      bsc_testnet: etherscanApiKey,
+      celo: etherscanApiKey,
+      base: etherscanApiKey,
+      linea: etherscanApiKey,
+      arbitrum: etherscanApiKey,
       astar: 'astar', // Is not required by blockscout. Can be any non-empty string
       skale_europa: 'skale_europa', // Is not required by blockscout. Can be any non-empty string
       skale_nebula: 'skale_nebula', // Is not required by blockscout. Can be any non-empty string
@@ -86,15 +87,9 @@ const config: HardhatUserConfig = {
       skale_calypso_testnet: 'skale_calypso_testnet', // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
-      // {
-      //   network: "ethereum",
-      //   chainId: 1,
-      //   urls: {
-      //     apiURL: "https://eth.blockscout.com/api",
-      //     browserURL: "https://eth.blockscout.com"
-      //   }
-      // },
       blockscanConfig('blast', ChainIds.blast),
+      blockscanConfig('bsc', ChainIds.bsc),
+      blockscanConfig('bsc_testnet', ChainIds.bsc_testnet),
       blockscanConfig('blast_sepolia', ChainIds.blast_sepolia),
       blockscanConfig('celo', ChainIds.celo),
       blockscanConfig('base', ChainIds.base),

@@ -1,0 +1,303 @@
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/etherscan/EtherscanService.js b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/etherscan/EtherscanService.js
+index 9ac36a0..a729976 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/etherscan/EtherscanService.js
++++ b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/etherscan/EtherscanService.js
+@@ -10,28 +10,63 @@ async function delay(ms) {
+ exports.delay = delay;
+ // Used for polling the result of the contract verification.
+ const verificationIntervalMs = 3000;
++function enrichRequestWithChainId(url, request) {
++    try {
++        const parsedUrl = new URL(url);
++        const chainId = parsedUrl.searchParams.get("chainid");
++        if (chainId !== null && chainId !== "" && request.chainid === undefined) {
++            return { url, request: { ...request, chainid } };
++        }
++    }
++    catch (_a) {
++        // ignore URL parsing errors and fall back to original arguments
++    }
++    return { url, request };
++}
+ async function verifyContract(url, req) {
+-    const parameters = new URLSearchParams({ ...req });
++    const { url: targetUrl, request } = enrichRequestWithChainId(url, req);
++    const { module: moduleParam, action, apikey, chainid, ...bodyFields } = { ...request };
++    const urlObject = new URL(targetUrl);
++    const queryParameters = new URLSearchParams(urlObject.search);
++    if (moduleParam !== undefined) {
++        queryParameters.set("module", moduleParam);
++    }
++    if (action !== undefined) {
++        queryParameters.set("action", action);
++    }
++    if (apikey !== undefined) {
++        queryParameters.set("apikey", apikey);
++    }
++    if (chainid !== undefined) {
++        queryParameters.set("chainid", chainid);
++    }
++    urlObject.search = queryParameters.toString();
++    const parameters = new URLSearchParams();
++    for (const [key, value] of Object.entries(bodyFields)) {
++        if (value !== undefined) {
++            parameters.set(key, value);
++        }
++    }
+     let response;
+     try {
+-        response = await (0, undici_1.sendPostRequest)(new URL(url), parameters.toString());
++        response = await (0, undici_1.sendPostRequest)(urlObject, parameters.toString());
+     }
+     catch (error) {
+         throw new errors_1.HardhatEtherscanPluginError(constants_1.pluginName, `Failed to send contract verification request.
+-Endpoint URL: ${url}
++Endpoint URL: ${urlObject.toString()}
+ Reason: ${error.message}`, error);
+     }
+     if (!(response.statusCode >= 200 && response.statusCode <= 299)) {
+         // This could be always interpreted as JSON if there were any such guarantee in the Etherscan API.
+         const responseText = await response.body.text();
+         throw new errors_1.HardhatEtherscanPluginError(constants_1.pluginName, `Failed to send contract verification request.
+-Endpoint URL: ${url}
++Endpoint URL: ${urlObject.toString()}
+ The HTTP server response is not ok. Status code: ${response.statusCode} Response text: ${responseText}`);
+     }
+     const etherscanResponse = new EtherscanResponse(await response.body.json());
+     if (etherscanResponse.isBytecodeMissingInNetworkError()) {
+         throw new errors_1.HardhatEtherscanPluginError(constants_1.pluginName, `Failed to send contract verification request.
+-Endpoint URL: ${url}
++Endpoint URL: ${urlObject.toString()}
+ Reason: The Etherscan API responded that the address ${req.contractaddress} does not have bytecode.
+ This can happen if the contract was recently deployed and this fact hasn't propagated to the backend yet.
+ Try waiting for a minute before verifying your contract. If you are invoking this from a script,
+@@ -44,8 +79,14 @@ try to wait for five confirmations of your contract deployment transaction befor
+ }
+ exports.verifyContract = verifyContract;
+ async function getVerificationStatus(url, req) {
+-    const parameters = new URLSearchParams({ ...req });
+-    const urlWithQuery = new URL(url);
++    const { url: targetUrl, request } = enrichRequestWithChainId(url, req);
++    const urlWithQuery = new URL(targetUrl);
++    const parameters = new URLSearchParams(urlWithQuery.search);
++    for (const [key, value] of Object.entries(request)) {
++        if (value !== undefined) {
++            parameters.set(key, value);
++        }
++    }
+     urlWithQuery.search = parameters.toString();
+     let response;
+     try {
+@@ -66,7 +107,7 @@ Reason: ${error.message}`, error);
+     const etherscanResponse = new EtherscanResponse(await response.body.json());
+     if (etherscanResponse.isPending()) {
+         await delay(verificationIntervalMs);
+-        return getVerificationStatus(url, req);
++        return getVerificationStatus(targetUrl, request);
+     }
+     if (etherscanResponse.isVerificationFailure()) {
+         return etherscanResponse;
+@@ -102,13 +143,19 @@ class EtherscanResponse {
+ }
+ exports.EtherscanResponse = EtherscanResponse;
+ async function isAlreadyVerified(apiURL, apiKey, address) {
+-    const parameters = new URLSearchParams({
++    const { url: targetUrl, request } = enrichRequestWithChainId(apiURL, {
+         module: "contract",
+         action: "getsourcecode",
+         address,
+         apikey: apiKey,
+     });
+-    const url = new URL(apiURL);
++    const url = new URL(targetUrl);
++    const parameters = new URLSearchParams(url.search);
++    for (const [key, value] of Object.entries(request)) {
++        if (value !== undefined) {
++            parameters.set(key, value);
++        }
++    }
+     url.search = parameters.toString();
+     const response = await (0, undici_1.sendGetRequest)(url);
+     const json = await response.body.json();
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/etherscan/EtherscanVerifyContractRequest.js b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/etherscan/EtherscanVerifyContractRequest.js
+index 7d383b3..ecb3dbd 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/etherscan/EtherscanVerifyContractRequest.js
++++ b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/etherscan/EtherscanVerifyContractRequest.js
+@@ -11,7 +11,7 @@ function toVerifyRequest(params) {
+         codeformat: "solidity-standard-json-input",
+         contractname: `${params.sourceName}:${params.contractName}`,
+         compilerversion: params.compilerVersion,
+-        constructorArguements: params.constructorArguments,
++        constructorArguments: params.constructorArguments,
+     };
+ }
+ exports.toVerifyRequest = toVerifyRequest;
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/src/etherscan/EtherscanService.ts b/node_modules/@nomiclabs/hardhat-etherscan/src/etherscan/EtherscanService.ts
+index 4adfeab..a7ddac9 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/src/etherscan/EtherscanService.ts
++++ b/node_modules/@nomiclabs/hardhat-etherscan/src/etherscan/EtherscanService.ts
+@@ -16,20 +16,66 @@ export async function delay(ms: number): Promise<void> {
+ // Used for polling the result of the contract verification.
+ const verificationIntervalMs = 3000;
+ 
++function enrichRequestWithChainId<T extends Record<string, string>>(
++  url: string,
++  request: T
++): { url: string; request: T & { chainid?: string } } {
++  try {
++    const parsedUrl = new URL(url);
++    const chainId = parsedUrl.searchParams.get("chainid");
++
++    if (chainId !== null && chainId !== "" && (request as any).chainid === undefined) {
++      return { url, request: { ...request, chainid } };
++    }
++  } catch {
++    // ignore URL parsing errors and fall back to original arguments
++  }
++
++  return { url, request };
++}
++
+ export async function verifyContract(
+   url: string,
+   req: EtherscanVerifyRequest
+ ): Promise<EtherscanResponse> {
+-  const parameters = new URLSearchParams({ ...req });
++  const { url: targetUrl, request } = enrichRequestWithChainId(url, req);
++  const { module: moduleParam, action, apikey, chainid, ...bodyFields } = {
++    ...request,
++  } as EtherscanVerifyRequest & { chainid?: string };
++
++  const urlObject = new URL(targetUrl);
++  const queryParameters = new URLSearchParams(urlObject.search);
++
++  if (moduleParam !== undefined) {
++    queryParameters.set("module", moduleParam);
++  }
++  if (action !== undefined) {
++    queryParameters.set("action", action);
++  }
++  if (apikey !== undefined) {
++    queryParameters.set("apikey", apikey);
++  }
++  if (chainid !== undefined) {
++    queryParameters.set("chainid", chainid);
++  }
++
++  urlObject.search = queryParameters.toString();
++
++  const parameters = new URLSearchParams();
++  for (const [key, value] of Object.entries(bodyFields)) {
++    if (value !== undefined) {
++      parameters.set(key, value);
++    }
++  }
+ 
+   let response: Dispatcher.ResponseData;
+   try {
+-    response = await sendPostRequest(new URL(url), parameters.toString());
++    response = await sendPostRequest(urlObject, parameters.toString());
+   } catch (error: any) {
+     throw new HardhatEtherscanPluginError(
+       pluginName,
+       `Failed to send contract verification request.
+-Endpoint URL: ${url}
++Endpoint URL: ${urlObject.toString()}
+ Reason: ${error.message}`,
+       error
+     );
+@@ -41,7 +87,7 @@ Reason: ${error.message}`,
+     throw new HardhatEtherscanPluginError(
+       pluginName,
+       `Failed to send contract verification request.
+-Endpoint URL: ${url}
++Endpoint URL: ${urlObject.toString()}
+ The HTTP server response is not ok. Status code: ${response.statusCode} Response text: ${responseText}`
+     );
+   }
+@@ -52,7 +98,7 @@ The HTTP server response is not ok. Status code: ${response.statusCode} Response
+     throw new HardhatEtherscanPluginError(
+       pluginName,
+       `Failed to send contract verification request.
+-Endpoint URL: ${url}
++Endpoint URL: ${urlObject.toString()}
+ Reason: The Etherscan API responded that the address ${req.contractaddress} does not have bytecode.
+ This can happen if the contract was recently deployed and this fact hasn't propagated to the backend yet.
+ Try waiting for a minute before verifying your contract. If you are invoking this from a script,
+@@ -74,8 +120,16 @@ export async function getVerificationStatus(
+   url: string,
+   req: EtherscanCheckStatusRequest
+ ): Promise<EtherscanResponse> {
+-  const parameters = new URLSearchParams({ ...req });
+-  const urlWithQuery = new URL(url);
++  const { url: targetUrl, request } = enrichRequestWithChainId(url, req);
++  const urlWithQuery = new URL(targetUrl);
++  const parameters = new URLSearchParams(urlWithQuery.search);
++
++  for (const [key, value] of Object.entries(request)) {
++    if (value !== undefined) {
++      parameters.set(key, value);
++    }
++  }
++
+   urlWithQuery.search = parameters.toString();
+ 
+   let response;
+@@ -105,7 +159,7 @@ Reason: ${error.message}`,
+   if (etherscanResponse.isPending()) {
+     await delay(verificationIntervalMs);
+ 
+-    return getVerificationStatus(url, req);
++    return getVerificationStatus(targetUrl, request);
+   }
+ 
+   if (etherscanResponse.isVerificationFailure()) {
+@@ -160,14 +214,22 @@ export async function isAlreadyVerified(
+   apiKey: string,
+   address: string
+ ): Promise<boolean> {
+-  const parameters = new URLSearchParams({
++  const { url: targetUrl, request } = enrichRequestWithChainId(apiURL, {
+     module: "contract",
+     action: "getsourcecode",
+     address,
+     apikey: apiKey,
+   });
+ 
+-  const url = new URL(apiURL);
++  const url = new URL(targetUrl);
++  const parameters = new URLSearchParams(url.search);
++
++  for (const [key, value] of Object.entries(request)) {
++    if (value !== undefined) {
++      parameters.set(key, value);
++    }
++  }
++
+   url.search = parameters.toString();
+ 
+   const response = await sendGetRequest(url);
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/src/etherscan/EtherscanVerifyContractRequest.ts b/node_modules/@nomiclabs/hardhat-etherscan/src/etherscan/EtherscanVerifyContractRequest.ts
+index 7bbf156..328599c 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/src/etherscan/EtherscanVerifyContractRequest.ts
++++ b/node_modules/@nomiclabs/hardhat-etherscan/src/etherscan/EtherscanVerifyContractRequest.ts
+@@ -11,9 +11,7 @@ export interface EtherscanVerifyRequest extends EtherscanRequest {
+   codeformat: "solidity-standard-json-input";
+   contractname: string;
+   compilerversion: string;
+-  // This is misspelt in Etherscan's actual API parameters.
+-  // See: https://etherscan.io/apis#contracts
+-  constructorArguements: string;
++  constructorArguments: string;
+ }
+ 
+ export interface EtherscanCheckStatusRequest extends EtherscanRequest {
+@@ -39,7 +37,7 @@ export function toVerifyRequest(params: {
+     codeformat: "solidity-standard-json-input",
+     contractname: `${params.sourceName}:${params.contractName}`,
+     compilerversion: params.compilerVersion,
+-    constructorArguements: params.constructorArguments,
++    constructorArguments: params.constructorArguments,
+   };
+ }
+ 

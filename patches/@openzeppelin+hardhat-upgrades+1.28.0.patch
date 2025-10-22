@@ -1,0 +1,80 @@
+diff --git a/node_modules/@openzeppelin/hardhat-upgrades/dist/utils/etherscan-api.js b/node_modules/@openzeppelin/hardhat-upgrades/dist/utils/etherscan-api.js
+index f336e77..b140f2e 100644
+--- a/node_modules/@openzeppelin/hardhat-upgrades/dist/utils/etherscan-api.js
++++ b/node_modules/@openzeppelin/hardhat-upgrades/dist/utils/etherscan-api.js
+@@ -16,11 +16,30 @@ const debug_1 = __importDefault(require("./debug"));
+  * @returns The Etherscan API response
+  */
+ async function callEtherscanApi(etherscanApi, params) {
+-    const parameters = new URLSearchParams({ ...params, apikey: etherscanApi.key });
+-    const response = await (0, undici_1.request)(etherscanApi.endpoints.urls.apiURL, {
++    const endpointUrl = new URL(etherscanApi.endpoints.urls.apiURL);
++    const queryParameters = new URLSearchParams(endpointUrl.search);
++    const bodyParameters = new URLSearchParams();
++    for (const [key, value] of Object.entries(params ?? {})) {
++        if (value === undefined) {
++            continue;
++        }
++        if (key === 'module' || key === 'action' || key === 'chainid' || key === 'apikey') {
++            queryParameters.set(key, value);
++        }
++        else {
++            bodyParameters.set(key, value);
++        }
++    }
++    const chainIdFromEndpoint = new URL(etherscanApi.endpoints.urls.apiURL).searchParams.get('chainid');
++    if (!queryParameters.has('chainid') && chainIdFromEndpoint !== null && chainIdFromEndpoint !== '') {
++        queryParameters.set('chainid', chainIdFromEndpoint);
++    }
++    queryParameters.set('apikey', etherscanApi.key);
++    endpointUrl.search = queryParameters.toString();
++    const response = await (0, undici_1.request)(endpointUrl.toString(), {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+-        body: parameters.toString(),
++        body: bodyParameters.toString(),
+     });
+     if (!(response.statusCode >= 200 && response.statusCode <= 299)) {
+         const responseBodyText = await response.body.text();
+diff --git a/node_modules/@openzeppelin/hardhat-upgrades/src/utils/etherscan-api.ts b/node_modules/@openzeppelin/hardhat-upgrades/src/utils/etherscan-api.ts
+index be94d73..a6d3c6d 100644
+--- a/node_modules/@openzeppelin/hardhat-upgrades/src/utils/etherscan-api.ts
++++ b/node_modules/@openzeppelin/hardhat-upgrades/src/utils/etherscan-api.ts
+@@ -16,12 +16,34 @@ import debug from './debug';
+  * @returns The Etherscan API response
+  */
+ export async function callEtherscanApi(etherscanApi: EtherscanAPIConfig, params: any): Promise<EtherscanResponseBody> {
+-  const parameters = new URLSearchParams({ ...params, apikey: etherscanApi.key });
++  const endpointUrl = new URL(etherscanApi.endpoints.urls.apiURL);
++  const queryParameters = new URLSearchParams(endpointUrl.search);
++  const bodyParameters = new URLSearchParams();
+ 
+-  const response = await request(etherscanApi.endpoints.urls.apiURL, {
++  for (const [key, value] of Object.entries(params ?? {})) {
++    if (value === undefined) {
++      continue;
++    }
++
++    if (key === 'module' || key === 'action' || key === 'chainid' || key === 'apikey') {
++      queryParameters.set(key, value);
++    } else {
++      bodyParameters.set(key, value);
++    }
++  }
++
++  const chainIdFromEndpoint = new URL(etherscanApi.endpoints.urls.apiURL).searchParams.get('chainid');
++  if (!queryParameters.has('chainid') && chainIdFromEndpoint !== null && chainIdFromEndpoint !== '') {
++    queryParameters.set('chainid', chainIdFromEndpoint);
++  }
++
++  queryParameters.set('apikey', etherscanApi.key);
++  endpointUrl.search = queryParameters.toString();
++
++  const response = await request(endpointUrl.toString(), {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+-    body: parameters.toString(),
++    body: bodyParameters.toString(),
+   });
+ 
+   if (!(response.statusCode >= 200 && response.statusCode <= 299)) {
