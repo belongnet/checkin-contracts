@@ -14,6 +14,7 @@ import {
   Staking,
   BelongCheckIn,
   VestingWalletExtended,
+  DualDexSwapV4Lib,
 } from '../../../typechain-types';
 import {
   deployCreditTokens,
@@ -22,6 +23,7 @@ import {
   deployFactory,
   deployRoyaltiesReceiverV2Implementation,
   deployStaking,
+  deployDualDexSwapV4Lib,
   deployBelongCheckIn,
   deployEscrow,
   deployVestingWalletImplementation,
@@ -36,9 +38,10 @@ import {
   VenueInfoStruct,
   VenueRulesStruct,
 } from '../../../typechain-types/contracts/v2/platform/BelongCheckIn';
-import { u } from '../../../helpers/math';
+import { encodePcsPoolKey, u } from '../../../helpers/math';
+import { DualDexSwapV4Lib as DualDexSwapV4LibType } from '../../../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
 
-describe('BelongCheckIn BSC PancakeSwap', () => {
+describe.only('BelongCheckIn BSC PancakeSwap', () => {
   const chainId = 31337;
 
   const WBNB_ADDRESS = '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c';
@@ -49,25 +52,31 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
   const WBNB_WHALE_ADDRESS = '0x308000D0169Ebe674B7640f0c415f44c6987d04D';
   const CAKE_WHALE_ADDRESS = '0xD183F2BBF8b28d9fec8367cb06FE72B88778C86B';
 
-  const PANCAKESWAP_FACTORY_ADDRESS = '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865';
-  const PANCAKESWAP_ROUTER_ADDRESS = '0x1b81D678ffb9C0263b24A97847620C99d213eB14';
-  const PANCAKESWAP_QUOTER_ADDRESS = '0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997';
-  const POOL_FEE = 2500;
+  const PANCAKESWAP_CL_POOL_MANAGER = '0xa0FfB9c1CE1Fe56963B0321B32E7A0302114058b';
+  const PANCAKESWAP_V4_ROUTER_ADDRESS = '0xd9C500DfF816a1Da21A48A732d3498Bf09dc9AEB';
+  const PANCAKESWAP_V4_QUOTER_ADDRESS = '0xd0737C9762912dD34c3271197E362Aa736Df0926';
   const MAX_PRICEFEED_DELAY = 3600;
+  const pcsPoolKey = encodePcsPoolKey(USDC_ADDRESS, CAKE_ADDRESS, PANCAKESWAP_CL_POOL_MANAGER);
 
   const usdcPercentage = 1000;
   const convenienceFeeAmount = ethers.utils.parseEther('5'); // $5
+  const SLIPPAGE_BPS = ethers.utils.parseUnits('5', '24');
 
-  const paymentsInfo: BelongCheckIn.PaymentsInfoStruct = {
-    swapPoolFees: POOL_FEE,
-    slippageBps: BigNumber.from(10).pow(27).sub(1),
-    swapV3Factory: PANCAKESWAP_FACTORY_ADDRESS,
-    swapV3Router: PANCAKESWAP_ROUTER_ADDRESS,
-    swapV3Quoter: PANCAKESWAP_QUOTER_ADDRESS,
-    wNativeCurrency: WBNB_ADDRESS,
-    usdc: USDC_ADDRESS,
-    long: CAKE_ADDRESS,
+  enum DexType {
+    UniV4,
+    PcsV4,
+  }
+
+  const paymentsInfo: DualDexSwapV4LibType.PaymentsInfoStruct = {
+    dexType: DexType.PcsV4,
+    slippageBps: SLIPPAGE_BPS,
+    router: PANCAKESWAP_V4_ROUTER_ADDRESS,
+    quoter: PANCAKESWAP_V4_QUOTER_ADDRESS,
+    usdc: USDC_ADDRESS, // USDC (BSC)
+    long: CAKE_ADDRESS, // CAKE
     maxPriceFeedDelay: MAX_PRICEFEED_DELAY,
+    poolKey: pcsPoolKey,
+    hookData: '0x',
   };
 
   const stakingRewards: [
@@ -129,7 +138,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
     } as BelongCheckIn.RewardsInfoStruct,
   ];
   const fees: BelongCheckIn.FeesStruct = {
-    referralCreditsAmount: 3,
+    referralCreditsAmount: 2,
     affiliatePercentage: 1000,
     longCustomerDiscountPercentage: 300,
     platformSubsidyPercentage: 300,
@@ -180,6 +189,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
     );
 
     const helper: Helper = await deployHelper();
+
     const staking: Staking = await deployStaking(admin.address, treasury.address, CAKE_ADDRESS);
 
     const referralCode = EthCrypto.hash.keccak256([
@@ -190,9 +200,12 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
 
     await factory.connect(referral).createReferralCode();
 
+    const dualDexSwapV4Lib: DualDexSwapV4Lib = await deployDualDexSwapV4Lib();
+
     const belongCheckIn: BelongCheckIn = await deployBelongCheckIn(
       signatureVerifier.address,
       helper.address,
+      dualDexSwapV4Lib.address,
       admin.address,
       paymentsInfo,
     );
@@ -281,18 +294,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
 
       // Convert paymentsInfo tuple to object
       const paymentsInfoFromStorage = {
+        dexType: belongCheckInStorage.paymentsInfo.dexType,
         slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
-        swapPoolFees: belongCheckInStorage.paymentsInfo.swapPoolFees,
-        swapV3Factory: belongCheckInStorage.paymentsInfo.swapV3Factory,
-        swapV3Router: belongCheckInStorage.paymentsInfo.swapV3Router,
-        swapV3Quoter: belongCheckInStorage.paymentsInfo.swapV3Quoter,
-        wNativeCurrency: belongCheckInStorage.paymentsInfo.wNativeCurrency,
+        router: belongCheckInStorage.paymentsInfo.router,
+        quoter: belongCheckInStorage.paymentsInfo.quoter,
         usdc: belongCheckInStorage.paymentsInfo.usdc,
         long: belongCheckInStorage.paymentsInfo.long,
         maxPriceFeedDelay: belongCheckInStorage.paymentsInfo.maxPriceFeedDelay,
+        poolKey: belongCheckInStorage.paymentsInfo.poolKey,
+        hookData: belongCheckInStorage.paymentsInfo.hookData,
       };
       expect(paymentsInfoFromStorage).to.deep.eq(paymentsInfo);
-
       // Convert fees tuple to object
       const feesFromStorage = {
         referralCreditsAmount: belongCheckInStorage.fees.referralCreditsAmount,
@@ -324,16 +336,16 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
 
       await expect(
         belongCheckIn.initialize(belongCheckIn.address, {
+          dexType: DexType.PcsV4,
           slippageBps: 10,
-          swapPoolFees: 10,
-          swapV3Factory: belongCheckIn.address,
-          swapV3Router: belongCheckIn.address,
-          swapV3Quoter: belongCheckIn.address,
-          wNativeCurrency: belongCheckIn.address,
+          router: belongCheckIn.address,
+          quoter: belongCheckIn.address,
           usdc: belongCheckIn.address,
           long: belongCheckIn.address,
           maxPriceFeedDelay: 10,
-        } as BelongCheckIn.PaymentsInfoStruct),
+          poolKey: '0x',
+          hookData: '0x',
+        } as DualDexSwapV4LibType.PaymentsInfoStruct),
       ).to.be.revertedWithCustomError(belongCheckIn, 'InvalidInitialization');
 
       await expect(helper.getPrice(pf2.address, 3600))
@@ -358,15 +370,15 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const { belongCheckIn, minter } = await loadFixture(fixture);
 
       const paymentsInfoNew = {
+        dexType: DexType.PcsV4,
         slippageBps: BigNumber.from(10).pow(27).sub(1),
-        swapPoolFees: 5000,
-        swapV3Factory: PANCAKESWAP_FACTORY_ADDRESS,
-        swapV3Router: PANCAKESWAP_ROUTER_ADDRESS,
-        swapV3Quoter: PANCAKESWAP_QUOTER_ADDRESS,
-        wNativeCurrency: WBNB_ADDRESS,
+        router: PANCAKESWAP_V4_ROUTER_ADDRESS,
+        quoter: PANCAKESWAP_V4_QUOTER_ADDRESS,
         usdc: USDC_ADDRESS,
         long: CAKE_ADDRESS,
         maxPriceFeedDelay: MAX_PRICEFEED_DELAY,
+        poolKey: pcsPoolKey,
+        hookData: '0x', // or '' depending on your contract (both decode to empty bytes)
       };
       const feesNew = {
         referralCreditsAmount: 1,
@@ -451,15 +463,15 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const belongCheckInStorage = await belongCheckIn.belongCheckInStorage();
       // Convert paymentsInfo tuple to object
       expect({
+        dexType: belongCheckInStorage.paymentsInfo.dexType,
         slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
-        swapPoolFees: belongCheckInStorage.paymentsInfo.swapPoolFees,
-        swapV3Router: belongCheckInStorage.paymentsInfo.swapV3Router,
-        swapV3Quoter: belongCheckInStorage.paymentsInfo.swapV3Quoter,
-        swapV3Factory: belongCheckInStorage.paymentsInfo.swapV3Factory,
-        wNativeCurrency: belongCheckInStorage.paymentsInfo.wNativeCurrency,
+        router: belongCheckInStorage.paymentsInfo.router,
+        quoter: belongCheckInStorage.paymentsInfo.quoter,
         usdc: belongCheckInStorage.paymentsInfo.usdc,
         long: belongCheckInStorage.paymentsInfo.long,
         maxPriceFeedDelay: belongCheckInStorage.paymentsInfo.maxPriceFeedDelay,
+        poolKey: belongCheckInStorage.paymentsInfo.poolKey,
+        hookData: belongCheckInStorage.paymentsInfo.hookData,
       }).to.deep.eq(paymentsInfoNew);
       // Convert fees tuple to object
       expect({
@@ -538,7 +550,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode: ethers.constants.HashZero,
+        affiliateReferralCode: ethers.constants.HashZero,
         uri,
         signature: signature,
       };
@@ -547,7 +559,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue: treasury.address,
         amount,
-        referralCode: ethers.constants.HashZero,
+        affiliateReferralCode: ethers.constants.HashZero,
         uri,
         signature: signature,
       };
@@ -605,7 +617,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode: ethers.constants.HashZero,
+        affiliateReferralCode: ethers.constants.HashZero,
         uri,
         signature: signature,
       };
@@ -676,7 +688,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -696,7 +708,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode: referralCodeWrong,
+        affiliateReferralCode: referralCodeWrong,
         uri,
         signature: signatureCodeWrong,
       };
@@ -705,7 +717,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 0, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -714,7 +726,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 0, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -726,7 +738,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
 
       await expect(belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoWrongCode))
         .to.be.revertedWithCustomError(belongCheckIn, 'WrongReferralCode')
-        .withArgs(venueInfoWrongCode.referralCode);
+        .withArgs(venueInfoWrongCode.affiliateReferralCode);
       await expect(
         belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoWrongPaymentType),
       ).to.be.revertedWithCustomError(belongCheckIn, 'WrongPaymentTypeProvided');
@@ -791,7 +803,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -862,7 +874,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -943,7 +955,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -1025,7 +1037,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -1104,7 +1116,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -1182,7 +1194,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -1260,7 +1272,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -1321,7 +1333,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: signature,
       };
@@ -1333,15 +1345,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
 
       await expect(
-        belongCheckIn.connect(USDC_whale).updateVenueRules({ paymentType: 0, bountyType: 1, longPaymentType: 0 }),
+        belongCheckIn
+          .connect(USDC_whale)
+          .updateVenueRules({ paymentType: 0, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 }),
       ).to.be.revertedWithCustomError(belongCheckIn, 'WrongPaymentTypeProvided');
       await expect(
-        belongCheckIn.updateVenueRules({ paymentType: 1, bountyType: 0, longPaymentType: 0 }),
+        belongCheckIn.updateVenueRules({ paymentType: 1, bountyType: 0, bountyAllocationType: 1, longPaymentType: 0 }),
       ).to.be.revertedWithCustomError(belongCheckIn, 'NotAVenue');
 
       const tx = await belongCheckIn
         .connect(USDC_whale)
-        .updateVenueRules({ paymentType: 2, bountyType: 2, longPaymentType: 0 });
+        .updateVenueRules({ paymentType: 2, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 });
 
       await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
       expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules.paymentType).to.eq(2);
@@ -1364,7 +1378,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 0, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode: ethers.constants.HashZero,
+        affiliateReferralCode: ethers.constants.HashZero,
         uri,
         signature: venueSignature,
       };
@@ -1389,11 +1403,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: ethers.constants.AddressZero,
+        promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -1409,16 +1429,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerBalance_after = await USDC.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          ethers.constants.AddressZero,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(customerBalance_before.sub(customerAmount)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(customerAmount)).to.eq(venueBalance_after);
     });
@@ -1438,7 +1449,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 0, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode: ethers.constants.HashZero,
+        affiliateReferralCode: ethers.constants.HashZero,
         uri,
         signature: venueSignature,
       };
@@ -1463,11 +1474,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: ethers.constants.AddressZero,
+        promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -1483,16 +1500,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerBalance_after = await USDC.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          ethers.constants.AddressZero,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(customerBalance_before.sub(customerAmount)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(customerAmount)).to.eq(venueBalance_after);
     });
@@ -1526,7 +1534,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -1553,31 +1561,49 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
       const customerInfoFakeMessage1: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: CAKE_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
       const customerInfoFakeMessage2: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount.add(1),
         signature: customerSignature,
       };
@@ -1601,11 +1627,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       );
       const customerInfoWrongSpendBountyPercentage: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 10,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 10,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignatureWrongSpendBountyPercentage,
       };
@@ -1647,22 +1679,13 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          referral.address,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(customerBalance_before.sub(customerAmount)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(customerAmount)).to.eq(venueBalance_after);
-      expect(venueBalance_venueToken_before.sub(await customerInfo.visitBountyAmount)).to.eq(
+      expect(venueBalance_venueToken_before.sub(await customerInfo.toPromoter.visitBountyAmount)).to.eq(
         venueBalance_venueToken_after,
       );
-      expect(promoterBalance_promoterToken_before.add(await customerInfo.visitBountyAmount)).to.eq(
+      expect(promoterBalance_promoterToken_before.add(await customerInfo.toPromoter.visitBountyAmount)).to.eq(
         promoterBalance_promoterToken_after,
       );
     });
@@ -1695,7 +1718,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -1722,11 +1745,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -1768,7 +1797,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -1795,11 +1824,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -1831,22 +1866,13 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          referral.address,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(customerBalance_before.sub(customerAmount)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(customerAmount)).to.eq(venueBalance_after);
-      expect(venueBalance_venueToken_before.sub(await customerInfo.visitBountyAmount)).to.eq(
+      expect(venueBalance_venueToken_before.sub(await customerInfo.toPromoter.visitBountyAmount)).to.eq(
         venueBalance_venueToken_after,
       );
-      expect(promoterBalance_promoterToken_before.add(await customerInfo.visitBountyAmount)).to.eq(
+      expect(promoterBalance_promoterToken_before.add(await customerInfo.toPromoter.visitBountyAmount)).to.eq(
         promoterBalance_promoterToken_after,
       );
     });
@@ -1879,7 +1905,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 2, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -1906,16 +1932,25 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
 
-      const rewardsToPromoter = await helper.calculateRate(customerInfo.spendBountyPercentage, customerAmount);
+      const rewardsToPromoter = await helper.calculateRate(
+        customerInfo.toPromoter.spendBountyPercentage,
+        customerAmount,
+      );
 
       await USDC.connect(USDC_whale).transfer(CAKE_whale.address, customerAmount);
       await USDC.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
@@ -1944,16 +1979,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          referral.address,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(customerBalance_before.sub(customerAmount)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(customerAmount)).to.eq(venueBalance_after);
       expect(venueBalance_venueToken_before.sub(rewardsToPromoter)).to.eq(venueBalance_venueToken_after);
@@ -1988,7 +2014,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 2, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -2015,16 +2041,25 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
 
-      const rewardsToPromoter = await helper.calculateRate(customerInfo.spendBountyPercentage, customerAmount);
+      const rewardsToPromoter = await helper.calculateRate(
+        customerInfo.toPromoter.spendBountyPercentage,
+        customerAmount,
+      );
 
       await USDC.connect(USDC_whale).transfer(CAKE_whale.address, customerAmount);
       await USDC.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
@@ -2053,16 +2088,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          referral.address,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(customerBalance_before.sub(customerAmount)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(customerAmount)).to.eq(venueBalance_after);
       expect(venueBalance_venueToken_before.sub(rewardsToPromoter)).to.eq(venueBalance_venueToken_after);
@@ -2097,7 +2123,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 1, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -2124,18 +2150,24 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
 
-      const rewardsToPromoter = (await helper.calculateRate(customerInfo.spendBountyPercentage, customerAmount)).add(
-        await customerInfo.visitBountyAmount,
-      );
+      const rewardsToPromoter = (
+        await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount)
+      ).add(await customerInfo.toPromoter.visitBountyAmount);
 
       await USDC.connect(USDC_whale).transfer(CAKE_whale.address, customerAmount);
       await USDC.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
@@ -2164,16 +2196,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          referral.address,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(customerBalance_before.sub(customerAmount)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(customerAmount)).to.eq(venueBalance_after);
       expect(venueBalance_venueToken_before.sub(rewardsToPromoter)).to.eq(venueBalance_venueToken_after);
@@ -2208,7 +2231,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -2235,18 +2258,24 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
 
-      const rewardsToPromoter = (await helper.calculateRate(customerInfo.spendBountyPercentage, customerAmount)).add(
-        await customerInfo.visitBountyAmount,
-      );
+      const rewardsToPromoter = (
+        await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount)
+      ).add(await customerInfo.toPromoter.visitBountyAmount);
 
       await USDC.connect(USDC_whale).transfer(CAKE_whale.address, customerAmount);
       await USDC.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
@@ -2275,16 +2304,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          referral.address,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(customerBalance_before.sub(customerAmount)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(customerAmount)).to.eq(venueBalance_after);
       expect(venueBalance_venueToken_before.sub(rewardsToPromoter)).to.eq(venueBalance_venueToken_after);
@@ -2308,7 +2328,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 2, bountyType: 0, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode: ethers.constants.HashZero,
+        affiliateReferralCode: ethers.constants.HashZero,
         uri,
         signature: venueSignature,
       };
@@ -2333,11 +2353,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: false,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: ethers.constants.AddressZero,
+        promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -2375,16 +2401,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
       const venueBalance_after = await CAKE.balanceOf(USDC_whale.address);
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          ethers.constants.AddressZero,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
@@ -2407,7 +2424,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 2, bountyType: 0, longPaymentType: 1 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode: ethers.constants.HashZero,
+        affiliateReferralCode: ethers.constants.HashZero,
         uri,
         signature: venueSignature,
       };
@@ -2432,11 +2449,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: false,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: ethers.constants.AddressZero,
+        promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -2474,16 +2497,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
       const venueBalance_after = await staking.balanceOf(USDC_whale.address);
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          ethers.constants.AddressZero,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       await expect(tx)
         .to.emit(staking, 'Deposit')
         .withArgs(
@@ -2514,7 +2528,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 2, bountyType: 0, longPaymentType: 2 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode: ethers.constants.HashZero,
+        affiliateReferralCode: ethers.constants.HashZero,
         uri,
         signature: venueSignature,
       };
@@ -2539,11 +2553,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: false,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: ethers.constants.AddressZero,
+        promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -2581,16 +2601,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          ethers.constants.AddressZero,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_after).to.gt(venueBalance_before);
@@ -2611,7 +2622,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 0, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode: ethers.constants.HashZero,
+        affiliateReferralCode: ethers.constants.HashZero,
         uri,
         signature: venueSignature,
       };
@@ -2636,11 +2647,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: false,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: ethers.constants.AddressZero,
+        promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -2678,16 +2695,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
       const venueBalance_after = await CAKE.balanceOf(USDC_whale.address);
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          ethers.constants.AddressZero,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
@@ -2722,7 +2730,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 2, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -2749,11 +2757,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: false,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -2807,23 +2821,14 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          referral.address,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
-      expect(venueBalance_venueToken_before.sub(await customerInfo.visitBountyAmount)).to.eq(
+      expect(venueBalance_venueToken_before.sub(await customerInfo.toPromoter.visitBountyAmount)).to.eq(
         venueBalance_venueToken_after,
       );
-      expect(promoterBalance_promoterToken_before.add(await customerInfo.visitBountyAmount)).to.eq(
+      expect(promoterBalance_promoterToken_before.add(await customerInfo.toPromoter.visitBountyAmount)).to.eq(
         promoterBalance_promoterToken_after,
       );
     });
@@ -2857,7 +2862,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -2884,11 +2889,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: false,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 0,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 0,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -2942,23 +2953,14 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      await expect(tx)
-        .to.emit(belongCheckIn, 'CustomerPaid')
-        .withArgs(
-          CAKE_whale.address,
-          USDC_whale.address,
-          referral.address,
-          customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
-        );
+      await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
       expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
-      expect(venueBalance_venueToken_before.sub(await customerInfo.visitBountyAmount)).to.eq(
+      expect(venueBalance_venueToken_before.sub(await customerInfo.toPromoter.visitBountyAmount)).to.eq(
         venueBalance_venueToken_after,
       );
-      expect(promoterBalance_promoterToken_before.add(await customerInfo.visitBountyAmount)).to.eq(
+      expect(promoterBalance_promoterToken_before.add(await customerInfo.toPromoter.visitBountyAmount)).to.eq(
         promoterBalance_promoterToken_after,
       );
     });
@@ -2992,7 +2994,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 2, bountyType: 2, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -3019,11 +3021,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: false,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -3052,7 +3060,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const rewardsToPromoter = await helper.unstandardize(
         USDC.address,
         await helper.calculateRate(
-          customerInfo.spendBountyPercentage,
+          customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             CAKE.address,
             (
@@ -3068,7 +3076,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
           USDC.address,
           await helper.standardize(
             CAKE.address,
-            await helper.calculateRate(customerInfo.spendBountyPercentage, customerAmount.div(2)),
+            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount.div(2)),
           ),
         ),
       );
@@ -3108,8 +3116,8 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
           USDC_whale.address,
           referral.address,
           customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
+          customerInfo.toPromoter.visitBountyAmount,
+          customerInfo.toPromoter.spendBountyPercentage,
         );
       expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
@@ -3147,7 +3155,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 2, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -3174,11 +3182,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: false,
-        visitBountyAmount: 0,
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -3207,7 +3221,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const rewardsToPromoter = await helper.unstandardize(
         USDC.address,
         await helper.calculateRate(
-          customerInfo.spendBountyPercentage,
+          customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             CAKE.address,
             (
@@ -3223,7 +3237,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
           USDC.address,
           await helper.standardize(
             CAKE.address,
-            await helper.calculateRate(customerInfo.spendBountyPercentage, customerAmount.div(2)),
+            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount.div(2)),
           ),
         ),
       );
@@ -3263,8 +3277,8 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
           USDC_whale.address,
           referral.address,
           customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
+          customerInfo.toPromoter.visitBountyAmount,
+          customerInfo.toPromoter.spendBountyPercentage,
         );
       expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
@@ -3302,7 +3316,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 2, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -3329,11 +3343,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: false,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -3362,7 +3382,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const rewardsToPromoter = await helper.unstandardize(
         USDC.address,
         await helper.calculateRate(
-          customerInfo.spendBountyPercentage,
+          customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             CAKE.address,
             (
@@ -3378,7 +3398,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
           USDC.address,
           await helper.standardize(
             CAKE.address,
-            await helper.calculateRate(customerInfo.spendBountyPercentage, customerAmount.div(2)),
+            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount.div(2)),
           ),
         ),
       );
@@ -3418,17 +3438,19 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
           USDC_whale.address,
           referral.address,
           customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
+          customerInfo.toPromoter.visitBountyAmount,
+          customerInfo.toPromoter.spendBountyPercentage,
         );
       expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
-      expect(venueBalance_venueToken_before.sub(rewardsToPromoter.add(await customerInfo.visitBountyAmount))).to.eq(
-        venueBalance_venueToken_after,
-      );
       expect(
-        promoterBalance_promoterToken_before.add(rewardsToPromoter.add(await customerInfo.visitBountyAmount)),
+        venueBalance_venueToken_before.sub(rewardsToPromoter.add(await customerInfo.toPromoter.visitBountyAmount)),
+      ).to.eq(venueBalance_venueToken_after);
+      expect(
+        promoterBalance_promoterToken_before.add(
+          rewardsToPromoter.add(await customerInfo.toPromoter.visitBountyAmount),
+        ),
       ).to.eq(promoterBalance_promoterToken_after);
     });
 
@@ -3461,7 +3483,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -3488,11 +3510,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: false,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -3521,7 +3549,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const rewardsToPromoter = await helper.unstandardize(
         USDC.address,
         await helper.calculateRate(
-          customerInfo.spendBountyPercentage,
+          customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             CAKE.address,
             (
@@ -3537,7 +3565,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
           USDC.address,
           await helper.standardize(
             CAKE.address,
-            await helper.calculateRate(customerInfo.spendBountyPercentage, customerAmount.div(2)),
+            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount.div(2)),
           ),
         ),
       );
@@ -3577,17 +3605,19 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
           USDC_whale.address,
           referral.address,
           customerAmount,
-          customerInfo.visitBountyAmount,
-          customerInfo.spendBountyPercentage,
+          customerInfo.toPromoter.visitBountyAmount,
+          customerInfo.toPromoter.spendBountyPercentage,
         );
       expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
-      expect(venueBalance_venueToken_before.sub(rewardsToPromoter.add(await customerInfo.visitBountyAmount))).to.eq(
-        venueBalance_venueToken_after,
-      );
       expect(
-        promoterBalance_promoterToken_before.add(rewardsToPromoter.add(await customerInfo.visitBountyAmount)),
+        venueBalance_venueToken_before.sub(rewardsToPromoter.add(await customerInfo.toPromoter.visitBountyAmount)),
+      ).to.eq(venueBalance_venueToken_after);
+      expect(
+        promoterBalance_promoterToken_before.add(
+          rewardsToPromoter.add(await customerInfo.toPromoter.visitBountyAmount),
+        ),
       ).to.eq(promoterBalance_promoterToken_after);
     });
   });
@@ -3623,7 +3653,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -3650,11 +3680,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -3681,7 +3717,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDC: true,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
         signature: promoterSignature,
@@ -3689,7 +3725,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
 
       const promoterInfoFake: PromoterInfoStruct = {
         paymentInUSDC: true,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before.add(1),
         signature: promoterSignature,
@@ -3745,7 +3781,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -3772,11 +3808,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -3803,7 +3845,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDC: true,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before.add(1),
         signature: promoterSignature,
@@ -3843,7 +3885,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -3870,11 +3912,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -3901,7 +3949,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDC: true,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before.div(2),
         signature: promoterSignature,
@@ -4027,7 +4075,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -4054,11 +4102,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -4085,7 +4139,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDC: true,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
         signature: promoterSignature,
@@ -4216,7 +4270,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -4243,11 +4297,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -4274,7 +4334,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDC: true,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
         signature: promoterSignature,
@@ -4405,7 +4465,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -4432,11 +4492,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -4463,7 +4529,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDC: true,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
         signature: promoterSignature,
@@ -4594,7 +4660,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -4621,11 +4687,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -4652,7 +4724,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDC: true,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
         signature: promoterSignature,
@@ -4783,7 +4855,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -4810,11 +4882,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -4841,7 +4919,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDC: true,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
         signature: promoterSignature,
@@ -4908,7 +4986,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -4935,11 +5013,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -4966,7 +5050,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDC: false,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
         signature: promoterSignature,
@@ -5030,7 +5114,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -5057,11 +5141,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -5088,7 +5178,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDC: false,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         venue: USDC_whale.address,
         amountInUSD: promoterBalance_promoterToken_before.div(2),
         signature: promoterSignature,
@@ -5153,7 +5243,7 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
         rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
-        referralCode,
+        affiliateReferralCode: referralCode,
         uri,
         signature: venueSignature,
       };
@@ -5180,11 +5270,17 @@ describe('BelongCheckIn BSC PancakeSwap', () => {
       const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDC: true,
-        visitBountyAmount: await u(1, USDC),
-        spendBountyPercentage: 1000,
+        toCustomer: {
+          visitBountyAmount: 0,
+          spendBountyPercentage: 0,
+        },
+        toPromoter: {
+          visitBountyAmount: await u(1, USDC),
+          spendBountyPercentage: 1000,
+        },
         customer: CAKE_whale.address,
         venueToPayFor: USDC_whale.address,
-        promoter: referral.address,
+        promoterReferralCode: referralCode,
         amount: customerAmount,
         signature: customerSignature,
       };
