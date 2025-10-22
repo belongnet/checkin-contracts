@@ -23,7 +23,8 @@ import {
     LongPaymentTypes,
     VenueInfo,
     CustomerInfo,
-    PromoterInfo
+    PromoterInfo,
+    Bounties
 } from "../Structures.sol";
 
 /// @title BelongCheckIn
@@ -98,15 +99,13 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param venueToPayFor The venue receiving the payment.
     /// @param promoter The promoter credited, if any.
     /// @param amount The payment amount (USDC native decimals for USDC; LONG wei for LONG).
-    /// @param visitBountyAmount Flat bounty component (USDC native decimals) if paying in USDC; standardized in logic for LONG.
-    /// @param spendBountyPercentage Percentage bounty on spend (scaled by 1e4 where 10000 == 100%).
     event CustomerPaid(
         address indexed customer,
         address indexed venueToPayFor,
         address indexed promoter,
         uint256 amount,
-        uint128 visitBountyAmount,
-        uint24 spendBountyPercentage
+        Bounties toCustomer,
+        Bounties toPromoter
     );
 
     /// @notice Emitted when promoter payments are distributed.
