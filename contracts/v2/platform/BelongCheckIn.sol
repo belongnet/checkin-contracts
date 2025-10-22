@@ -9,6 +9,7 @@ import {MetadataReaderLib} from "solady/src/utils/MetadataReaderLib.sol";
 import {Factory} from "./Factory.sol";
 import {LONG} from "../tokens/LONG.sol";
 import {DualDexSwapV4} from "./extensions/DualDexSwapV4.sol";
+import {DualDexSwapV4Lib} from "./extensions/DualDexSwapV4Lib.sol";
 import {Escrow} from "../periphery/Escrow.sol";
 import {Staking} from "../periphery/Staking.sol";
 import {CreditToken} from "../tokens/CreditToken.sol";
@@ -76,7 +77,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param paymentsInfo DEX routing and asset addresses configuration.
     /// @param fees Platform-level fee settings.
     /// @param rewards Array of tiered staking rewards (index by `StakingTiers`).
-    event ParametersSet(PaymentsInfo paymentsInfo, Fees fees, RewardsInfo[5] rewards);
+    event ParametersSet(DualDexSwapV4Lib.PaymentsInfo paymentsInfo, Fees fees, RewardsInfo[5] rewards);
 
     /// @notice Emitted when a venue's rules are set or updated.
     /// @param venue The venue address.
@@ -147,7 +148,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Top-level storage bundle for program configuration.
     struct BelongCheckInStorage {
         Contracts contracts;
-        PaymentsInfo paymentsInfo;
+        DualDexSwapV4Lib.PaymentsInfo paymentsInfo;
         Fees fees;
     }
 
@@ -235,7 +236,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// - Callable exactly once; subsequent calls revert via {Initializable}.
     /// @param _owner Address that will gain `onlyOwner` privileges.
     /// @param paymentsInfo_ Initial swap + asset configuration to persist.
-    function initialize(address _owner, PaymentsInfo calldata paymentsInfo_) external initializer {
+    function initialize(address _owner, DualDexSwapV4Lib.PaymentsInfo calldata paymentsInfo_) external initializer {
         uint128 convenienceFeeAmount = uint96(5 * 10 ** paymentsInfo_.usdc.readDecimals()); // 5 USDC
         RewardsInfo[5] memory stakingRewardsInfo = [
             RewardsInfo(
@@ -311,7 +312,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param _fees Revised fee settings scaled by 1e4 (basis points domain).
     /// @param _stakingRewards Replacement 5-element rewards array (index matches {StakingTiers}).
     function setParameters(
-        PaymentsInfo calldata paymentsInfo_,
+        DualDexSwapV4Lib.PaymentsInfo calldata paymentsInfo_,
         Fees calldata _fees,
         RewardsInfo[5] memory _stakingRewards
     ) external onlyOwner {
@@ -361,7 +362,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             affiliate = contracts_.factory.getReferralCreator(venueInfo.affiliateReferralCode);
             require(affiliate != address(0), WrongReferralCode(venueInfo.affiliateReferralCode));
 
-            affiliateFee = _storage.fees.affiliatePercentage.calculateRate(venueInfo.amount);
+            affiliateFee = fees_.affiliatePercentage.calculateRate(venueInfo.amount);
         }
 
         uint256 venueId = venueInfo.venue.getVenueId();
@@ -479,7 +480,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param promoterInfo Signed settlement parameters (promoter, venue, USD amount, payout currency flag).
     function distributePromoterPayments(PromoterInfo memory promoterInfo) external {
         Contracts memory contracts_ = belongCheckInStorage.contracts;
-        PaymentsInfo storage payments = _paymentsInfo;
+        DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
 
         contracts_.factory.nftFactoryParameters().signerAddress.checkPromoterPaymentDistribution(promoterInfo);
 
@@ -553,7 +554,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param _fees New platform fee configuration.
     /// @param _stakingRewards Replacement 5-element rewards table (by staking tier).
     function _setParameters(
-        PaymentsInfo calldata paymentsInfo_,
+        DualDexSwapV4Lib.PaymentsInfo calldata paymentsInfo_,
         Fees memory _fees,
         RewardsInfo[5] memory _stakingRewards
     ) private {
@@ -607,7 +608,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             return;
         }
 
-        PaymentsInfo storage payments = _paymentsInfo;
+        DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
         BelongCheckInStorage storage _storage = belongCheckInStorage;
         address feeCollector = _storage.contracts.factory.nftFactoryParameters().platformAddress;
 
@@ -654,7 +655,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         uint256 amount
     ) internal {
         Contracts memory contracts_ = belongCheckInStorage.contracts;
-        PaymentsInfo storage payments = _paymentsInfo;
+        DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
 
         uint256 rewards = paymentInUSDC
             ? bounties.visitBountyAmount + bounties.spendBountyPercentage.calculateRate(amount)
