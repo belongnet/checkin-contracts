@@ -354,17 +354,19 @@ contract BelongCheckIn is Initializable, Ownable {
     /// - Forwards the full venue deposit to {Escrow} and mints venue credits to mirror the USD balance.
     /// @param venueInfo Signed venue deposit parameters (venue, amount, referral code, venue rules, metadata URI).
     function venueDeposit(VenueInfo calldata venueInfo) external {
-        BelongCheckInStorage memory _storage = belongCheckInStorage;
+        Contracts memory contracts_ = belongCheckInStorage.contracts;
+        Fees storage fees_ = belongCheckInStorage.fees;
+        address usdc = _paymentsInfo.usdc;
 
-        _storage.contracts.factory.nftFactoryParameters().signerAddress.checkVenueInfo(venueInfo);
+        contracts_.factory.nftFactoryParameters().signerAddress.checkVenueInfo(venueInfo);
 
         VenueStakingRewardInfo memory stakingInfo =
-        stakingRewards[_storage.contracts.staking.balanceOf(venueInfo.venue).stakingTiers()].venueStakingInfo;
+        stakingRewards[contracts_.staking.balanceOf(venueInfo.venue).stakingTiers()].venueStakingInfo;
 
         address affiliate;
         uint256 affiliateFee;
         if (venueInfo.affiliateReferralCode != bytes32(0)) {
-            affiliate = _storage.contracts.factory.getReferralCreator(venueInfo.affiliateReferralCode);
+            affiliate = contracts_.factory.getReferralCreator(venueInfo.affiliateReferralCode);
             require(affiliate != address(0), WrongReferralCode(venueInfo.affiliateReferralCode));
 
             affiliateFee = _storage.fees.affiliatePercentage.calculateRate(venueInfo.amount);
@@ -372,32 +374,29 @@ contract BelongCheckIn is Initializable, Ownable {
 
         uint256 venueId = venueInfo.venue.getVenueId();
 
-        if (generalVenueInfo[venueInfo.venue].remainingCredits < _storage.fees.referralCreditsAmount) {
+        if (generalVenueInfo[venueInfo.venue].remainingCredits < fees_.referralCreditsAmount) {
             unchecked {
                 ++generalVenueInfo[venueInfo.venue].remainingCredits;
             }
         } else {
             // Collect deposit fee to this contract, then apply buyback/burn split and forward remainder.
             uint256 platformFee = stakingInfo.depositFeePercentage.calculateRate(venueInfo.amount);
-            _storage.paymentsInfo.usdc.safeTransferFrom(venueInfo.venue, address(this), platformFee);
-            _handleRevenue(_storage.paymentsInfo.usdc, platformFee);
+            usdc.safeTransferFrom(venueInfo.venue, address(this), platformFee);
+            _handleRevenue(usdc, platformFee);
         }
 
         _setVenueRules(venueInfo.venue, venueInfo.rules);
 
-        _storage.paymentsInfo.usdc
-            .safeTransferFrom(venueInfo.venue, address(this), stakingInfo.convenienceFeeAmount + affiliateFee);
+        usdc.safeTransferFrom(venueInfo.venue, address(this), stakingInfo.convenienceFeeAmount + affiliateFee);
 
-        _storage.paymentsInfo.usdc
-            .safeTransferFrom(venueInfo.venue, address(_storage.contracts.escrow), venueInfo.amount);
+        usdc.safeTransferFrom(venueInfo.venue, address(contracts_.escrow), venueInfo.amount);
 
-        uint256 convenienceFeeLong =
-            _swapUSDCtoLONG(address(_storage.contracts.escrow), stakingInfo.convenienceFeeAmount);
+        uint256 convenienceFeeLong = _swapUSDCtoLONG(address(contracts_.escrow), stakingInfo.convenienceFeeAmount);
         _swapUSDCtoLONG(affiliate, affiliateFee);
 
-        _storage.contracts.escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
+        contracts_.escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
 
-        _storage.contracts.venueToken.mint(venueInfo.venue, venueId, venueInfo.amount, venueInfo.uri);
+        contracts_.venueToken.mint(venueInfo.venue, venueId, venueInfo.amount, venueInfo.uri);
 
         emit VenuePaidDeposit(venueInfo.venue, venueInfo.affiliateReferralCode, venueInfo.rules, venueInfo.amount);
     }
@@ -410,14 +409,15 @@ contract BelongCheckIn is Initializable, Ownable {
     /// - LONG payments pull the platform subsidy from escrow, collect the customer’s discounted LONG, then deliver/route LONG per venue rules.
     /// @param customerInfo Signed customer payment parameters (customer, venue, promoter, amount, payment flags, bounty data).
     function payToVenue(CustomerInfo calldata customerInfo) external {
-        BelongCheckInStorage memory _storage = belongCheckInStorage;
-        VenueRules memory rules = generalVenueInfo[customerInfo.venueToPayFor].rules;
+        Contracts memory contracts_ = belongCheckInStorage.contracts;
+        Fees storage fees_ = belongCheckInStorage.fees;
+        VenueRules storage rules = generalVenueInfo[customerInfo.venueToPayFor].rules;
 
-        _storage.contracts.factory.nftFactoryParameters().signerAddress.checkCustomerInfo(customerInfo, rules);
+        contracts_.factory.nftFactoryParameters().signerAddress.checkCustomerInfo(customerInfo, rules);
 
         uint256 venueId = customerInfo.venueToPayFor.getVenueId();
 
-        address promoter = _storage.contracts.factory.getReferralCreator(customerInfo.promoterReferralCode);
+        address promoter = contracts_.factory.getReferralCreator(customerInfo.promoterReferralCode);
 
         _calculateRewards(
             customerInfo.customer,
@@ -439,32 +439,31 @@ contract BelongCheckIn is Initializable, Ownable {
         }
 
         if (customerInfo.paymentInUSDC) {
-            _storage.paymentsInfo.usdc
-                .safeTransferFrom(customerInfo.customer, customerInfo.venueToPayFor, customerInfo.amount);
+            _paymentsInfo.usdc.safeTransferFrom(customerInfo.customer, customerInfo.venueToPayFor, customerInfo.amount);
         } else {
+            address long = _paymentsInfo.long;
             // platform subsidy - processing fee
             uint256 subsidyMinusFees =
-                _storage.fees.platformSubsidyPercentage.calculateRate(customerInfo.amount)
-                - _storage.fees.processingFeePercentage.calculateRate(customerInfo.amount);
-            _storage.contracts.escrow
-                .distributeLONGDiscount(customerInfo.venueToPayFor, address(this), subsidyMinusFees);
+                fees_.platformSubsidyPercentage.calculateRate(customerInfo.amount)
+                - fees_.processingFeePercentage.calculateRate(customerInfo.amount);
+            contracts_.escrow.distributeLONGDiscount(customerInfo.venueToPayFor, address(this), subsidyMinusFees);
 
             // customer paid amount - longCustomerDiscountPercentage (3%)
             uint256 longFromCustomer =
-                customerInfo.amount - _storage.fees.longCustomerDiscountPercentage.calculateRate(customerInfo.amount);
-            _storage.paymentsInfo.long.safeTransferFrom(customerInfo.customer, address(this), longFromCustomer);
+                customerInfo.amount - fees_.longCustomerDiscountPercentage.calculateRate(customerInfo.amount);
+            long.safeTransferFrom(customerInfo.customer, address(this), longFromCustomer);
 
             uint256 longAmount = subsidyMinusFees + longFromCustomer;
 
             if (rules.longPaymentType == LongPaymentTypes.AutoStake) {
                 // Approve only what is needed, then clear allowance after deposit.
-                _storage.paymentsInfo.long.safeApproveWithRetry(address(_storage.contracts.staking), longAmount);
-                _storage.contracts.staking.deposit(longAmount, customerInfo.venueToPayFor);
-                _storage.paymentsInfo.long.safeApprove(address(_storage.contracts.staking), 0);
+                long.safeApproveWithRetry(address(contracts_.staking), longAmount);
+                contracts_.staking.deposit(longAmount, customerInfo.venueToPayFor);
+                long.safeApprove(address(contracts_.staking), 0);
             } else if (rules.longPaymentType == LongPaymentTypes.AutoConvert) {
                 _swapLONGtoUSDC(customerInfo.venueToPayFor, longAmount);
             } else {
-                _storage.paymentsInfo.long.safeTransfer(customerInfo.venueToPayFor, longAmount);
+                long.safeTransfer(customerInfo.venueToPayFor, longAmount);
             }
         }
 
@@ -473,8 +472,8 @@ contract BelongCheckIn is Initializable, Ownable {
             customerInfo.venueToPayFor,
             promoter,
             customerInfo.amount,
-            customerInfo.visitBountyAmount,
-            customerInfo.spendBountyPercentage
+            customerInfo.toCustomer,
+            customerInfo.toPromoter
         );
     }
 
@@ -487,19 +486,20 @@ contract BelongCheckIn is Initializable, Ownable {
     /// - Always burns promoter ERC1155 credits by the settled USD amount to prevent re-claims.
     /// @param promoterInfo Signed settlement parameters (promoter, venue, USD amount, payout currency flag).
     function distributePromoterPayments(PromoterInfo memory promoterInfo) external {
-        BelongCheckInStorage memory _storage = belongCheckInStorage;
+        Contracts memory contracts_ = belongCheckInStorage.contracts;
+        PaymentsInfo storage payments = _paymentsInfo;
 
-        _storage.contracts.factory.nftFactoryParameters().signerAddress.checkPromoterPaymentDistribution(promoterInfo);
+        contracts_.factory.nftFactoryParameters().signerAddress.checkPromoterPaymentDistribution(promoterInfo);
 
         uint256 venueId = promoterInfo.venue.getVenueId();
 
-        uint256 promoterBalance = _storage.contracts.promoterToken.balanceOf(promoterInfo.promoter, venueId);
+        uint256 promoterBalance = contracts_.promoterToken.balanceOf(promoterInfo.promoter, venueId);
         require(
             promoterBalance >= promoterInfo.amountInUSD, NotEnoughBalance(promoterInfo.amountInUSD, promoterBalance)
         );
 
         PromoterStakingRewardInfo memory stakingInfo =
-        stakingRewards[_storage.contracts.staking.balanceOf(promoterInfo.promoter).stakingTiers()].promoterStakingInfo;
+        stakingRewards[contracts_.staking.balanceOf(promoterInfo.promoter).stakingTiers()].promoterStakingInfo;
 
         uint256 toPromoter = promoterInfo.amountInUSD;
         uint24 percentage = promoterInfo.paymentInUSDC ? stakingInfo.usdcPercentage : stakingInfo.longPercentage;
@@ -510,19 +510,18 @@ contract BelongCheckIn is Initializable, Ownable {
 
         if (promoterInfo.paymentInUSDC) {
             // Route platform fees here for buyback/burn split, then forward remainder.
-            _storage.contracts.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), platformFees);
-            _handleRevenue(_storage.paymentsInfo.usdc, platformFees);
-            _storage.contracts.escrow.distributeVenueDeposit(promoterInfo.venue, promoterInfo.promoter, toPromoter);
+            contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), platformFees);
+            _handleRevenue(payments.usdc, platformFees);
+            contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, promoterInfo.promoter, toPromoter);
         } else {
-            _storage.contracts.escrow
-                .distributeVenueDeposit(promoterInfo.venue, address(this), promoterInfo.amountInUSD);
+            contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), promoterInfo.amountInUSD);
             // Swap fee portion to this contract for burning, then forward remainder to platform.
             uint256 longFees = _swapUSDCtoLONG(address(this), platformFees);
-            _handleRevenue(_storage.paymentsInfo.long, longFees);
+            _handleRevenue(payments.long, longFees);
             _swapUSDCtoLONG(promoterInfo.promoter, toPromoter);
         }
 
-        _storage.contracts.promoterToken.burn(promoterInfo.promoter, venueId, promoterInfo.amountInUSD);
+        contracts_.promoterToken.burn(promoterInfo.promoter, venueId, promoterInfo.amountInUSD);
 
         emit PromoterPaymentsDistributed(
             promoterInfo.promoter, promoterInfo.venue, promoterInfo.amountInUSD, promoterInfo.paymentInUSDC
@@ -533,14 +532,14 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @param venue Venue that will regain the promoter’s USD credits.
     /// @param promoter Promoter whose outstanding credits are burned.
     function emergencyCancelPayment(address venue, address promoter) external onlyOwner {
-        BelongCheckInStorage memory _storage = belongCheckInStorage;
+        Contracts memory contracts_ = belongCheckInStorage.contracts;
 
         uint256 venueId = venue.getVenueId();
-        uint256 promoterBalance = _storage.contracts.promoterToken.balanceOf(promoter, venueId);
+        uint256 promoterBalance = contracts_.promoterToken.balanceOf(promoter, venueId);
 
-        _storage.contracts.promoterToken.burn(promoter, venueId, promoterBalance);
+        contracts_.promoterToken.burn(promoter, venueId, promoterBalance);
 
-        _storage.contracts.venueToken.mint(venue, venueId, promoterBalance, _storage.contracts.venueToken.uri(venueId));
+        contracts_.venueToken.mint(venue, venueId, promoterBalance, contracts_.venueToken.uri(venueId));
 
         emit PromoterPaymentCancelled(venue, promoter, promoterBalance);
     }
@@ -557,31 +556,26 @@ contract BelongCheckIn is Initializable, Ownable {
         return belongCheckInStorage.fees;
     }
 
-    /// @notice Returns Uniswap/asset configuration.
-    /// @return paymentsInfo_ The persisted {PaymentsInfo} struct.
-    function paymentsInfo() external view returns (PaymentsInfo memory paymentsInfo_) {
-        return belongCheckInStorage.paymentsInfo;
-    }
-
     /// @notice Internal helper that atomically persists swap configuration, fee settings, and staking rewards.
-    /// @param _paymentsInfo New Uniswap/asset configuration to persist.
+    /// @param paymentsInfo_ New DEX/asset configuration to persist.
     /// @param _fees New platform fee configuration.
     /// @param _stakingRewards Replacement 5-element rewards table (by staking tier).
     function _setParameters(
-        PaymentsInfo calldata _paymentsInfo,
+        PaymentsInfo calldata paymentsInfo_,
         Fees memory _fees,
         RewardsInfo[5] memory _stakingRewards
     ) private {
-        require(_paymentsInfo.slippageBps <= Helper.BPS, BPSTooHigh());
+        require(paymentsInfo_.slippageBps <= Helper.BPS, BPSTooHigh());
 
-        belongCheckInStorage.paymentsInfo = _paymentsInfo;
+        _storePaymentsInfo(paymentsInfo_);
+        belongCheckInStorage.paymentsInfo = paymentsInfo_;
         belongCheckInStorage.fees = _fees;
 
         for (uint8 i = 0; i < 5; ++i) {
             stakingRewards[StakingTiers(i)] = _stakingRewards[i];
         }
 
-        emit ParametersSet(_paymentsInfo, _fees, _stakingRewards);
+        emit ParametersSet(paymentsInfo_, _fees, _stakingRewards);
     }
 
     /// @notice Internal helper that stores rule updates after validation.
@@ -674,13 +668,15 @@ contract BelongCheckIn is Initializable, Ownable {
             return;
         }
 
-        BelongCheckInStorage memory _storage = belongCheckInStorage;
+        PaymentsInfo storage payments = _paymentsInfo;
+        BelongCheckInStorage storage _storage = belongCheckInStorage;
         address feeCollector = _storage.contracts.factory.nftFactoryParameters().platformAddress;
 
         uint256 buyback = _storage.fees.buybackBurnPercentage.calculateRate(amount);
-        uint256 toBurn = token == _storage.paymentsInfo.usdc  // Buyback: swap USDC portion to LONG and burn.
+        address long = payments.long;
+        uint256 toBurn = token == payments.usdc  // Buyback: swap USDC portion to LONG and burn.
             ? _swapUSDCtoLONG(address(this), buyback)
-            : token == _storage.paymentsInfo.long  // Burn LONG directly, forward remainder to feeCollector.
+            : token == long  // Burn LONG directly, forward remainder to feeCollector.
                 ? buyback
                 : 0; // Unknown token: forward all to feeCollector to avoid trapping funds.
         uint256 feesToCollector;
@@ -693,10 +689,10 @@ contract BelongCheckIn is Initializable, Ownable {
         }
 
         if (toBurn > 0) {
-            try IERC20Burnable(_storage.paymentsInfo.long).burn(toBurn) {
+            try LONG(long).burn(toBurn) {
                 emit BurnedLONGs(address(0), toBurn);
             } catch {
-                try IERC20Burnable(_storage.paymentsInfo.long).transfer(DEAD, toBurn) {
+                try LONG(long).transfer(DEAD, toBurn) {
                     emit BurnedLONGs(DEAD, toBurn);
                 } catch {
                     revert TokensCanNotBeBurned();
@@ -715,30 +711,29 @@ contract BelongCheckIn is Initializable, Ownable {
         address venue,
         uint256 venueId,
         bool paymentInUSDC,
-        Bounties bounties,
+        Bounties memory bounties,
         uint256 amount
     ) internal {
-        BelongCheckInStorage memory _storage = belongCheckInStorage;
+        Contracts memory contracts_ = belongCheckInStorage.contracts;
+        PaymentsInfo storage payments = _paymentsInfo;
 
         uint256 rewards = paymentInUSDC
             ? bounties.visitBountyAmount + bounties.spendBountyPercentage.calculateRate(amount)
-            : _storage.paymentsInfo.usdc
+            : payments.usdc
                 .unstandardize(
                     // standardization
-                    _storage.paymentsInfo.usdc.standardize(bounties.visitBountyAmount)
+                    payments.usdc.standardize(bounties.visitBountyAmount)
                         + bounties.spendBountyPercentage
                             .calculateRate(
-                                _storage.paymentsInfo.long
-                                    .getStandardizedPrice(
-                                        _storage.contracts.longPF, amount, _storage.paymentsInfo.maxPriceFeedDelay
-                                    )
+                                payments.long
+                                .getStandardizedPrice(contracts_.longPF, amount, payments.maxPriceFeedDelay)
                             )
                 );
-        uint256 venueBalance = _storage.contracts.venueToken.balanceOf(venue, venueId);
+        uint256 venueBalance = contracts_.venueToken.balanceOf(venue, venueId);
         require(venueBalance >= rewards, NotEnoughBalance(rewards, venueBalance));
 
-        _storage.contracts.venueToken.burn(customerInfo.venueToPayFor, venueId, rewards);
-        _storage.contracts.promoterToken.mint(to, venueId, rewards, _storage.contracts.venueToken.uri(venueId));
+        contracts_.venueToken.burn(venue, venueId, rewards);
+        contracts_.promoterToken.mint(to, venueId, rewards, contracts_.venueToken.uri(venueId));
     }
 
     /// @dev Builds the optimal encoded path for the configured V3 router, preferring a direct pool and otherwise routing through the configured wrapped native token.
