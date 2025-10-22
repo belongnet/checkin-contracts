@@ -242,9 +242,9 @@ contract BelongCheckIn is Initializable, Ownable {
     /// - Seeds default {Fees} and full 5-tier {RewardsInfo} tables used until `setParameters` is invoked.
     /// - Callable exactly once; subsequent calls revert via {Initializable}.
     /// @param _owner Address that will gain `onlyOwner` privileges.
-    /// @param _paymentsInfo Initial swap + asset configuration to persist.
-    function initialize(address _owner, PaymentsInfo calldata _paymentsInfo) external initializer {
-        uint128 convenienceFeeAmount = uint96(5 * 10 ** _paymentsInfo.usdc.readDecimals()); // 5 USDC
+    /// @param paymentsInfo_ Initial swap + asset configuration to persist.
+    function initialize(address _owner, PaymentsInfo calldata paymentsInfo_) external initializer {
+        uint128 convenienceFeeAmount = uint96(5 * 10 ** paymentsInfo_.usdc.readDecimals()); // 5 USDC
         RewardsInfo[5] memory stakingRewardsInfo = [
             RewardsInfo(
                 PromoterStakingRewardInfo({
@@ -299,7 +299,7 @@ contract BelongCheckIn is Initializable, Ownable {
         ];
 
         _setParameters(
-            _paymentsInfo,
+            paymentsInfo_,
             Fees({
                 referralCreditsAmount: 2,
                 affiliatePercentage: 1000, // 10%
@@ -315,15 +315,15 @@ contract BelongCheckIn is Initializable, Ownable {
     }
 
     /// @notice Owner-only convenience wrapper to replace swap configuration, fee knobs, and tier tables atomically.
-    /// @param _paymentsInfo Fresh Uniswap + asset configuration to persist.
+    /// @param paymentsInfo_ Fresh DEX + asset configuration to persist.
     /// @param _fees Revised fee settings scaled by 1e4 (basis points domain).
     /// @param _stakingRewards Replacement 5-element rewards array (index matches {StakingTiers}).
     function setParameters(
-        PaymentsInfo calldata _paymentsInfo,
+        PaymentsInfo calldata paymentsInfo_,
         Fees calldata _fees,
         RewardsInfo[5] memory _stakingRewards
     ) external onlyOwner {
-        _setParameters(_paymentsInfo, _fees, _stakingRewards);
+        _setParameters(paymentsInfo_, _fees, _stakingRewards);
     }
 
     /// @notice Owner-only method to update external contract references used by the module.
