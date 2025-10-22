@@ -1,11 +1,10 @@
-import '@nomicfoundation/hardhat-ledger';
+import { HardhatUserConfig } from 'hardhat/config';
 import '@nomicfoundation/hardhat-toolbox';
 import '@openzeppelin/hardhat-upgrades';
-import dotenv from 'dotenv';
-import 'hardhat-contract-sizer';
-import { HardhatUserConfig } from 'hardhat/config';
-
 import 'solidity-docgen';
+import 'hardhat-contract-sizer';
+import '@nomicfoundation/hardhat-ledger';
+import dotenv from 'dotenv';
 import { ChainIds } from './utils/chain-ids';
 import { blockscanConfig, createConnect } from './utils/config';
 
@@ -18,10 +17,6 @@ if (process.env.PK) {
 }
 
 const etherscanApiKey = process.env.ETHERSCAN_API_KEY || process.env.BSCSCAN_API_KEY || '';
-
-const defaultHardhatForkBlock = process.env.HARDHAT_MAINNET_FORK_BLOCK
-  ? Number(process.env.HARDHAT_MAINNET_FORK_BLOCK)
-  : undefined;
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -56,7 +51,13 @@ const config: HardhatUserConfig = {
     //   url: 'https://eth.drpc.org',
     // },
     mainnet: createConnect(ChainIds.mainnet, accounts),
-    bsc: createConnect(ChainIds.bsc, accounts),
+    bsc: {
+      url: process.env.BSC_RPC_URL || 'https://bsc-dataseed.bnbchain.org/',
+      chainId: 56,
+      accounts: process.env.PK ? [process.env.PK] : [],
+      timeout: 60000,
+      gasPrice: 5000000000, // 5 gwei
+    },
     polygon: createConnect(ChainIds.polygon, accounts),
     blast: createConnect(ChainIds.blast, accounts),
     celo: createConnect(ChainIds.celo, accounts),
@@ -68,10 +69,16 @@ const config: HardhatUserConfig = {
     skale_nebula: createConnect(ChainIds.skale_nebula, accounts),
     skale_calypso: createConnect(ChainIds.skale_calypso, accounts),
     sepolia: createConnect(ChainIds.sepolia, accounts),
-    amoy: createConnect(ChainIds.amoy, accounts),
-    bsc_testnet: createConnect(ChainIds.bsc_testnet, accounts),
     blast_sepolia: createConnect(ChainIds.blast_sepolia, accounts),
+    bsc_testnet: {
+      url: process.env.BSC_TESTNET_RPC_URL || 'https://data-seed-prebsc-1-s1.bnbchain.org:8545',
+      chainId: 97,
+      accounts: process.env.PK ? [process.env.PK] : [],
+      timeout: 60000,
+      gasPrice: 10000000000, // 10 gwei
+    },
     skale_calypso_testnet: createConnect(ChainIds.skale_calypso_testnet, accounts),
+    amoy: createConnect(ChainIds.amoy, accounts),
   },
   etherscan: {
     apiKey: {
@@ -94,15 +101,6 @@ const config: HardhatUserConfig = {
       skale_calypso_testnet: 'skale_calypso_testnet', // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
-      // {
-      //   network: "ethereum",
-      //   chainId: 1,
-      //   urls: {
-      //     apiURL: "https://eth.blockscout.com/api",
-      //     browserURL: "https://eth.blockscout.com"
-      //   }
-      // },
-      blockscanConfig('bsc', ChainIds.bsc),
       blockscanConfig('blast', ChainIds.blast),
       blockscanConfig('bsc', ChainIds.bsc),
       blockscanConfig('bsc_testnet', ChainIds.bsc_testnet),
@@ -116,7 +114,6 @@ const config: HardhatUserConfig = {
       blockscanConfig('skale_calypso', ChainIds.skale_calypso),
       blockscanConfig('blast_sepolia', ChainIds.blast_sepolia),
       blockscanConfig('amoy', ChainIds.amoy),
-      blockscanConfig('bsc_testnet', ChainIds.bsc_testnet),
       blockscanConfig('skale_calypso_testnet', ChainIds.skale_calypso_testnet),
     ],
   },

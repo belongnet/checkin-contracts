@@ -32,9 +32,9 @@
     }
   },
   "libraries": {
-    "signatureVerifier": "0x08f7bb613F28fb8D7748f479ABea07EcFFDF026F",
-    "helper": "0x5E3DB12280657F78E55E79507931662eEEe9E10E",
-    "dualDexSwapV4Lib": "0x483417ef62D5C47Af4592b2A039fFfcf36D84BbB"
+    "signatureVerifier": "0x1c30aCC6f5590E979fe137D69586EdC41C85a02E",
+    "helper": "0xaD079C3cd35A0Ee34Cc48543acb16aA859003508",
+    "dualDexSwapV4Lib": "0x2cd36Ed00D865C360530097F1c798B9ddD89d630"
   },
   "implementations": {
     "accessToken": "0x4F3575D5eA19BE3D7859E231B746238219c2f216",
