@@ -5,8 +5,15 @@ import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
 import { deployBelongCheckIn } from '../../../helpers/deployFixtures';
 import { BigNumber } from 'ethers';
+import { DualDexSwapV4Lib } from '../../../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
+import { encodePcsPoolKey } from '../../../helpers/math';
 
 dotenv.config();
+
+enum DexType {
+  UniV4 = 0,
+  PcsV4 = 1,
+}
 
 const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
 const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
@@ -39,28 +46,27 @@ async function deploy() {
     // Read addresses from environment variables
 
     const owner = process.env.ADMIN_ADDRESS;
-    const swapPoolFees = process.env.UNISWAPV3_POOL_FEES;
-    const swapV3Factory = process.env.UNISWAPV3_FACTORY_ADDRESS;
-    const swapV3Router = process.env.UNISWAPV3_ROUTER_ADDRESS;
-    const swapV3Quoter = process.env.UNISWAPV3_QUOTER_ADDRESS;
-    const wNativeCurrency = process.env.WNATIVE_ADDRESS;
+    const router = process.env.ROUTER_ADDRESS;
+    const quoter = process.env.QUOTER_ADDRESS;
+    const poolManager = process.env.POOL_MANAGER_ADDRESS;
     const usdc = process.env.USDC_ADDRESS;
+    const hookDataEnv = process.env.HOOK_DATA ?? '0x';
+    const dexTypeEnv = process.env.DEX_TYPE ?? `${DexType.PcsV4}`;
 
     // Validate environment variables
     if (
       !deployments.libraries.sigantureVerifier ||
       !deployments.libraries.helper ||
+      !deployments.libraries.dualDexSwapV4 ||
       !owner ||
-      !swapPoolFees ||
-      !swapV3Factory ||
-      !swapV3Router ||
-      !swapV3Quoter ||
-      !wNativeCurrency ||
+      !router ||
+      !quoter ||
+      !poolManager ||
       !usdc ||
       !deployments.tokens.long
     ) {
       throw new Error(
-        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.sigantureVerifier}\nHELPER_ADDRESS: ${deployments.libraries.helper}\nOWNER_ADDRESS: ${owner}\nUNISWAPV3_POOL_FEES: ${swapPoolFees}\nUNISWAPV3_FACTORY_ADDRESS: ${swapV3Factory}\nUNISWAPV3_ROUTER_ADDRESS: ${swapV3Router}\nUNISWAPV3_QUOTER_ADDRESS: ${swapV3Quoter}\nWNATIVE_ADDRESS: ${wNativeCurrency}\nUSDC_ADDRESS: ${usdc}\nLong: ${deployments.tokens.long}`,
+        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.sigantureVerifier}\nHelper: ${deployments.libraries.helper}\nDualDexSwapV4Lib: ${deployments.libraries.dualDexSwapV4}\nOWNER_ADDRESS: ${owner}\nROUTER_ADDRESS: ${router}\nQUOTER_ADDRESS: ${quoter}\nPOOL_MANAGER_ADDRESS: ${poolManager}\nUSDC_ADDRESS: ${usdc}\nLONG_ADDRESS: ${deployments.tokens.long}`,
       );
     }
 
@@ -68,10 +74,11 @@ async function deploy() {
     for (const addr of [
       deployments.libraries.sigantureVerifier,
       deployments.libraries.helper,
+      deployments.libraries.dualDexSwapV4,
       owner,
-      swapV3Router,
-      swapV3Quoter,
-      wNativeCurrency,
+      router,
+      quoter,
+      poolManager,
       usdc,
       deployments.tokens.long,
     ]) {
@@ -81,22 +88,23 @@ async function deploy() {
     }
 
     // Construct paymentsInfo struct
-    const paymentsInfo = {
+    const paymentsInfo: DualDexSwapV4Lib.PaymentsInfoStruct = {
+      dexType: DexType.PcsV4,
       slippageBps: BigNumber.from(10).pow(27).sub(1),
-      swapPoolFees,
-      swapV3Factory,
-      swapV3Router,
-      swapV3Quoter,
-      wNativeCurrency,
+      router,
+      quoter,
       usdc,
       long: deployments.tokens.long,
       maxPriceFeedDelay: 86_400,
-    } as BelongCheckIn.PaymentsInfoStruct;
+      poolKey: encodePcsPoolKey(usdc, deployments.tokens.long, poolManager),
+      hookData: hookDataEnv,
+    } as DualDexSwapV4Lib.PaymentsInfoStruct;
 
     console.log('Deploying BelongCheckIn contract...');
     const belongCheckIn: BelongCheckIn = await deployBelongCheckIn(
       deployments.libraries.sigantureVerifier,
       deployments.libraries.helper,
+      deployments.libraries.dualDexSwapV4Lib,
       owner,
       paymentsInfo,
     );

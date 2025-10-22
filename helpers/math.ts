@@ -3,6 +3,7 @@ import { parseUnits } from 'ethers/lib/utils';
 import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 import { ethers } from 'hardhat';
 import { ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
+import { num } from 'starknet';
 
 export function getPercentage(amount: BigNumberish, percentage: BigNumberish): BigNumberish {
   return BigNumber.from(amount).mul(BigNumber.from(percentage)).div(10000);
@@ -75,4 +76,30 @@ export function hashVestingInfo(ownerAddr: string, info: VestingWalletInfoStruct
       chainId,
     ],
   );
+}
+
+export function encodePcsPoolKey(
+  tokenA: string,
+  tokenB: string,
+  poolManager: string,
+  fee: number = 3000,
+  tickSpacing: number = 60,
+  hooks: string = ethers.constants.AddressZero,
+): string {
+  const [currency0, currency1] = sortTokens(tokenA, tokenB);
+  const parameters = encodeTickSpacing(tickSpacing);
+
+  return ethers.utils.defaultAbiCoder.encode(
+    ['tuple(address currency0,address currency1,address hooks,address poolManager,uint24 fee,bytes32 parameters)'],
+    [[currency0, currency1, hooks, poolManager, fee, parameters]],
+  );
+}
+
+function sortTokens(tokenA: string, tokenB: string): [string, string] {
+  return ethers.BigNumber.from(tokenA).lt(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA];
+}
+
+function encodeTickSpacing(tickSpacing: number): string {
+  const value = ethers.BigNumber.from(tickSpacing).shl(16);
+  return ethers.utils.hexZeroPad(value.toHexString(), 32);
 }

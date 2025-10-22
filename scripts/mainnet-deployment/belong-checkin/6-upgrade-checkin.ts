@@ -28,7 +28,11 @@ async function main() {
     console.log('Upgrade CheckIn: ');
 
     const BelongCheckIn = await ethers.getContractFactory('BelongCheckIn', {
-      libraries: { SignatureVerifier: deployments.libraries.sigantureVerifier, Helper: deployments.libraries.helper },
+      libraries: {
+        SignatureVerifier: deployments.libraries.sigantureVerifier,
+        Helper: deployments.libraries.helper,
+        DualDexSwapV4Lib: deployments.libraries.dualDexSwapV4,
+      },
     });
 
     // (Optional) pre-check: will fail if layout breaks
