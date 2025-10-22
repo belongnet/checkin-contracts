@@ -468,9 +468,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
     /// @notice Returns all vesting wallet records registered for `beneficiary`.
     /// @param beneficiary Wallet beneficiary supplied during deployment.
-    /// @param index Legacy parameter kept for ABI compatibility (unused).
     /// @return Array of {VestingWalletInstanceInfo} records.
-    function getVestingWalletInstanceInfos(address beneficiary, uint256 index)
+    function getVestingWalletInstanceInfos(address beneficiary)
         external
         view
         returns (VestingWalletInstanceInfo[] memory)
