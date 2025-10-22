@@ -7,6 +7,8 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {MetadataReaderLib} from "solady/src/utils/MetadataReaderLib.sol";
 
 import {Factory} from "./Factory.sol";
+import {LONG} from "../tokens/LONG.sol";
+import {DualDexSwapV4} from "./extensions/DualDexSwapV4.sol";
 import {Escrow} from "../periphery/Escrow.sol";
 import {Staking} from "../periphery/Staking.sol";
 import {CreditToken} from "../tokens/CreditToken.sol";
@@ -29,11 +31,11 @@ import {
 /// @dev
 /// - Maintains venue and promoter balances as denominated ERC1155 credits (1 credit == 1 USD unit).
 /// - Delegates token custody to {Escrow} while enforcing platform fees, referral incentives, and staking perks.
-/// - Prices and swaps LONG through a configured Uniswap V3 router/quoter pairing and a Chainlink price feed.
+/// - Prices and swaps LONG through a dual DEX (Uniswap v4 / Pancake Infinity) router + quoter pairing and a Chainlink price feed.
 /// - Applies staking-tier-dependent deposit fees, customer discounts, and promoter fee splits.
 /// - Streams platform revenue through a buyback-and-burn routine before forwarding the remainder to Factory.platformAddress.
 /// - All externally triggered flows require EIP-712 signatures produced by the platform signer held in {Factory}.
-contract BelongCheckIn is Initializable, Ownable {
+contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     using SignatureVerifier for address;
     using MetadataReaderLib for address;
     using SafeTransferLib for address;
@@ -64,22 +66,13 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @notice Reverts when a provided bps value exceeds the configured scaling domain.
     error BPSTooHigh();
 
-    /// @notice Thrown when no valid swap path is found for a USDC→LONG OR LONG→USDC swap.
-    error NoValidSwapPath();
-
     /// @notice Thrown when LONG cannot be burned or transferred to the burn address.
     error TokensCanNotBeBurned();
-
-    /// @notice Thrown when a Uniswap V3 swap fails for the provided tokens/amount.
-    /// @param tokenIn Asset that was being swapped from.
-    /// @param tokenOut Asset that was being swapped to.
-    /// @param amount Exact input amount that failed to execute.
-    error SwapFailed(address tokenIn, address tokenOut, uint256 amount);
 
     // ========== Events ==========
 
     /// @notice Emitted when global parameters are updated.
-    /// @param paymentsInfo Uniswap/asset addresses and pool fee configuration.
+    /// @param paymentsInfo DEX routing and asset addresses configuration.
     /// @param fees Platform-level fee settings.
     /// @param rewards Array of tiered staking rewards (index by `StakingTiers`).
     event ParametersSet(PaymentsInfo paymentsInfo, Fees fees, RewardsInfo[5] rewards);
@@ -131,7 +124,7 @@ contract BelongCheckIn is Initializable, Ownable {
     /// @param amount The amount (USD-denominated credits) canceled and restored.
     event PromoterPaymentCancelled(address indexed venue, address indexed promoter, uint256 amount);
 
-    /// @notice Emitted after a USDC→LONG swap via Uniswap V3.
+    /// @notice Emitted after a swap routed through the configured DEX.
     /// @param recipient The address receiving LONG.
     /// @param amountIn The USDC input amount.
     /// @param amountOut The LONG output amount.
@@ -590,74 +583,21 @@ contract BelongCheckIn is Initializable, Ownable {
     }
 
     /// @notice Swaps an exact USDC amount to LONG, then delivers proceeds to `recipient`.
-    /// @dev
-    /// - Builds a multi-hop path USDC → W_NATIVE_CURRENCY → LONG using the same fee tier.
-    /// - Uses Quoter to set a conservative `amountOutMinimum`.
-    /// - Approves router for the exact USDC amount before calling.
-    /// @param recipient The recipient of LONG. If zero or `amount` is zero, returns 0 without swapping.
-    /// @param amount The USDC input amount to swap (USDC native decimals).
-    /// @return swapped The amount of LONG received.
-    function _swapUSDCtoLONG(address recipient, uint256 amount) internal virtual returns (uint256 swapped) {
-        PaymentsInfo memory p = belongCheckInStorage.paymentsInfo;
-        return _swapExact(p.usdc, p.long, recipient, amount);
+    /// @dev Emits `Swapped` to maintain downstream observability.
+    function _swapUSDCtoLONG(address recipient, uint256 amount) internal override returns (uint256 swapped) {
+        swapped = super._swapUSDCtoLONG(recipient, amount);
+        if (swapped > 0) {
+            emit Swapped(recipient, amount, swapped);
+        }
     }
 
     /// @notice Swaps an exact LONG amount to USDC, then delivers proceeds to `recipient`.
-    /// @dev
-    /// - Builds a multi-hop path LONG → W_NATIVE_CURRENCY → USDC using the same fee tier.
-    /// - Uses Quoter to set a conservative `amountOutMinimum`.
-    /// - Approves router for the exact LONG amount before calling.
-    /// @param recipient The recipient of USDC. If zero or `amount` is zero, returns 0 without swapping.
-    /// @param amount The LONG input amount to swap (LONG native decimals).
-    /// @return swapped The amount of USDC received.
-    function _swapLONGtoUSDC(address recipient, uint256 amount) internal virtual returns (uint256 swapped) {
-        PaymentsInfo memory p = belongCheckInStorage.paymentsInfo;
-        return _swapExact(p.long, p.usdc, recipient, amount);
-    }
-
-    /// @dev Common swap executor that builds the path, quotes slippage-aware minimums, and clears approvals on completion.
-    function _swapExact(address tokenIn, address tokenOut, address recipient, uint256 amount)
-        internal
-        returns (uint256 swapped)
-    {
-        if (recipient == address(0) || amount == 0) {
-            return 0;
+    /// @dev Emits `Swapped` to maintain downstream observability.
+    function _swapLONGtoUSDC(address recipient, uint256 amount) internal override returns (uint256 swapped) {
+        swapped = super._swapLONGtoUSDC(recipient, amount);
+        if (swapped > 0) {
+            emit Swapped(recipient, amount, swapped);
         }
-
-        PaymentsInfo memory _paymentsInfo = belongCheckInStorage.paymentsInfo;
-
-        bytes memory path = _buildPath(_paymentsInfo, tokenIn, tokenOut);
-
-        uint256 amountOutMinimum =
-            IV3Quoter(_paymentsInfo.swapV3Quoter).quoteExactInput(path, amount).amountOutMin(_paymentsInfo.slippageBps);
-
-        IV3Router.ExactInputParamsV1 memory swapParamsV1 = IV3Router.ExactInputParamsV1({
-            path: path,
-            recipient: recipient,
-            deadline: block.timestamp,
-            amountIn: amount,
-            amountOutMinimum: amountOutMinimum
-        });
-
-        // Reset -> set pattern to support non-standard ERC20s that require zeroing allowance first
-        tokenIn.safeApproveWithRetry(_paymentsInfo.swapV3Router, amount);
-        try IV3Router(_paymentsInfo.swapV3Router).exactInput(swapParamsV1) returns (uint256 amountOut) {
-            swapped = amountOut;
-        } catch {
-            IV3Router.ExactInputParamsV2 memory swapParamsV2 = IV3Router.ExactInputParamsV2({
-                path: path, recipient: recipient, amountIn: amount, amountOutMinimum: amountOutMinimum
-            });
-            try IV3Router(_paymentsInfo.swapV3Router).exactInput(swapParamsV2) returns (uint256 amountOut) {
-                swapped = amountOut;
-            } catch {
-                revert SwapFailed(tokenIn, tokenOut, amount);
-            }
-        }
-
-        // Clear allowance to reduce residual approvals surface area
-        tokenIn.safeApprove(_paymentsInfo.swapV3Router, 0);
-
-        emit Swapped(recipient, amount, swapped);
     }
 
     /// @dev Splits platform revenue: swaps a configurable portion for LONG and burns it, then forwards the remainder to the fee collector.
@@ -737,27 +677,4 @@ contract BelongCheckIn is Initializable, Ownable {
     }
 
     /// @dev Builds the optimal encoded path for the configured V3 router, preferring a direct pool and otherwise routing through the configured wrapped native token.
-    function _buildPath(PaymentsInfo memory _paymentsInfo, address tokenIn, address tokenOut)
-        internal
-        view
-        returns (bytes memory path)
-    {
-        // Direct pool
-        if (
-            IV3Factory(_paymentsInfo.swapV3Factory).getPool(tokenIn, tokenOut, _paymentsInfo.swapPoolFees) != address(0)
-        ) {
-            path = abi.encodePacked(tokenIn, _paymentsInfo.swapPoolFees, tokenOut);
-        }
-        // tokenIn -> W_NATIVE_CURRENCY -> tokenOut
-        else if (
-            IV3Factory(_paymentsInfo.swapV3Factory)
-                    .getPool(tokenIn, _paymentsInfo.wNativeCurrency, _paymentsInfo.swapPoolFees) != address(0)
-        ) {
-            path = abi.encodePacked(
-                tokenIn, _paymentsInfo.swapPoolFees, _paymentsInfo.wNativeCurrency, _paymentsInfo.swapPoolFees, tokenOut
-            );
-        } else {
-            revert NoValidSwapPath();
-        }
-    }
 }
