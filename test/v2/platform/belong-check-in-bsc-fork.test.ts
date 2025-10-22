@@ -93,7 +93,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       } as BelongCheckIn.VenueStakingRewardInfoStruct,
       promoterStakingInfo: {
         usdcPercentage,
-        longPercentage: 800,
+        longPercentage: 500,
       } as BelongCheckIn.PromoterStakingRewardInfoStruct,
     } as BelongCheckIn.RewardsInfoStruct,
     {
@@ -103,7 +103,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       } as BelongCheckIn.VenueStakingRewardInfoStruct,
       promoterStakingInfo: {
         usdcPercentage,
-        longPercentage: 700,
+        longPercentage: 400,
       } as BelongCheckIn.PromoterStakingRewardInfoStruct,
     } as BelongCheckIn.RewardsInfoStruct,
     {
@@ -113,7 +113,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       } as BelongCheckIn.VenueStakingRewardInfoStruct,
       promoterStakingInfo: {
         usdcPercentage,
-        longPercentage: 600,
+        longPercentage: 300,
       } as BelongCheckIn.PromoterStakingRewardInfoStruct,
     } as BelongCheckIn.RewardsInfoStruct,
     {
@@ -123,7 +123,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       } as BelongCheckIn.VenueStakingRewardInfoStruct,
       promoterStakingInfo: {
         usdcPercentage,
-        longPercentage: 500,
+        longPercentage: 200,
       } as BelongCheckIn.PromoterStakingRewardInfoStruct,
     } as BelongCheckIn.RewardsInfoStruct,
     {
@@ -133,7 +133,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       } as BelongCheckIn.VenueStakingRewardInfoStruct,
       promoterStakingInfo: {
         usdcPercentage,
-        longPercentage: 400,
+        longPercentage: 100,
       } as BelongCheckIn.PromoterStakingRewardInfoStruct,
     } as BelongCheckIn.RewardsInfoStruct,
   ];
@@ -547,7 +547,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       const venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: ethers.constants.HashZero,
@@ -556,7 +556,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       };
 
       const venueInfoFake: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue: treasury.address,
         amount,
         affiliateReferralCode: ethers.constants.HashZero,
@@ -614,7 +614,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: ethers.constants.HashZero,
@@ -685,7 +685,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -705,7 +705,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signatureCodeWrong = EthCrypto.sign(signer.privateKey, messageCodeWrong);
 
       let venueInfoWrongCode: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCodeWrong,
@@ -714,7 +714,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       };
 
       let venueInfoWrongPaymentType: VenueInfoStruct = {
-        rules: { paymentType: 0, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 0, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -723,7 +723,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       };
 
       let venueInfoWrongBountyType: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 0, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 0, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -800,7 +800,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -871,7 +871,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -952,7 +952,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -1034,7 +1034,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -1113,7 +1113,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -1191,7 +1191,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -1269,7 +1269,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -1330,7 +1330,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const signature = EthCrypto.sign(signer.privateKey, message);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
@@ -1375,7 +1375,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
       const venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 0, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 0, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
@@ -1446,7 +1446,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
       const venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 0, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 0, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
@@ -1531,7 +1531,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -1715,7 +1715,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -1794,7 +1794,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -1902,7 +1902,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 2, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 1, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -2011,7 +2011,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 2, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -2228,7 +2228,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -2325,7 +2325,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
       const venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 2, bountyType: 0, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 2, bountyType: 0, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
@@ -2421,7 +2421,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
       const venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 2, bountyType: 0, longPaymentType: 1 } as VenueRulesStruct,
+        rules: { paymentType: 2, bountyType: 0, bountyAllocationType: 1, longPaymentType: 1 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
@@ -2525,7 +2525,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
       const venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 2, bountyType: 0, longPaymentType: 2 } as VenueRulesStruct,
+        rules: { paymentType: 2, bountyType: 0, bountyAllocationType: 1, longPaymentType: 2 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
@@ -2619,7 +2619,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
       const venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 0, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 0, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
@@ -2727,7 +2727,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 2, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 2, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -2859,7 +2859,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -2991,7 +2991,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 2, bountyType: 2, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 2, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -3152,7 +3152,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 2, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -3313,7 +3313,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 2, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 2, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -3480,7 +3480,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -3650,7 +3650,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -3778,7 +3778,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -3882,7 +3882,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -4072,7 +4072,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -4267,7 +4267,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -4462,7 +4462,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -4657,7 +4657,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -4852,7 +4852,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -4983,7 +4983,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -5111,7 +5111,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
@@ -5240,7 +5240,7 @@ describe.only('BelongCheckIn BSC PancakeSwap', () => {
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
       let venueInfo: VenueInfoStruct = {
-        rules: { paymentType: 3, bountyType: 3, longPaymentType: 0 } as VenueRulesStruct,
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
