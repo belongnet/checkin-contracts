@@ -13,8 +13,10 @@ import {
     PromoterInfo,
     StaticPriceParameters,
     DynamicPriceParameters,
+    Bounties,
     PaymentTypes,
-    BountyTypes
+    BountyTypes,
+    BountyAllocationTypes
 } from "../Structures.sol";
 
 /// @title SignatureVerifier
@@ -44,9 +46,9 @@ library SignatureVerifier {
     /// @notice Thrown when the bounty type derived from customer payload conflicts with venue rules.
     error WrongBountyType();
 
-    error NoBountiesToPromoter();
-    error NoBountiesToCustomer();
+    error NoBountiesRelated();
     error NoBountyAllocationTypeSpecified();
+    error WrongCustomerBountyType();
 
     // ============================== Verifiers ==============================
 
@@ -145,7 +147,9 @@ library SignatureVerifier {
     function checkVenueInfo(address signer, VenueInfo calldata venueInfo) external view {
         require(
             signer.isValidSignatureNow(
-                keccak256(abi.encodePacked(venueInfo.venue, venueInfo.referralCode, venueInfo.uri, block.chainid)),
+                keccak256(
+                    abi.encodePacked(venueInfo.venue, venueInfo.affiliateReferralCode, venueInfo.uri, block.chainid)
+                ),
                 venueInfo.signature
             ),
             InvalidSignature()
@@ -180,7 +184,7 @@ library SignatureVerifier {
 
             _checkBountiesPayment(customerInfo.toCustomer, rules);
 
-            if (customerInfo.promoter != address(0)) {
+            if (customerInfo.promoterReferralCode != bytes32(0)) {
                 _checkBountiesPayment(customerInfo.toPromoter, rules);
             }
         }
@@ -196,7 +200,7 @@ library SignatureVerifier {
                         customerInfo.toPromoter.visitBountyAmount,
                         customerInfo.customer,
                         customerInfo.venueToPayFor,
-                        customerInfo.promoter,
+                        customerInfo.promoterReferralCode,
                         customerInfo.amount,
                         block.chainid
                     )
@@ -261,11 +265,11 @@ library SignatureVerifier {
         );
     }
 
-    function _checkBounties(Bounties calldata bounties) internal view {
+    function _checkBounties(Bounties calldata bounties) internal pure {
         require(bounties.spendBountyPercentage == 0 && bounties.visitBountyAmount == 0, NoBountiesRelated());
     }
 
-    function _checkBountiesPayment(Bounties calldata bounties, VenueRules memory rules) internal view {
+    function _checkBountiesPayment(Bounties calldata bounties, VenueRules memory rules) internal pure {
         BountyTypes bountyType = bounties.visitBountyAmount > 0 && bounties.spendBountyPercentage > 0
             ? BountyTypes.Both
             : bounties.visitBountyAmount > 0 && bounties.spendBountyPercentage == 0
