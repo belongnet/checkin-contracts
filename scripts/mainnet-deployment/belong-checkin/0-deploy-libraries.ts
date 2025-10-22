@@ -2,8 +2,9 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
-import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
-import { SignatureVerifier } from '../../../typechain-types';
+import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
+import { DualDexSwapV4Lib, Helper, SignatureVerifier } from '../../../typechain-types';
+import { deployDualDexSwapV4Lib } from '../../../helpers/deployFixtures';
 
 dotenv.config();
 
@@ -32,7 +33,7 @@ async function deploy() {
     deployments.libraries = {};
   }
 
-  if (DEPLOY && !deployments.libraries.SigantureVerifier) {
+  if (DEPLOY) {
     console.log('Deploy SignatureVerifier: ');
 
     console.log('Deploying SignatureVerifier contract...');
@@ -43,6 +44,30 @@ async function deploy() {
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
     console.log('Deployed SignatureVerifier to: ', signatureVerifier.address);
+
+    console.log('Deploy Helper: ');
+
+    console.log('Deploying Helper contract...');
+    const helper: Helper = await deployHelper();
+
+    // Update deployments object
+    deployments.libraries.helper = helper.address;
+
+    // Write to file
+    fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
+    console.log('Deployed Helper to: ', helper.address);
+
+    console.log('Deploy DualDexSwapV4Lib: ');
+
+    console.log('Deploying DualDexSwapV4Lib contract...');
+    const dualDexSwapV4Lib: DualDexSwapV4Lib = await deployDualDexSwapV4Lib();
+
+    // Update deployments object
+    deployments.libraries.dualDexSwapV4Lib = dualDexSwapV4Lib.address;
+
+    // Write to file
+    fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
+    console.log('Deployed DualDexSwapV4Lib to: ', dualDexSwapV4Lib.address);
 
     console.log('Done.');
   }
@@ -57,6 +82,26 @@ async function deploy() {
       console.log('SigantureVerifier verification successful.');
     } catch (error) {
       console.error('SigantureVerifier verification failed: ', error);
+    }
+
+    try {
+      if (!deployments.libraries.helper) {
+        throw new Error('No Helper deployment data found for verification.');
+      }
+      await verifyContract(deployments.libraries.helper);
+      console.log('Helper verification successful.');
+    } catch (error) {
+      console.error('Helper verification failed: ', error);
+    }
+
+    try {
+      if (!deployments.libraries.dualDexSwapV4Lib) {
+        throw new Error('No DualDexSwapV4Lib deployment data found for verification.');
+      }
+      await verifyContract(deployments.libraries.dualDexSwapV4Lib);
+      console.log('DualDexSwapV4Lib verification successful.');
+    } catch (error) {
+      console.error('DualDexSwapV4Lib verification failed: ', error);
     }
     console.log('Done.');
   }

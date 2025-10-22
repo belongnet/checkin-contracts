@@ -11,13 +11,14 @@ import {
   Staking,
   BelongCheckIn,
   VestingWalletExtended,
+  NFT,
+  DualDexSwapV4Lib,
 } from '../typechain-types';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
 import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 import { hashAccessTokenInfo, hashERC1155Info, hashVestingInfo } from './math';
-import { NftFactoryParametersStruct } from '../typechain-types/contracts/v1/factories/NFTFactory';
-import { NFT } from '../typechain-types';
+import { DualDexSwapV4Lib as DualDexSwapV4LibType } from '../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
 
 export type TokenMetadata = { name: string; symbol: string; uri: string };
 
@@ -267,14 +268,26 @@ export async function deployStaking(owner: string, treasury: string, long: strin
   return staking;
 }
 
+export async function deployDualDexSwapV4Lib(): Promise<DualDexSwapV4Lib> {
+  const DualDexSwapV4Lib: ContractFactory = await ethers.getContractFactory('DualDexSwapV4Lib');
+  const dualDexSwapV4Lib: DualDexSwapV4Lib = (await DualDexSwapV4Lib.deploy()) as DualDexSwapV4Lib;
+  await dualDexSwapV4Lib.deployed();
+  return dualDexSwapV4Lib;
+}
+
 export async function deployBelongCheckIn(
   signatureVerifier: string,
   helper: string,
+  dualDexSwapV4Lib: string,
   owner: string,
-  paymentsInfo: BelongCheckIn.PaymentsInfoStruct,
+  paymentsInfo: DualDexSwapV4LibType.PaymentsInfoStruct,
 ): Promise<BelongCheckIn> {
   const BelongCheckIn: ContractFactory = await ethers.getContractFactory('BelongCheckIn', {
-    libraries: { SignatureVerifier: signatureVerifier, Helper: helper },
+    libraries: {
+      SignatureVerifier: signatureVerifier,
+      Helper: helper,
+      DualDexSwapV4Lib: dualDexSwapV4Lib,
+    },
   });
   const belongCheckIn: BelongCheckIn = (await upgrades.deployProxy(BelongCheckIn, [owner, paymentsInfo], {
     unsafeAllow: ['constructor'],
