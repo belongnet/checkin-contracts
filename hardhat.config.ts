@@ -20,6 +20,10 @@ if (process.env.LEDGER_ADDRESS) {
   ledgerAccounts = [process.env.LEDGER_ADDRESS];
 }
 
+const defaultHardhatForkBlock = process.env.HARDHAT_MAINNET_FORK_BLOCK
+  ? Number(process.env.HARDHAT_MAINNET_FORK_BLOCK)
+  : undefined;
+
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [
@@ -36,11 +40,12 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
+      hardfork: process.env.HARDHAT_HARDFORK || 'shanghai',
       forking: {
         url: process.env.INFURA_ID_PROJECT
           ? `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
           : `https://eth.llamarpc.com`,
-        blockNumber: 23490636,
+        blockNumber: defaultHardhatForkBlock,
       },
       // throwOnCallFailures: false,
       accounts: { accountsBalance: '10000000000000000000000000' },

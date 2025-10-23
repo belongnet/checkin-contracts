@@ -34,15 +34,45 @@ export async function startSimulateMainnet() {
 }
 
 export async function startSimulateBSC() {
+  const rpcUrl = chainRPCs(ChainIds.bsc);
+  const forkingParams: {
+    jsonRpcUrl: string;
+    blockNumber?: number;
+    enable: boolean;
+  } = {
+    jsonRpcUrl: rpcUrl,
+    enable: true,
+  };
+
+  if (process.env.BSC_FORK_BLOCK_NUMBER) {
+    const parsedBlock = Number(process.env.BSC_FORK_BLOCK_NUMBER);
+    if (!Number.isNaN(parsedBlock) && parsedBlock > 0) {
+      forkingParams.blockNumber = parsedBlock;
+    }
+  }
+
+  const hardhatForkingConfig = hre.config.networks.hardhat?.forking;
+  if (hardhatForkingConfig) {
+    hardhatForkingConfig.url = rpcUrl;
+    hardhatForkingConfig.blockNumber = forkingParams.blockNumber;
+  }
+
+  const runtimeForkingConfig = (network.config as typeof network.config & { forking?: typeof forkingParams }).forking;
+  if (runtimeForkingConfig) {
+    runtimeForkingConfig.url = rpcUrl;
+    runtimeForkingConfig.blockNumber = forkingParams.blockNumber;
+  }
+
+  await network.provider.request({
+    method: 'hardhat_reset',
+    params: [],
+  });
+
   await network.provider.request({
     method: 'hardhat_reset',
     params: [
       {
-        forking: {
-          jsonRpcUrl: chainRPCs(ChainIds.bsc),
-          blockNumber: 63220493,
-          enable: true,
-        },
+        forking: forkingParams,
       },
     ],
   });

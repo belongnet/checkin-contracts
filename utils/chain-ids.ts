@@ -27,9 +27,13 @@ export const chainRPCs = (chainid: ChainIds): string => {
         ? `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
         : `https://eth.llamarpc.com`;
     case ChainIds.bsc:
-      return process.env.INFURA_ID_PROJECT
-        ? `https://bsc-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
-        : 'https://binance.llamarpc.com';
+      if (process.env.BSC_RPC_URL && process.env.BSC_RPC_URL.trim().length > 0) {
+        return process.env.BSC_RPC_URL;
+      }
+      if (process.env.INFURA_ID_PROJECT) {
+        return `https://bsc-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
+      }
+      return 'https://bsc.drpc.org';
     case ChainIds.polygon:
       return `https://polygon.llamarpc.com`;
     case ChainIds.blast:
