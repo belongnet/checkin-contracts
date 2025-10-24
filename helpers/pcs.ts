@@ -7,8 +7,8 @@ export const PCS_CL_POOL_MANAGER = '0xa0FfB9c1CE1Fe56963B0321B32E7A0302114058b';
 export const PCS_V4_ROUTER = '0xd9C500DfF816a1Da21A48A732d3498Bf09dc9AEB';
 export const PCS_V4_QUOTER = '0xd0737C9762912dD34c3271197E362Aa736Df0926';
 
-export const USDC = '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
-export const CAKE = '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82';
+export const USDT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
+export const CAKE_ADDRESS = '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82';
 
 // ---------- Minimal ABIs
 const ICLQuoterAbi = [
@@ -45,12 +45,12 @@ export async function discoverPcsPoolKeyOnFork(opts?: {
   // amount for probing
   probeAmount?: BigNumber;
 }): Promise<FoundPool> {
-  const tokenIn = opts?.tokenIn ?? USDC;
-  const tokenOut = opts?.tokenOut ?? CAKE;
+  const tokenIn = opts?.tokenIn ?? USDT_ADDRESS;
+  const tokenOut = opts?.tokenOut ?? CAKE_ADDRESS;
   const quoter = opts?.quoter ?? PCS_V4_QUOTER;
   const poolMgr = opts?.poolManager ?? PCS_CL_POOL_MANAGER;
   const hookData = opts?.hookData ?? '0x';
-  const probeAmount = opts?.probeAmount ?? ethers.utils.parseUnits('100', 6); // 100 USDC
+  const probeAmount = opts?.probeAmount ?? ethers.utils.parseUnits('100', 6); // 100 USDT
 
   const fees = opts?.fees ?? [300, 500, 2500, 3000, 4000, 10000]; // 0.03–1.00%
   const tickSpacings = opts?.tickSpacings ?? [10, 50, 60, 100, 200];
@@ -59,7 +59,7 @@ export async function discoverPcsPoolKeyOnFork(opts?: {
   const quoterC = new ethers.Contract(quoter, ICLQuoterAbi, (await ethers.getSigners())[0]);
 
   const tokenPairs: Array<[string, string, boolean]> = [
-    ...[true, false].map(zeroForOne => [USDC, CAKE, zeroForOne] as [string, string, boolean]),
+    ...[true, false].map(zeroForOne => [USDT_ADDRESS, CAKE_ADDRESS, zeroForOne] as [string, string, boolean]),
   ];
 
   for (const [t0, t1, zeroForOne] of tokenPairs) {
@@ -92,6 +92,6 @@ export async function discoverPcsPoolKeyOnFork(opts?: {
   }
 
   throw new Error(
-    'No live PCS Infinity pool found for USDC–CAKE with tested candidates. Add hooks / spacings to candidates.',
+    'No live PCS Infinity pool found for USDT–CAKE with tested candidates. Add hooks / spacings to candidates.',
   );
 }
