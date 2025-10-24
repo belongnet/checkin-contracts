@@ -8,10 +8,10 @@ import {BelongCheckIn} from "../platform/BelongCheckIn.sol";
 import {VenueInfo} from "../Structures.sol";
 
 /// @title BelongCheckIn Escrow
-/// @notice Custodies venue deposits in USDC and LONG, and disburses funds on instructions
+/// @notice Custodies venue deposits in USDtoken and LONG, and disburses funds on instructions
 ///         from the BelongCheckIn platform.
 /// @dev
-/// - Tracks per-venue balances for USDC and LONG.
+/// - Tracks per-venue balances for USDtoken and LONG.
 /// - Only the BelongCheckIn contract may call mutating methods via {onlyBelongCheckIn}.
 /// - Uses SafeTransferLib for robust ERC20 transfers.
 /// - Designed for use behind an upgradeable proxy.
@@ -28,16 +28,16 @@ contract Escrow is Initializable {
     /// @param amount Requested LONG amount.
     error NotEnoughLONGs(uint256 longDeposits, uint256 amount);
 
-    /// @notice Reverts when a USDC disbursement exceeds the venue's USDC balance.
-    /// @param usdcDeposits Current USDC balance on record.
-    /// @param amount Requested USDC amount.
-    error NotEnoughUSDCs(uint256 usdcDeposits, uint256 amount);
+    /// @notice Reverts when a USDtoken disbursement exceeds the venue's USDtoken balance.
+    /// @param usdTokenDeposits Current USDtoken balance on record.
+    /// @param amount Requested USDtoken amount.
+    error NotEnoughUSDtokens(uint256 usdTokenDeposits, uint256 amount);
 
     // ============================== Events ==============================
 
     /// @notice Emitted whenever a venue's escrow balances are updated.
     /// @param venue Venue address.
-    /// @param deposits New USDC and LONG balances recorded for the venue.
+    /// @param deposits New USDtoken and LONG balances recorded for the venue.
     event VenueDepositsUpdated(address indexed venue, VenueDeposits deposits);
 
     /// @notice Emitted when LONG discount funds are disbursed to a venue.
@@ -46,17 +46,17 @@ contract Escrow is Initializable {
     /// @param amount Amount of LONG transferred.
     event DistributedLONGDiscount(address indexed venue, address indexed to, uint256 amount);
 
-    /// @notice Emitted when USDC deposit funds are disbursed from a venue's balance.
-    /// @param venue Venue whose USDC balance decreased.
-    /// @param to Recipient of the USDC transfer.
-    /// @param amount Amount of USDC transferred.
+    /// @notice Emitted when USDtoken deposit funds are disbursed from a venue's balance.
+    /// @param venue Venue whose USDtoken balance decreased.
+    /// @param to Recipient of the USDtoken transfer.
+    /// @param amount Amount of USDtoken transferred.
     event DistributedVenueDeposit(address indexed venue, address indexed to, uint256 amount);
 
     // ============================== Types ==============================
 
-    /// @notice Per-venue escrowed amounts for USDC and LONG.
+    /// @notice Per-venue escrowed amounts for USDtoken and LONG.
     struct VenueDeposits {
-        uint256 usdcDeposits;
+        uint256 usdTokenDeposits;
         uint256 longDeposits;
     }
 
@@ -95,11 +95,14 @@ contract Escrow is Initializable {
     /// @notice Records/overwrites a venue's deposit balances after a deposit operation.
     /// @dev Called by BelongCheckIn when new funds are received and routed to escrow.
     /// @param venue Venue whose balances are being updated.
-    /// @param depositedUSDCs New USDC balance to record for `venue`.
+    /// @param depositedUSDtokens New USDtoken balance to record for `venue`.
     /// @param depositedLONGs New LONG balance to record for `venue`.
-    function venueDeposit(address venue, uint256 depositedUSDCs, uint256 depositedLONGs) external onlyBelongCheckIn {
+    function venueDeposit(address venue, uint256 depositedUSDtokens, uint256 depositedLONGs)
+        external
+        onlyBelongCheckIn
+    {
         VenueDeposits storage deposits = venueDeposits[venue];
-        deposits.usdcDeposits += depositedUSDCs;
+        deposits.usdTokenDeposits += depositedUSDtokens;
         deposits.longDeposits += depositedLONGs;
 
         emit VenueDepositsUpdated(venue, deposits);
@@ -125,22 +128,22 @@ contract Escrow is Initializable {
         emit DistributedLONGDiscount(venue, to, amount);
     }
 
-    /// @notice Disburses USDC funds from a venue's USDC balance to a recipient.
-    /// @dev Reverts if the venue does not have enough USDC recorded.
-    /// @param venue Venue whose USDC balance will decrease.
-    /// @param to Recipient of the USDC transfer.
-    /// @param amount Amount of USDC to transfer.
+    /// @notice Disburses USDtoken funds from a venue's USDtoken balance to a recipient.
+    /// @dev Reverts if the venue does not have enough USDtoken recorded.
+    /// @param venue Venue whose USDtoken balance will decrease.
+    /// @param to Recipient of the USDtoken transfer.
+    /// @param amount Amount of USDtoken to transfer.
     function distributeVenueDeposit(address venue, address to, uint256 amount) external onlyBelongCheckIn {
-        uint256 usdcDeposits = venueDeposits[venue].usdcDeposits;
-        require(amount <= usdcDeposits, NotEnoughUSDCs(usdcDeposits, amount));
+        uint256 usdTokenDeposits = venueDeposits[venue].usdTokenDeposits;
+        require(amount <= usdTokenDeposits, NotEnoughUSDtokens(usdTokenDeposits, amount));
 
         unchecked {
-            usdcDeposits -= amount;
+            usdTokenDeposits -= amount;
         }
 
-        venueDeposits[venue].usdcDeposits = usdcDeposits;
+        venueDeposits[venue].usdTokenDeposits = usdTokenDeposits;
 
-        belongCheckIn.paymentsInfo().usdc.safeTransfer(to, amount);
+        belongCheckIn.paymentsInfo().usdToken.safeTransfer(to, amount);
 
         emit VenueDepositsUpdated(venue, venueDeposits[venue]);
         emit DistributedVenueDeposit(venue, to, amount);

@@ -88,18 +88,18 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param contracts The set of external contract references.
     event ContractsSet(Contracts contracts);
 
-    /// @notice Emitted when a venue deposits USDC to the program.
+    /// @notice Emitted when a venue deposits USDtoken to the program.
     /// @param venue The venue that made the deposit.
     /// @param referralCode The referral code used (if any).
     /// @param rules The rules applied to the venue at time of deposit.
-    /// @param amount The deposited USDC amount (in USDC native decimals).
+    /// @param amount The deposited USDtoken amount (in USDtoken native decimals).
     event VenuePaidDeposit(address indexed venue, bytes32 indexed referralCode, VenueRules rules, uint256 amount);
 
-    /// @notice Emitted when a customer pays a venue (in USDC or LONG).
+    /// @notice Emitted when a customer pays a venue (in USDtoken or LONG).
     /// @param customer The paying customer.
     /// @param venueToPayFor The venue receiving the payment.
     /// @param promoter The promoter credited, if any.
-    /// @param amount The payment amount (USDC native decimals for USDC; LONG wei for LONG).
+    /// @param amount The payment amount (USDtoken native decimals for USDtoken; LONG wei for LONG).
     event CustomerPaid(
         address indexed customer,
         address indexed venueToPayFor,
@@ -113,9 +113,9 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param promoter The promoter receiving a payout.
     /// @param venue The venue to which the promoter's balance is linked.
     /// @param amountInUSD The USD-denominated amount settled from promoter credits.
-    /// @param paymentInUSDC True if payout in USDC; false if swapped to LONG.
+    /// @param paymentInUSDtoken True if payout in USDtoken; false if swapped to LONG.
     event PromoterPaymentsDistributed(
-        address indexed promoter, address indexed venue, uint256 amountInUSD, bool paymentInUSDC
+        address indexed promoter, address indexed venue, uint256 amountInUSD, bool paymentInUSDtoken
     );
 
     /// @notice Emitted when the owner cancels a promoter payment and restores venue credits.
@@ -126,14 +126,14 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
     /// @notice Emitted after a swap routed through the configured DEX.
     /// @param recipient The address receiving LONG.
-    /// @param amountIn The USDC input amount.
+    /// @param amountIn The USDtoken input amount.
     /// @param amountOut The LONG output amount.
     event Swapped(address indexed recipient, uint256 amountIn, uint256 amountOut);
 
     /// @notice Emitted when revenue is processed for buyback/burn.
-    /// @param token Revenue token address (USDC or LONG).
+    /// @param token Revenue token address (USDtoken or LONG).
     /// @param gross Total revenue processed.
-    /// @param buyback Amount allocated to buyback/burn (in revenue token units for USDC, LONG units for LONG).
+    /// @param buyback Amount allocated to buyback/burn (in revenue token units for USDtoken, LONG units for LONG).
     /// @param burnedLONG Amount of LONG burned (or 0 if burn failed and was handled differently).
     /// @param fees Amount forwarded to fee collector address.
     event RevenueBuybackBurn(address indexed token, uint256 gross, uint256 buyback, uint256 burnedLONG, uint256 fees);
@@ -187,16 +187,16 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     }
 
     /// @notice Per-tier venue-side fee settings.
-    /// @dev `depositFeePercentage` scaled by 1e4; `convenienceFeeAmount` is a flat USDC amount (native decimals).
+    /// @dev `depositFeePercentage` scaled by 1e4; `convenienceFeeAmount` is a flat USDtoken amount (native decimals).
     struct VenueStakingRewardInfo {
         uint24 depositFeePercentage;
         uint128 convenienceFeeAmount;
     }
 
     /// @notice Per-tier promoter payout configuration.
-    /// @dev Percentages scaled by 1e4; separate values for USDC or LONG payouts.
+    /// @dev Percentages scaled by 1e4; separate values for USDtoken or LONG payouts.
     struct PromoterStakingRewardInfo {
-        uint24 usdcPercentage;
+        uint24 usdTokenPercentage;
         uint24 longPercentage;
     }
 
@@ -231,17 +231,17 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
     /// @notice Initializes core parameters, default tier tables, and transfers ownership.
     /// @dev
-    /// - Derives a $5 convenience charge in native USDC decimals through `MetadataReaderLib.readDecimals`.
+    /// - Derives a $5 convenience charge in native USDtoken decimals through `MetadataReaderLib.readDecimals`.
     /// - Seeds default {Fees} and full 5-tier {RewardsInfo} tables used until `setParameters` is invoked.
     /// - Callable exactly once; subsequent calls revert via {Initializable}.
     /// @param _owner Address that will gain `onlyOwner` privileges.
     /// @param paymentsInfo_ Initial swap + asset configuration to persist.
     function initialize(address _owner, DualDexSwapV4Lib.PaymentsInfo calldata paymentsInfo_) external initializer {
-        uint128 convenienceFeeAmount = uint96(5 * 10 ** paymentsInfo_.usdc.readDecimals()); // 5 USDC
+        uint128 convenienceFeeAmount = uint96(5 * 10 ** paymentsInfo_.usdToken.readDecimals()); // 5 USDtoken
         RewardsInfo[5] memory stakingRewardsInfo = [
             RewardsInfo(
                 PromoterStakingRewardInfo({
-                    usdcPercentage: 1000, //10%
+                    usdTokenPercentage: 1000, //10%
                     longPercentage: 500 // 5%
                 }),
                 VenueStakingRewardInfo({
@@ -251,7 +251,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             ),
             RewardsInfo(
                 PromoterStakingRewardInfo({
-                    usdcPercentage: 1000, //10%
+                    usdTokenPercentage: 1000, //10%
                     longPercentage: 400 // 4%
                 }),
                 VenueStakingRewardInfo({
@@ -261,7 +261,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             ),
             RewardsInfo(
                 PromoterStakingRewardInfo({
-                    usdcPercentage: 1000, //10%
+                    usdTokenPercentage: 1000, //10%
                     longPercentage: 300 // 3%
                 }),
                 VenueStakingRewardInfo({
@@ -271,7 +271,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             ),
             RewardsInfo(
                 PromoterStakingRewardInfo({
-                    usdcPercentage: 1000, //10%
+                    usdTokenPercentage: 1000, //10%
                     longPercentage: 200 // 2%
                 }),
                 VenueStakingRewardInfo({
@@ -281,7 +281,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             ),
             RewardsInfo(
                 PromoterStakingRewardInfo({
-                    usdcPercentage: 1000, //10%
+                    usdTokenPercentage: 1000, //10%
                     longPercentage: 100 // 1%
                 }),
                 VenueStakingRewardInfo({
@@ -338,18 +338,18 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         _setVenueRules(msg.sender, rules);
     }
 
-    /// @notice Handles a venue USDC deposit, accounting for fee exemptions, affiliate rewards, and escrow funding.
+    /// @notice Handles a venue USDtoken deposit, accounting for fee exemptions, affiliate rewards, and escrow funding.
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
     /// - Tracks “free deposit” credits; the platform fee is skipped until the configured allowance is exhausted.
-    /// - Charges convenience plus affiliate fees in USDC, swaps them to LONG where applicable, and records the resulting LONG in escrow.
+    /// - Charges convenience plus affiliate fees in USDtoken, swaps them to LONG where applicable, and records the resulting LONG in escrow.
     /// - Applies the buyback/burn split to the platform fee portion before forwarding the remainder to the fee collector.
     /// - Forwards the full venue deposit to {Escrow} and mints venue credits to mirror the USD balance.
     /// @param venueInfo Signed venue deposit parameters (venue, amount, referral code, venue rules, metadata URI).
     function venueDeposit(VenueInfo calldata venueInfo) external {
         Contracts memory contracts_ = belongCheckInStorage.contracts;
         Fees storage fees_ = belongCheckInStorage.fees;
-        address usdc = _paymentsInfo.usdc;
+        address usdToken = _paymentsInfo.usdToken;
 
         contracts_.factory.nftFactoryParameters().signerAddress.checkVenueInfo(venueInfo);
 
@@ -374,18 +374,18 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         } else {
             // Collect deposit fee to this contract, then apply buyback/burn split and forward remainder.
             uint256 platformFee = stakingInfo.depositFeePercentage.calculateRate(venueInfo.amount);
-            usdc.safeTransferFrom(venueInfo.venue, address(this), platformFee);
-            _handleRevenue(usdc, platformFee);
+            usdToken.safeTransferFrom(venueInfo.venue, address(this), platformFee);
+            _handleRevenue(usdToken, platformFee);
         }
 
         _setVenueRules(venueInfo.venue, venueInfo.rules);
 
-        usdc.safeTransferFrom(venueInfo.venue, address(this), stakingInfo.convenienceFeeAmount + affiliateFee);
+        usdToken.safeTransferFrom(venueInfo.venue, address(this), stakingInfo.convenienceFeeAmount + affiliateFee);
 
-        usdc.safeTransferFrom(venueInfo.venue, address(contracts_.escrow), venueInfo.amount);
+        usdToken.safeTransferFrom(venueInfo.venue, address(contracts_.escrow), venueInfo.amount);
 
-        uint256 convenienceFeeLong = _swapUSDCtoLONG(address(contracts_.escrow), stakingInfo.convenienceFeeAmount);
-        _swapUSDCtoLONG(affiliate, affiliateFee);
+        uint256 convenienceFeeLong = _swapUSDtokenToLONG(address(contracts_.escrow), stakingInfo.convenienceFeeAmount);
+        _swapUSDtokenToLONG(affiliate, affiliateFee);
 
         contracts_.escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
 
@@ -398,7 +398,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
     /// - Burns venue credits / mints promoter credits when a promoter participates in the visit.
-    /// - USDC payments move USDC directly from customer to venue.
+    /// - USDtoken payments move USDtoken directly from customer to venue.
     /// - LONG payments pull the platform subsidy from escrow, collect the customer’s discounted LONG, then deliver/route LONG per venue rules.
     /// @param customerInfo Signed customer payment parameters (customer, venue, promoter, amount, payment flags, bounty data).
     function payToVenue(CustomerInfo calldata customerInfo) external {
@@ -416,7 +416,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             customerInfo.customer,
             customerInfo.venueToPayFor,
             venueId,
-            customerInfo.paymentInUSDC,
+            customerInfo.paymentInUSDtoken,
             customerInfo.toCustomer,
             customerInfo.amount
         );
@@ -425,14 +425,15 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
                 promoter,
                 customerInfo.venueToPayFor,
                 venueId,
-                customerInfo.paymentInUSDC,
+                customerInfo.paymentInUSDtoken,
                 customerInfo.toPromoter,
                 customerInfo.amount
             );
         }
 
-        if (customerInfo.paymentInUSDC) {
-            _paymentsInfo.usdc.safeTransferFrom(customerInfo.customer, customerInfo.venueToPayFor, customerInfo.amount);
+        if (customerInfo.paymentInUSDtoken) {
+            _paymentsInfo.usdToken
+                .safeTransferFrom(customerInfo.customer, customerInfo.venueToPayFor, customerInfo.amount);
         } else {
             address long = _paymentsInfo.long;
             // platform subsidy - processing fee
@@ -454,7 +455,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
                 contracts_.staking.deposit(longAmount, customerInfo.venueToPayFor);
                 long.safeApprove(address(contracts_.staking), 0);
             } else if (rules.longPaymentType == LongPaymentTypes.AutoConvert) {
-                _swapLONGtoUSDC(customerInfo.venueToPayFor, longAmount);
+                _swapLONGtoUSDtoken(customerInfo.venueToPayFor, longAmount);
             } else {
                 long.safeTransfer(customerInfo.venueToPayFor, longAmount);
             }
@@ -470,12 +471,12 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         );
     }
 
-    /// @notice Settles promoter credits into an on-chain payout in either USDC or LONG.
+    /// @notice Settles promoter credits into an on-chain payout in either USDtoken or LONG.
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
     /// - Applies tiered platform fees based on the promoter’s staked LONG in {Staking}.
-    /// - USDC payouts draw both fee and promoter portions from escrow; fees are streamed through `_handleRevenue`.
-    /// - LONG payouts draw USDC from escrow, swap the full amount using the V3 router, and subject the swapped fee portion to the buyback routine.
+    /// - USDtoken payouts draw both fee and promoter portions from escrow; fees are streamed through `_handleRevenue`.
+    /// - LONG payouts draw USDtoken from escrow, swap the full amount using the V3 router, and subject the swapped fee portion to the buyback routine.
     /// - Always burns promoter ERC1155 credits by the settled USD amount to prevent re-claims.
     /// @param promoterInfo Signed settlement parameters (promoter, venue, USD amount, payout currency flag).
     function distributePromoterPayments(PromoterInfo memory promoterInfo) external {
@@ -496,29 +497,29 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         stakingRewards[contracts_.staking.balanceOf(promoter).stakingTiers()].promoterStakingInfo;
 
         uint256 toPromoter = promoterInfo.amountInUSD;
-        uint24 percentage = promoterInfo.paymentInUSDC ? stakingInfo.usdcPercentage : stakingInfo.longPercentage;
+        uint24 percentage = promoterInfo.paymentInUSDtoken ? stakingInfo.usdTokenPercentage : stakingInfo.longPercentage;
         uint256 platformFees = percentage.calculateRate(toPromoter);
         unchecked {
             toPromoter -= platformFees;
         }
 
-        if (promoterInfo.paymentInUSDC) {
+        if (promoterInfo.paymentInUSDtoken) {
             // Route platform fees here for buyback/burn split, then forward remainder.
             contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), platformFees);
-            _handleRevenue(payments.usdc, platformFees);
+            _handleRevenue(payments.usdToken, platformFees);
             contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, promoter, toPromoter);
         } else {
             contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), promoterInfo.amountInUSD);
             // Swap fee portion to this contract for burning, then forward remainder to platform.
-            uint256 longFees = _swapUSDCtoLONG(address(this), platformFees);
+            uint256 longFees = _swapUSDtokenToLONG(address(this), platformFees);
             _handleRevenue(payments.long, longFees);
-            _swapUSDCtoLONG(promoter, toPromoter);
+            _swapUSDtokenToLONG(promoter, toPromoter);
         }
 
         contracts_.promoterToken.burn(promoter, venueId, promoterInfo.amountInUSD);
 
         emit PromoterPaymentsDistributed(
-            promoter, promoterInfo.venue, promoterInfo.amountInUSD, promoterInfo.paymentInUSDC
+            promoter, promoterInfo.venue, promoterInfo.amountInUSD, promoterInfo.paymentInUSDtoken
         );
     }
 
@@ -583,26 +584,26 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         emit VenueRulesSet(venue, rules);
     }
 
-    /// @notice Swaps an exact USDC amount to LONG, then delivers proceeds to `recipient`.
+    /// @notice Swaps an exact USDtoken amount to LONG, then delivers proceeds to `recipient`.
     /// @dev Emits `Swapped` to maintain downstream observability.
-    function _swapUSDCtoLONG(address recipient, uint256 amount) internal override returns (uint256 swapped) {
-        swapped = super._swapUSDCtoLONG(recipient, amount);
+    function _swapUSDtokenToLONG(address recipient, uint256 amount) internal override returns (uint256 swapped) {
+        swapped = super._swapUSDtokenToLONG(recipient, amount);
         if (swapped > 0) {
             emit Swapped(recipient, amount, swapped);
         }
     }
 
-    /// @notice Swaps an exact LONG amount to USDC, then delivers proceeds to `recipient`.
+    /// @notice Swaps an exact LONG amount to USDtoken, then delivers proceeds to `recipient`.
     /// @dev Emits `Swapped` to maintain downstream observability.
-    function _swapLONGtoUSDC(address recipient, uint256 amount) internal override returns (uint256 swapped) {
-        swapped = super._swapLONGtoUSDC(recipient, amount);
+    function _swapLONGtoUSDtoken(address recipient, uint256 amount) internal override returns (uint256 swapped) {
+        swapped = super._swapLONGtoUSDtoken(recipient, amount);
         if (swapped > 0) {
             emit Swapped(recipient, amount, swapped);
         }
     }
 
     /// @dev Splits platform revenue: swaps a configurable portion for LONG and burns it, then forwards the remainder to the fee collector.
-    /// @param token Revenue token address (USDC/LONG supported; unknown tokens are forwarded intact).
+    /// @param token Revenue token address (USDtoken/LONG supported; unknown tokens are forwarded intact).
     /// @param amount Revenue amount received by this contract.
     function _handleRevenue(address token, uint256 amount) internal {
         if (amount == 0) {
@@ -615,8 +616,8 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
         uint256 buyback = _storage.fees.buybackBurnPercentage.calculateRate(amount);
         address long = payments.long;
-        uint256 toBurn = token == payments.usdc  // Buyback: swap USDC portion to LONG and burn.
-            ? _swapUSDCtoLONG(address(this), buyback)
+        uint256 toBurn = token == payments.usdToken  // Buyback: swap USDtoken portion to LONG and burn.
+            ? _swapUSDtokenToLONG(address(this), buyback)
             : token == long  // Burn LONG directly, forward remainder to feeCollector.
                 ? buyback
                 : 0; // Unknown token: forward all to feeCollector to avoid trapping funds.
@@ -651,19 +652,19 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         address to,
         address venue,
         uint256 venueId,
-        bool paymentInUSDC,
+        bool paymentInUSDtoken,
         Bounties memory bounties,
         uint256 amount
     ) internal {
         Contracts memory contracts_ = belongCheckInStorage.contracts;
         DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
 
-        uint256 rewards = paymentInUSDC
+        uint256 rewards = paymentInUSDtoken
             ? bounties.visitBountyAmount + bounties.spendBountyPercentage.calculateRate(amount)
-            : payments.usdc
+            : payments.usdToken
                 .unstandardize(
                     // standardization
-                    payments.usdc.standardize(bounties.visitBountyAmount)
+                    payments.usdToken.standardize(bounties.visitBountyAmount)
                         + bounties.spendBountyPercentage
                             .calculateRate(
                                 payments.long

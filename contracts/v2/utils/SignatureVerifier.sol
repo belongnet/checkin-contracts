@@ -157,7 +157,7 @@ library SignatureVerifier {
     }
 
     /// @notice Verifies customer payment payload and enforces venue rule compatibility.
-    /// @dev Hash covers: `paymentInUSDC`, `visitBountyAmount`, `spendBountyPercentage`,
+    /// @dev Hash covers: `paymentInUSDtoken`, `visitBountyAmount`, `spendBountyPercentage`,
     ///      `customer`, `venueToPayFor`, `promoter`, `amount`, and `chainId`.
     /// @param signer Authorized signer address.
     /// @param customerInfo Customer payment data. Only the fields listed above are signed.
@@ -166,7 +166,7 @@ library SignatureVerifier {
         external
         view
     {
-        PaymentTypes paymentType = customerInfo.paymentInUSDC ? PaymentTypes.USDC : PaymentTypes.LONG;
+        PaymentTypes paymentType = customerInfo.paymentInUSDtoken ? PaymentTypes.USDtoken : PaymentTypes.LONG;
         require(
             rules.paymentType != PaymentTypes.NoType
                 && (rules.paymentType == PaymentTypes.Both || rules.paymentType == paymentType),
@@ -193,7 +193,7 @@ library SignatureVerifier {
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encodePacked(
-                        customerInfo.paymentInUSDC,
+                        customerInfo.paymentInUSDtoken,
                         customerInfo.toCustomer.spendBountyPercentage,
                         customerInfo.toCustomer.visitBountyAmount,
                         customerInfo.toPromoter.spendBountyPercentage,

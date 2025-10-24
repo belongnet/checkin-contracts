@@ -114,7 +114,7 @@ enum StakingTiers {
 /// @notice Venue-allowed payment currencies.
 enum PaymentTypes {
     NoType,
-    USDC,
+    USDtoken,
     LONG,
     Both
 }
@@ -168,7 +168,7 @@ struct VenueInfo {
 /// @notice Signed payload authorizing a customer payment to a venue (and optional promoter attribution).
 struct CustomerInfo {
     // Backend configurable
-    bool paymentInUSDC;
+    bool paymentInUSDtoken;
     Bounties toCustomer;
     Bounties toPromoter;
     // Actors
@@ -186,9 +186,9 @@ struct Bounties {
 }
 
 /// @title PromoterInfo
-/// @notice Signed payload authorizing distribution of promoter payouts in USDC or LONG.
+/// @notice Signed payload authorizing distribution of promoter payouts in USDtoken or LONG.
 struct PromoterInfo {
-    bool paymentInUSDC;
+    bool paymentInUSDtoken;
     bytes32 promoterReferralCode;
     address venue;
     uint256 amountInUSD;
