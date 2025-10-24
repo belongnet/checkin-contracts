@@ -59,6 +59,16 @@ library DualDexSwapV4Lib {
         address recipient;
     }
 
+    /// @notice Multi-hop swap parameters across a path of pools.
+    struct ExactInputMultiParams {
+        address[] tokens; // [tokenIn, ..., tokenOut]
+        bytes[] poolKeys; // ABI-encoded PoolKey per hop (length = tokens.length - 1)
+        uint256 amountIn;
+        uint256 amountOutMinimum; // final hop min out
+        bytes hookData;
+        address recipient;
+    }
+
     /// @notice DEX routing and token addresses.
     /// @notice Slippage tolerance scaled to 27 decimals where 1e27 == 100%.
     /// @dev Used by `Helper.amountOutMin`; valid range [0, 1e27].
@@ -67,12 +77,14 @@ library DualDexSwapV4Lib {
         uint96 slippageBps;
         address router;
         address quoter;
-        address usdc;
+        address usdToken;
         address long;
         uint256 maxPriceFeedDelay;
         bytes poolKey;
         bytes hookData;
     }
+
+    // ========== External API ==========
 
     /// @notice Executes an exact-input single-hop swap on the configured dex.
     /// @param info Cached payments configuration for the selected dex.
@@ -85,12 +97,42 @@ library DualDexSwapV4Lib {
         return _swapExact(info, params);
     }
 
-    /// @notice Swaps USDC to LONG for a recipient using the configured v4 router.
+    /// @notice Executes an exact-input multi-hop swap (path) on the configured dex.
+    function swapExactPath(PaymentsInfo memory info, ExactInputMultiParams memory params)
+        external
+        returns (uint256 received)
+    {
+        if (params.amountIn == 0) revert ZeroAmountIn();
+        if (params.recipient == address(0)) revert InvalidRecipient();
+        if (params.tokens.length < 2) revert PoolKeyMissing();
+        if (params.poolKeys.length != params.tokens.length - 1) {
+            revert PoolKeyMissing();
+        }
+        if (info.router == address(0)) revert RouterNotConfigured(info.dexType);
+
+        params.tokens[0].safeApproveWithRetry(info.router, params.amountIn);
+
+        uint256 beforeBal = _balanceOf(params.tokens[params.tokens.length - 1], params.recipient);
+
+        if (info.dexType == DexType.UniV4) {
+            _executeUniV4Path(info, params);
+        } else {
+            _executePcsV4Path(info, params);
+        }
+
+        params.tokens[0].safeApprove(info.router, 0);
+
+        uint256 afterBal = _balanceOf(params.tokens[params.tokens.length - 1], params.recipient);
+        received = afterBal - beforeBal;
+        if (received < params.amountOutMinimum) revert QuoteFailed();
+    }
+
+    /// @notice Swaps USDtoken to LONG for a recipient using the configured v4 router.
     /// @param info Cached payments configuration for the selected dex.
     /// @param recipient Address receiving the LONG output.
-    /// @param amount Exact USDC amount to swap.
+    /// @param amount Exact USDtoken amount to swap.
     /// @return swapped The amount of LONG delivered to `recipient`.
-    function swapUSDCtoLONG(PaymentsInfo memory info, address recipient, uint256 amount)
+    function swapUSDtokenToLONG(PaymentsInfo memory info, address recipient, uint256 amount)
         external
         returns (uint256 swapped)
     {
@@ -101,11 +143,11 @@ library DualDexSwapV4Lib {
             revert PoolKeyMissing();
         }
 
-        uint256 amountOutMinimum = _quoteMinOut(info, info.usdc, info.long, amount);
+        uint256 amountOutMinimum = _quoteMinOut(info, info.usdToken, info.long, amount);
         swapped = _swapExact(
             info,
             ExactInputSingleParams({
-                tokenIn: info.usdc,
+                tokenIn: info.usdToken,
                 tokenOut: info.long,
                 amountIn: amount,
                 amountOutMinimum: amountOutMinimum,
@@ -116,12 +158,12 @@ library DualDexSwapV4Lib {
         );
     }
 
-    /// @notice Swaps LONG to USDC for a recipient using the configured v4 router.
+    /// @notice Swaps LONG to USDtoken for a recipient using the configured v4 router.
     /// @param info Cached payments configuration for the selected dex.
-    /// @param recipient Address receiving the USDC output.
+    /// @param recipient Address receiving the USDtoken output.
     /// @param amount Exact LONG amount to swap.
-    /// @return swapped The amount of USDC delivered to `recipient`.
-    function swapLONGtoUSDC(PaymentsInfo memory info, address recipient, uint256 amount)
+    /// @return swapped The amount of USDtoken delivered to `recipient`.
+    function swapLONGtoUSDtoken(PaymentsInfo memory info, address recipient, uint256 amount)
         external
         returns (uint256 swapped)
     {
@@ -132,12 +174,12 @@ library DualDexSwapV4Lib {
             revert PoolKeyMissing();
         }
 
-        uint256 amountOutMinimum = _quoteMinOut(info, info.long, info.usdc, amount);
+        uint256 amountOutMinimum = _quoteMinOut(info, info.long, info.usdToken, amount);
         swapped = _swapExact(
             info,
             ExactInputSingleParams({
                 tokenIn: info.long,
-                tokenOut: info.usdc,
+                tokenOut: info.usdToken,
                 amountIn: amount,
                 amountOutMinimum: amountOutMinimum,
                 poolKey: info.poolKey,
@@ -147,7 +189,7 @@ library DualDexSwapV4Lib {
         );
     }
 
-    // ========== Internal Helpers ==========
+    // ========== Internal Single-Hop ==========
 
     function _swapExact(PaymentsInfo memory info, ExactInputSingleParams memory params)
         internal
@@ -159,8 +201,7 @@ library DualDexSwapV4Lib {
         if (params.poolKey.length == 0) revert PoolKeyMissing();
         if (info.router == address(0)) revert RouterNotConfigured(info.dexType);
 
-        uint256 balanceBefore =
-            params.tokenOut == address(0) ? params.recipient.balance : params.tokenOut.balanceOf(params.recipient);
+        uint256 balanceBefore = _balanceOf(params.tokenOut, params.recipient);
 
         params.tokenIn.safeApproveWithRetry(info.router, params.amountIn);
 
@@ -172,8 +213,7 @@ library DualDexSwapV4Lib {
 
         params.tokenIn.safeApprove(info.router, 0);
 
-        uint256 balanceAfter =
-            params.tokenOut == address(0) ? params.recipient.balance : params.tokenOut.balanceOf(params.recipient);
+        uint256 balanceAfter = _balanceOf(params.tokenOut, params.recipient);
         received = balanceAfter - balanceBefore;
     }
 
@@ -223,6 +263,132 @@ library DualDexSwapV4Lib {
         IActionExecutor(info.router).executeActions(payload);
     }
 
+    // ========== Internal Multi-Hop ==========
+
+    function _executeUniV4Path(PaymentsInfo memory info, ExactInputMultiParams memory params) private {
+        bytes[] memory actionParams = new bytes[](params.poolKeys.length + 2);
+        bytes memory actions = new bytes(params.poolKeys.length + 2);
+
+        UniCurrency inputC;
+        UniCurrency outputC;
+
+        for (uint256 i = 0; i < params.poolKeys.length; i++) {
+            UniPoolKey memory key = abi.decode(params.poolKeys[i], (UniPoolKey));
+
+            (bool zeroForOne, UniCurrency outCurrency) =
+                _validateUniPoolKey(key, params.tokens[i], params.tokens[i + 1]);
+            UniCurrency inCurrency = zeroForOne ? key.currency0 : key.currency1;
+
+            if (i == 0) inputC = inCurrency;
+            if (i == params.poolKeys.length - 1) outputC = outCurrency;
+
+            IUniV4Router.ExactInputSingleParams memory hop = IUniV4Router.ExactInputSingleParams({
+                poolKey: key,
+                zeroForOne: zeroForOne,
+                amountIn: _toUint128(i == 0 ? params.amountIn : 0),
+                amountOutMinimum: _toUint128(i == params.poolKeys.length - 1 ? params.amountOutMinimum : 0),
+                hookData: params.hookData
+            });
+
+            actions[i] = bytes1(uint8(UniActions.SWAP_EXACT_IN_SINGLE));
+            actionParams[i] = abi.encode(hop);
+        }
+
+        // SETTLE input
+        actions[params.poolKeys.length] = bytes1(uint8(UniActions.SETTLE));
+        actionParams[params.poolKeys.length] = abi.encode(inputC, uint256(UniActionConstants.OPEN_DELTA), true);
+
+        // TAKE output -> recipient
+        actions[params.poolKeys.length + 1] = bytes1(uint8(UniActions.TAKE));
+        actionParams[params.poolKeys.length + 1] =
+            abi.encode(outputC, params.recipient, uint256(UniActionConstants.OPEN_DELTA));
+
+        IActionExecutor(info.router).executeActions(abi.encode(actions, actionParams));
+    }
+
+    function _executePcsV4Path(PaymentsInfo memory info, ExactInputMultiParams memory params) private {
+        PcsPlan memory plan = PcsPlanner.init();
+
+        PcsCurrency inputC;
+        PcsCurrency outputC;
+
+        for (uint256 i = 0; i < params.poolKeys.length; i++) {
+            PcsPoolKey memory key = abi.decode(params.poolKeys[i], (PcsPoolKey));
+
+            (bool zeroForOne, PcsCurrency outCurrency) =
+                _validatePcsPoolKey(key, params.tokens[i], params.tokens[i + 1]);
+            PcsCurrency inCurrency = zeroForOne ? key.currency0 : key.currency1;
+
+            if (i == 0) inputC = inCurrency;
+            if (i == params.poolKeys.length - 1) outputC = outCurrency;
+
+            ICLRouterBase.CLSwapExactInputSingleParams memory hop = ICLRouterBase.CLSwapExactInputSingleParams({
+                poolKey: key,
+                zeroForOne: zeroForOne,
+                amountIn: _toUint128(i == 0 ? params.amountIn : 0),
+                amountOutMinimum: _toUint128(i == params.poolKeys.length - 1 ? params.amountOutMinimum : 0),
+                hookData: params.hookData
+            });
+
+            plan = PcsPlanner.add(plan, PcsActions.CL_SWAP_EXACT_IN_SINGLE, abi.encode(hop));
+        }
+
+        bytes memory payload = PcsPlanner.finalizeSwap(plan, inputC, outputC, params.recipient);
+        IActionExecutor(info.router).executeActions(payload);
+    }
+
+    // ========== Quoting Helpers ==========
+
+    function quotePathMinOut(
+        PaymentsInfo memory info,
+        address[] memory tokens,
+        bytes[] memory poolKeys,
+        uint256 amountIn
+    ) internal returns (uint256 minOut) {
+        if (tokens.length < 2 || poolKeys.length != tokens.length - 1) {
+            revert PoolKeyMissing();
+        }
+        if (amountIn == 0 || info.quoter == address(0)) revert QuoteFailed();
+
+        uint256 running = amountIn;
+
+        if (info.dexType == DexType.UniV4) {
+            for (uint256 i = 0; i < poolKeys.length; i++) {
+                UniPoolKey memory key = abi.decode(poolKeys[i], (UniPoolKey));
+                (bool zf,) = _validateUniPoolKey(key, tokens[i], tokens[i + 1]);
+
+                try IV4Quoter(info.quoter)
+                    .quoteExactInputSingle(
+                        IV4Quoter.QuoteExactSingleParams({
+                            poolKey: key, zeroForOne: zf, exactAmount: _toUint128(running), hookData: info.hookData
+                        })
+                    ) returns (uint256 outAmount, uint256) {
+                    running = outAmount;
+                } catch {
+                    revert QuoteFailed();
+                }
+            }
+        } else {
+            for (uint256 i = 0; i < poolKeys.length; i++) {
+                PcsPoolKey memory key = abi.decode(poolKeys[i], (PcsPoolKey));
+                (bool zf,) = _validatePcsPoolKey(key, tokens[i], tokens[i + 1]);
+
+                try ICLQuoter(info.quoter)
+                    .quoteExactInputSingle(
+                        IQuoter.QuoteExactSingleParams({
+                            poolKey: key, zeroForOne: zf, exactAmount: _toUint128(running), hookData: info.hookData
+                        })
+                    ) returns (uint256 outAmount, uint256) {
+                    running = outAmount;
+                } catch {
+                    revert QuoteFailed();
+                }
+            }
+        }
+
+        minOut = Helper.amountOutMin(running, info.slippageBps);
+    }
+
     function _quoteMinOut(PaymentsInfo memory info, address tokenIn, address tokenOut, uint256 amountIn)
         private
         returns (uint256 minOut)
@@ -268,6 +434,8 @@ library DualDexSwapV4Lib {
         }
     }
 
+    // ========== Validation & Utils ==========
+
     function _toUint128(uint256 amount) private pure returns (uint128 casted) {
         if (amount > type(uint128).max) revert AmountTooLarge(amount);
         casted = uint128(amount);
@@ -309,5 +477,12 @@ library DualDexSwapV4Lib {
         } else {
             revert PoolTokenMismatch(tokenIn, tokenOut);
         }
+    }
+
+    function _balanceOf(address token, address owner) private view returns (uint256) {
+        if (token == address(0)) {
+            return owner.balance;
+        }
+        return token.balanceOf(owner);
     }
 }
