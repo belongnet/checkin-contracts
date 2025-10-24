@@ -82,13 +82,12 @@ export function encodePcsPoolKey(
   tokenA: string,
   tokenB: string,
   poolManager: string,
-  fee: number = 3000,
-  tickSpacing: number = 60,
-  hooks: string = ethers.constants.AddressZero,
+  fee: number,
+  tickSpacing: number,
+  hooks: string,
 ): string {
   const [currency0, currency1] = sortTokens(tokenA, tokenB);
   const parameters = encodeTickSpacing(tickSpacing);
-
   return ethers.utils.defaultAbiCoder.encode(
     ['tuple(address currency0,address currency1,address hooks,address poolManager,uint24 fee,bytes32 parameters)'],
     [[currency0, currency1, hooks, poolManager, fee, parameters]],
