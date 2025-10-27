@@ -11,8 +11,10 @@ import { encodePcsPoolKey } from '../../../helpers/math';
 dotenv.config();
 
 enum DexType {
-  UniV4 = 0,
-  PcsV4 = 1,
+  UniV4,
+  PcsV4,
+  PcsV2,
+  UniV2,
 }
 
 const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
