@@ -27,6 +27,18 @@ import {Helper} from "../../utils/Helper.sol";
 
 import {IActionExecutor} from "../../interfaces/IActionExecutor.sol";
 
+interface IV2RouterLike {
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
+
+    function getAmountsOut(uint256 amountIn, address[] calldata path) external view returns (uint256[] memory amounts);
+}
+
 /// @notice Stateless helper for routing swaps across Uniswap v4 and Pancake Infinity.
 library DualDexSwapV4Lib {
     using SafeTransferLib for address;
@@ -45,7 +57,9 @@ library DualDexSwapV4Lib {
     /// @notice Supported DEX integrations for the dual swap helper.
     enum DexType {
         UniV4,
-        PcsV4
+        PcsV4,
+        PcsV2,
+        UniV2
     }
 
     /// @notice Common swap executor parameters for a single-hop pair.
@@ -105,7 +119,11 @@ library DualDexSwapV4Lib {
         if (params.amountIn == 0) revert ZeroAmountIn();
         if (params.recipient == address(0)) revert InvalidRecipient();
         if (params.tokens.length < 2) revert PoolKeyMissing();
-        if (params.poolKeys.length != params.tokens.length - 1) {
+        if (info.dexType == DexType.PcsV2 || info.dexType == DexType.UniV2) {
+            if (params.poolKeys.length != 0 && params.poolKeys.length != params.tokens.length - 1) {
+                revert PoolKeyMissing();
+            }
+        } else if (params.poolKeys.length != params.tokens.length - 1) {
             revert PoolKeyMissing();
         }
         if (info.router == address(0)) revert RouterNotConfigured(info.dexType);
@@ -116,8 +134,12 @@ library DualDexSwapV4Lib {
 
         if (info.dexType == DexType.UniV4) {
             _executeUniV4Path(info, params);
-        } else {
+        } else if (info.dexType == DexType.PcsV4) {
             _executePcsV4Path(info, params);
+        } else if (info.dexType == DexType.PcsV2 || info.dexType == DexType.UniV2) {
+            _executeV2Path(info, params);
+        } else {
+            revert RouterNotConfigured(info.dexType);
         }
 
         params.tokens[0].safeApprove(info.router, 0);
@@ -139,7 +161,7 @@ library DualDexSwapV4Lib {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
-        if (info.poolKey.length == 0) {
+        if (info.dexType != DexType.PcsV2 && info.dexType != DexType.UniV2 && info.poolKey.length == 0) {
             revert PoolKeyMissing();
         }
 
@@ -170,7 +192,7 @@ library DualDexSwapV4Lib {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
-        if (info.poolKey.length == 0) {
+        if (info.dexType != DexType.PcsV2 && info.dexType != DexType.UniV2 && info.poolKey.length == 0) {
             revert PoolKeyMissing();
         }
 
@@ -198,7 +220,6 @@ library DualDexSwapV4Lib {
         if (params.amountIn == 0) revert ZeroAmountIn();
         if (params.recipient == address(0)) revert InvalidRecipient();
         if (params.tokenIn == address(0)) revert NativeInputUnsupported();
-        if (params.poolKey.length == 0) revert PoolKeyMissing();
         if (info.router == address(0)) revert RouterNotConfigured(info.dexType);
 
         uint256 balanceBefore = _balanceOf(params.tokenOut, params.recipient);
@@ -206,9 +227,15 @@ library DualDexSwapV4Lib {
         params.tokenIn.safeApproveWithRetry(info.router, params.amountIn);
 
         if (info.dexType == DexType.UniV4) {
+            if (params.poolKey.length == 0) revert PoolKeyMissing();
             _executeOnUniswapV4(info, params);
-        } else {
+        } else if (info.dexType == DexType.PcsV4) {
+            if (params.poolKey.length == 0) revert PoolKeyMissing();
             _executeOnPancakeV4(info, params);
+        } else if (info.dexType == DexType.PcsV2 || info.dexType == DexType.UniV2) {
+            _executeOnV2(info, params);
+        } else {
+            revert RouterNotConfigured(info.dexType);
         }
 
         params.tokenIn.safeApprove(info.router, 0);
@@ -261,6 +288,51 @@ library DualDexSwapV4Lib {
         bytes memory payload = PcsPlanner.finalizeSwap(plan, inputCurrency, outputCurrency, params.recipient);
 
         IActionExecutor(info.router).executeActions(payload);
+    }
+
+    function _executeOnV2(PaymentsInfo memory info, ExactInputSingleParams memory params) private {
+        address[] memory path = _decodeV2Path(params.poolKey, params.tokenIn, params.tokenOut);
+
+        IV2RouterLike(info.router)
+            .swapExactTokensForTokens(
+                params.amountIn, params.amountOutMinimum, path, params.recipient, block.timestamp + 15
+            );
+    }
+
+    function _decodeV2Path(bytes memory data, address tokenIn, address tokenOut)
+        private
+        pure
+        returns (address[] memory path)
+    {
+        if (data.length == 0) {
+            path = new address[](2);
+            path[0] = tokenIn;
+            path[1] = tokenOut;
+            return path;
+        }
+
+        path = abi.decode(data, (address[]));
+        if (path.length < 2) revert PoolKeyMissing();
+        if (path[0] == tokenIn && path[path.length - 1] == tokenOut) {
+            return path;
+        }
+        if (path[0] == tokenOut && path[path.length - 1] == tokenIn) {
+            // reverse path for opposite direction swaps
+            for (uint256 i = 0; i < path.length / 2; i++) {
+                (path[i], path[path.length - 1 - i]) = (path[path.length - 1 - i], path[i]);
+            }
+            return path;
+        }
+        revert PoolTokenMismatch(tokenIn, tokenOut);
+    }
+
+    function _buildV2Path(address[] memory tokens) private pure returns (address[] memory path) {
+        if (tokens.length < 2) revert PoolKeyMissing();
+        path = new address[](tokens.length);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (tokens[i] == address(0)) revert PoolKeyMissing();
+            path[i] = tokens[i];
+        }
     }
 
     // ========== Internal Multi-Hop ==========
@@ -337,6 +409,15 @@ library DualDexSwapV4Lib {
         IActionExecutor(info.router).executeActions(payload);
     }
 
+    function _executeV2Path(PaymentsInfo memory info, ExactInputMultiParams memory params) private {
+        address[] memory path = _buildV2Path(params.tokens);
+
+        IV2RouterLike(info.router)
+            .swapExactTokensForTokens(
+                params.amountIn, params.amountOutMinimum, path, params.recipient, block.timestamp + 15
+            );
+    }
+
     // ========== Quoting Helpers ==========
 
     function quotePathMinOut(
@@ -345,7 +426,14 @@ library DualDexSwapV4Lib {
         bytes[] memory poolKeys,
         uint256 amountIn
     ) internal returns (uint256 minOut) {
-        if (tokens.length < 2 || poolKeys.length != tokens.length - 1) {
+        if (tokens.length < 2) {
+            revert PoolKeyMissing();
+        }
+        if (info.dexType == DexType.PcsV2 || info.dexType == DexType.UniV2) {
+            if (poolKeys.length != 0 && poolKeys.length != tokens.length - 1) {
+                revert PoolKeyMissing();
+            }
+        } else if (poolKeys.length != tokens.length - 1) {
             revert PoolKeyMissing();
         }
         if (amountIn == 0 || info.quoter == address(0)) revert QuoteFailed();
@@ -368,7 +456,7 @@ library DualDexSwapV4Lib {
                     revert QuoteFailed();
                 }
             }
-        } else {
+        } else if (info.dexType == DexType.PcsV4) {
             for (uint256 i = 0; i < poolKeys.length; i++) {
                 PcsPoolKey memory key = abi.decode(poolKeys[i], (PcsPoolKey));
                 (bool zf,) = _validatePcsPoolKey(key, tokens[i], tokens[i + 1]);
@@ -384,6 +472,15 @@ library DualDexSwapV4Lib {
                     revert QuoteFailed();
                 }
             }
+        } else if (info.dexType == DexType.PcsV2 || info.dexType == DexType.UniV2) {
+            address[] memory path = _buildV2Path(tokens);
+            try IV2RouterLike(info.quoter).getAmountsOut(running, path) returns (uint256[] memory amounts) {
+                running = amounts[amounts.length - 1];
+            } catch {
+                revert QuoteFailed();
+            }
+        } else {
+            revert RouterNotConfigured(info.dexType);
         }
 
         minOut = Helper.amountOutMin(running, info.slippageBps);
@@ -393,11 +490,12 @@ library DualDexSwapV4Lib {
         private
         returns (uint256 minOut)
     {
-        if (amountIn == 0 || info.quoter == address(0) || info.poolKey.length == 0) {
+        if (amountIn == 0 || info.quoter == address(0)) {
             return 0;
         }
 
         if (info.dexType == DexType.UniV4) {
+            if (info.poolKey.length == 0) revert PoolKeyMissing();
             UniPoolKey memory poolKey = abi.decode(info.poolKey, (UniPoolKey));
             (bool zeroForOne,) = _validateUniPoolKey(poolKey, tokenIn, tokenOut);
 
@@ -414,7 +512,8 @@ library DualDexSwapV4Lib {
             } catch {
                 revert QuoteFailed();
             }
-        } else {
+        } else if (info.dexType == DexType.PcsV4) {
+            if (info.poolKey.length == 0) revert PoolKeyMissing();
             PcsPoolKey memory poolKey = abi.decode(info.poolKey, (PcsPoolKey));
             (bool zeroForOne,) = _validatePcsPoolKey(poolKey, tokenIn, tokenOut);
 
@@ -431,6 +530,15 @@ library DualDexSwapV4Lib {
             } catch {
                 revert QuoteFailed();
             }
+        } else if (info.dexType == DexType.PcsV2 || info.dexType == DexType.UniV2) {
+            address[] memory path = _decodeV2Path(info.poolKey, tokenIn, tokenOut);
+            try IV2RouterLike(info.quoter).getAmountsOut(amountIn, path) returns (uint256[] memory amounts) {
+                minOut = Helper.amountOutMin(amounts[amounts.length - 1], info.slippageBps);
+            } catch {
+                revert QuoteFailed();
+            }
+        } else {
+            revert RouterNotConfigured(info.dexType);
         }
     }
 
