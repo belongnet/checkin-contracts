@@ -44,7 +44,7 @@ describe('Escrow', () => {
       const tx = await escrow.venueDeposit(admin.address, 10, 20);
 
       await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
-      expect((await escrow.venueDeposits(admin.address)).usdcDeposits).to.eq(10);
+      expect((await escrow.venueDeposits(admin.address)).usdTokenDeposits).to.eq(10);
       expect((await escrow.venueDeposits(admin.address)).longDeposits).to.eq(20);
     });
 
@@ -70,7 +70,7 @@ describe('Escrow', () => {
         escrow.connect(user1).distributeVenueDeposit(admin.address, user1.address, 10),
       ).to.be.revertedWithCustomError(escrow, 'NotBelongCheckIn');
       await expect(escrow.distributeVenueDeposit(admin.address, user1.address, 20))
-        .to.be.revertedWithCustomError(escrow, 'NotEnoughUSDCs')
+        .to.be.revertedWithCustomError(escrow, 'NotEnoughUSDTokens')
         .withArgs(10, 20);
     });
   });
