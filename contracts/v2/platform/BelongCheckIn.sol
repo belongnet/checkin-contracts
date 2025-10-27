@@ -351,7 +351,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         Fees storage fees_ = belongCheckInStorage.fees;
         address usdToken = _paymentsInfo.usdToken;
 
-        contracts_.factory.nftFactoryParameters().signerAddress.checkVenueInfo(venueInfo);
+        contracts_.factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), venueInfo);
 
         VenueStakingRewardInfo memory stakingInfo =
         stakingRewards[contracts_.staking.balanceOf(venueInfo.venue).stakingTiers()].venueStakingInfo;
@@ -406,7 +406,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         Fees storage fees_ = belongCheckInStorage.fees;
         VenueRules storage rules = generalVenueInfo[customerInfo.venueToPayFor].rules;
 
-        contracts_.factory.nftFactoryParameters().signerAddress.checkCustomerInfo(customerInfo, rules);
+        contracts_.factory.nftFactoryParameters().signerAddress.checkCustomerInfo(address(this), customerInfo, rules);
 
         uint256 venueId = customerInfo.venueToPayFor.getVenueId();
 
@@ -483,7 +483,8 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         Contracts memory contracts_ = belongCheckInStorage.contracts;
         DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
 
-        contracts_.factory.nftFactoryParameters().signerAddress.checkPromoterPaymentDistribution(promoterInfo);
+        contracts_.factory.nftFactoryParameters().signerAddress
+            .checkPromoterPaymentDistribution(address(this), promoterInfo);
 
         uint256 venueId = promoterInfo.venue.getVenueId();
         address promoter = contracts_.factory.getReferralCreator(promoterInfo.promoterReferralCode);

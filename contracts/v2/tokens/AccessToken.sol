@@ -184,7 +184,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         uint256 amountToPay;
         for (uint256 i; i < paramsArray.length; ++i) {
-            factoryParameters.signerAddress.checkStaticPriceParameters(receiver, paramsArray[i]);
+            factoryParameters.signerAddress.checkStaticPriceParameters(address(this), receiver, paramsArray[i]);
 
             uint256 price = paramsArray[i].whitelisted ? info.whitelistMintPrice : info.mintPrice;
 
@@ -217,7 +217,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         uint256 amountToPay;
         for (uint256 i; i < paramsArray.length; ++i) {
-            factoryParameters.signerAddress.checkDynamicPriceParameters(receiver, paramsArray[i]);
+            factoryParameters.signerAddress.checkDynamicPriceParameters(address(this), receiver, paramsArray[i]);
 
             unchecked {
                 amountToPay += paramsArray[i].price;
