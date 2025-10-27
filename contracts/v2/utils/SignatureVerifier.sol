@@ -44,7 +44,7 @@ library SignatureVerifier {
     error WrongPaymentType();
 
     /// @notice Thrown when the bounty type derived from customer payload conflicts with venue rules.
-    error WrongBountyType();
+    error EmptyReferralCode();
 
     error NoBountiesRelated();
     error NoBountyAllocationTypeSpecified();
@@ -172,20 +172,23 @@ library SignatureVerifier {
                 && (rules.paymentType == PaymentTypes.Both || rules.paymentType == paymentType),
             WrongPaymentType()
         );
+        if (rules.bountyType != BountyTypes.NoType) {
+            if (rules.bountyAllocationType == BountyAllocationTypes.NoType) {
+                revert NoBountyAllocationTypeSpecified();
+            } else {
+                if (
+                    rules.bountyAllocationType == BountyAllocationTypes.ToCustomer
+                        || rules.bountyAllocationType == BountyAllocationTypes.Both
+                ) {
+                    _checkBountiesPayment(customerInfo.toCustomer, rules);
+                } else if (
+                    rules.bountyAllocationType == BountyAllocationTypes.ToPromoter
+                        || rules.bountyAllocationType == BountyAllocationTypes.Both
+                ) {
+                    require(customerInfo.promoterReferralCode != bytes32(0), EmptyReferralCode());
 
-        if (rules.bountyAllocationType == BountyAllocationTypes.NoType) {
-            revert NoBountyAllocationTypeSpecified();
-        } else {
-            if (rules.bountyAllocationType == BountyAllocationTypes.ToCustomer) {
-                _checkBounties(customerInfo.toPromoter);
-            } else if (rules.bountyAllocationType == BountyAllocationTypes.ToPromoter) {
-                _checkBounties(customerInfo.toCustomer);
-            }
-
-            _checkBountiesPayment(customerInfo.toCustomer, rules);
-
-            if (customerInfo.promoterReferralCode != bytes32(0)) {
-                _checkBountiesPayment(customerInfo.toPromoter, rules);
+                    _checkBountiesPayment(customerInfo.toPromoter, rules);
+                }
             }
         }
 
@@ -194,10 +197,10 @@ library SignatureVerifier {
                 keccak256(
                     abi.encodePacked(
                         customerInfo.paymentInUSDtoken,
-                        customerInfo.toCustomer.spendBountyPercentage,
                         customerInfo.toCustomer.visitBountyAmount,
-                        customerInfo.toPromoter.spendBountyPercentage,
+                        customerInfo.toCustomer.spendBountyPercentage,
                         customerInfo.toPromoter.visitBountyAmount,
+                        customerInfo.toPromoter.spendBountyPercentage,
                         customerInfo.customer,
                         customerInfo.venueToPayFor,
                         customerInfo.promoterReferralCode,
@@ -267,12 +270,12 @@ library SignatureVerifier {
         );
     }
 
-    function _checkBounties(Bounties calldata bounties) internal pure {
-        require(bounties.spendBountyPercentage == 0 && bounties.visitBountyAmount == 0, NoBountiesRelated());
-    }
-
-    function _checkBountiesPayment(Bounties calldata bounties, VenueRules memory rules) internal pure {
-        BountyTypes bountyType = bounties.visitBountyAmount > 0 && bounties.spendBountyPercentage > 0
+    function _checkBountiesPayment(Bounties calldata bounties, VenueRules memory rules)
+        internal
+        pure
+        returns (BountyTypes bountyType)
+    {
+        bountyType = bounties.visitBountyAmount > 0 && bounties.spendBountyPercentage > 0
             ? BountyTypes.Both
             : bounties.visitBountyAmount > 0 && bounties.spendBountyPercentage == 0
                 ? BountyTypes.VisitBounty
@@ -280,6 +283,6 @@ library SignatureVerifier {
                     ? BountyTypes.SpendBounty
                     : BountyTypes.NoType;
 
-        require(rules.bountyType == bountyType && bountyType != BountyTypes.NoType, WrongCustomerBountyType());
+        require(rules.bountyType == bountyType, WrongCustomerBountyType());
     }
 }
