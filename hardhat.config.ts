@@ -46,6 +46,7 @@ const config: HardhatUserConfig = {
           ? `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
           : `https://eth.llamarpc.com`,
         blockNumber: defaultHardhatForkBlock,
+        enabled: false,
       },
       // throwOnCallFailures: false,
       accounts: { accountsBalance: '10000000000000000000000000' },
