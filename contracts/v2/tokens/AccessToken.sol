@@ -290,7 +290,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
             result := or(or(eq(s, 0xad0d7f6c), eq(s, 0xa07d229a)), eq(s, 0x49064906))
         }
 
-        return result || super.supportsInterface(interfaceId);
+        return result || ERC2981.supportsInterface(interfaceId) || ERC721.supportsInterface(interfaceId);
     }
 
     // ============================== Internals ==============================
