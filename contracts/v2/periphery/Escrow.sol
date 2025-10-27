@@ -31,7 +31,7 @@ contract Escrow is Initializable {
     /// @notice Reverts when a USDtoken disbursement exceeds the venue's USDtoken balance.
     /// @param usdTokenDeposits Current USDtoken balance on record.
     /// @param amount Requested USDtoken amount.
-    error NotEnoughUSDtokens(uint256 usdTokenDeposits, uint256 amount);
+    error NotEnoughUSDTokens(uint256 usdTokenDeposits, uint256 amount);
 
     // ============================== Events ==============================
 
@@ -135,7 +135,7 @@ contract Escrow is Initializable {
     /// @param amount Amount of USDtoken to transfer.
     function distributeVenueDeposit(address venue, address to, uint256 amount) external onlyBelongCheckIn {
         uint256 usdTokenDeposits = venueDeposits[venue].usdTokenDeposits;
-        require(amount <= usdTokenDeposits, NotEnoughUSDtokens(usdTokenDeposits, amount));
+        require(amount <= usdTokenDeposits, NotEnoughUSDTokens(usdTokenDeposits, amount));
 
         unchecked {
             usdTokenDeposits -= amount;
