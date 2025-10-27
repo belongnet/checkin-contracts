@@ -77,10 +77,12 @@ struct VestingWalletInfo {
 /// @title StaticPriceParameters
 /// @notice Mint payload for static-priced mints validated by a platform signer.
 struct StaticPriceParameters {
-    /// @notice Token id to mint.
-    uint256 tokenId;
     /// @notice Whether receiver is eligible for whitelist pricing.
     bool whitelisted;
+    /// @notice Token id to mint.
+    uint256 tokenId;
+    uint256 nonce;
+    uint256 deadline;
     /// @notice Token metadata URI.
     string tokenUri;
     /// @notice Backend signature validating the payload.
@@ -94,6 +96,8 @@ struct DynamicPriceParameters {
     uint256 tokenId;
     /// @notice Explicit price for this mint.
     uint256 price;
+    uint256 nonce;
+    uint256 deadline;
     /// @notice Token metadata URI.
     string tokenUri;
     /// @notice Backend signature validating the payload.
@@ -160,6 +164,8 @@ struct VenueInfo {
     address venue;
     uint256 amount;
     bytes32 affiliateReferralCode;
+    uint256 nonce;
+    uint256 deadline;
     string uri;
     bytes signature;
 }
@@ -177,6 +183,8 @@ struct CustomerInfo {
     bytes32 promoterReferralCode;
     // Amounts
     uint256 amount;
+    uint256 nonce;
+    uint256 deadline;
     bytes signature;
 }
 
@@ -192,5 +200,7 @@ struct PromoterInfo {
     bytes32 promoterReferralCode;
     address venue;
     uint256 amountInUSD;
+    uint256 nonce;
+    uint256 deadline;
     bytes signature;
 }
