@@ -11,3 +11,7 @@ cairo
 .snfoundry*
 snfoundry_trace
 src/argent
+artifacts
+cache
+typechain
+typechain-types
