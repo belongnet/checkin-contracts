@@ -20,6 +20,7 @@ assert_macros = "2.9.1"
 
 [[target.starknet-contract]]
 sierra = true
+casm = true
 
 [[tool.snforge.fork]]
 name = "SEPOLIA_LATEST"
