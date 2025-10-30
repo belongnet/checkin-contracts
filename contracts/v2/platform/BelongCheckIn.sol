@@ -401,6 +401,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// - USDtoken payments move USDtoken directly from customer to venue.
     /// - LONG payments pull the platform subsidy from escrow, collect the customer’s discounted LONG, then deliver/route LONG per venue rules.
     /// @param customerInfo Signed customer payment parameters (customer, venue, promoter, amount, payment flags, bounty data).
+    // TODO: add EOA protection
     function payToVenue(CustomerInfo calldata customerInfo) external {
         Contracts memory contracts_ = belongCheckInStorage.contracts;
         Fees storage fees_ = belongCheckInStorage.fees;
