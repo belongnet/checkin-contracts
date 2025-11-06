@@ -356,13 +356,13 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         if (expectedPayingToken == NATIVE_CURRENCY_ADDRESS) {
             if (fees > 0) {
-                factoryParameters.platformAddress.safeTransferETH(fees);
+                factoryParameters.platformAddress.forceSafeTransferETH(fees);
             }
             if (referralFees > 0) {
-                refferalCreator.safeTransferETH(referralFees);
+                refferalCreator.forceSafeTransferETH(referralFees);
             }
 
-            _parameters.info.creator.safeTransferETH(amountToCreator);
+            _parameters.info.creator.forceSafeTransferETH(amountToCreator);
         } else {
             expectedPayingToken.safeTransferFrom(msg.sender, address(this), amount);
 

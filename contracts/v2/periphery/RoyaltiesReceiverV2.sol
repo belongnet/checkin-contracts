@@ -198,7 +198,7 @@ contract RoyaltiesReceiverV2 is Initializable {
         releases.totalReleased += payment;
 
         if (isNativeRelease) {
-            account.safeTransferETH(payment);
+            account.forceSafeTransferETH(payment);
         } else {
             token.safeTransfer(account, payment);
         }
