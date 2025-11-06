@@ -252,14 +252,14 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             currentImplementations.accessToken.predictDeterministicAddressERC1967(hashedSalt, address(this));
 
         address receiver;
-        _setReferralUser(referralCode, msg.sender);
+        _setReferralUser(referralCode, accessTokenInfo.creator);
         if (accessTokenInfo.feeNumerator > 0) {
             receiver = currentImplementations.royaltiesReceiver.cloneDeterministic(hashedSalt);
             require(predictedRoyaltiesReceiver == receiver, RoyaltiesReceiverAddressMismatch());
             RoyaltiesReceiverV2(payable(receiver))
                 .initialize(
                     RoyaltiesReceiverV2.RoyaltiesReceivers(
-                        msg.sender, factoryParameters.platformAddress, referrals[referralCode].creator
+                        accessTokenInfo.creator, factoryParameters.platformAddress, referrals[referralCode].creator
                     ),
                     Factory(address(this)),
                     referralCode
@@ -273,7 +273,6 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
                 AccessToken.AccessTokenParameters({
                     factory: Factory(address(this)),
                     info: accessTokenInfo,
-                    creator: msg.sender,
                     feeReceiver: receiver,
                     referralCode: referralCode
                 }),
@@ -281,7 +280,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             );
 
         NftInstanceInfo memory accessTokenInstanceInfo = NftInstanceInfo({
-            creator: msg.sender,
+            creator: accessTokenInfo.creator,
             nftAddress: nftAddress,
             royaltiesReceiver: receiver,
             metadata: NftMetadata({name: accessTokenInfo.metadata.name, symbol: accessTokenInfo.metadata.symbol})

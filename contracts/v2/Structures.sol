@@ -16,6 +16,7 @@ struct NftMetadata {
 /// - `feeNumerator` is used for ERC-2981 royalty configuration.
 /// - `signature` is validated off-chain by a platform signer.
 struct AccessTokenInfo {
+    address creator;
     /// @notice ERC-20 used for payments, or NativeCurrency pseudo-address for native NativeCurrency.
     address paymentToken;
     /// @notice ERC-2981 royalty numerator (denominator defined by receiver).

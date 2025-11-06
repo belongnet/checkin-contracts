@@ -75,8 +75,6 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     struct AccessTokenParameters {
         /// @notice Factory that deployed the collection; provides global settings and signer.
         Factory factory;
-        /// @notice Creator (initial owner) of the collection.
-        address creator;
         /// @notice Receiver of ERC-2981 royalties (if any).
         address feeReceiver;
         /// @notice Referral code attached to this collection (optional).
@@ -136,7 +134,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         _setTransferValidator(transferValidator_);
 
-        _initializeOwner(_params.creator);
+        _initializeOwner(_params.info.creator);
     }
 
     // ============================== Admin ==============================
@@ -347,7 +345,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         uint256 referralFees;
         address refferalCreator;
         if (referralCode != bytes32(0)) {
-            referralFees = _parameters.factory.getReferralRate(_parameters.creator, referralCode, fees);
+            referralFees = _parameters.factory.getReferralRate(_parameters.info.creator, referralCode, fees);
             if (referralFees > 0) {
                 refferalCreator = _parameters.factory.getReferralCreator(referralCode);
                 unchecked {
@@ -364,7 +362,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
                 refferalCreator.safeTransferETH(referralFees);
             }
 
-            _parameters.creator.safeTransferETH(amountToCreator);
+            _parameters.info.creator.safeTransferETH(amountToCreator);
         } else {
             expectedPayingToken.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -375,7 +373,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
                 expectedPayingToken.safeTransfer(refferalCreator, referralFees);
             }
 
-            expectedPayingToken.safeTransfer(_parameters.creator, amountToCreator);
+            expectedPayingToken.safeTransfer(_parameters.info.creator, amountToCreator);
         }
 
         emit Paid(msg.sender, expectedPayingToken, amount);

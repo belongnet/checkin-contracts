@@ -89,6 +89,7 @@ library SignatureVerifier {
                         protection.nonce,
                         protection.deadline,
                         block.chainid,
+                        accessTokenInfo.creator,
                         accessTokenInfo.metadata.name,
                         accessTokenInfo.metadata.symbol,
                         accessTokenInfo.contractURI,
