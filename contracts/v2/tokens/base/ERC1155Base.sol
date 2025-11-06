@@ -79,6 +79,13 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
         _setUri(uri_);
     }
 
+    /// @dev Setter for token-specific URI.
+    /// @param tokenId Token id.
+    /// @param tokenUri New token URI.
+    function setTokenUri(uint256 tokenId, string memory tokenUri) public onlyRole(MANAGER_ROLE) {
+        _setTokenUri(tokenId, tokenUri);
+    }
+
     /// @notice Updates the global transferability switch.
     /// @param _transferable New transferability value.
     function setTransferable(bool _transferable) public onlyRole(MANAGER_ROLE) {
@@ -91,7 +98,6 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
     /// @param amount Amount to mint.
     /// @param tokenUri Token-specific URI to set (overrides collection URI).
     function mint(address to, uint256 tokenId, uint256 amount, string calldata tokenUri) public onlyRole(MINTER_ROLE) {
-        _setTokenUri(tokenId, tokenUri);
         _mint(to, tokenId, amount, "0x");
     }
 
@@ -100,7 +106,6 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
     /// @param tokenId Token id to burn.
     /// @param amount Amount to burn.
     function burn(address from, uint256 tokenId, uint256 amount) public onlyRole(BURNER_ROLE) {
-        _setTokenUri(tokenId, "");
         _burn(from, tokenId, amount);
     }
 
@@ -142,14 +147,11 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
         super._beforeTokenTransfer(from, to, ids, amounts, data);
     }
 
-    /// @notice Returns the collection-level URI.
-    function uri() public view returns (string memory) {
-        return _uri;
-    }
-
     /// @inheritdoc ERC1155
     function uri(uint256 tokenId) public view override returns (string memory) {
-        return _tokenUri[tokenId];
+        string memory tokenURI = _tokenUri[tokenId];
+
+        return bytes(tokenURI).length > 0 ? string.concat(_uri, tokenURI) : _uri;
     }
 
     /// @inheritdoc ERC1155
