@@ -154,17 +154,6 @@ contract RoyaltiesReceiverV2 is Initializable {
     }
 
     /**
-     * @notice Releases pending payments for a currency to a specific payee.
-     * @param token The currency to release: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency.
-     * @param to The payee address to release to.
-     */
-    function release(address token, address to) external {
-        _onlyToPayee(to);
-
-        _release(token, to);
-    }
-
-    /**
      * @notice Returns the total amount of a currency already released to payees.
      * @param token The currency queried: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency.
      * @return The total amount released.
