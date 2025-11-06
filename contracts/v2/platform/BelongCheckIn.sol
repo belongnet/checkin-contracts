@@ -442,11 +442,17 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
                 .safeTransferFrom(customerInfo.customer, customerInfo.venueToPayFor, customerInfo.amount);
         } else {
             address long = _paymentsInfo.long;
-            // platform subsidy - processing fee
-            uint256 subsidyMinusFees =
-                fees_.platformSubsidyPercentage.calculateRate(customerInfo.amount)
-                - fees_.processingFeePercentage.calculateRate(customerInfo.amount);
-            contracts_.escrow.distributeLONGDiscount(customerInfo.venueToPayFor, address(this), subsidyMinusFees);
+            // Apply the processing fee on the subsidy itself so venues always receive the advertised top-up.
+            uint256 subsidy = fees_.platformSubsidyPercentage.calculateRate(customerInfo.amount);
+            uint256 processingFee = fees_.processingFeePercentage.calculateRate(subsidy);
+            uint256 subsidyMinusFees = subsidy - processingFee;
+            if (subsidy > 0) {
+                // Pull the full subsidy from escrow so the fee can be routed to platform revenue before paying the venue.
+                contracts_.escrow.distributeLONGDiscount(customerInfo.venueToPayFor, address(this), subsidy);
+                if (processingFee > 0) {
+                    _handleRevenue(long, processingFee);
+                }
+            }
 
             // customer paid amount - longCustomerDiscountPercentage (3%)
             uint256 longFromCustomer =

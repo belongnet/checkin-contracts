@@ -2399,8 +2399,15 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         (
           await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
-        customerAmount,
+        platformSubsidy,
       );
+      const buyback = await helper.calculateRate(
+        (
+          await belongCheckIn.belongCheckInStorage()
+        ).fees.buybackBurnPercentage,
+        processingFee,
+      );
+      const feesToCollector = processingFee.sub(buyback);
       const longCustomerDiscount = await helper.calculateRate(
         (
           await belongCheckIn.belongCheckInStorage()
@@ -2423,7 +2430,10 @@ describe('BelongCheckIn ETH UniswapV2', () => {
       const venueBalance_after = await ENA.balanceOf(USDC_whale.address);
 
       await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
-      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      await expect(tx)
+        .to.emit(belongCheckIn, 'RevenueBuybackBurn')
+        .withArgs(ENA.address, processingFee, buyback, buyback, feesToCollector);
+      expect(escrowBalance_before.sub(platformSubsidy)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
     });
@@ -2497,7 +2507,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         (
           await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
-        customerAmount,
+        platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
@@ -2529,7 +2539,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
           fromCustomerToVenue.add(fromEscrowToVenue),
           fromCustomerToVenue.add(fromEscrowToVenue),
         );
-      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(escrowBalance_before.sub(platformSubsidy)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromCustomerToVenue.add(fromEscrowToVenue))).to.eq(venueBalance_after);
     });
@@ -2603,7 +2613,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         (
           await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
-        customerAmount,
+        platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
@@ -2627,7 +2637,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
 
       await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
-      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(escrowBalance_before.sub(platformSubsidy)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_after).to.gt(venueBalance_before);
     });
@@ -2699,7 +2709,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         (
           await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
-        customerAmount,
+        platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
@@ -2723,7 +2733,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
       const venueBalance_after = await ENA.balanceOf(USDC_whale.address);
 
       await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
-      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(escrowBalance_before.sub(platformSubsidy)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
     });
@@ -2811,7 +2821,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         (
           await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
-        customerAmount,
+        platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
@@ -2851,7 +2861,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
       );
 
       await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
-      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(escrowBalance_before.sub(platformSubsidy)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
       expect(venueBalance_venueToken_before.sub(await customerInfo.toPromoter.visitBountyAmount)).to.eq(
@@ -2945,7 +2955,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         (
           await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
-        customerAmount,
+        platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
@@ -2985,7 +2995,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
       );
 
       await expect(tx).to.emit(belongCheckIn, 'CustomerPaid');
-      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(escrowBalance_before.sub(platformSubsidy)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
       expect(venueBalance_venueToken_before.sub(await customerInfo.toPromoter.visitBountyAmount)).to.eq(
@@ -3079,7 +3089,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         (
           await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
-        customerAmount,
+        platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
@@ -3158,7 +3168,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
             BigNumber.from(customerInfo.toPromoter.visitBountyAmount),
           ],
         );
-      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(escrowBalance_before.sub(platformSubsidy)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
       expect(venueBalance_venueToken_before.sub(rewardsToPromoter)).to.eq(venueBalance_venueToken_after);
@@ -3248,7 +3258,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         (
           await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
-        customerAmount,
+        platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
@@ -3327,7 +3337,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
             BigNumber.from(customerInfo.toPromoter.visitBountyAmount),
           ],
         );
-      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(escrowBalance_before.sub(platformSubsidy)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
       expect(venueBalance_venueToken_before.sub(rewardsToPromoter)).to.eq(venueBalance_venueToken_after);
@@ -3417,7 +3427,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         (
           await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
-        customerAmount,
+        platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
@@ -3496,7 +3506,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
             BigNumber.from(customerInfo.toPromoter.visitBountyAmount),
           ],
         );
-      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(escrowBalance_before.sub(platformSubsidy)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
       expect(
@@ -3592,7 +3602,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         (
           await belongCheckIn.belongCheckInStorage()
         ).fees.processingFeePercentage,
-        customerAmount,
+        platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
         (
@@ -3671,7 +3681,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
             BigNumber.from(customerInfo.toPromoter.visitBountyAmount),
           ],
         );
-      expect(escrowBalance_before.sub(fromEscrowToVenue)).to.eq(escrowBalance_after);
+      expect(escrowBalance_before.sub(platformSubsidy)).to.eq(escrowBalance_after);
       expect(customerBalance_before.sub(fromCustomerToVenue)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(fromEscrowToVenue.add(fromCustomerToVenue))).to.eq(venueBalance_after);
       expect(
