@@ -34,8 +34,6 @@ struct AccessTokenInfo {
     NftMetadata metadata;
     /// @notice Contract-level metadata URI.
     string contractURI;
-    /// @notice Backend signature authorizing creation with the provided fields.
-    bytes signature;
 }
 
 /// @title ERC1155Info
@@ -81,12 +79,8 @@ struct StaticPriceParameters {
     bool whitelisted;
     /// @notice Token id to mint.
     uint256 tokenId;
-    uint256 nonce;
-    uint256 deadline;
     /// @notice Token metadata URI.
     string tokenUri;
-    /// @notice Backend signature validating the payload.
-    bytes signature;
 }
 
 /// @title DynamicPriceParameters
@@ -96,12 +90,8 @@ struct DynamicPriceParameters {
     uint256 tokenId;
     /// @notice Explicit price for this mint.
     uint256 price;
-    uint256 nonce;
-    uint256 deadline;
     /// @notice Token metadata URI.
     string tokenUri;
-    /// @notice Backend signature validating the payload.
-    bytes signature;
 }
 
 /// @title StakingTiers
@@ -164,10 +154,7 @@ struct VenueInfo {
     address venue;
     uint256 amount;
     bytes32 affiliateReferralCode;
-    uint256 nonce;
-    uint256 deadline;
     string uri;
-    bytes signature;
 }
 
 /// @title CustomerInfo
@@ -183,9 +170,6 @@ struct CustomerInfo {
     bytes32 promoterReferralCode;
     // Amounts
     uint256 amount;
-    uint256 nonce;
-    uint256 deadline;
-    bytes signature;
 }
 
 struct Bounties {
@@ -200,7 +184,4 @@ struct PromoterInfo {
     bytes32 promoterReferralCode;
     address venue;
     uint256 amountInUSD;
-    uint256 nonce;
-    uint256 deadline;
-    bytes signature;
 }
