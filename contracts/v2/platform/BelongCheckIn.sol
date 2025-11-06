@@ -346,12 +346,14 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// - Applies the buyback/burn split to the platform fee portion before forwarding the remainder to the fee collector.
     /// - Forwards the full venue deposit to {Escrow} and mints venue credits to mirror the USD balance.
     /// @param venueInfo Signed venue deposit parameters (venue, amount, referral code, venue rules, metadata URI).
-    function venueDeposit(VenueInfo calldata venueInfo) external {
+    function venueDeposit(VenueInfo calldata venueInfo, SignatureVerifier.SignatureProtection calldata protection)
+        external
+    {
         Contracts memory contracts_ = belongCheckInStorage.contracts;
         Fees storage fees_ = belongCheckInStorage.fees;
         address usdToken = _paymentsInfo.usdToken;
 
-        contracts_.factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), venueInfo);
+        contracts_.factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), protection, venueInfo);
 
         VenueStakingRewardInfo memory stakingInfo =
         stakingRewards[contracts_.staking.balanceOf(venueInfo.venue).stakingTiers()].venueStakingInfo;
@@ -402,12 +404,15 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// - LONG payments pull the platform subsidy from escrow, collect the customer’s discounted LONG, then deliver/route LONG per venue rules.
     /// @param customerInfo Signed customer payment parameters (customer, venue, promoter, amount, payment flags, bounty data).
     // TODO: add EOA protection
-    function payToVenue(CustomerInfo calldata customerInfo) external {
+    function payToVenue(CustomerInfo calldata customerInfo, SignatureVerifier.SignatureProtection calldata protection)
+        external
+    {
         Contracts memory contracts_ = belongCheckInStorage.contracts;
         Fees storage fees_ = belongCheckInStorage.fees;
         VenueRules storage rules = generalVenueInfo[customerInfo.venueToPayFor].rules;
 
-        contracts_.factory.nftFactoryParameters().signerAddress.checkCustomerInfo(address(this), customerInfo, rules);
+        contracts_.factory.nftFactoryParameters().signerAddress
+            .checkCustomerInfo(address(this), protection, customerInfo, rules);
 
         uint256 venueId = customerInfo.venueToPayFor.getVenueId();
 
@@ -480,12 +485,15 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// - LONG payouts draw USDtoken from escrow, swap the full amount using the V3 router, and subject the swapped fee portion to the buyback routine.
     /// - Always burns promoter ERC1155 credits by the settled USD amount to prevent re-claims.
     /// @param promoterInfo Signed settlement parameters (promoter, venue, USD amount, payout currency flag).
-    function distributePromoterPayments(PromoterInfo memory promoterInfo) external {
+    function distributePromoterPayments(
+        PromoterInfo memory promoterInfo,
+        SignatureVerifier.SignatureProtection calldata protection
+    ) external {
         Contracts memory contracts_ = belongCheckInStorage.contracts;
         DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
 
         contracts_.factory.nftFactoryParameters().signerAddress
-            .checkPromoterPaymentDistribution(address(this), promoterInfo);
+            .checkPromoterPaymentDistribution(address(this), protection, promoterInfo);
 
         uint256 venueId = promoterInfo.venue.getVenueId();
         address promoter = contracts_.factory.getReferralCreator(promoterInfo.promoterReferralCode);

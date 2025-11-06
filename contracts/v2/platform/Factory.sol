@@ -227,13 +227,14 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param accessTokenInfo Parameters used to initialize the AccessToken instance.
     /// @param referralCode Optional referral code attributed to the creator.
     /// @return nftAddress The deployed AccessToken proxy address.
-    function produce(AccessTokenInfo memory accessTokenInfo, uint256 nonce, uint256 deadline, bytes32 referralCode)
-        external
-        returns (address nftAddress)
-    {
+    function produce(
+        AccessTokenInfo memory accessTokenInfo,
+        bytes32 referralCode,
+        SignatureVerifier.SignatureProtection calldata protection
+    ) external returns (address nftAddress) {
         FactoryParameters memory factoryParameters = _nftFactoryParameters;
 
-        factoryParameters.signerAddress.checkAccessTokenInfo(address(this), accessTokenInfo, nonce, deadline);
+        factoryParameters.signerAddress.checkAccessTokenInfo(address(this), protection, accessTokenInfo);
 
         bytes32 hashedSalt = _metadataHash(accessTokenInfo.metadata.name, accessTokenInfo.metadata.symbol);
 
@@ -301,12 +302,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @return creditToken The deployed CreditToken clone address.
     function produceCreditToken(
         ERC1155Info calldata creditTokenInfo,
-        uint256 nonce,
-        uint256 deadline,
-        bytes calldata signature
+        SignatureVerifier.SignatureProtection calldata protection
     ) external returns (address creditToken) {
-        _nftFactoryParameters.signerAddress
-            .checkCreditTokenInfo(address(this), creditTokenInfo, nonce, deadline, signature);
+        _nftFactoryParameters.signerAddress.checkCreditTokenInfo(address(this), creditTokenInfo, protection);
 
         bytes32 hashedSalt = _metadataHash(creditTokenInfo.name, creditTokenInfo.symbol);
 
@@ -341,9 +339,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @return vestingWallet The deployed VestingWallet proxy address.
     function deployVestingWallet(
         address _owner,
+        VestingWalletInfo calldata vestingWalletInfo,
         uint256 nonce,
         uint256 deadline,
-        VestingWalletInfo calldata vestingWalletInfo,
         bytes calldata signature
     ) external returns (address vestingWallet) {
         require(
@@ -366,7 +364,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         );
 
         _nftFactoryParameters.signerAddress
-            .checkVestingWalletInfo(address(this), _owner, vestingWalletInfo, nonce, deadline, signature);
+            .checkVestingWalletInfo(address(this), nonce, deadline, signature, _owner, vestingWalletInfo);
 
         bytes32 hashedSalt = keccak256(
             abi.encodePacked(

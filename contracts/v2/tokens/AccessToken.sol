@@ -171,28 +171,34 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// @param expectedPayingToken Expected paying token for sanity check.
     /// @param expectedMintPrice Expected total price (reverts if mismatched).
     function mintStaticPrice(
-        address receiver,
-        StaticPriceParameters[] calldata paramsArray,
         address expectedPayingToken,
-        uint256 expectedMintPrice
+        uint256 expectedMintPrice,
+        address[] calldata receivers,
+        StaticPriceParameters[] calldata staticPriceParameters,
+        SignatureVerifier.SignatureProtection[] calldata protections
     ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
         Factory.FactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
 
-        require(paramsArray.length <= factoryParameters.maxArraySize, WrongArraySize());
+        require(
+            receivers.length == staticPriceParameters.length && staticPriceParameters.length == protections.length
+                && staticPriceParameters.length <= factoryParameters.maxArraySize,
+            WrongArraySize()
+        );
 
         AccessTokenInfo memory info = parameters.info;
 
         uint256 amountToPay;
-        for (uint256 i; i < paramsArray.length; ++i) {
-            factoryParameters.signerAddress.checkStaticPriceParameters(address(this), receiver, paramsArray[i]);
+        for (uint256 i; i < staticPriceParameters.length; ++i) {
+            factoryParameters.signerAddress
+                .checkStaticPriceParameters(address(this), protections[i], receivers[i], staticPriceParameters[i]);
 
-            uint256 price = paramsArray[i].whitelisted ? info.whitelistMintPrice : info.mintPrice;
+            uint256 price = staticPriceParameters[i].whitelisted ? info.whitelistMintPrice : info.mintPrice;
 
             unchecked {
                 amountToPay += price;
             }
 
-            _baseMint(paramsArray[i].tokenId, receiver, paramsArray[i].tokenUri);
+            _baseMint(staticPriceParameters[i].tokenId, receiver, staticPriceParameters[i].tokenUri);
         }
 
         require(_pay(amountToPay, expectedPayingToken) == expectedMintPrice, PriceChanged(expectedMintPrice));
@@ -207,23 +213,29 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// @param paramsArray Array of dynamic price mint parameters (id, uri, price).
     /// @param expectedPayingToken Expected paying token for sanity check.
     function mintDynamicPrice(
-        address receiver,
-        DynamicPriceParameters[] calldata paramsArray,
-        address expectedPayingToken
+        address expectedPayingToken,
+        address[] calldata receivers,
+        DynamicPriceParameters[] calldata dynamicPriceParameters,
+        SignatureVerifier.SignatureProtection[] calldata protections
     ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
         Factory.FactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
 
-        require(paramsArray.length <= factoryParameters.maxArraySize, WrongArraySize());
+        require(
+            receivers.length == dynamicPriceParameters.length && dynamicPriceParameters.length == protections.length
+                && dynamicPriceParameters.length <= factoryParameters.maxArraySize,
+            WrongArraySize()
+        );
 
         uint256 amountToPay;
-        for (uint256 i; i < paramsArray.length; ++i) {
-            factoryParameters.signerAddress.checkDynamicPriceParameters(address(this), receiver, paramsArray[i]);
+        for (uint256 i; i < dynamicPriceParameters.length; ++i) {
+            factoryParameters.signerAddress
+                .checkDynamicPriceParameters(address(this), protections[i], receivers[i], dynamicPriceParameters[i]);
 
             unchecked {
-                amountToPay += paramsArray[i].price;
+                amountToPay += dynamicPriceParameters[i].price;
             }
 
-            _baseMint(paramsArray[i].tokenId, receiver, paramsArray[i].tokenUri);
+            _baseMint(dynamicPriceParameters[i].tokenId, receivers[i], dynamicPriceParameters[i].tokenUri);
         }
 
         _pay(amountToPay, expectedPayingToken);

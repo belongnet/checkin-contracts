@@ -32,10 +32,16 @@ import {
 library SignatureVerifier {
     using SignatureCheckerLib for address;
 
+    struct SignatureProtection {
+        uint256 nonce;
+        uint256 deadline;
+        bytes signature;
+    }
+
     // ============================== Errors ==============================
 
     /// @notice Thrown when a signature does not match the expected signer/payload.
-    error InvalidSignature();
+    error InvalidSignature(signature);
 
     /// @notice Thrown when collection metadata (name/symbol) is empty.
     /// @param name The provided collection name.
@@ -65,9 +71,8 @@ library SignatureVerifier {
     function checkAccessTokenInfo(
         address signer,
         address verifyingContract,
-        AccessTokenInfo memory accessTokenInfo,
-        uint256 nonce,
-        uint256 deadline
+        SignatureProtection calldata protection,
+        AccessTokenInfo memory accessTokenInfo
     ) external view {
         require(deadline >= block.timestamp, SignatureExpired());
 
@@ -81,18 +86,18 @@ library SignatureVerifier {
                 keccak256(
                     abi.encodePacked(
                         verifyingContract,
+                        protection.nonce,
+                        protection.deadline,
+                        block.chainid,
                         accessTokenInfo.metadata.name,
                         accessTokenInfo.metadata.symbol,
                         accessTokenInfo.contractURI,
-                        accessTokenInfo.feeNumerator,
-                        nonce,
-                        deadline,
-                        block.chainid
+                        accessTokenInfo.feeNumerator
                     )
                 ),
-                accessTokenInfo.signature
+                protection.signature
             ),
-            InvalidSignature()
+            InvalidSignature(protection.signature)
         );
     }
 
@@ -105,10 +110,8 @@ library SignatureVerifier {
     function checkCreditTokenInfo(
         address signer,
         address verifyingContract,
-        ERC1155Info calldata creditTokenInfo,
-        uint256 nonce,
-        uint256 deadline,
-        bytes calldata signature
+        SignatureProtection calldata protection,
+        ERC1155Info calldata creditTokenInfo
     ) external view {
         require(deadline >= block.timestamp, SignatureExpired());
 
@@ -122,17 +125,17 @@ library SignatureVerifier {
                 keccak256(
                     abi.encode(
                         verifyingContract,
+                        protection.nonce,
+                        protection.deadline,
+                        block.chainid,
                         creditTokenInfo.name,
                         creditTokenInfo.symbol,
-                        creditTokenInfo.uri,
-                        nonce,
-                        deadline,
-                        block.chainid
+                        creditTokenInfo.uri
                     )
                 ),
-                signature
+                protection.signature
             ),
-            InvalidSignature()
+            InvalidSignature(protection.signature)
         );
     }
 
@@ -145,11 +148,9 @@ library SignatureVerifier {
     function checkVestingWalletInfo(
         address signer,
         address verifyingContract,
+        SignatureProtection calldata protection,
         address owner,
-        VestingWalletInfo calldata vestingWalletInfo,
-        uint256 nonce,
-        uint256 deadline,
-        bytes calldata signature
+        VestingWalletInfo calldata vestingWalletInfo
     ) external view {
         require(deadline >= block.timestamp, SignatureExpired());
 
@@ -158,6 +159,9 @@ library SignatureVerifier {
                 keccak256(
                     abi.encode(
                         verifyingContract,
+                        protection.nonce,
+                        protection.deadline,
+                        block.chainid,
                         owner,
                         vestingWalletInfo.startTimestamp,
                         vestingWalletInfo.cliffDurationSeconds,
@@ -166,15 +170,12 @@ library SignatureVerifier {
                         vestingWalletInfo.beneficiary,
                         vestingWalletInfo.totalAllocation,
                         vestingWalletInfo.tgeAmount,
-                        vestingWalletInfo.linearAllocation,
-                        nonce,
-                        deadline,
-                        block.chainid
+                        vestingWalletInfo.linearAllocation
                     )
                 ),
-                signature
+                protection.signature
             ),
-            InvalidSignature()
+            InvalidSignature(protection.signature)
         );
     }
 
@@ -182,25 +183,30 @@ library SignatureVerifier {
     /// @dev Hash covers: `venue`, `referralCode`, `uri`, and `chainId`. Uses `abi.encode`.
     /// @param signer Authorized signer address.
     /// @param venueInfo Venue payload. Only the fields listed above are signed.
-    function checkVenueInfo(address signer, address verifyingContract, VenueInfo calldata venueInfo) external view {
-        require(venueInfo.deadline >= block.timestamp, SignatureExpired());
+    function checkVenueInfo(
+        address signer,
+        address verifyingContract,
+        SignatureProtection calldata protection,
+        VenueInfo calldata venueInfo
+    ) external view {
+        require(deadline >= block.timestamp, SignatureExpired());
 
         require(
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encode(
                         verifyingContract,
+                        protection.nonce,
+                        protection.deadline,
+                        block.chainid,
                         venueInfo.venue,
                         venueInfo.affiliateReferralCode,
-                        venueInfo.uri,
-                        venueInfo.nonce,
-                        venueInfo.deadline,
-                        block.chainid
+                        venueInfo.uri
                     )
                 ),
-                venueInfo.signature
+                protection.signature
             ),
-            InvalidSignature()
+            InvalidSignature(protection.signature)
         );
     }
 
@@ -213,10 +219,11 @@ library SignatureVerifier {
     function checkCustomerInfo(
         address signer,
         address verifyingContract,
+        SignatureProtection calldata protection,
         CustomerInfo calldata customerInfo,
         VenueRules memory rules
     ) external view {
-        require(customerInfo.deadline >= block.timestamp, SignatureExpired());
+        require(deadline >= block.timestamp, SignatureExpired());
 
         PaymentTypes paymentType = customerInfo.paymentInUSDtoken ? PaymentTypes.USDtoken : PaymentTypes.LONG;
         require(
@@ -249,6 +256,9 @@ library SignatureVerifier {
                 keccak256(
                     abi.encode(
                         verifyingContract,
+                        protection.nonce,
+                        protection.deadline,
+                        block.chainid,
                         customerInfo.paymentInUSDtoken,
                         customerInfo.toCustomer.visitBountyAmount,
                         customerInfo.toCustomer.spendBountyPercentage,
@@ -257,15 +267,12 @@ library SignatureVerifier {
                         customerInfo.customer,
                         customerInfo.venueToPayFor,
                         customerInfo.promoterReferralCode,
-                        customerInfo.amount,
-                        customerInfo.nonce,
-                        customerInfo.deadline,
-                        block.chainid
+                        customerInfo.amount
                     )
                 ),
-                customerInfo.signature
+                protection.signature
             ),
-            InvalidSignature()
+            InvalidSignature(protection.signature)
         );
     }
 
@@ -276,26 +283,27 @@ library SignatureVerifier {
     function checkPromoterPaymentDistribution(
         address signer,
         address verifyingContract,
+        SignatureProtection calldata protection,
         PromoterInfo memory promoterInfo
     ) external view {
-        require(promoterInfo.deadline >= block.timestamp, SignatureExpired());
+        require(deadline >= block.timestamp, SignatureExpired());
 
         require(
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encode(
                         verifyingContract,
+                        protection.nonce,
+                        protection.deadline,
+                        block.chainid,
                         promoterInfo.promoterReferralCode,
                         promoterInfo.venue,
-                        promoterInfo.amountInUSD,
-                        promoterInfo.nonce,
-                        promoterInfo.deadline,
-                        block.chainid
+                        promoterInfo.amountInUSD
                     )
                 ),
-                promoterInfo.signature
+                protection.signature
             ),
-            InvalidSignature()
+            InvalidSignature(protection.signature)
         );
     }
 
@@ -310,28 +318,29 @@ library SignatureVerifier {
     function checkDynamicPriceParameters(
         address signer,
         address verifyingContract,
+        SignatureProtection calldata protection,
         address receiver,
         DynamicPriceParameters calldata params
     ) external view {
-        require(params.deadline >= block.timestamp, SignatureExpired());
+        require(deadline >= block.timestamp, SignatureExpired());
 
         require(
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encode(
                         verifyingContract,
+                        protection.nonce,
+                        protection.deadline,
+                        block.chainid,
                         receiver,
                         params.tokenId,
                         params.tokenUri,
-                        params.price,
-                        params.nonce,
-                        params.deadline,
-                        block.chainid
+                        params.price
                     )
                 ),
-                params.signature
+                protection.signature
             ),
-            InvalidSignature()
+            InvalidSignature(protection.signature)
         );
     }
 
@@ -344,28 +353,29 @@ library SignatureVerifier {
     function checkStaticPriceParameters(
         address signer,
         address verifyingContract,
+        SignatureProtection calldata protection,
         address receiver,
         StaticPriceParameters calldata params
     ) external view {
-        require(params.deadline >= block.timestamp, SignatureExpired());
+        require(deadline >= block.timestamp, SignatureExpired());
 
         require(
             signer.isValidSignatureNow(
                 keccak256(
                     abi.encode(
                         verifyingContract,
+                        protection.nonce,
+                        protection.deadline,
+                        block.chainid,
                         receiver,
                         params.tokenId,
                         params.tokenUri,
-                        params.whitelisted,
-                        params.nonce,
-                        params.deadline,
-                        block.chainid
+                        params.whitelisted
                     )
                 ),
-                params.signature
+                protection.signature
             ),
-            InvalidSignature()
+            InvalidSignature(protection.signature)
         );
     }
 
