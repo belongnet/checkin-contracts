@@ -77,9 +77,10 @@ abstract contract ReferralSystemV2 {
     function createReferralCode() external returns (bytes32 hashedCode) {
         hashedCode = keccak256(abi.encodePacked(msg.sender, address(this), block.chainid));
 
-        require(referrals[hashedCode].creator == address(0), ReferralCodeExists(msg.sender, hashedCode));
+        ReferralCode storage referral = referrals[hashedCode];
+        require(referral.creator == address(0), ReferralCodeExists(msg.sender, hashedCode));
 
-        referrals[hashedCode].creator = msg.sender;
+        referral.creator = msg.sender;
 
         emit ReferralCodeCreated(msg.sender, hashedCode);
     }
@@ -135,13 +136,14 @@ abstract contract ReferralSystemV2 {
      */
     function _setReferralUser(bytes32 hashedCode, address referralUser) internal {
         if (hashedCode == bytes32(0)) return;
-        ReferralCode memory referral = referrals[hashedCode];
+        ReferralCode storage referral = referrals[hashedCode];
+        address creator = referral.creator;
 
-        require(referral.creator != address(0), ReferralCreatorNotExists());
-        require(referralUser != referral.creator, ReferralUserIsReferralCreator());
+        require(creator != address(0), ReferralCreatorNotExists());
+        require(referralUser != creator, ReferralUserIsReferralCreator());
 
         // Check if the user is already in the array
-        address[] storage users = referrals[hashedCode].referralUsers;
+        address[] storage users = referral.referralUsers;
 
         bool inArray;
         uint256 len = users.length;

@@ -105,10 +105,10 @@ contract RoyaltiesReceiverV2 is Initializable {
     /// @param account The account to query (creator, platform or referral).
     /// @return The share assigned to the account in BPS (out of TOTAL_SHARES).
     function shares(address account) public view returns (uint256) {
-        RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
-
+        RoyaltiesReceivers storage _royaltiesReceivers = royaltiesReceivers;
         Factory _factory = factory;
-        Factory.RoyaltiesParameters memory royaltiesParameters = _factory.royaltiesParameters();
+        Factory.RoyaltiesParameters storage royaltiesParameters = _factory.royaltiesParameters();
+
         if (account == _royaltiesReceivers.creator) {
             return royaltiesParameters.amountToCreator;
         } else {
@@ -143,7 +143,7 @@ contract RoyaltiesReceiverV2 is Initializable {
      * @param token The currency to release: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency.
      */
     function releaseAll(address token) external {
-        RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
+        RoyaltiesReceivers storage _royaltiesReceivers = royaltiesReceivers;
 
         _release(token, _royaltiesReceivers.creator);
 
@@ -219,17 +219,18 @@ contract RoyaltiesReceiverV2 is Initializable {
 
         uint256 payment = ((balance + releases.totalReleased) * shares(account)) / TOTAL_SHARES;
 
-        if (payment <= releases.released[account]) {
+        uint256 released = releases.released[account];
+        if (payment <= released) {
             return 0;
         }
 
-        return payment - releases.released[account];
+        return payment - released;
     }
 
     /// @dev Reverts unless `account` is one of the configured payees.
     /// @param account The account to validate as a payee.
     function _onlyToPayee(address account) private view {
-        RoyaltiesReceivers memory _royaltiesReceivers = royaltiesReceivers;
+        RoyaltiesReceivers storage _royaltiesReceivers = royaltiesReceivers;
 
         require(
             _royaltiesReceivers.creator == account || _royaltiesReceivers.platform == account

@@ -74,6 +74,8 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Thrown when LONG cannot be burned or transferred to the burn address.
     error TokensCanNotBeBurned();
 
+    error OnlyEOA();
+
     // ========== Events ==========
 
     /// @notice Emitted when global parameters are updated.
@@ -229,6 +231,11 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @dev Indexed by `StakingTiers` enum value [0..4].
     mapping(StakingTiers tier => RewardsInfo rewardInfo) public stakingRewards;
 
+    modifier onlyEOA() {
+        require(msg.sender.code.length == 0, OnlyEOA());
+        _;
+    }
+
     // ========== Functions ==========
 
     /// @notice Disables initializers for the implementation contract.
@@ -350,16 +357,17 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param amount Amount of USDtoken to withdraw.
     function withdrawUnusedUSD(uint256 amount) external {
         require(amount > 0, NotEnoughBalance(amount, 0));
-        Contracts memory contracts_ = belongCheckInStorage.contracts;
-        Escrow escrow = contracts_.escrow;
+        Contracts storage contracts = belongCheckInStorage.contracts;
+        address venueToken = contracts.venueToken;
+        Escrow escrow = contracts.escrow;
         uint256 usdBalance = escrow.venueDeposits(msg.sender).usdTokenDeposits;
         require(usdBalance >= amount, NotEnoughBalance(amount, usdBalance));
 
         uint256 venueId = msg.sender.getVenueId();
-        uint256 venueTokenBalance = contracts_.venueToken.balanceOf(msg.sender, venueId);
+        uint256 venueTokenBalance = venueToken.balanceOf(msg.sender, venueId);
         require(venueTokenBalance >= amount, NotEnoughBalance(amount, venueTokenBalance));
 
-        contracts_.venueToken.burn(msg.sender, venueId, amount);
+        venueToken.burn(msg.sender, venueId, amount);
         escrow.distributeVenueDeposit(msg.sender, msg.sender, amount);
 
         emit VenueUsdWithdrawn(msg.sender, amount);
@@ -375,20 +383,23 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param venueInfo Signed venue deposit parameters (venue, amount, referral code, venue rules, metadata URI).
     function venueDeposit(VenueInfo calldata venueInfo, SignatureVerifier.SignatureProtection calldata protection)
         external
+        onlyEOA
     {
-        Contracts memory contracts_ = belongCheckInStorage.contracts;
+        Contracts storage contracts = belongCheckInStorage.contracts;
+        address factory = contracts.factory;
+        address escrow = contracts.escrow;
         Fees storage fees_ = belongCheckInStorage.fees;
         address usdToken = _paymentsInfo.usdToken;
 
-        contracts_.factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), protection, venueInfo);
+        factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), protection, venueInfo);
 
         VenueStakingRewardInfo memory stakingInfo =
-        stakingRewards[contracts_.staking.balanceOf(venueInfo.venue).stakingTiers()].venueStakingInfo;
+        stakingRewards[contracts.staking.balanceOf(venueInfo.venue).stakingTiers()].venueStakingInfo;
 
         address affiliate;
         uint256 affiliateFee;
         if (venueInfo.affiliateReferralCode != bytes32(0)) {
-            affiliate = contracts_.factory.getReferralCreator(venueInfo.affiliateReferralCode);
+            affiliate = factory.getReferralCreator(venueInfo.affiliateReferralCode);
             require(affiliate != address(0), WrongReferralCode(venueInfo.affiliateReferralCode));
 
             affiliateFee = fees_.affiliatePercentage.calculateRate(venueInfo.amount);
@@ -411,14 +422,14 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
         usdToken.safeTransferFrom(venueInfo.venue, address(this), stakingInfo.convenienceFeeAmount + affiliateFee);
 
-        usdToken.safeTransferFrom(venueInfo.venue, address(contracts_.escrow), venueInfo.amount);
+        usdToken.safeTransferFrom(venueInfo.venue, address(escrow), venueInfo.amount);
 
-        uint256 convenienceFeeLong = _swapUSDtokenToLONG(address(contracts_.escrow), stakingInfo.convenienceFeeAmount);
+        uint256 convenienceFeeLong = _swapUSDtokenToLONG(address(escrow), stakingInfo.convenienceFeeAmount);
         _swapUSDtokenToLONG(affiliate, affiliateFee);
 
-        contracts_.escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
+        escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
 
-        contracts_.venueToken.mint(venueInfo.venue, venueId, venueInfo.amount, venueInfo.uri);
+        contracts.venueToken.mint(venueInfo.venue, venueId, venueInfo.amount, venueInfo.uri);
 
         emit VenuePaidDeposit(venueInfo.venue, venueInfo.affiliateReferralCode, venueInfo.rules, venueInfo.amount);
     }
@@ -430,20 +441,20 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// - USDtoken payments move USDtoken directly from customer to venue.
     /// - LONG payments pull the platform subsidy from escrow, collect the customer’s discounted LONG, then deliver/route LONG per venue rules.
     /// @param customerInfo Signed customer payment parameters (customer, venue, promoter, amount, payment flags, bounty data).
-    // TODO: add EOA protection
     function payToVenue(CustomerInfo calldata customerInfo, SignatureVerifier.SignatureProtection calldata protection)
         external
+        onlyEOA
     {
-        Contracts memory contracts_ = belongCheckInStorage.contracts;
-        Fees storage fees_ = belongCheckInStorage.fees;
+        Contracts storage contracts = belongCheckInStorage.contracts;
+        address factory = contracts.factory;
+        address staking = contracts.staking;
         VenueRules storage rules = generalVenueInfo[customerInfo.venueToPayFor].rules;
 
-        contracts_.factory.nftFactoryParameters().signerAddress
-            .checkCustomerInfo(address(this), protection, customerInfo, rules);
+        factory.nftFactoryParameters().signerAddress.checkCustomerInfo(address(this), protection, customerInfo, rules);
 
         uint256 venueId = customerInfo.venueToPayFor.getVenueId();
 
-        address promoter = contracts_.factory.getReferralCreator(customerInfo.promoterReferralCode);
+        address promoter = factory.getReferralCreator(customerInfo.promoterReferralCode);
 
         _calculateRewards(
             customerInfo.customer,
@@ -475,7 +486,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             uint256 subsidyMinusFees = subsidy - processingFee;
             if (subsidy > 0) {
                 // Pull the full subsidy from escrow so the fee can be routed to platform revenue before paying the venue.
-                contracts_.escrow.distributeLONGDeposit(customerInfo.venueToPayFor, address(this), subsidy);
+                contracts.escrow.distributeLONGDeposit(customerInfo.venueToPayFor, address(this), subsidy);
                 if (processingFee > 0) {
                     _handleRevenue(long, processingFee);
                 }
@@ -490,9 +501,9 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
             if (rules.longPaymentType == LongPaymentTypes.AutoStake) {
                 // Approve only what is needed, then clear allowance after deposit.
-                long.safeApproveWithRetry(address(contracts_.staking), longAmount);
-                contracts_.staking.deposit(longAmount, customerInfo.venueToPayFor);
-                long.safeApprove(address(contracts_.staking), 0);
+                long.safeApproveWithRetry(address(staking), longAmount);
+                staking.deposit(longAmount, customerInfo.venueToPayFor);
+                long.safeApprove(address(staking), 0);
             } else if (rules.longPaymentType == LongPaymentTypes.AutoConvert) {
                 _swapLONGtoUSDtoken(customerInfo.venueToPayFor, longAmount);
             } else {
@@ -519,19 +530,22 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// - Always burns promoter ERC1155 credits by the settled USD amount to prevent re-claims.
     /// @param promoterInfo Signed settlement parameters (promoter, venue, USD amount, payout currency flag).
     function distributePromoterPayments(
-        PromoterInfo memory promoterInfo,
+        PromoterInfo calldata promoterInfo,
         SignatureVerifier.SignatureProtection calldata protection
-    ) external {
-        Contracts memory contracts_ = belongCheckInStorage.contracts;
+    ) external onlyEOA {
+        Contracts storage contracts = belongCheckInStorage.contracts;
+        address factory = contracts.factory;
+        address promoterToken = contracts.promoterToken;
+        address escrow = contracts.escrow;
         DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
 
-        contracts_.factory.nftFactoryParameters().signerAddress
+        factory.nftFactoryParameters().signerAddress
             .checkPromoterPaymentDistribution(address(this), protection, promoterInfo);
 
         uint256 venueId = promoterInfo.venue.getVenueId();
-        address promoter = contracts_.factory.getReferralCreator(promoterInfo.promoterReferralCode);
+        address promoter = factory.getReferralCreator(promoterInfo.promoterReferralCode);
 
-        uint256 promoterBalance = contracts_.promoterToken.balanceOf(promoter, venueId);
+        uint256 promoterBalance = promoterToken.balanceOf(promoter, venueId);
         require(
             promoterBalance >= promoterInfo.amountInUSD, NotEnoughBalance(promoterInfo.amountInUSD, promoterBalance)
         );
@@ -546,20 +560,20 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             toPromoter -= platformFees;
         }
 
+        promoterToken.burn(promoter, venueId, promoterInfo.amountInUSD);
+
         if (promoterInfo.paymentInUSDtoken) {
             // Route platform fees here for buyback/burn split, then forward remainder.
-            contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), platformFees);
+            escrow.distributeVenueDeposit(promoterInfo.venue, address(this), platformFees);
             _handleRevenue(payments.usdToken, platformFees);
-            contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, promoter, toPromoter);
+            escrow.distributeVenueDeposit(promoterInfo.venue, promoter, toPromoter);
         } else {
-            contracts_.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), promoterInfo.amountInUSD);
+            escrow.distributeVenueDeposit(promoterInfo.venue, address(this), promoterInfo.amountInUSD);
             // Swap fee portion to this contract for burning, then forward remainder to platform.
             uint256 longFees = _swapUSDtokenToLONG(address(this), platformFees);
             _handleRevenue(payments.long, longFees);
             _swapUSDtokenToLONG(promoter, toPromoter);
         }
-
-        contracts_.promoterToken.burn(promoter, venueId, promoterInfo.amountInUSD);
 
         emit PromoterPaymentsDistributed(
             promoter, promoterInfo.venue, promoterInfo.amountInUSD, promoterInfo.paymentInUSDtoken
@@ -570,14 +584,16 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param venue Venue that will regain the promoter’s USD credits.
     /// @param promoter Promoter whose outstanding credits are burned.
     function emergencyCancelPayment(address venue, address promoter) external onlyOwner {
-        Contracts memory contracts_ = belongCheckInStorage.contracts;
+        Contracts storage contracts = belongCheckInStorage.contracts;
+        address promoterToken = contracts.promoterToken;
+        address venueToken = contracts.venueToken;
 
         uint256 venueId = venue.getVenueId();
-        uint256 promoterBalance = contracts_.promoterToken.balanceOf(promoter, venueId);
+        uint256 promoterBalance = promoterToken.balanceOf(promoter, venueId);
 
-        contracts_.promoterToken.burn(promoter, venueId, promoterBalance);
+        promoterToken.burn(promoter, venueId, promoterBalance);
 
-        contracts_.venueToken.mint(venue, venueId, promoterBalance, contracts_.venueToken.uri(venueId));
+        venueToken.mint(venue, venueId, promoterBalance, venueToken.uri(venueId));
 
         emit PromoterPaymentCancelled(venue, promoter, promoterBalance);
     }
@@ -600,15 +616,16 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param _stakingRewards Replacement 5-element rewards table (by staking tier).
     function _setParameters(
         DualDexSwapV4Lib.PaymentsInfo calldata paymentsInfo_,
-        Fees memory _fees,
-        RewardsInfo[5] memory _stakingRewards
+        Fees calldata _fees,
+        RewardsInfo[5] calldata _stakingRewards
     ) private {
         require(paymentsInfo_.slippageBps <= Helper.BPS, BPSTooHigh());
         require(_fees.processingFeePercentage <= _fees.platformSubsidyPercentage, ProcessingFeeExceedsSubsidy());
 
+        BelongCheckInStorage storage _storage = belongCheckInStorage;
         _storePaymentsInfo(paymentsInfo_);
-        belongCheckInStorage.paymentsInfo = paymentsInfo_;
-        belongCheckInStorage.fees = _fees;
+        _storage.paymentsInfo = paymentsInfo_;
+        _storage.fees = _fees;
 
         for (uint8 i = 0; i < 5; ++i) {
             stakingRewards[StakingTiers(i)] = _stakingRewards[i];
