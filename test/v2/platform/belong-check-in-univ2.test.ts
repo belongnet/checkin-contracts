@@ -505,6 +505,20 @@ describe('BelongCheckIn ETH UniswapV2', () => {
       }
     });
 
+    it('setParameters() reverts when processing fee exceeds subsidy', async () => {
+      const { belongCheckIn } = await loadFixture(fixture);
+
+      const invalidFees = {
+        ...fees,
+        platformSubsidyPercentage: 100,
+        processingFeePercentage: 200,
+      };
+
+      await expect(
+        belongCheckIn.setParameters(paymentsInfo, invalidFees, stakingRewards),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'ProcessingFeeExceedsSubsidy');
+    });
+
     it('setContracts() can be set only by the owner', async () => {
       const { belongCheckIn, minter } = await loadFixture(fixture);
 
