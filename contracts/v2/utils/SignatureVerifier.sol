@@ -38,10 +38,15 @@ library SignatureVerifier {
         bytes signature;
     }
 
+    uint256 private constant _SECP256K1N_HALF =
+        0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
+    bytes32 private constant _EIP2098_S_MASK =
+        0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
     // ============================== Errors ==============================
 
     /// @notice Thrown when a signature does not match the expected signer/payload.
-    error InvalidSignature(signature);
+    error InvalidSignature(bytes signature);
 
     /// @notice Thrown when collection metadata (name/symbol) is empty.
     /// @param name The provided collection name.
@@ -74,7 +79,7 @@ library SignatureVerifier {
         SignatureProtection calldata protection,
         AccessTokenInfo memory accessTokenInfo
     ) external view {
-        require(deadline >= block.timestamp, SignatureExpired());
+        _validateProtection(protection);
 
         require(
             bytes(accessTokenInfo.metadata.name).length > 0 && bytes(accessTokenInfo.metadata.symbol).length > 0,
@@ -106,7 +111,6 @@ library SignatureVerifier {
     /// @dev Hash covers: `name`, `symbol`, `uri`, and `chainId`.
     ///      Uses `abi.encode` to avoid packed collisions.
     /// @param signer Authorized signer address.
-    /// @param signature Detached signature validating `creditTokenInfo`.
     /// @param creditTokenInfo Payload. Only the fields listed above are signed.
     function checkCreditTokenInfo(
         address signer,
@@ -114,7 +118,7 @@ library SignatureVerifier {
         SignatureProtection calldata protection,
         ERC1155Info calldata creditTokenInfo
     ) external view {
-        require(deadline >= block.timestamp, SignatureExpired());
+        _validateProtection(protection);
 
         require(
             bytes(creditTokenInfo.name).length > 0 && bytes(creditTokenInfo.symbol).length > 0,
@@ -153,7 +157,7 @@ library SignatureVerifier {
         address owner,
         VestingWalletInfo calldata vestingWalletInfo
     ) external view {
-        require(deadline >= block.timestamp, SignatureExpired());
+        _validateProtection(protection);
 
         require(
             signer.isValidSignatureNow(
@@ -190,7 +194,7 @@ library SignatureVerifier {
         SignatureProtection calldata protection,
         VenueInfo calldata venueInfo
     ) external view {
-        require(deadline >= block.timestamp, SignatureExpired());
+        _validateProtection(protection);
 
         require(
             signer.isValidSignatureNow(
@@ -224,7 +228,7 @@ library SignatureVerifier {
         CustomerInfo calldata customerInfo,
         VenueRules memory rules
     ) external view {
-        require(deadline >= block.timestamp, SignatureExpired());
+        _validateProtection(protection);
 
         PaymentTypes paymentType = customerInfo.paymentInUSDtoken ? PaymentTypes.USDtoken : PaymentTypes.LONG;
         require(
@@ -287,7 +291,7 @@ library SignatureVerifier {
         SignatureProtection calldata protection,
         PromoterInfo memory promoterInfo
     ) external view {
-        require(deadline >= block.timestamp, SignatureExpired());
+        _validateProtection(protection);
 
         require(
             signer.isValidSignatureNow(
@@ -323,7 +327,7 @@ library SignatureVerifier {
         address receiver,
         DynamicPriceParameters calldata params
     ) external view {
-        require(deadline >= block.timestamp, SignatureExpired());
+        _validateProtection(protection);
 
         require(
             signer.isValidSignatureNow(
@@ -358,7 +362,7 @@ library SignatureVerifier {
         address receiver,
         StaticPriceParameters calldata params
     ) external view {
-        require(deadline >= block.timestamp, SignatureExpired());
+        _validateProtection(protection);
 
         require(
             signer.isValidSignatureNow(
@@ -396,5 +400,44 @@ library SignatureVerifier {
                     : BountyTypes.NoType;
 
         require(rules.bountyType == bountyType, WrongCustomerBountyType());
+    }
+
+    function _validateProtection(SignatureProtection calldata protection) private view {
+        if (protection.deadline < block.timestamp) {
+            revert SignatureExpired();
+        }
+        _enforceCanonicalSignature(protection.signature);
+    }
+
+    function _enforceCanonicalSignature(bytes calldata signature) private pure {
+        uint256 signatureLength = signature.length;
+        if (signatureLength == 65) {
+            bytes32 s;
+            uint8 v;
+            assembly {
+                s := calldataload(add(signature.offset, 0x40))
+                v := byte(0, calldataload(add(signature.offset, 0x60)))
+            }
+
+            if (uint256(s) > _SECP256K1N_HALF || (v != 27 && v != 28)) {
+                revert InvalidSignature(signature);
+            }
+        } else if (signatureLength == 64) {
+            bytes32 vs;
+            assembly {
+                vs := calldataload(add(signature.offset, 0x40))
+            }
+
+            uint256 s = uint256(vs & _EIP2098_S_MASK);
+            if (s > _SECP256K1N_HALF) {
+                revert InvalidSignature(signature);
+            }
+
+            uint256 vBit = uint256(vs >> 255);
+            if (vBit > 1) {
+                revert InvalidSignature(signature);
+            }
+        }
+        // For ERC1271 signatures (arbitrary length), defer validity checks to the target contract.
     }
 }
