@@ -38,10 +38,8 @@ library SignatureVerifier {
         bytes signature;
     }
 
-    uint256 private constant _SECP256K1N_HALF =
-        0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
-    bytes32 private constant _EIP2098_S_MASK =
-        0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    uint256 private constant _SECP256K1N_HALF = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
+    bytes32 private constant _EIP2098_S_MASK = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
     // ============================== Errors ==============================
 
