@@ -43,11 +43,11 @@ struct ERC1155Info {
     string name;
     string symbol;
     address defaultAdmin;
+    bool transferable;
     address manager;
     address minter;
     address burner;
     string uri;
-    bool transferable;
 }
 
 /// @title VestingWalletInfo
