@@ -68,6 +68,9 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Reverts when a provided bps value exceeds the configured scaling domain.
     error BPSTooHigh();
 
+    /// @notice Reverts when the processing fee percentage is configured above the subsidy percentage.
+    error ProcessingFeeExceedsSubsidy();
+
     /// @notice Thrown when LONG cannot be burned or transferred to the burn address.
     error TokensCanNotBeBurned();
 
@@ -577,6 +580,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         RewardsInfo[5] memory _stakingRewards
     ) private {
         require(paymentsInfo_.slippageBps <= Helper.BPS, BPSTooHigh());
+        require(_fees.processingFeePercentage <= _fees.platformSubsidyPercentage, ProcessingFeeExceedsSubsidy());
 
         _storePaymentsInfo(paymentsInfo_);
         belongCheckInStorage.paymentsInfo = paymentsInfo_;
