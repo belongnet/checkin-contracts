@@ -146,6 +146,11 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param amountBurned Amount of LONG burned or transferred to the burn address.
     event BurnedLONGs(address burnedTo, uint256 amountBurned);
 
+    /// @notice Emitted when a venue withdraws unused USDtoken deposits from escrow.
+    /// @param venue The withdrawing venue.
+    /// @param amount Amount of USDtoken transferred back to the venue.
+    event VenueUsdWithdrawn(address indexed venue, uint256 amount);
+
     // ========== Structs ==========
 
     /// @notice Top-level storage bundle for program configuration.
@@ -341,6 +346,25 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         _setVenueRules(msg.sender, rules);
     }
 
+    /// @notice Allows a venue to withdraw unused USDtoken deposits when no promoter payouts occur.
+    /// @param amount Amount of USDtoken to withdraw.
+    function withdrawUnusedUSD(uint256 amount) external {
+        require(amount > 0, NotEnoughBalance(amount, 0));
+        Contracts memory contracts_ = belongCheckInStorage.contracts;
+        Escrow escrow = contracts_.escrow;
+        uint256 usdBalance = escrow.venueDeposits(msg.sender).usdTokenDeposits;
+        require(usdBalance >= amount, NotEnoughBalance(amount, usdBalance));
+
+        uint256 venueId = msg.sender.getVenueId();
+        uint256 venueTokenBalance = contracts_.venueToken.balanceOf(msg.sender, venueId);
+        require(venueTokenBalance >= amount, NotEnoughBalance(amount, venueTokenBalance));
+
+        contracts_.venueToken.burn(msg.sender, venueId, amount);
+        escrow.distributeVenueDeposit(msg.sender, msg.sender, amount);
+
+        emit VenueUsdWithdrawn(msg.sender, amount);
+    }
+
     /// @notice Handles a venue USDtoken deposit, accounting for fee exemptions, affiliate rewards, and escrow funding.
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
@@ -451,7 +475,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             uint256 subsidyMinusFees = subsidy - processingFee;
             if (subsidy > 0) {
                 // Pull the full subsidy from escrow so the fee can be routed to platform revenue before paying the venue.
-                contracts_.escrow.distributeLONGDiscount(customerInfo.venueToPayFor, address(this), subsidy);
+                contracts_.escrow.distributeLONGDeposit(customerInfo.venueToPayFor, address(this), subsidy);
                 if (processingFee > 0) {
                     _handleRevenue(long, processingFee);
                 }

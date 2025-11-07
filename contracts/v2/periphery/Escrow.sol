@@ -44,7 +44,7 @@ contract Escrow is Initializable {
     /// @param venue Venue whose LONG balance decreased.
     /// @param to Recipient of the LONG transfer.
     /// @param amount Amount of LONG transferred.
-    event DistributedLONGDiscount(address indexed venue, address indexed to, uint256 amount);
+    event DistributedLONGDeposit(address indexed venue, address indexed to, uint256 amount);
 
     /// @notice Emitted when USDtoken deposit funds are disbursed from a venue's balance.
     /// @param venue Venue whose USDtoken balance decreased.
@@ -113,7 +113,7 @@ contract Escrow is Initializable {
     /// @param venue Venue whose LONG balance will decrease.
     /// @param to Recipient of the LONG transfer.
     /// @param amount Amount of LONG to transfer.
-    function distributeLONGDiscount(address venue, address to, uint256 amount) external onlyBelongCheckIn {
+    function distributeLONGDeposit(address venue, address to, uint256 amount) external onlyBelongCheckIn {
         uint256 longDeposits = venueDeposits[venue].longDeposits;
         require(longDeposits >= amount, NotEnoughLONGs(longDeposits, amount));
 
@@ -125,7 +125,7 @@ contract Escrow is Initializable {
         belongCheckIn.paymentsInfo().long.safeTransfer(to, amount);
 
         emit VenueDepositsUpdated(venue, venueDeposits[venue]);
-        emit DistributedLONGDiscount(venue, to, amount);
+        emit DistributedLONGDeposit(venue, to, amount);
     }
 
     /// @notice Disburses USDtoken funds from a venue's USDtoken balance to a recipient.
