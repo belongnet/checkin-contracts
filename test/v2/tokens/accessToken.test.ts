@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
-import { BigNumber } from 'ethers';
+import { BigNumber, BigNumberish } from 'ethers';
 import {
   WETHMock,
   Factory,
@@ -36,6 +36,15 @@ describe('AccessToken', () => {
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const chainId = 31337;
   const NFT_721_BASE_URI = 'test.com/';
+  const BPS_DENOMINATOR = BigNumber.from('10000');
+
+  function calculatePlatformFee(amount: BigNumberish, commission: BigNumberish): BigNumber {
+    const product = BigNumber.from(amount).mul(commission);
+    if (product.isZero()) {
+      return BigNumber.from(0);
+    }
+    return product.add(BPS_DENOMINATOR).sub(1).div(BPS_DENOMINATOR);
+  }
 
   const AccessTokenEthMetadata = {
     name: 'AccessTokenEth',
@@ -1484,14 +1493,70 @@ describe('AccessToken', () => {
       const endBalanceOwner = await erc20Example.balanceOf(owner.address);
       const endBalanceReferral = await erc20Example.balanceOf(referral.address);
 
-      const fullFees = BigNumber.from(tokenPurchasePrice)
-        .mul((await factory.nftFactoryParameters()).platformCommission)
-        .div(10000);
+      const fullFees = calculatePlatformFee(tokenPurchasePrice, (await factory.nftFactoryParameters()).platformCommission);
       const feesToReferralCreator = await factory.getReferralRate(creator.address, referralCode, fullFees);
       const feesToPlatform = fullFees.sub(feesToReferralCreator);
 
       expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(feesToPlatform);
       expect(endBalanceReferral.sub(startBalanceReferral)).to.be.equal(feesToReferralCreator);
+    });
+
+    it('rounds platform fees up for tiny ERC20 prices', async () => {
+      const { factory, signer, creator, owner, erc20Example, charlie } = await loadFixture(fixture);
+
+      const tinyMetadata: TokenMetadata = {
+        name: 'TinyAccessToken',
+        symbol: 'TINY',
+        uri: 'contractURI/TinyAccessToken',
+      };
+      const tinyPrice = BigNumber.from(1);
+
+      const { accessToken: tinyAccessToken } = await deployAccessToken(
+        tinyMetadata,
+        tinyPrice,
+        tinyPrice,
+        signer,
+        creator,
+        factory,
+        ethers.constants.HashZero,
+        erc20Example.address,
+      );
+
+      const message = EthCrypto.hash.keccak256([
+        { type: 'address', value: charlie.address },
+        { type: 'uint256', value: 0 },
+        { type: 'string', value: tinyMetadata.uri },
+        { type: 'bool', value: false },
+        { type: 'uint256', value: chainId },
+      ]);
+      const signature = EthCrypto.sign(signer.privateKey, message);
+
+      await erc20Example.connect(charlie).mint(charlie.address, tinyPrice);
+      await erc20Example.connect(charlie).approve(tinyAccessToken.address, tinyPrice);
+
+      const startBalanceOwner = await erc20Example.balanceOf(owner.address);
+      const startBalanceCreator = await erc20Example.balanceOf(creator.address);
+
+      await tinyAccessToken.connect(charlie).mintStaticPrice(
+        charlie.address,
+        [
+          {
+            tokenId: 0,
+            tokenUri: tinyMetadata.uri,
+            whitelisted: false,
+            signature,
+          } as StaticPriceParametersStruct,
+        ],
+        erc20Example.address,
+        tinyPrice,
+      );
+
+      const expectedFee = calculatePlatformFee(tinyPrice, (await factory.nftFactoryParameters()).platformCommission);
+      const endBalanceOwner = await erc20Example.balanceOf(owner.address);
+      const endBalanceCreator = await erc20Example.balanceOf(creator.address);
+
+      expect(endBalanceOwner.sub(startBalanceOwner)).to.eq(expectedFee);
+      expect(endBalanceCreator.sub(startBalanceCreator)).to.eq(tinyPrice.sub(expectedFee));
     });
 
     it('Should withdraw all funds when contract has 0 commission - ETH', async () => {
@@ -1573,14 +1638,14 @@ describe('AccessToken', () => {
       const endBalanceReferral = await referral.getBalance();
       const endBalanceCreator = await creator.getBalance();
 
-      const fullFees = ethPurchasePrice.div(BigNumber.from('100'));
+      const fullFees = calculatePlatformFee(ethPurchasePrice, (await factory.nftFactoryParameters()).platformCommission);
       const feesToReferralCreator = await factory.getReferralRate(creator.address, referralCode, fullFees);
       const feesToPlatform = fullFees.sub(feesToReferralCreator);
 
       expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(feesToPlatform);
       expect(endBalanceReferral.sub(startBalanceReferral)).to.be.equal(feesToReferralCreator);
       expect(endBalanceCreator.sub(startBalanceCreator)).to.be.equal(
-        ethPurchasePrice.mul(BigNumber.from('99')).div(BigNumber.from('100')),
+        ethPurchasePrice.sub(fullFees),
       );
     });
 
@@ -1635,11 +1700,11 @@ describe('AccessToken', () => {
       let endBalanceOwner = await owner.getBalance();
       let endBalanceCreator = await creator.getBalance();
 
-      const fullFees = ethPurchasePrice.div(BigNumber.from('100'));
+      const fullFees = calculatePlatformFee(ethPurchasePrice, (await factory.nftFactoryParameters()).platformCommission);
 
       expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(fullFees);
       expect(endBalanceCreator.sub(startBalanceCreator)).to.be.equal(
-        ethPurchasePrice.mul(BigNumber.from('99')).div(BigNumber.from('100')),
+        ethPurchasePrice.sub(fullFees),
       );
 
       // NFT was sold for ETH
@@ -1831,14 +1896,14 @@ describe('AccessToken', () => {
       const endBalanceCreator = await creator.getBalance();
       const endBalanceReferral = await referral.getBalance();
 
-      const fullFees = ethPurchasePrice.div(BigNumber.from('100'));
+      const fullFees = calculatePlatformFee(ethPurchasePrice, (await factory.nftFactoryParameters()).platformCommission);
       const feesToReferralCreator = await factory.getReferralRate(creator.address, referralCode, fullFees);
       const feesToPlatform = fullFees.sub(feesToReferralCreator);
 
       expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(feesToPlatform);
       expect(endBalanceReferral.sub(startBalanceReferral)).to.be.equal(feesToReferralCreator);
       expect(endBalanceCreator.sub(startBalanceCreator)).to.be.equal(
-        ethPurchasePrice.mul(BigNumber.from('99')).div(BigNumber.from('100')),
+        ethPurchasePrice.sub(fullFees),
       );
 
       let tx = {

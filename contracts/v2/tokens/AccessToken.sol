@@ -335,7 +335,12 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         require(amount == price, IncorrectNativeCurrencyAmountSent(amount));
 
-        uint256 fees = (amount * factoryParameters.platformCommission) / PLATFORM_COMISSION_DENOMINATOR;
+        uint256 fees = amount * factoryParameters.platformCommission;
+        if (fees != 0) {
+            unchecked {
+                fees = (fees + PLATFORM_COMISSION_DENOMINATOR - 1) / PLATFORM_COMISSION_DENOMINATOR;
+            }
+        }
         uint256 amountToCreator;
         unchecked {
             amountToCreator = amount - fees;
