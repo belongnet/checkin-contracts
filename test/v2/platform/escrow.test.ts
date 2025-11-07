@@ -48,15 +48,15 @@ describe('Escrow', () => {
       expect((await escrow.venueDeposits(admin.address)).longDeposits).to.eq(20);
     });
 
-    it('distributeLONGDiscount()', async () => {
+    it('distributeLONGDeposit()', async () => {
       const { escrow, admin, user1 } = await loadFixture(fixture);
 
       await escrow.venueDeposit(admin.address, 10, 20);
 
       await expect(
-        escrow.connect(user1).distributeLONGDiscount(user1.address, user1.address, 10),
+        escrow.connect(user1).distributeLONGDeposit(user1.address, user1.address, 10),
       ).to.be.revertedWithCustomError(escrow, 'NotBelongCheckIn');
-      await expect(escrow.distributeLONGDiscount(admin.address, admin.address, 30))
+      await expect(escrow.distributeLONGDeposit(admin.address, admin.address, 30))
         .to.be.revertedWithCustomError(escrow, 'NotEnoughLONGs')
         .withArgs(20, 30);
     });

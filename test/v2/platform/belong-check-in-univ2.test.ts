@@ -140,13 +140,8 @@ describe('BelongCheckIn ETH UniswapV2', () => {
     const rate1to1 = ethers.utils.parseUnits('1', 18);
 
     const RouterFactory = await ethers.getContractFactory('MockV2Router');
-    const mockRouter: MockV2Router = (await RouterFactory.deploy(
-      USDC.address,
-      ENA.address,
-      rate1to1,
-    )) as MockV2Router;
+    const mockRouter: MockV2Router = (await RouterFactory.deploy(USDC.address, ENA.address, rate1to1)) as MockV2Router;
     await mockRouter.deployed();
-
 
     const largeUsd = await u(1_000_000, USDC);
     await USDC.mint(USDC_whale.address, largeUsd);
@@ -549,6 +544,47 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         longPF: belongCheckInStorage.contracts.longPF,
       };
       expect(contractsFromStorage).to.deep.eq(contractsNew);
+    });
+
+    it('withdrawUnusedUSD() burns venue credits and returns USDC', async () => {
+      const { belongCheckIn, escrow, venueToken, helper, signer, USDC, USDC_whale } = await loadFixture(fixture);
+
+      const uri = 'uriuri';
+      const venueAmount = await u(100, USDC);
+      const venue = USDC_whale.address;
+      const venueMessage = ethers.utils.solidityKeccak256(
+        ['address', 'bytes32', 'string', 'uint256'],
+        [venue, ethers.constants.HashZero, uri, chainId],
+      );
+      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 2, bountyType: 0, bountyAllocationType: 0, longPaymentType: 0 } as VenueRulesStruct,
+        venue,
+        amount: venueAmount,
+        affiliateReferralCode: ethers.constants.HashZero,
+        uri,
+        signature: venueSignature,
+      };
+      const willBeTaken = convenienceFeeAmount.add(venueAmount);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+
+      const venueId = await helper.getVenueId(venue);
+      const venueTokenBefore = await venueToken.balanceOf(venue, venueId);
+      const usdDepositsBefore = (await escrow.venueDeposits(venue)).usdTokenDeposits;
+      const withdrawAmount = venueAmount.div(2);
+      expect(withdrawAmount).to.be.gt(0);
+
+      const escrowUsdBefore = await USDC.balanceOf(escrow.address);
+      const venueUsdBefore = await USDC.balanceOf(venue);
+
+      const tx = await belongCheckIn.connect(USDC_whale).withdrawUnusedUSD(withdrawAmount);
+
+      await expect(tx).to.emit(belongCheckIn, 'VenueUsdWithdrawn').withArgs(venue, withdrawAmount);
+      expect((await escrow.venueDeposits(venue)).usdTokenDeposits).to.eq(usdDepositsBefore.sub(withdrawAmount));
+      expect(await venueToken.balanceOf(venue, venueId)).to.eq(venueTokenBefore.sub(withdrawAmount));
+      expect(await USDC.balanceOf(escrow.address)).to.eq(escrowUsdBefore.sub(withdrawAmount));
+      expect(await USDC.balanceOf(venue)).to.eq(venueUsdBefore.add(withdrawAmount));
     });
   });
 
@@ -1681,12 +1717,14 @@ describe('BelongCheckIn ETH UniswapV2', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      await expect(
-        belongCheckIn.connect(ENA_whale).payToVenue(customerInfoFakeMessage1),
-      ).to.be.revertedWithCustomError(signatureVerifier, 'WrongPaymentType');
-      await expect(
-        belongCheckIn.connect(ENA_whale).payToVenue(customerInfoFakeMessage2),
-      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
+      await expect(belongCheckIn.connect(ENA_whale).payToVenue(customerInfoFakeMessage1)).to.be.revertedWithCustomError(
+        signatureVerifier,
+        'WrongPaymentType',
+      );
+      await expect(belongCheckIn.connect(ENA_whale).payToVenue(customerInfoFakeMessage2)).to.be.revertedWithCustomError(
+        signatureVerifier,
+        'InvalidSignature',
+      );
 
       const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
 
