@@ -39,13 +39,13 @@ error VestingWalletAlreadyExists()
 
 Thrown when a beneficiary already has a vesting wallet registered.
 
-### TotalRoyaltiesExceed100Pecents
+### TotalRoyaltiesNot100Percent
 
 ```solidity
-error TotalRoyaltiesExceed100Pecents()
+error TotalRoyaltiesNot100Percent()
 ```
 
-Thrown when `amountToCreator + amountToPlatform > 10000` (i.e., >100% in BPS).
+Thrown when `amountToCreator + amountToPlatform != 10000` (i.e., does not equal 100% in BPS).
 
 ### RoyaltiesReceiverAddressMismatch
 
@@ -522,4 +522,3 @@ Returns all vesting wallet records registered for `beneficiary`.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | struct Factory.VestingWalletInstanceInfo[] | Array of {VestingWalletInstanceInfo} records. |
-

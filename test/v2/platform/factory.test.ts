@@ -1139,7 +1139,13 @@ describe('Factory', () => {
       royalties.amountToPlatform = 1001;
       await expect(
         factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages),
-      ).to.be.revertedWithCustomError(factory, 'TotalRoyaltiesExceed100Pecents');
+      ).to.be.revertedWithCustomError(factory, 'TotalRoyaltiesNot100Percent');
+
+      royalties.amountToCreator = 9000;
+      royalties.amountToPlatform = 900;
+      await expect(
+        factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages),
+      ).to.be.revertedWithCustomError(factory, 'TotalRoyaltiesNot100Percent');
 
       royalties.amountToCreator = 9000;
       royalties.amountToPlatform = 1000;

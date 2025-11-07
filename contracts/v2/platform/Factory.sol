@@ -47,8 +47,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Thrown when a beneficiary already has a vesting wallet registered.
     error VestingWalletAlreadyExists();
 
-    /// @notice Thrown when `amountToCreator + amountToPlatform > 10000` (i.e., >100% in BPS).
-    error TotalRoyaltiesExceed100Pecents();
+    /// @notice Thrown when `amountToCreator + amountToPlatform != 10000`.
+    error TotalRoyaltiesNot100Percent();
 
     /// @notice Thrown when the deployed royalties receiver address does not match the predicted CREATE2 address.
     error RoyaltiesReceiverAddressMismatch();
@@ -493,7 +493,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         RoyaltiesParameters calldata _royalties,
         Implementations calldata _implementations
     ) private {
-        require(_royalties.amountToCreator + _royalties.amountToPlatform <= 10000, TotalRoyaltiesExceed100Pecents());
+        require(
+            _royalties.amountToCreator + _royalties.amountToPlatform == 10000,
+            TotalRoyaltiesNot100Percent()
+        );
 
         _nftFactoryParameters = factoryParameters_;
         _royaltiesParameters = _royalties;
