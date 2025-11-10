@@ -62,6 +62,8 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param availableBalance The currently available balance.
     error NotEnoughBalance(uint256 requiredAmount, uint256 availableBalance);
 
+    error NotEnoughPromoterBalance(uint256 requiredAmount);
+
     /// @notice Thrown when a venue provides an invalid or disabled payment type.
     error WrongPaymentTypeProvided();
 
@@ -357,11 +359,11 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param amount Amount of USDtoken to withdraw.
     function withdrawUnusedUSD(uint256 amount) external {
         require(amount > 0, NotEnoughBalance(amount, 0));
-        Contracts storage contracts = belongCheckInStorage.contracts;
-        address venueToken = contracts.venueToken;
-        Escrow escrow = contracts.escrow;
-        uint256 usdBalance = escrow.venueDeposits(msg.sender).usdTokenDeposits;
-        require(usdBalance >= amount, NotEnoughBalance(amount, usdBalance));
+        Contracts storage _contracts = belongCheckInStorage.contracts;
+        CreditToken venueToken = _contracts.venueToken;
+        Escrow escrow = _contracts.escrow;
+        (uint256 usdTokenDeposits,) = escrow.venueDeposits(msg.sender);
+        require(usdTokenDeposits >= amount, NotEnoughBalance(amount, usdTokenDeposits));
 
         uint256 venueId = msg.sender.getVenueId();
         uint256 venueTokenBalance = venueToken.balanceOf(msg.sender, venueId);
@@ -385,21 +387,19 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         external
         onlyEOA
     {
-        Contracts storage contracts = belongCheckInStorage.contracts;
-        address factory = contracts.factory;
-        address escrow = contracts.escrow;
+        Contracts storage _contracts = belongCheckInStorage.contracts;
         Fees storage fees_ = belongCheckInStorage.fees;
         address usdToken = _paymentsInfo.usdToken;
 
-        factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), protection, venueInfo);
+        _contracts.factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), protection, venueInfo);
 
         VenueStakingRewardInfo memory stakingInfo =
-        stakingRewards[contracts.staking.balanceOf(venueInfo.venue).stakingTiers()].venueStakingInfo;
+        stakingRewards[_contracts.staking.balanceOf(venueInfo.venue).stakingTiers()].venueStakingInfo;
 
         address affiliate;
         uint256 affiliateFee;
         if (venueInfo.affiliateReferralCode != bytes32(0)) {
-            affiliate = factory.getReferralCreator(venueInfo.affiliateReferralCode);
+            affiliate = _contracts.factory.getReferralCreator(venueInfo.affiliateReferralCode);
             require(affiliate != address(0), WrongReferralCode(venueInfo.affiliateReferralCode));
 
             affiliateFee = fees_.affiliatePercentage.calculateRate(venueInfo.amount);
@@ -422,14 +422,14 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
         usdToken.safeTransferFrom(venueInfo.venue, address(this), stakingInfo.convenienceFeeAmount + affiliateFee);
 
-        usdToken.safeTransferFrom(venueInfo.venue, address(escrow), venueInfo.amount);
+        usdToken.safeTransferFrom(venueInfo.venue, address(_contracts.escrow), venueInfo.amount);
 
-        uint256 convenienceFeeLong = _swapUSDtokenToLONG(address(escrow), stakingInfo.convenienceFeeAmount);
+        uint256 convenienceFeeLong = _swapUSDtokenToLONG(address(_contracts.escrow), stakingInfo.convenienceFeeAmount);
         _swapUSDtokenToLONG(affiliate, affiliateFee);
 
-        escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
+        _contracts.escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
 
-        contracts.venueToken.mint(venueInfo.venue, venueId, venueInfo.amount, venueInfo.uri);
+        _contracts.venueToken.mint(venueInfo.venue, venueId, venueInfo.amount, venueInfo.uri);
 
         emit VenuePaidDeposit(venueInfo.venue, venueInfo.affiliateReferralCode, venueInfo.rules, venueInfo.amount);
     }
@@ -445,16 +445,17 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         external
         onlyEOA
     {
-        Contracts storage contracts = belongCheckInStorage.contracts;
-        address factory = contracts.factory;
-        address staking = contracts.staking;
+        BelongCheckInStorage storage _storage = belongCheckInStorage;
+        Contracts storage _contracts = _storage.contracts;
+        Fees storage fees_ = _storage.fees;
         VenueRules storage rules = generalVenueInfo[customerInfo.venueToPayFor].rules;
 
-        factory.nftFactoryParameters().signerAddress.checkCustomerInfo(address(this), protection, customerInfo, rules);
+        _contracts.factory.nftFactoryParameters().signerAddress
+            .checkCustomerInfo(address(this), protection, customerInfo, rules);
 
         uint256 venueId = customerInfo.venueToPayFor.getVenueId();
 
-        address promoter = factory.getReferralCreator(customerInfo.promoterReferralCode);
+        address promoter = _contracts.factory.getReferralCreator(customerInfo.promoterReferralCode);
 
         _calculateRewards(
             customerInfo.customer,
@@ -479,35 +480,34 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             _paymentsInfo.usdToken
                 .safeTransferFrom(customerInfo.customer, customerInfo.venueToPayFor, customerInfo.amount);
         } else {
-            address long = _paymentsInfo.long;
             // Apply the processing fee on the subsidy itself so venues always receive the advertised top-up.
             uint256 subsidy = fees_.platformSubsidyPercentage.calculateRate(customerInfo.amount);
             uint256 processingFee = fees_.processingFeePercentage.calculateRate(subsidy);
             uint256 subsidyMinusFees = subsidy - processingFee;
             if (subsidy > 0) {
                 // Pull the full subsidy from escrow so the fee can be routed to platform revenue before paying the venue.
-                contracts.escrow.distributeLONGDeposit(customerInfo.venueToPayFor, address(this), subsidy);
+                _contracts.escrow.distributeLONGDeposit(customerInfo.venueToPayFor, address(this), subsidy);
                 if (processingFee > 0) {
-                    _handleRevenue(long, processingFee);
+                    _handleRevenue(_paymentsInfo.long, processingFee);
                 }
             }
 
             // customer paid amount - longCustomerDiscountPercentage (3%)
             uint256 longFromCustomer =
                 customerInfo.amount - fees_.longCustomerDiscountPercentage.calculateRate(customerInfo.amount);
-            long.safeTransferFrom(customerInfo.customer, address(this), longFromCustomer);
+            _paymentsInfo.long.safeTransferFrom(customerInfo.customer, address(this), longFromCustomer);
 
             uint256 longAmount = subsidyMinusFees + longFromCustomer;
 
             if (rules.longPaymentType == LongPaymentTypes.AutoStake) {
                 // Approve only what is needed, then clear allowance after deposit.
-                long.safeApproveWithRetry(address(staking), longAmount);
-                staking.deposit(longAmount, customerInfo.venueToPayFor);
-                long.safeApprove(address(staking), 0);
+                _paymentsInfo.long.safeApproveWithRetry(address(_contracts.staking), longAmount);
+                _contracts.staking.deposit(longAmount, customerInfo.venueToPayFor);
+                _paymentsInfo.long.safeApprove(address(_contracts.staking), 0);
             } else if (rules.longPaymentType == LongPaymentTypes.AutoConvert) {
                 _swapLONGtoUSDtoken(customerInfo.venueToPayFor, longAmount);
             } else {
-                long.safeTransfer(customerInfo.venueToPayFor, longAmount);
+                _paymentsInfo.long.safeTransfer(customerInfo.venueToPayFor, longAmount);
             }
         }
 
@@ -533,45 +533,42 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         PromoterInfo calldata promoterInfo,
         SignatureVerifier.SignatureProtection calldata protection
     ) external onlyEOA {
-        Contracts storage contracts = belongCheckInStorage.contracts;
-        address factory = contracts.factory;
-        address promoterToken = contracts.promoterToken;
-        address escrow = contracts.escrow;
+        Contracts storage _contracts = belongCheckInStorage.contracts;
         DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
 
-        factory.nftFactoryParameters().signerAddress
+        _contracts.factory.nftFactoryParameters().signerAddress
             .checkPromoterPaymentDistribution(address(this), protection, promoterInfo);
 
         uint256 venueId = promoterInfo.venue.getVenueId();
-        address promoter = factory.getReferralCreator(promoterInfo.promoterReferralCode);
+        address promoter = _contracts.factory.getReferralCreator(promoterInfo.promoterReferralCode);
 
-        uint256 promoterBalance = promoterToken.balanceOf(promoter, venueId);
         require(
-            promoterBalance >= promoterInfo.amountInUSD, NotEnoughBalance(promoterInfo.amountInUSD, promoterBalance)
+            _contracts.promoterToken.balanceOf(promoter, venueId) >= promoterInfo.amountInUSD,
+            NotEnoughPromoterBalance(promoterInfo.amountInUSD)
         );
 
         PromoterStakingRewardInfo memory stakingInfo =
-        stakingRewards[contracts_.staking.balanceOf(promoter).stakingTiers()].promoterStakingInfo;
+        stakingRewards[_contracts.staking.balanceOf(promoter).stakingTiers()].promoterStakingInfo;
 
         uint256 toPromoter = promoterInfo.amountInUSD;
-        uint24 percentage = promoterInfo.paymentInUSDtoken ? stakingInfo.usdTokenPercentage : stakingInfo.longPercentage;
-        uint256 platformFees = percentage.calculateRate(toPromoter);
+        uint256 platformFees = promoterInfo.paymentInUSDtoken
+            ? stakingInfo.usdTokenPercentage
+            : stakingInfo.longPercentage.calculateRate(toPromoter);
         unchecked {
             toPromoter -= platformFees;
         }
 
-        promoterToken.burn(promoter, venueId, promoterInfo.amountInUSD);
+        _contracts.promoterToken.burn(promoter, venueId, promoterInfo.amountInUSD);
 
         if (promoterInfo.paymentInUSDtoken) {
             // Route platform fees here for buyback/burn split, then forward remainder.
-            escrow.distributeVenueDeposit(promoterInfo.venue, address(this), platformFees);
+            _contracts.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), platformFees);
             _handleRevenue(payments.usdToken, platformFees);
-            escrow.distributeVenueDeposit(promoterInfo.venue, promoter, toPromoter);
+            _contracts.escrow.distributeVenueDeposit(promoterInfo.venue, promoter, toPromoter);
         } else {
-            escrow.distributeVenueDeposit(promoterInfo.venue, address(this), promoterInfo.amountInUSD);
+            _contracts.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), promoterInfo.amountInUSD);
             // Swap fee portion to this contract for burning, then forward remainder to platform.
-            uint256 longFees = _swapUSDtokenToLONG(address(this), platformFees);
-            _handleRevenue(payments.long, longFees);
+            _handleRevenue(payments.long, _swapUSDtokenToLONG(address(this), platformFees));
             _swapUSDtokenToLONG(promoter, toPromoter);
         }
 
@@ -584,9 +581,9 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param venue Venue that will regain the promoter’s USD credits.
     /// @param promoter Promoter whose outstanding credits are burned.
     function emergencyCancelPayment(address venue, address promoter) external onlyOwner {
-        Contracts storage contracts = belongCheckInStorage.contracts;
-        address promoterToken = contracts.promoterToken;
-        address venueToken = contracts.venueToken;
+        Contracts storage _contracts = belongCheckInStorage.contracts;
+        CreditToken promoterToken = _contracts.promoterToken;
+        CreditToken venueToken = _contracts.venueToken;
 
         uint256 venueId = venue.getVenueId();
         uint256 promoterBalance = promoterToken.balanceOf(promoter, venueId);
@@ -616,8 +613,8 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param _stakingRewards Replacement 5-element rewards table (by staking tier).
     function _setParameters(
         DualDexSwapV4Lib.PaymentsInfo calldata paymentsInfo_,
-        Fees calldata _fees,
-        RewardsInfo[5] calldata _stakingRewards
+        Fees memory _fees,
+        RewardsInfo[5] memory _stakingRewards
     ) private {
         require(paymentsInfo_.slippageBps <= Helper.BPS, BPSTooHigh());
         require(_fees.processingFeePercentage <= _fees.platformSubsidyPercentage, ProcessingFeeExceedsSubsidy());
