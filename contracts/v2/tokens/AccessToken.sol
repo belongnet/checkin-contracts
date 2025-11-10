@@ -164,10 +164,6 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// - Validates each entry via factory signer (`checkStaticPriceParameters`).
     /// - Computes total due based on whitelist flags and charges payer in NativeCurrency or ERC-20.
     /// - Reverts if `paramsArray.length` exceeds factory’s `maxArraySize`.
-    /// @param receiver Address that will receive all minted tokens.
-    /// @param paramsArray Array of static price mint parameters (id, uri, whitelist flag).
-    /// @param expectedPayingToken Expected paying token for sanity check.
-    /// @param expectedMintPrice Expected total price (reverts if mismatched).
     function mintStaticPrice(
         address expectedPayingToken,
         uint256 expectedMintPrice,
@@ -175,28 +171,23 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         StaticPriceParameters[] calldata staticPriceParameters,
         SignatureVerifier.SignatureProtection[] calldata protections
     ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
-        Factory.FactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
-
         require(
             receivers.length == staticPriceParameters.length && staticPriceParameters.length == protections.length
-                && staticPriceParameters.length <= factoryParameters.maxArraySize,
+                && staticPriceParameters.length <= parameters.factory.nftFactoryParameters().maxArraySize,
             WrongArraySize()
         );
 
-        AccessTokenInfo memory info = parameters.info;
+        address signer = parameters.factory.nftFactoryParameters().signerAddress;
 
         uint256 amountToPay;
         for (uint256 i; i < staticPriceParameters.length; ++i) {
-            factoryParameters.signerAddress
-                .checkStaticPriceParameters(address(this), protections[i], receivers[i], staticPriceParameters[i]);
-
-            uint256 price = staticPriceParameters[i].whitelisted ? info.whitelistMintPrice : info.mintPrice;
+            signer.checkStaticPriceParameters(address(this), protections[i], receivers[i], staticPriceParameters[i]);
 
             unchecked {
-                amountToPay += price;
+                amountToPay += staticMintPrice(staticPriceParameters[i].whitelisted);
             }
 
-            _baseMint(staticPriceParameters[i].tokenId, receiver, staticPriceParameters[i].tokenUri);
+            _baseMint(staticPriceParameters[i].tokenId, receivers[i], staticPriceParameters[i].tokenUri);
         }
 
         require(_pay(amountToPay, expectedPayingToken) == expectedMintPrice, PriceChanged(expectedMintPrice));
@@ -207,9 +198,6 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// - Validates each entry via factory signer (`checkDynamicPriceParameters`).
     /// - Sums prices provided in the payload and charges payer accordingly.
     /// - Reverts if `paramsArray.length` exceeds factory’s `maxArraySize`.
-    /// @param receiver Address that will receive all minted tokens.
-    /// @param paramsArray Array of dynamic price mint parameters (id, uri, price).
-    /// @param expectedPayingToken Expected paying token for sanity check.
     function mintDynamicPrice(
         address expectedPayingToken,
         address[] calldata receivers,
@@ -250,6 +238,11 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         }
 
         return metadataUri[_tokenId];
+    }
+
+    function staticMintPrice(bool isWhitelisted) public view returns (uint256) {
+        AccessTokenInfo storage info = parameters.info;
+        return isWhitelisted ? info.whitelistMintPrice : info.mintPrice;
     }
 
     /// @notice Collection name.
