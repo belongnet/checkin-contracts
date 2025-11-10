@@ -107,7 +107,7 @@ contract RoyaltiesReceiverV2 is Initializable {
     function shares(address account) public view returns (uint256) {
         RoyaltiesReceivers storage _royaltiesReceivers = royaltiesReceivers;
         Factory _factory = factory;
-        Factory.RoyaltiesParameters storage royaltiesParameters = _factory.royaltiesParameters();
+        Factory.RoyaltiesParameters memory royaltiesParameters = _factory.royaltiesParameters();
 
         if (account == _royaltiesReceivers.creator) {
             return royaltiesParameters.amountToCreator;
@@ -219,12 +219,12 @@ contract RoyaltiesReceiverV2 is Initializable {
 
         uint256 payment = ((balance + releases.totalReleased) * shares(account)) / TOTAL_SHARES;
 
-        uint256 released = releases.released[account];
-        if (payment <= released) {
+        uint256 _released = releases.released[account];
+        if (payment <= _released) {
             return 0;
         }
 
-        return payment - released;
+        return payment - _released;
     }
 
     /// @dev Reverts unless `account` is one of the configured payees.
