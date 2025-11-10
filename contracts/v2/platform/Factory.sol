@@ -70,9 +70,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param cliff Provided cliff duration in seconds.
     error BadDurations(uint64 duration, uint64 cliff);
     /// @notice Current allocation sum does not fit under `totalAllocation`.
-    /// @param currentAllocation Sum of TGE and linear allocation.
     /// @param total Provided total allocation.
-    error AllocationMismatch(uint256 currentAllocation, uint256 total);
+    error AllocationMismatch(uint256 total);
 
     // ========== Events ==========
 
@@ -236,7 +235,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
 
         factoryParameters.signerAddress.checkAccessTokenInfo(address(this), protection, accessTokenInfo);
 
-        bytes32 hashedSalt = _metadataHash(accessTokenInfo.metadata.name, accessTokenInfo.metadata.symbol);
+        bytes32 hashedSalt =
+            _getHash(abi.encode(accessTokenInfo.metadata.name), abi.encode(accessTokenInfo.metadata.symbol));
 
         NftInstanceInfo storage atInfo = getNftInstanceInfo[hashedSalt];
         require(atInfo.nftAddress == address(0), TokenAlreadyExists());
@@ -246,17 +246,15 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             : accessTokenInfo.paymentToken;
 
         Implementations storage currentImplementations = _currentImplementations;
-        address royaltiesReceiverImplementation = currentImplementations.royaltiesReceiver;
-        address accessTokenImplementation = currentImplementations.accessToken;
 
         address predictedRoyaltiesReceiver =
-            royaltiesReceiverImplementation.predictDeterministicAddress(hashedSalt, address(this));
+            currentImplementations.royaltiesReceiver.predictDeterministicAddress(hashedSalt, address(this));
         address predictedAccessToken =
-            accessTokenImplementation.predictDeterministicAddressERC1967(hashedSalt, address(this));
+            currentImplementations.accessToken.predictDeterministicAddressERC1967(hashedSalt, address(this));
 
         _setReferralUser(referralCode, accessTokenInfo.creator);
         if (accessTokenInfo.feeNumerator > 0) {
-            receiver = royaltiesReceiverImplementation.cloneDeterministic(hashedSalt);
+            receiver = currentImplementations.royaltiesReceiver.cloneDeterministic(hashedSalt);
             require(predictedRoyaltiesReceiver == receiver, RoyaltiesReceiverAddressMismatch());
             RoyaltiesReceiverV2(payable(receiver))
                 .initialize(
@@ -268,7 +266,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
                 );
         }
 
-        nftAddress = accessTokenImplementation.deployDeterministicERC1967(hashedSalt);
+        nftAddress = currentImplementations.accessToken.deployDeterministicERC1967(hashedSalt);
         require(predictedAccessToken == nftAddress, AccessTokenAddressMismatch());
         AccessToken(nftAddress)
             .initialize(
@@ -281,16 +279,12 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
                 factoryParameters.transferValidator
             );
 
-        NftInstanceInfo memory accessTokenInstanceInfo = NftInstanceInfo({
-            creator: accessTokenInfo.creator,
-            nftAddress: nftAddress,
-            royaltiesReceiver: receiver,
-            metadata: NftMetadata({name: accessTokenInfo.metadata.name, symbol: accessTokenInfo.metadata.symbol})
-        });
+        atInfo.creator = accessTokenInfo.creator;
+        atInfo.nftAddress = nftAddress;
+        atInfo.royaltiesReceiver = receiver;
+        atInfo.metadata = NftMetadata({name: accessTokenInfo.metadata.name, symbol: accessTokenInfo.metadata.symbol});
 
-        atInfo = accessTokenInstanceInfo;
-
-        emit AccessTokenCreated(hashedSalt, accessTokenInstanceInfo);
+        emit AccessTokenCreated(hashedSalt, atInfo);
     }
 
     /// @notice Produces a new CreditToken (ERC1155) collection as a minimal proxy clone.
@@ -299,15 +293,14 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// - Deterministic salt is `keccak256(name, symbol)`. Creation fails if the salt already exists.
     /// - Uses `cloneDeterministic` and then initializes the cloned instance.
     /// @param creditTokenInfo Parameters to initialize the CreditToken instance.
-    /// @param signature Authorization signature from the platform signer.
     /// @return creditToken The deployed CreditToken clone address.
     function produceCreditToken(
         ERC1155Info calldata creditTokenInfo,
         SignatureVerifier.SignatureProtection calldata protection
     ) external returns (address creditToken) {
-        _nftFactoryParameters.signerAddress.checkCreditTokenInfo(address(this), creditTokenInfo, protection);
+        _nftFactoryParameters.signerAddress.checkCreditTokenInfo(address(this), protection, creditTokenInfo);
 
-        bytes32 hashedSalt = _metadataHash(creditTokenInfo.name, creditTokenInfo.symbol);
+        bytes32 hashedSalt = _getHash(abi.encode(creditTokenInfo.name), abi.encode(creditTokenInfo.symbol));
 
         CreditTokenInstanceInfo storage ctInfo = _creditTokenInstanceInfo[hashedSalt];
         require(ctInfo.creditToken == address(0), TokenAlreadyExists());
@@ -319,13 +312,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         require(predictedCreditToken == creditToken, CreditTokenAddressMismatch());
         CreditToken(creditToken).initialize(creditTokenInfo);
 
-        CreditTokenInstanceInfo memory creditTokenInstanceInfo = CreditTokenInstanceInfo({
-            creditToken: creditToken, name: creditTokenInfo.name, symbol: creditTokenInfo.symbol
-        });
+        ctInfo.creditToken = creditToken;
+        ctInfo.name = creditTokenInfo.name;
+        ctInfo.symbol = creditTokenInfo.symbol;
 
-        ctInfo = creditTokenInstanceInfo;
-
-        emit CreditTokenCreated(hashedSalt, creditTokenInstanceInfo);
+        emit CreditTokenCreated(hashedSalt, ctInfo);
     }
 
     /// @notice Deploys and funds a VestingWallet proxy with a validated schedule.
@@ -337,14 +328,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// - Transfers `totalAllocation` from caller to the newly deployed vesting wallet.
     /// @param _owner Owner address for the vesting wallet proxy.
     /// @param vestingWalletInfo Full vesting configuration and description.
-    /// @param signature Signature from platform signer validating `_owner` and `vestingWalletInfo`.
     /// @return vestingWallet The deployed VestingWallet proxy address.
     function deployVestingWallet(
         address _owner,
         VestingWalletInfo calldata vestingWalletInfo,
-        uint256 nonce,
-        uint256 deadline,
-        bytes calldata signature
+        SignatureVerifier.SignatureProtection calldata protection
     ) external returns (address vestingWallet) {
         require(
             vestingWalletInfo.token.balanceOf(msg.sender) >= vestingWalletInfo.totalAllocation, NotEnoughFundsToVest()
@@ -359,18 +347,16 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         }
 
         // TGE + Linear <= Total (tranches adding later)
-        uint256 currentAllocation = vestingWalletInfo.tgeAmount + vestingWalletInfo.linearAllocation;
         require(
-            currentAllocation <= vestingWalletInfo.totalAllocation,
-            AllocationMismatch(currentAllocation, vestingWalletInfo.totalAllocation)
+            vestingWalletInfo.tgeAmount + vestingWalletInfo.linearAllocation <= vestingWalletInfo.totalAllocation,
+            AllocationMismatch(vestingWalletInfo.totalAllocation)
         );
 
-        _nftFactoryParameters.signerAddress
-            .checkVestingWalletInfo(address(this), nonce, deadline, signature, _owner, vestingWalletInfo);
+        _nftFactoryParameters.signerAddress.checkVestingWalletInfo(address(this), protection, _owner, vestingWalletInfo);
 
-        VestingWalletInstanceInfo storage vwInfo = _vestingWalletInstanceInfos[vestingWalletInfo.beneficiary];
+        VestingWalletInstanceInfo[] storage vwInfo = _vestingWalletInstanceInfos[vestingWalletInfo.beneficiary];
 
-        bytes32 hashedSalt = keccak256(abi.encodePacked(vestingWalletInfo.beneficiary, vwInfo.length));
+        bytes32 hashedSalt = _getHash(abi.encode(vestingWalletInfo.beneficiary), abi.encode(vwInfo.length));
 
         address vestingWalletImplementation = _currentImplementations.vestingWallet;
         address predictedVestingWallet =
@@ -443,7 +429,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         view
         returns (NftInstanceInfo memory)
     {
-        return getNftInstanceInfo[_metadataHash(name, symbol)];
+        return getNftInstanceInfo[_getHash(abi.encode(name), abi.encode((symbol)))];
     }
 
     /// @notice Returns stored info for a CreditToken collection by `(name, symbol)`.
@@ -455,7 +441,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         view
         returns (CreditTokenInstanceInfo memory)
     {
-        return _creditTokenInstanceInfo[_metadataHash(name, symbol)];
+        return _creditTokenInstanceInfo[_getHash(abi.encode(name), abi.encode(symbol))];
     }
 
     /// @notice Returns a vesting wallet record for `beneficiary` at `index`.
@@ -493,10 +479,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         RoyaltiesParameters calldata _royalties,
         Implementations calldata _implementations
     ) private {
-        require(
-            _royalties.amountToCreator + _royalties.amountToPlatform == 10000,
-            TotalRoyaltiesNot100Percent()
-        );
+        require(_royalties.amountToCreator + _royalties.amountToPlatform == 10000, TotalRoyaltiesNot100Percent());
 
         _nftFactoryParameters = factoryParameters_;
         _royaltiesParameters = _royalties;
@@ -506,10 +489,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     }
 
     /// @notice Computes a deterministic salt for a collection metadata pair.
-    /// @param name Collection name.
-    /// @param symbol Collection symbol.
+    /// @param valueA Collection name.
+    /// @param valueB Collection symbol.
     /// @return Salt equal to `keccak256(abi.encode(name, symbol))`.
-    function _metadataHash(string memory name, string memory symbol) private pure returns (bytes32) {
-        return keccak256(abi.encode(name, symbol));
+    function _getHash(bytes memory valueA, bytes memory valueB) private view returns (bytes32) {
+        return keccak256(abi.encode(address(this), valueA, valueB, block.chainid));
     }
 }
