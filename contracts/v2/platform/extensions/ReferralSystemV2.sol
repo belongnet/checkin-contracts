@@ -75,7 +75,7 @@ abstract contract ReferralSystemV2 {
      * @return hashedCode The created referral code.
      */
     function createReferralCode() external returns (bytes32 hashedCode) {
-        hashedCode = keccak256(abi.encodePacked(msg.sender, address(this), block.chainid));
+        hashedCode = keccak256(abi.encode(msg.sender, address(this), block.chainid));
 
         ReferralCode storage referral = referrals[hashedCode];
         require(referral.creator == address(0), ReferralCodeExists(msg.sender, hashedCode));
@@ -107,7 +107,7 @@ abstract contract ReferralSystemV2 {
     /// @param creator Creator address.
     /// @return The keccak256 hash used as a referral code.
     function getReferralCodeByCreator(address creator) public view returns (bytes32) {
-        return keccak256(abi.encodePacked(creator, address(this), block.chainid));
+        return keccak256(abi.encode(creator, address(this), block.chainid));
     }
 
     /**

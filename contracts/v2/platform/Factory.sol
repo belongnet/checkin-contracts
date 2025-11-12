@@ -339,11 +339,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         );
 
         // allow pure step-based (duration=0), or valid cliff+duration
-        if (vestingWalletInfo.durationSeconds == 0) {
-            require(
-                vestingWalletInfo.linearAllocation == 0,
-                BadDurations(vestingWalletInfo.durationSeconds, vestingWalletInfo.cliffDurationSeconds)
-            );
+        if (vestingWalletInfo.durationSeconds == 0 && vestingWalletInfo.linearAllocation != 0) {
+            revert BadDurations(vestingWalletInfo.durationSeconds, vestingWalletInfo.cliffDurationSeconds);
         }
 
         // TGE + Linear <= Total (tranches adding later)
