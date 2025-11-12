@@ -46,11 +46,6 @@ export async function startSimulateBSC() {
       },
     ],
   });
-  if (process.env.DEBUG_SIGNATURES === '1') {
-    const net = await ethers.provider.getNetwork();
-    // eslint-disable-next-line no-console
-    console.log('startSimulateBSC chainId', net.chainId);
-  }
 }
 
 export async function stopSimulate() {

@@ -3,10 +3,7 @@ import { BigNumber, BigNumberish, BytesLike } from 'ethers';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
 
 import { SignatureVerifier } from '../typechain-types/contracts/v2/utils/SignatureVerifier';
-import {
-  AccessTokenInfoStruct,
-  ERC1155InfoStruct,
-} from '../typechain-types/contracts/v2/platform/Factory';
+import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
 import {
   CustomerInfoStruct,
   PromoterInfoStruct,
@@ -50,24 +47,9 @@ async function buildProtection(
   const chainIdToUse = normalizeBigNumberish(overrides?.chainId, chainId);
 
   const digest = ethers.utils.keccak256(encode({ nonce, deadline, chainId: chainIdToUse }));
-  if (process.env.DEBUG_SIGNATURES === '1') {
-    const derivedAddr = ethers.utils.computeAddress(signerPrivateKey);
-    // eslint-disable-next-line no-console
-    console.log('sign-helper', {
-      chainId: chainIdToUse.toString(),
-      nonce: nonce.toString(),
-      deadline: deadline.toString(),
-      signer: derivedAddr,
-      digest,
-    });
-  }
   const signingKey = new ethers.utils.SigningKey(signerPrivateKey);
   const signature = ethers.utils.joinSignature(signingKey.signDigest(digest));
-  if (process.env.DEBUG_SIGNATURES === '1') {
-    const recovered = ethers.utils.recoverAddress(digest, signature);
-    // eslint-disable-next-line no-console
-    console.log('sign-helper-recover', { digest, recovered });
-  }
+
   return { nonce, deadline, signature: ethers.utils.arrayify(signature) };
 }
 
@@ -113,10 +95,6 @@ export async function signCreditTokenInfo(
       ),
     overrides,
   );
-  if (process.env.DEBUG_SIGNATURES === '1') {
-    // eslint-disable-next-line no-console
-    console.log('signCreditTokenInfo payload', { verifyingContract, name: info.name, symbol: info.symbol, uri: info.uri });
-  }
   return protection;
 }
 

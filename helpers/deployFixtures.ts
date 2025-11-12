@@ -81,10 +81,6 @@ export async function deployFactory(
   const Factory: ContractFactory = await ethers.getContractFactory('Factory', {
     libraries: { SignatureVerifier: signatureVerifier },
   });
-  if (process.env.DEBUG_SIGNATURES === '1') {
-    // eslint-disable-next-line no-console
-    console.log('deployFactory signer', signerAddress);
-  }
   const factory: Factory = (await upgrades.deployProxy(
     Factory,
     [factoryParams, royalties, implementations, referralPercentages],
@@ -94,11 +90,6 @@ export async function deployFactory(
     },
   )) as Factory;
   await factory.deployed();
-  if (process.env.DEBUG_SIGNATURES === '1') {
-    const params = await factory.nftFactoryParameters();
-    // eslint-disable-next-line no-console
-    console.log('factory deployed params signer', params.signerAddress);
-  }
 
   return factory;
 }
@@ -203,53 +194,6 @@ export async function deployCreditTokens(
 
   const venueProtection = await signCreditTokenInfo(factoryAddress, signerPk, vtInfo);
   const promoterProtection = await signCreditTokenInfo(factoryAddress, signerPk, ptInfo);
-  // Debug: verify signatures locally when tests fail
-  if (process.env.DEBUG_SIGNATURES === '1') {
-    const { chainId } = await ethers.provider.getNetwork();
-    const venueDigest = ethers.utils.keccak256(
-      ethers.utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'string', 'string', 'string'],
-        [
-          factoryAddress,
-          venueProtection.nonce,
-          venueProtection.deadline,
-          chainId,
-          vtInfo.name,
-          vtInfo.symbol,
-          vtInfo.uri,
-        ],
-      ),
-    );
-    const promoterDigest = ethers.utils.keccak256(
-      ethers.utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'string', 'string', 'string'],
-        [
-          factoryAddress,
-          promoterProtection.nonce,
-          promoterProtection.deadline,
-          chainId,
-          ptInfo.name,
-          ptInfo.symbol,
-          ptInfo.uri,
-        ],
-      ),
-    );
-    // eslint-disable-next-line no-console
-    console.log('credit-token-signatures', {
-      venue: {
-        nonce: venueProtection.nonce.toString(),
-        deadline: venueProtection.deadline.toString(),
-        signer: ethers.utils.recoverAddress(venueDigest, venueProtection.signature).toLowerCase(),
-        signature: venueProtection.signature,
-      },
-      promoter: {
-        nonce: promoterProtection.nonce.toString(),
-        deadline: promoterProtection.deadline.toString(),
-        signer: ethers.utils.recoverAddress(promoterDigest, promoterProtection.signature).toLowerCase(),
-        signature: promoterProtection.signature,
-      },
-    });
-  }
 
   const tx1 = await factory.connect(admin).produceCreditToken(vtInfo, venueProtection);
   await tx1.wait(1);
