@@ -74,7 +74,7 @@ library SignatureVerifier {
     function checkAccessTokenInfo(
         address signer,
         address verifyingContract,
-        SignatureProtection calldata protection,
+        SignatureProtection memory protection,
         AccessTokenInfo memory accessTokenInfo
     ) external view {
         _validateProtection(protection);
@@ -113,7 +113,7 @@ library SignatureVerifier {
     function checkCreditTokenInfo(
         address signer,
         address verifyingContract,
-        SignatureProtection calldata protection,
+        SignatureProtection memory protection,
         ERC1155Info calldata creditTokenInfo
     ) external view {
         _validateProtection(protection);
@@ -151,7 +151,7 @@ library SignatureVerifier {
     function checkVestingWalletInfo(
         address signer,
         address verifyingContract,
-        SignatureProtection calldata protection,
+        SignatureProtection memory protection,
         address owner,
         VestingWalletInfo calldata vestingWalletInfo
     ) external view {
@@ -189,7 +189,7 @@ library SignatureVerifier {
     function checkVenueInfo(
         address signer,
         address verifyingContract,
-        SignatureProtection calldata protection,
+        SignatureProtection memory protection,
         VenueInfo calldata venueInfo
     ) external view {
         _validateProtection(protection);
@@ -222,7 +222,7 @@ library SignatureVerifier {
     function checkCustomerInfo(
         address signer,
         address verifyingContract,
-        SignatureProtection calldata protection,
+        SignatureProtection memory protection,
         CustomerInfo calldata customerInfo,
         VenueRules memory rules
     ) external view {
@@ -286,7 +286,7 @@ library SignatureVerifier {
     function checkPromoterPaymentDistribution(
         address signer,
         address verifyingContract,
-        SignatureProtection calldata protection,
+        SignatureProtection memory protection,
         PromoterInfo memory promoterInfo
     ) external view {
         _validateProtection(protection);
@@ -321,7 +321,7 @@ library SignatureVerifier {
     function checkDynamicPriceParameters(
         address signer,
         address verifyingContract,
-        SignatureProtection calldata protection,
+        SignatureProtection memory protection,
         address receiver,
         DynamicPriceParameters calldata params
     ) external view {
@@ -356,10 +356,10 @@ library SignatureVerifier {
     function checkStaticPriceParameters(
         address signer,
         address verifyingContract,
-        SignatureProtection calldata protection,
+        SignatureProtection memory protection,
         address receiver,
         StaticPriceParameters calldata params
-    ) external view {
+    ) internal view {
         _validateProtection(protection);
 
         require(
@@ -400,21 +400,21 @@ library SignatureVerifier {
         require(rules.bountyType == bountyType, WrongCustomerBountyType());
     }
 
-    function _validateProtection(SignatureProtection calldata protection) private view {
+    function _validateProtection(SignatureProtection memory protection) private view {
         if (protection.deadline < block.timestamp) {
             revert SignatureExpired();
         }
         _enforceCanonicalSignature(protection.signature);
     }
 
-    function _enforceCanonicalSignature(bytes calldata signature) private pure {
+    function _enforceCanonicalSignature(bytes memory signature) private pure {
         uint256 signatureLength = signature.length;
         if (signatureLength == 65) {
             bytes32 s;
             uint8 v;
             assembly {
-                s := calldataload(add(signature.offset, 0x40))
-                v := byte(0, calldataload(add(signature.offset, 0x60)))
+                s := mload(add(signature, 0x40))
+                v := byte(0, mload(add(signature, 0x60)))
             }
 
             if (uint256(s) > _SECP256K1N_HALF || (v != 27 && v != 28)) {
@@ -423,7 +423,7 @@ library SignatureVerifier {
         } else if (signatureLength == 64) {
             bytes32 vs;
             assembly {
-                vs := calldataload(add(signature.offset, 0x40))
+                vs := mload(add(signature, 0x40))
             }
 
             uint256 s = uint256(vs & _EIP2098_S_MASK);
