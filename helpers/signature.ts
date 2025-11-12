@@ -50,7 +50,7 @@ async function buildProtection(
   const signingKey = new ethers.utils.SigningKey(signerPrivateKey);
   const signature = ethers.utils.joinSignature(signingKey.signDigest(digest));
 
-  return { nonce, deadline, signature: ethers.utils.arrayify(signature) };
+  return { nonce, deadline, signature };
 }
 
 export async function signAccessTokenInfo(
