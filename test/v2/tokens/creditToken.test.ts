@@ -89,12 +89,12 @@ describe('CreditToken', () => {
 
       expect(await venueToken.name()).to.eq('VenueToken');
       expect(await venueToken.symbol()).to.eq('VET');
-      expect(await venueToken['uri()']()).to.eq('contractURI/VenueToken');
+      expect(await venueToken.uri(0)).to.eq('contractURI/VenueToken');
       expect(await venueToken.transferable()).to.be.true;
 
       expect(await promoterToken.name()).to.eq('PromoterToken');
       expect(await promoterToken.symbol()).to.eq('PMT');
-      expect(await promoterToken['uri()']()).to.eq('contractURI/PromoterToken');
+      expect(await promoterToken.uri(0)).to.eq('contractURI/PromoterToken');
       expect(await promoterToken.transferable()).to.be.false;
 
       expect(await venueToken.hasRole(admin.address, await venueToken.DEFAULT_ADMIN_ROLE())).to.be.true;
@@ -138,16 +138,14 @@ describe('CreditToken', () => {
       const venueTokenMint = await venueToken.connect(minter).mint(admin.address, 1, 1000, '');
       const promoterTokenMint = await promoterToken.connect(minter).mint(admin.address, 1, 1000, '1');
 
-      expect(await venueToken['uri(uint256)'](1)).to.eq('');
-      expect(await promoterToken['uri(uint256)'](1)).to.eq('1');
+      expect(await venueToken.uri(1)).to.eq('contractURI/VenueToken');
+      expect(await promoterToken.uri(1)).to.eq('contractURI/PromoterToken');
       await expect(venueTokenMint)
         .to.emit(venueToken, 'TransferSingle')
         .withArgs(minter.address, ethers.constants.AddressZero, admin.address, 1, 1000);
       await expect(promoterTokenMint)
         .to.emit(promoterToken, 'TransferSingle')
         .withArgs(minter.address, ethers.constants.AddressZero, admin.address, 1, 1000);
-      await expect(venueTokenMint).to.emit(venueToken, 'TokenUriSet').withArgs(1, '');
-      await expect(promoterTokenMint).to.emit(promoterToken, 'TokenUriSet').withArgs(1, '1');
     });
 
     it('burn() only with BURNER_ROLE', async () => {
@@ -168,17 +166,14 @@ describe('CreditToken', () => {
       const venueTokenBurn = await venueToken.connect(burner).burn(admin.address, 1, 1000);
       const promoterTokenBurn = await promoterToken.connect(burner).burn(admin.address, 1, 1000);
 
-      console.log((await venueTokenBurn.wait()).events[1].args);
-      expect(await venueToken['uri(uint256)'](1)).to.eq('');
-      expect(await promoterToken['uri(uint256)'](1)).to.eq('');
+      expect(await venueToken.uri(1)).to.eq('contractURI/VenueToken');
+      expect(await promoterToken.uri(1)).to.eq('contractURI/PromoterToken');
       await expect(venueTokenBurn)
         .to.emit(venueToken, 'TransferSingle')
         .withArgs(burner.address, admin.address, ethers.constants.AddressZero, 1, 1000);
       await expect(promoterTokenBurn)
         .to.emit(promoterToken, 'TransferSingle')
         .withArgs(burner.address, admin.address, ethers.constants.AddressZero, 1, 1000);
-      await expect(venueTokenBurn).to.emit(venueToken, 'TokenUriSet').withArgs(1, '');
-      await expect(promoterTokenBurn).to.emit(promoterToken, 'TokenUriSet').withArgs(1, '');
     });
 
     it('_beforeTokenTransfer() checks the transferrable state', async () => {
@@ -221,14 +216,28 @@ describe('CreditToken', () => {
   it('setURI() only with MANAGER_ROLE', async () => {
     const { venueToken, promoterToken, admin, manager } = await loadFixture(fixture);
 
-    await expect(venueToken.connect(admin).setURI('')).to.be.revertedWithCustomError(
+    await expect(venueToken.connect(admin).setURI('uri')).to.be.revertedWithCustomError(
       venueToken,
       'EnumerableRolesUnauthorized',
     );
 
-    const tx = await venueToken.connect(manager).setURI('setURI() only with MANAGER_ROLE');
+    const tx = await venueToken.connect(manager).setURI('uri');
 
-    expect(await venueToken['uri()']()).to.eq('setURI() only with MANAGER_ROLE');
-    await expect(tx).to.emit(venueToken, 'UriSet').withArgs('setURI() only with MANAGER_ROLE');
+    expect(await venueToken.uri(1)).to.eq('uri');
+    await expect(tx).to.emit(venueToken, 'UriSet').withArgs('uri');
+  });
+
+  it('setTokenUri() only with MANAGER_ROLE', async () => {
+    const { venueToken, promoterToken, admin, manager } = await loadFixture(fixture);
+
+    await expect(venueToken.connect(admin).setTokenUri(202, 'uri')).to.be.revertedWithCustomError(
+      venueToken,
+      'EnumerableRolesUnauthorized',
+    );
+
+    const tx = await venueToken.connect(manager).setTokenUri(202, 'uri');
+
+    expect(await venueToken.uri(202)).to.eq('contractURI/VenueToken' + 'uri');
+    await expect(tx).to.emit(venueToken, 'TokenUriSet').withArgs(202, 'uri');
   });
 });
