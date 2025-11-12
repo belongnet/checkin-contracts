@@ -1,5 +1,4 @@
 import { ethers, upgrades } from 'hardhat';
-import EthCrypto from 'eth-crypto';
 import { BigNumberish, BigNumber as BN, BytesLike, ContractFactory } from 'ethers';
 import {
   AccessToken,
@@ -17,7 +16,7 @@ import {
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
 import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
-import { hashAccessTokenInfo, hashERC1155Info, hashVestingInfo } from './math';
+import { signAccessTokenInfo, signCreditTokenInfo, signVestingWalletInfo } from './signature';
 import { DualDexSwapV4Lib as DualDexSwapV4LibType } from '../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
 
 export type TokenMetadata = { name: string; symbol: string; uri: string };
@@ -82,6 +81,10 @@ export async function deployFactory(
   const Factory: ContractFactory = await ethers.getContractFactory('Factory', {
     libraries: { SignatureVerifier: signatureVerifier },
   });
+  if (process.env.DEBUG_SIGNATURES === '1') {
+    // eslint-disable-next-line no-console
+    console.log('deployFactory signer', signerAddress);
+  }
   const factory: Factory = (await upgrades.deployProxy(
     Factory,
     [factoryParams, royalties, implementations, referralPercentages],
@@ -91,6 +94,11 @@ export async function deployFactory(
     },
   )) as Factory;
   await factory.deployed();
+  if (process.env.DEBUG_SIGNATURES === '1') {
+    const params = await factory.nftFactoryParameters();
+    // eslint-disable-next-line no-console
+    console.log('factory deployed params signer', params.signerAddress);
+  }
 
   return factory;
 }
@@ -120,11 +128,8 @@ export async function deployAccessToken(
   feeNumerator: BigNumberish = BN.from('600'),
   collectionExpire: BigNumberish = BN.from('86400'),
 ): Promise<{ accessToken: AccessToken; royaltiesReceiver: RoyaltiesReceiverV2 }> {
-  const chainId = (await ethers.provider.getNetwork()).chainId;
-  const message = hashAccessTokenInfo(tokenMetadata.name, tokenMetadata.symbol, tokenMetadata.uri, 600, chainId);
-  const signature = EthCrypto.sign(signer.privateKey, message);
-
   const instanceInfo: AccessTokenInfoStruct = {
+    creator: creator.address,
     metadata: { name: tokenMetadata.name, symbol: tokenMetadata.symbol },
     contractURI: tokenMetadata.uri,
     paymentToken,
@@ -134,12 +139,16 @@ export async function deployAccessToken(
     maxTotalSupply,
     feeNumerator,
     collectionExpire,
-    signature,
   };
 
-  await factoryContract.connect(creator).produce(instanceInfo, referralCode);
+  const protection = await signAccessTokenInfo(factoryContract.address, signer.privateKey, instanceInfo);
+
+  await factoryContract.connect(creator).produce(instanceInfo, referralCode, protection);
 
   const getNftInstanceInfo = await factoryContract.nftInstanceInfo(tokenMetadata.name, tokenMetadata.symbol);
+  if (getNftInstanceInfo.nftAddress === ethers.constants.AddressZero) {
+    throw new Error('AccessToken deployment failed: instance info not found');
+  }
 
   return {
     accessToken: await ethers.getContractAt('AccessToken', getNftInstanceInfo.nftAddress),
@@ -170,8 +179,6 @@ export async function deployCreditTokens(
   venueToken: CreditToken;
   promoterToken: CreditToken;
 }> {
-  const chainId = (await ethers.provider.getNetwork()).chainId;
-
   const vtInfo: ERC1155InfoStruct = {
     name: venueTokenMetadata.name,
     symbol: venueTokenMetadata.symbol,
@@ -182,9 +189,6 @@ export async function deployCreditTokens(
     uri: venueTokenMetadata.uri,
     transferable: transferableVenue,
   };
-  const venueTokenMessage = hashERC1155Info(vtInfo, chainId);
-  const venueTokenSignature = EthCrypto.sign(signerPk, venueTokenMessage);
-
   const ptInfo: ERC1155InfoStruct = {
     name: promoterTokenMetadata.name,
     symbol: promoterTokenMetadata.symbol,
@@ -195,15 +199,62 @@ export async function deployCreditTokens(
     uri: promoterTokenMetadata.uri,
     transferable: transferablePromoter,
   };
-  const promoterTokenMessage = hashERC1155Info(ptInfo, chainId);
-  const promoterTokenSignature = EthCrypto.sign(signerPk, promoterTokenMessage);
-
   const factory = await ethers.getContractAt('Factory', factoryAddress);
 
-  const tx1 = await factory.connect(admin).produceCreditToken(vtInfo, venueTokenSignature);
+  const venueProtection = await signCreditTokenInfo(factoryAddress, signerPk, vtInfo);
+  const promoterProtection = await signCreditTokenInfo(factoryAddress, signerPk, ptInfo);
+  // Debug: verify signatures locally when tests fail
+  if (process.env.DEBUG_SIGNATURES === '1') {
+    const { chainId } = await ethers.provider.getNetwork();
+    const venueDigest = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'string', 'string', 'string'],
+        [
+          factoryAddress,
+          venueProtection.nonce,
+          venueProtection.deadline,
+          chainId,
+          vtInfo.name,
+          vtInfo.symbol,
+          vtInfo.uri,
+        ],
+      ),
+    );
+    const promoterDigest = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'string', 'string', 'string'],
+        [
+          factoryAddress,
+          promoterProtection.nonce,
+          promoterProtection.deadline,
+          chainId,
+          ptInfo.name,
+          ptInfo.symbol,
+          ptInfo.uri,
+        ],
+      ),
+    );
+    // eslint-disable-next-line no-console
+    console.log('credit-token-signatures', {
+      venue: {
+        nonce: venueProtection.nonce.toString(),
+        deadline: venueProtection.deadline.toString(),
+        signer: ethers.utils.recoverAddress(venueDigest, venueProtection.signature).toLowerCase(),
+        signature: venueProtection.signature,
+      },
+      promoter: {
+        nonce: promoterProtection.nonce.toString(),
+        deadline: promoterProtection.deadline.toString(),
+        signer: ethers.utils.recoverAddress(promoterDigest, promoterProtection.signature).toLowerCase(),
+        signature: promoterProtection.signature,
+      },
+    });
+  }
+
+  const tx1 = await factory.connect(admin).produceCreditToken(vtInfo, venueProtection);
   await tx1.wait(1);
 
-  const tx2 = await factory.connect(admin).produceCreditToken(ptInfo, promoterTokenSignature);
+  const tx2 = await factory.connect(admin).produceCreditToken(ptInfo, promoterProtection);
   await tx2.wait(1);
 
   const venueTokenInstanceInfo = await factory.getCreditTokenInstanceInfo(
@@ -228,18 +279,16 @@ export async function deployVestingWallet(
   signerPk: string,
   owner: SignerWithAddress,
 ): Promise<VestingWalletExtended> {
-  const chainId = (await ethers.provider.getNetwork()).chainId;
-  const vestingWalletMessage = hashVestingInfo(owner.address, vestingWalletInfo, chainId);
-  const venueTokenSignature = EthCrypto.sign(signerPk, vestingWalletMessage);
-
   const factory = await ethers.getContractAt('Factory', factoryAddress);
   const LONG = await ethers.getContractAt('LONG', long);
 
   await LONG.approve(factory.address, vestingWalletInfo.totalAllocation);
 
+  const protection = await signVestingWalletInfo(factoryAddress, signerPk, owner.address, vestingWalletInfo);
+
   const deployVestingWallet = await factory
     .connect(owner)
-    .deployVestingWallet(owner.address, vestingWalletInfo, venueTokenSignature);
+    .deployVestingWallet(owner.address, vestingWalletInfo, protection);
   await deployVestingWallet.wait(1);
 
   const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(await vestingWalletInfo.beneficiary, 0);

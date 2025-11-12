@@ -34,48 +34,23 @@ export async function startSimulateMainnet() {
 }
 
 export async function startSimulateBSC() {
-  const rpcUrl = chainRPCs(ChainIds.bsc);
-  const forkingParams: {
-    jsonRpcUrl: string;
-    blockNumber?: number;
-    enable: boolean;
-  } = {
-    jsonRpcUrl: rpcUrl,
-    enable: true,
-  };
-
-  if (process.env.BSC_FORK_BLOCK_NUMBER) {
-    const parsedBlock = Number(process.env.BSC_FORK_BLOCK_NUMBER);
-    if (!Number.isNaN(parsedBlock) && parsedBlock > 0) {
-      forkingParams.blockNumber = parsedBlock;
-    }
-  }
-
-  const hardhatForkingConfig = hre.config.networks.hardhat?.forking;
-  if (hardhatForkingConfig) {
-    hardhatForkingConfig.url = rpcUrl;
-    hardhatForkingConfig.blockNumber = forkingParams.blockNumber;
-  }
-
-  const runtimeForkingConfig = (network.config as typeof network.config & { forking?: typeof forkingParams }).forking;
-  if (runtimeForkingConfig) {
-    runtimeForkingConfig.url = rpcUrl;
-    runtimeForkingConfig.blockNumber = forkingParams.blockNumber;
-  }
-
-  await network.provider.request({
-    method: 'hardhat_reset',
-    params: [],
-  });
-
   await network.provider.request({
     method: 'hardhat_reset',
     params: [
       {
-        forking: forkingParams,
+        forking: {
+          jsonRpcUrl: chainRPCs(ChainIds.bsc),
+          blockNumber: 67924992,
+          enable: true,
+        },
       },
     ],
   });
+  if (process.env.DEBUG_SIGNATURES === '1') {
+    const net = await ethers.provider.getNetwork();
+    // eslint-disable-next-line no-console
+    console.log('startSimulateBSC chainId', net.chainId);
+  }
 }
 
 export async function stopSimulate() {
