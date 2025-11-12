@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { loadFixture, time } from '@nomicfoundation/hardhat-network-helpers';
-import { BigNumber, BigNumberish } from 'ethers';
+import { BigNumber, BigNumberish, BytesLike } from 'ethers';
 import {
   WETHMock,
   MockTransferValidatorV2,
@@ -10,16 +10,30 @@ import {
   AccessToken,
   SignatureVerifier,
   VestingWalletExtended,
+  LONG,
 } from '../../../typechain-types';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { PromiseOrValue } from '../../../typechain-types/common';
 import {
   AccessTokenInfoStruct,
   AccessTokenInfoStructOutput,
   ERC1155InfoStruct,
 } from '../../../typechain-types/contracts/v2/platform/Factory';
-import { getPercentage, hashAccessTokenInfo, hashERC1155Info, hashVestingInfo } from '../../../helpers/math';
+import {
+  abiEncodeHash,
+  getPercentage,
+  hashAccessTokenInfo,
+  hashERC1155Info,
+  hashVestingInfo,
+} from '../../../helpers/math';
+import {
+  signAccessTokenInfo,
+  signCreditTokenInfo,
+  signVestingWalletInfo,
+  SignatureOverrides,
+} from '../../../helpers/signature';
 import {
   deployAccessTokenImplementation,
   deployCreditTokenImplementation,
@@ -31,9 +45,8 @@ import {
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2, deployWETHMock } from '../../../helpers/deployMockFixtures';
 import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
-import { LONG } from '../../../typechain-types/contracts/v2/tokens/LONG.sol';
 
-describe('Factory', () => {
+describe.only('Factory', () => {
   const NATIVE_CURRENCY_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const chainId = 31337;
@@ -102,6 +115,41 @@ describe('Factory', () => {
     };
   }
 
+  async function produceAccessToken(
+    factory: Factory,
+    caller: SignerWithAddress,
+    signerPk: string,
+    info: AccessTokenInfoStruct,
+    referralCode: BytesLike,
+    overrides?: SignatureOverrides,
+  ) {
+    const protection = await signAccessTokenInfo(factory.address, signerPk, info, overrides);
+    return factory.connect(caller).produce(info, referralCode, protection);
+  }
+
+  async function produceCreditToken(
+    factory: Factory,
+    caller: SignerWithAddress,
+    signerPk: string,
+    info: ERC1155InfoStruct,
+    overrides?: SignatureOverrides,
+  ) {
+    const protection = await signCreditTokenInfo(factory.address, signerPk, info, overrides);
+    return factory.connect(caller).produceCreditToken(info, protection);
+  }
+
+  async function deployVestingWalletWithSignature(
+    factory: Factory,
+    caller: SignerWithAddress,
+    signerPk: string,
+    ownerAddr: string,
+    info: VestingWalletInfoStruct,
+    overrides?: SignatureOverrides,
+  ) {
+    const protection = await signVestingWalletInfo(factory.address, signerPk, ownerAddr, info, overrides);
+    return factory.connect(caller).deployVestingWallet(ownerAddr, info, protection);
+  }
+
   describe('Deployment', () => {
     it('should correct initialize', async () => {
       const { factory, owner, signer, validator } = await loadFixture(fixture);
@@ -141,8 +189,8 @@ describe('Factory', () => {
       };
 
       const _royalties = {
-        amountToCreator: 2020,
-        amountToPlatform: 3030,
+        amountToCreator: 8000,
+        amountToPlatform: 2000,
       };
 
       const tx = await factory.upgradeToV2(_royalties, _implementations);
@@ -172,9 +220,8 @@ describe('Factory', () => {
       const price = ethers.utils.parseEther('0.05');
       const feeNumerator = 500;
 
-      const message = hashAccessTokenInfo(nftName, nftSymbol, contractURI, feeNumerator, chainId);
-      const signature = EthCrypto.sign(signer.privateKey, message);
       const info: AccessTokenInfoStruct = {
+        creator: alice.address,
         metadata: { name: nftName, symbol: nftSymbol },
         contractURI: contractURI,
         paymentToken: NATIVE_CURRENCY_ADDRESS,
@@ -184,49 +231,48 @@ describe('Factory', () => {
         maxTotalSupply: BigNumber.from('1000'),
         feeNumerator,
         collectionExpire: BigNumber.from('86400'),
-        signature: signature,
       };
 
-      const fakeInfo = info;
+      const wrongNameSignature = await signAccessTokenInfo(factory.address, signer.privateKey, {
+        ...info,
+        metadata: { name: '', symbol: nftSymbol },
+      });
+      await expect(factory.connect(alice).produce(info, ethers.constants.HashZero, wrongNameSignature))
+        .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+        .withArgs(wrongNameSignature.signature);
 
-      const emptyNameMessage = hashAccessTokenInfo('', nftSymbol, contractURI, feeNumerator, chainId);
-      const emptyNameSignature = EthCrypto.sign(signer.privateKey, emptyNameMessage);
-      fakeInfo.signature = emptyNameSignature;
-      await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero)).to.be.revertedWithCustomError(
-        signatureVerifier,
-        'InvalidSignature',
-      );
+      const wrongSymbolSignature = await signAccessTokenInfo(factory.address, signer.privateKey, {
+        ...info,
+        metadata: { name: nftName, symbol: '' },
+      });
+      await expect(factory.connect(alice).produce(info, ethers.constants.HashZero, wrongSymbolSignature))
+        .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+        .withArgs(wrongSymbolSignature.signature);
 
-      const emptySymbolMessage = hashAccessTokenInfo(nftName, '', contractURI, feeNumerator, chainId);
-      const emptySymbolSignature = EthCrypto.sign(signer.privateKey, emptySymbolMessage);
-      fakeInfo.signature = emptySymbolSignature;
-      await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero)).to.be.revertedWithCustomError(
-        signatureVerifier,
-        'InvalidSignature',
-      );
+      const badChainSignature = await signAccessTokenInfo(factory.address, signer.privateKey, info, {
+        chainId: chainId + 1,
+      });
+      await expect(factory.connect(alice).produce(info, ethers.constants.HashZero, badChainSignature))
+        .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+        .withArgs(badChainSignature.signature);
 
-      const badMessage = hashAccessTokenInfo(nftName, nftSymbol, contractURI, feeNumerator, chainId + 1);
-      const badSignature = EthCrypto.sign(signer.privateKey, badMessage);
-      fakeInfo.signature = badSignature;
-      await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero)).to.be.revertedWithCustomError(
-        signatureVerifier,
-        'InvalidSignature',
-      );
-      fakeInfo.signature = signature;
-
-      fakeInfo.metadata.name = '';
-      await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero))
+      const emptyNameInfo: AccessTokenInfoStruct = {
+        ...info,
+        metadata: { ...info.metadata, name: '' },
+      };
+      await expect(produceAccessToken(factory, alice, signer.privateKey, emptyNameInfo, ethers.constants.HashZero))
         .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
-        .withArgs(fakeInfo.metadata.name, fakeInfo.metadata.symbol);
-      fakeInfo.metadata.name = nftName;
+        .withArgs(emptyNameInfo.metadata.name, emptyNameInfo.metadata.symbol);
 
-      fakeInfo.metadata.symbol = '';
-      await expect(factory.connect(alice).produce(fakeInfo, ethers.constants.HashZero))
+      const emptySymbolInfo: AccessTokenInfoStruct = {
+        ...info,
+        metadata: { ...info.metadata, symbol: '' },
+      };
+      await expect(produceAccessToken(factory, alice, signer.privateKey, emptySymbolInfo, ethers.constants.HashZero))
         .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
-        .withArgs(fakeInfo.metadata.name, fakeInfo.metadata.symbol);
-      fakeInfo.metadata.symbol = nftSymbol;
+        .withArgs(emptySymbolInfo.metadata.name, emptySymbolInfo.metadata.symbol);
 
-      const tx = await factory.connect(alice).produce(info, ethers.constants.HashZero);
+      const tx = await produceAccessToken(factory, alice, signer.privateKey, info, ethers.constants.HashZero);
 
       await expect(tx).to.emit(factory, 'AccessTokenCreated');
       const nftInstanceInfo = await factory.nftInstanceInfo(nftName, nftSymbol);
@@ -238,14 +284,14 @@ describe('Factory', () => {
       console.log('instanceAddress = ', nftInstanceInfo.nftAddress);
 
       const nft = await ethers.getContractAt('AccessToken', nftInstanceInfo.nftAddress);
-      const [factoryAddress, creator, feeReceiver, , infoReturned] = await nft.parameters();
+      const [factoryAddress, feeReceiver, , infoReturned] = await nft.parameters();
 
       expect(await nft.getTransferValidator()).to.be.equal(validator.address);
       expect(factoryAddress).to.be.equal(factory.address);
       expect(infoReturned.paymentToken).to.be.equal(info.paymentToken);
       expect(infoReturned.mintPrice).to.be.equal(info.mintPrice);
       expect(infoReturned.contractURI).to.be.equal(info.contractURI);
-      expect(creator).to.be.equal(alice.address);
+      expect(infoReturned.creator).to.be.equal(alice.address);
 
       const RoyaltiesReceiverV2: RoyaltiesReceiverV2 = await ethers.getContractAt('RoyaltiesReceiverV2', feeReceiver);
 
@@ -283,62 +329,65 @@ describe('Factory', () => {
       const price2 = ethers.utils.parseEther('0.02');
       const price3 = ethers.utils.parseEther('0.03');
 
-      const message1 = hashAccessTokenInfo(nftName1, nftSymbol1, contractURI1, 500, chainId);
-      const signature1 = EthCrypto.sign(signer.privateKey, message1);
-
-      await factory.connect(alice).produce(
-        {
-          metadata: { name: nftName1, symbol: nftSymbol1 },
-          contractURI: contractURI1,
-          paymentToken: ZERO_ADDRESS,
-          mintPrice: price1,
-          whitelistMintPrice: price1,
-          transferable: true,
-          maxTotalSupply: BigNumber.from('1000'),
-          feeNumerator: BigNumber.from('500'),
-          collectionExpire: BigNumber.from('86400'),
-          signature: signature1,
-        } as AccessTokenInfoStructOutput,
-        ethers.constants.HashZero,
+      const accessTokenInfo1 = {
+        creator: alice.address,
+        metadata: { name: nftName1, symbol: nftSymbol1 },
+        contractURI: contractURI1,
+        paymentToken: ZERO_ADDRESS,
+        mintPrice: price1,
+        whitelistMintPrice: price1,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: BigNumber.from('500'),
+        collectionExpire: BigNumber.from('86400'),
+      } as AccessTokenInfoStructOutput;
+      const accessTokenInfoProtection1 = await signAccessTokenInfo(
+        factory.address,
+        signer.privateKey,
+        accessTokenInfo1,
       );
 
-      const message2 = hashAccessTokenInfo(nftName2, nftSymbol2, contractURI2, 0, chainId);
-      const signature2 = EthCrypto.sign(signer.privateKey, message2);
+      await factory.connect(alice).produce(accessTokenInfo1, ethers.constants.HashZero, accessTokenInfoProtection1);
 
-      await factory.connect(bob).produce(
-        {
-          metadata: { name: nftName2, symbol: nftSymbol2 },
-          contractURI: contractURI2,
-          paymentToken: NATIVE_CURRENCY_ADDRESS,
-          mintPrice: price2,
-          whitelistMintPrice: price2,
-          transferable: true,
-          maxTotalSupply: BigNumber.from('1000'),
-          feeNumerator: 0,
-          collectionExpire: BigNumber.from('86400'),
-          signature: signature2,
-        } as AccessTokenInfoStruct,
-        ethers.constants.HashZero,
+      const accessTokenInfo2 = {
+        creator: bob.address,
+        metadata: { name: nftName2, symbol: nftSymbol2 },
+        contractURI: contractURI2,
+        paymentToken: ZERO_ADDRESS,
+        mintPrice: price2,
+        whitelistMintPrice: price2,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: BigNumber.from('0'),
+        collectionExpire: BigNumber.from('86400'),
+      } as AccessTokenInfoStructOutput;
+      const accessTokenInfoProtection2 = await signAccessTokenInfo(
+        factory.address,
+        signer.privateKey,
+        accessTokenInfo2,
       );
 
-      const message3 = hashAccessTokenInfo(nftName3, nftSymbol3, contractURI3, 500, chainId);
-      const signature3 = EthCrypto.sign(signer.privateKey, message3);
+      await factory.connect(bob).produce(accessTokenInfo2, ethers.constants.HashZero, accessTokenInfoProtection2);
 
-      await factory.connect(charlie).produce(
-        {
-          metadata: { name: nftName3, symbol: nftSymbol3 },
-          contractURI: contractURI3,
-          paymentToken: NATIVE_CURRENCY_ADDRESS,
-          mintPrice: price3,
-          whitelistMintPrice: price3,
-          transferable: true,
-          maxTotalSupply: BigNumber.from('1000'),
-          feeNumerator: BigNumber.from('500'),
-          collectionExpire: BigNumber.from('86400'),
-          signature: signature3,
-        } as AccessTokenInfoStruct,
-        ethers.constants.HashZero,
+      const accessTokenInfo3 = {
+        creator: charlie.address,
+        metadata: { name: nftName3, symbol: nftSymbol3 },
+        contractURI: contractURI3,
+        paymentToken: ZERO_ADDRESS,
+        mintPrice: price3,
+        whitelistMintPrice: price3,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: BigNumber.from('500'),
+        collectionExpire: BigNumber.from('86400'),
+      } as AccessTokenInfoStructOutput;
+      const accessTokenInfoProtection3 = await signAccessTokenInfo(
+        factory.address,
+        signer.privateKey,
+        accessTokenInfo3,
       );
+
+      await factory.connect(charlie).produce(accessTokenInfo3, ethers.constants.HashZero, accessTokenInfoProtection3);
 
       const instanceInfo1 = await factory.nftInstanceInfo(nftName1, nftSymbol1);
       const instanceInfo2 = await factory.nftInstanceInfo(nftName2, nftSymbol2);
@@ -365,30 +414,30 @@ describe('Factory', () => {
       console.log('instanceAddress3 = ', instanceInfo3.nftAddress);
 
       const nft1 = await ethers.getContractAt('AccessToken', instanceInfo1.nftAddress);
-      let [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft1.parameters();
+      let [factoryAddress, feeReceiver, referralCode, infoReturned] = await nft1.parameters();
       expect(infoReturned.paymentToken).to.be.equal(NATIVE_CURRENCY_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
       expect(infoReturned.mintPrice).to.be.equal(price1);
       expect(infoReturned.contractURI).to.be.equal(contractURI1);
-      expect(creator).to.be.equal(alice.address);
+      expect(infoReturned.creator).to.be.equal(alice.address);
       expect(feeReceiver).not.to.be.equal(ZERO_ADDRESS);
 
       const nft2 = await ethers.getContractAt('AccessToken', instanceInfo2.nftAddress);
-      [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft2.parameters();
+      [factoryAddress, feeReceiver, referralCode, infoReturned] = await nft2.parameters();
       expect(infoReturned.paymentToken).to.be.equal(NATIVE_CURRENCY_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
       expect(infoReturned.mintPrice).to.be.equal(price2);
       expect(infoReturned.contractURI).to.be.equal(contractURI2);
-      expect(creator).to.be.equal(bob.address);
+      expect(infoReturned.creator).to.be.equal(bob.address);
       expect(feeReceiver).to.be.equal(ZERO_ADDRESS);
 
       const nft3 = await ethers.getContractAt('AccessToken', instanceInfo3.nftAddress);
-      [factoryAddress, creator, feeReceiver, referralCode, infoReturned] = await nft3.parameters();
+      [factoryAddress, feeReceiver, referralCode, infoReturned] = await nft3.parameters();
       expect(infoReturned.paymentToken).to.be.equal(NATIVE_CURRENCY_ADDRESS);
       expect(factoryAddress).to.be.equal(factory.address);
       expect(infoReturned.mintPrice).to.be.equal(price3);
       expect(infoReturned.contractURI).to.be.equal(contractURI3);
-      expect(creator).to.be.equal(charlie.address);
+      expect(infoReturned.creator).to.be.equal(charlie.address);
       expect(feeReceiver).not.to.be.equal(ZERO_ADDRESS);
     });
   });
@@ -401,7 +450,7 @@ describe('Factory', () => {
       const nftSymbol = 'CT1';
       const uri = 'contractURI/CreditToken123';
 
-      const ctInfo: ERC1155InfoStruct = {
+      const creditTokenInfo: ERC1155InfoStruct = {
         name: nftName,
         symbol: nftSymbol,
         defaultAdmin: alice.address,
@@ -411,68 +460,55 @@ describe('Factory', () => {
         uri: uri,
         transferable: true,
       };
+      const creditTokenInfoProtection = await signCreditTokenInfo(factory.address, signer.privateKey, creditTokenInfo);
 
-      const fakeInfo = ctInfo;
-
-      const message = hashERC1155Info(ctInfo, chainId);
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      const emptyNameMessage = hashERC1155Info(
-        {
-          name: '',
-          symbol: nftSymbol,
-          defaultAdmin: alice.address,
-          manager: alice.address,
-          minter: alice.address,
-          burner: alice.address,
-          uri: uri,
-          transferable: true,
-        },
-        chainId,
+      const creditTokenInfoNoName: ERC1155InfoStruct = {
+        name: '',
+        symbol: nftSymbol,
+        defaultAdmin: alice.address,
+        manager: alice.address,
+        minter: alice.address,
+        burner: alice.address,
+        uri: uri,
+        transferable: true,
+      };
+      const creditTokenInfoNoNameProtection = await signCreditTokenInfo(
+        factory.address,
+        signer.privateKey,
+        creditTokenInfoNoName,
       );
-      const emptyNameSignature = EthCrypto.sign(signer.privateKey, emptyNameMessage);
+
+      const creditTokenInfoNoSymbol: ERC1155InfoStruct = {
+        name: nftName,
+        symbol: '',
+        defaultAdmin: alice.address,
+        manager: alice.address,
+        minter: alice.address,
+        burner: alice.address,
+        uri: uri,
+        transferable: true,
+      };
+      const creditTokenInfoNoSymbolProtection = await signCreditTokenInfo(
+        factory.address,
+        signer.privateKey,
+        creditTokenInfoNoSymbol,
+      );
+
+      await expect(factory.connect(alice).produceCreditToken(creditTokenInfoNoName, creditTokenInfoNoNameProtection))
+        .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
+        .withArgs('', nftSymbol);
+
       await expect(
-        factory.connect(alice).produceCreditToken(fakeInfo, emptyNameSignature),
+        factory.connect(alice).produceCreditToken(creditTokenInfoNoSymbol, creditTokenInfoNoSymbolProtection),
+      )
+        .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
+        .withArgs(nftName, '');
+
+      await expect(
+        factory.connect(alice).produceCreditToken(creditTokenInfo, creditTokenInfoNoSymbolProtection),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
 
-      const emptySymbolMessage = hashERC1155Info(
-        {
-          name: nftName,
-          symbol: '',
-          defaultAdmin: alice.address,
-          manager: alice.address,
-          minter: alice.address,
-          burner: alice.address,
-          uri: uri,
-          transferable: true,
-        },
-        chainId,
-      );
-      const emptySymbolSignature = EthCrypto.sign(signer.privateKey, emptySymbolMessage);
-      await expect(
-        factory.connect(alice).produceCreditToken(ctInfo, emptySymbolSignature),
-      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
-
-      const badMessage = hashERC1155Info(ctInfo, chainId + 1);
-      const badSignature = EthCrypto.sign(signer.privateKey, badMessage);
-      await expect(factory.connect(alice).produceCreditToken(ctInfo, badSignature)).to.be.revertedWithCustomError(
-        signatureVerifier,
-        'InvalidSignature',
-      );
-
-      fakeInfo.name = '';
-      await expect(factory.connect(alice).produceCreditToken(fakeInfo, emptyNameSignature))
-        .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
-        .withArgs(fakeInfo.name, fakeInfo.symbol);
-      fakeInfo.name = nftName;
-
-      fakeInfo.symbol = '';
-      await expect(factory.connect(alice).produceCreditToken(fakeInfo, emptyNameSignature))
-        .to.be.revertedWithCustomError(signatureVerifier, 'EmptyMetadata')
-        .withArgs(fakeInfo.name, fakeInfo.symbol);
-      fakeInfo.symbol = nftSymbol;
-
-      const tx = await factory.connect(alice).produceCreditToken(ctInfo, signature);
+      const tx = await factory.connect(alice).produceCreditToken(creditTokenInfo, creditTokenInfoProtection);
 
       await expect(tx).to.emit(factory, 'CreditTokenCreated');
       const nftInstanceInfo = await factory.getCreditTokenInstanceInfo(nftName, nftSymbol);
@@ -486,17 +522,16 @@ describe('Factory', () => {
 
       expect(await nft.name()).to.be.equal(nftName);
       expect(await nft.symbol()).to.be.equal(nftSymbol);
-      expect(await nft['uri()']()).to.be.equal(uri);
+      expect(await nft.uri(1)).to.be.equal(uri);
       expect(await nft.transferable()).to.be.true;
       expect(await nft.hasRole(alice.address, await nft.DEFAULT_ADMIN_ROLE())).to.be.true;
       expect(await nft.hasRole(alice.address, await nft.MANAGER_ROLE())).to.be.true;
       expect(await nft.hasRole(alice.address, await nft.MINTER_ROLE())).to.be.true;
       expect(await nft.hasRole(alice.address, await nft.BURNER_ROLE())).to.be.true;
 
-      await expect(factory.connect(alice).produceCreditToken(ctInfo, signature)).to.be.revertedWithCustomError(
-        factory,
-        'TokenAlreadyExists',
-      );
+      await expect(
+        factory.connect(alice).produceCreditToken(creditTokenInfo, creditTokenInfoProtection),
+      ).to.be.revertedWithCustomError(factory, 'TokenAlreadyExists');
     });
 
     it('should correctly deploy several CreditToken nfts', async () => {
@@ -512,7 +547,7 @@ describe('Factory', () => {
       const uri2 = 'contractURI2/CreditToken123';
       const uri3 = 'contractURI3/CreditToken123';
 
-      const info1: ERC1155InfoStruct = {
+      const creditTokenInfo1: ERC1155InfoStruct = {
         name: nftName1,
         symbol: nftSymbol1,
         defaultAdmin: alice.address,
@@ -522,11 +557,14 @@ describe('Factory', () => {
         uri: uri1,
         transferable: true,
       };
-      const message1 = hashERC1155Info(info1, chainId);
-      const signature1 = EthCrypto.sign(signer.privateKey, message1);
-      await factory.connect(alice).produceCreditToken(info1, signature1);
+      const creditTokenInfoProtection1 = await signCreditTokenInfo(
+        factory.address,
+        signer.privateKey,
+        creditTokenInfo1,
+      );
+      await factory.connect(alice).produceCreditToken(creditTokenInfo1, creditTokenInfoProtection1);
 
-      const info2: ERC1155InfoStruct = {
+      const creditTokenInfo2: ERC1155InfoStruct = {
         name: nftName2,
         symbol: nftSymbol2,
         defaultAdmin: bob.address,
@@ -536,11 +574,14 @@ describe('Factory', () => {
         uri: uri2,
         transferable: true,
       };
-      const message2 = hashERC1155Info(info2, chainId);
-      const signature2 = EthCrypto.sign(signer.privateKey, message2);
-      await factory.connect(bob).produceCreditToken(info2, signature2);
+      const creditTokenInfoProtection2 = await signCreditTokenInfo(
+        factory.address,
+        signer.privateKey,
+        creditTokenInfo2,
+      );
+      await factory.connect(alice).produceCreditToken(creditTokenInfo2, creditTokenInfoProtection2);
 
-      const info3: ERC1155InfoStruct = {
+      const creditTokenInfo3: ERC1155InfoStruct = {
         name: nftName3,
         symbol: nftSymbol3,
         defaultAdmin: charlie.address,
@@ -550,9 +591,12 @@ describe('Factory', () => {
         uri: uri3,
         transferable: true,
       };
-      const message3 = hashERC1155Info(info3, chainId);
-      const signature3 = EthCrypto.sign(signer.privateKey, message3);
-      await factory.connect(bob).produceCreditToken(info3, signature3);
+      const creditTokenInfoProtection3 = await signCreditTokenInfo(
+        factory.address,
+        signer.privateKey,
+        creditTokenInfo3,
+      );
+      await factory.connect(alice).produceCreditToken(creditTokenInfo3, creditTokenInfoProtection3);
 
       const instanceInfo1 = await factory.getCreditTokenInstanceInfo(nftName1, nftSymbol1);
       const instanceInfo2 = await factory.getCreditTokenInstanceInfo(nftName2, nftSymbol2);
@@ -578,7 +622,7 @@ describe('Factory', () => {
 
       expect(await nft1.name()).to.be.equal(nftName1);
       expect(await nft1.symbol()).to.be.equal(nftSymbol1);
-      expect(await nft1['uri()']()).to.be.equal(uri1);
+      expect(await nft1.uri(1)).to.be.equal(uri1);
       expect(await nft1.transferable()).to.be.true;
       expect(await nft1.hasRole(alice.address, await nft1.DEFAULT_ADMIN_ROLE())).to.be.true;
       expect(await nft1.hasRole(alice.address, await nft1.MANAGER_ROLE())).to.be.true;
@@ -589,7 +633,7 @@ describe('Factory', () => {
 
       expect(await nft2.name()).to.be.equal(nftName2);
       expect(await nft2.symbol()).to.be.equal(nftSymbol2);
-      expect(await nft2['uri()']()).to.be.equal(uri2);
+      expect(await nft2.uri(1)).to.be.equal(uri2);
       expect(await nft2.transferable()).to.be.true;
       expect(await nft2.hasRole(bob.address, await nft2.DEFAULT_ADMIN_ROLE())).to.be.true;
       expect(await nft2.hasRole(bob.address, await nft2.MANAGER_ROLE())).to.be.true;
@@ -600,7 +644,7 @@ describe('Factory', () => {
 
       expect(await nft3.name()).to.be.equal(nftName3);
       expect(await nft3.symbol()).to.be.equal(nftSymbol3);
-      expect(await nft3['uri()']()).to.be.equal(uri3);
+      expect(await nft3.uri(1)).to.be.equal(uri3);
       expect(await nft3.transferable()).to.be.true;
       expect(await nft3.hasRole(charlie.address, await nft3.DEFAULT_ADMIN_ROLE())).to.be.true;
       expect(await nft3.hasRole(charlie.address, await nft3.MANAGER_ROLE())).to.be.true;
@@ -620,7 +664,7 @@ describe('Factory', () => {
       const cliffDurationSeconds = 60;
       const durationSeconds = 360;
 
-      let info: VestingWalletInfoStruct = {
+      const vestingInfoFake: VestingWalletInfoStruct = {
         startTimestamp,
         cliffDurationSeconds: 0,
         durationSeconds: 0,
@@ -631,20 +675,29 @@ describe('Factory', () => {
         linearAllocation: ethers.utils.parseEther('60'), // 60 LONG linearly after cliff for 360s
         description,
       };
+      let vestingInfoFakeProtection = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        owner.address,
+        vestingInfoFake,
+      );
 
-      let message = hashVestingInfo(owner.address, info, chainId);
-      let signature = EthCrypto.sign(signer.privateKey, message);
+      await expect(
+        factory.connect(owner).deployVestingWallet(owner.address, vestingInfoFake, vestingInfoFakeProtection),
+      ).to.be.revertedWithCustomError(factory, 'BadDurations');
 
-      await expect(factory.connect(owner).deployVestingWallet(owner.address, info, signature))
-        .to.be.revertedWithCustomError(factory, 'BadDurations')
-        .withArgs(0, 0);
-
-      info.durationSeconds = 1;
-      message = hashVestingInfo(owner.address, info, chainId);
-      signature = EthCrypto.sign(signer.privateKey, message);
-      await expect(factory.connect(owner).deployVestingWallet(owner.address, info, signature))
+      vestingInfoFake.durationSeconds = 1;
+      vestingInfoFakeProtection = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        owner.address,
+        vestingInfoFake,
+      );
+      await expect(
+        factory.connect(owner).deployVestingWallet(owner.address, vestingInfoFake, vestingInfoFakeProtection),
+      )
         .to.be.revertedWithCustomError(factory, 'AllocationMismatch')
-        .withArgs(BigNumber.from(info.linearAllocation).add(await info.tgeAmount), info.totalAllocation);
+        .withArgs(vestingInfoFake.totalAllocation);
 
       const vestingWalletInfo: VestingWalletInfoStruct = {
         startTimestamp,
@@ -657,25 +710,25 @@ describe('Factory', () => {
         linearAllocation: ethers.utils.parseEther('60'),
         description,
       };
-
-      const vestingWalletMessage = hashVestingInfo(owner.address, vestingWalletInfo, chainId);
-      const venueTokenSignature = EthCrypto.sign(signer.privateKey, vestingWalletMessage);
-
-      const wrongMessage = hashVestingInfo(owner.address, vestingWalletInfo, chainId + 1);
-      const wrongSignature = EthCrypto.sign(signer.privateKey, wrongMessage);
+      const vestingInfoProtection = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        owner.address,
+        vestingWalletInfo,
+      );
 
       await expect(
-        factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo, wrongSignature),
+        factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo, vestingInfoFakeProtection),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
       await expect(
-        factory.connect(alice).deployVestingWallet(owner.address, vestingWalletInfo, wrongSignature),
+        factory.connect(alice).deployVestingWallet(owner.address, vestingWalletInfo, vestingInfoProtection),
       ).to.be.revertedWithCustomError(factory, 'NotEnoughFundsToVest');
 
       await LONG.approve(factory.address, vestingWalletInfo.totalAllocation);
 
       const tx = await factory
         .connect(owner)
-        .deployVestingWallet(owner.address, vestingWalletInfo, venueTokenSignature);
+        .deployVestingWallet(owner.address, vestingWalletInfo, vestingInfoProtection);
 
       await expect(tx).to.emit(factory, 'VestingWalletCreated');
       const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(vestingWalletInfo.beneficiary, 0);
@@ -733,13 +786,16 @@ describe('Factory', () => {
         linearAllocation: ethers.utils.parseEther('60'),
         description: description1,
       };
-
-      const vestingWalletMessage1 = hashVestingInfo(owner.address, vestingWalletInfo1, chainId);
-      const venueTokenSignature1 = EthCrypto.sign(signer.privateKey, vestingWalletMessage1);
+      const vestingInfoProtection1 = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        owner.address,
+        vestingWalletInfo1,
+      );
 
       await LONG.approve(factory.address, vestingWalletInfo1.totalAllocation);
 
-      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo1, venueTokenSignature1);
+      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo1, vestingInfoProtection1);
 
       const now2 = await time.latest();
       const startTimestamp2 = now2 + 5;
@@ -751,19 +807,22 @@ describe('Factory', () => {
         cliffDurationSeconds: cliffDurationSeconds2,
         durationSeconds: durationSeconds2,
         token: LONG.address,
-        beneficiary: bob.address,
+        beneficiary: alice.address,
         totalAllocation: ethers.utils.parseEther('100'),
         tgeAmount: ethers.utils.parseEther('10'),
         linearAllocation: ethers.utils.parseEther('60'),
         description: description2,
       };
-
-      const vestingWalletMessage2 = hashVestingInfo(owner.address, vestingWalletInfo2, chainId);
-      const venueTokenSignature2 = EthCrypto.sign(signer.privateKey, vestingWalletMessage2);
+      const vestingInfoProtection2 = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        owner.address,
+        vestingWalletInfo2,
+      );
 
       await LONG.approve(factory.address, vestingWalletInfo2.totalAllocation);
 
-      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo2, venueTokenSignature2);
+      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo2, vestingInfoProtection2);
 
       const now3 = await time.latest();
       const startTimestamp3 = now3 + 5;
@@ -775,23 +834,26 @@ describe('Factory', () => {
         cliffDurationSeconds: cliffDurationSeconds3,
         durationSeconds: durationSeconds3,
         token: LONG.address,
-        beneficiary: charlie.address,
+        beneficiary: alice.address,
         totalAllocation: ethers.utils.parseEther('100'),
         tgeAmount: ethers.utils.parseEther('10'),
         linearAllocation: ethers.utils.parseEther('60'),
         description: description3,
       };
-
-      const vestingWalletMessage3 = hashVestingInfo(owner.address, vestingWalletInfo3, chainId);
-      const venueTokenSignature3 = EthCrypto.sign(signer.privateKey, vestingWalletMessage3);
+      const vestingInfoProtection3 = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        owner.address,
+        vestingWalletInfo3,
+      );
 
       await LONG.approve(factory.address, vestingWalletInfo3.totalAllocation);
 
-      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo3, venueTokenSignature3);
+      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo3, vestingInfoProtection3);
 
       const vestingWalletInstanceInfo1 = await factory.getVestingWalletInstanceInfo(vestingWalletInfo1.beneficiary, 0);
-      const vestingWalletInstanceInfo2 = await factory.getVestingWalletInstanceInfo(vestingWalletInfo2.beneficiary, 0);
-      const vestingWalletInstanceInfo3 = await factory.getVestingWalletInstanceInfo(vestingWalletInfo3.beneficiary, 0);
+      const vestingWalletInstanceInfo2 = await factory.getVestingWalletInstanceInfo(vestingWalletInfo2.beneficiary, 1);
+      const vestingWalletInstanceInfo3 = await factory.getVestingWalletInstanceInfo(vestingWalletInfo3.beneficiary, 2);
 
       expect(vestingWalletInstanceInfo1.vestingWallet).to.not.be.equal(ZERO_ADDRESS);
       expect(vestingWalletInstanceInfo1.description).to.be.equal(description1);
@@ -842,7 +904,7 @@ describe('Factory', () => {
     it('Can create referral code', async () => {
       const { factory, alice } = await loadFixture(fixture);
 
-      const hashedCode = EthCrypto.hash.keccak256([
+      const hashedCode = abiEncodeHash([
         { type: 'address', value: alice.address },
         { type: 'address', value: factory.address },
         { type: 'uint256', value: chainId },
@@ -862,13 +924,13 @@ describe('Factory', () => {
     it('Can set referral', async () => {
       const { factory, signer, alice, bob } = await loadFixture(fixture);
 
-      const hashedCode = EthCrypto.hash.keccak256([
+      const hashedCode = abiEncodeHash([
         { type: 'address', value: alice.address },
         { type: 'address', value: factory.address },
         { type: 'uint256', value: chainId },
       ]);
 
-      const hashedCodeFalse = EthCrypto.hash.keccak256([
+      const hashedCodeFalse = abiEncodeHash([
         { type: 'address', value: bob.address },
         { type: 'address', value: factory.address },
         { type: 'uint256', value: chainId },
@@ -882,67 +944,36 @@ describe('Factory', () => {
       const price = ethers.utils.parseEther('0.01');
       const feeNumerator = 500;
 
-      let message = EthCrypto.hash.keccak256([
-        { type: 'string', value: nftName },
-        { type: 'string', value: nftSymbol },
-        { type: 'string', value: contractURI },
-        { type: 'uint96' as any, value: feeNumerator },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      let signature = EthCrypto.sign(signer.privateKey, message);
+      const accessTokenInfo = {
+        creator: alice.address,
+        metadata: { name: nftName, symbol: nftSymbol },
+        contractURI: contractURI,
+        paymentToken: NATIVE_CURRENCY_ADDRESS,
+        mintPrice: price,
+        whitelistMintPrice: price,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: feeNumerator,
+        collectionExpire: BigNumber.from('86400'),
+      } as AccessTokenInfoStruct;
+      const accessTokenInfoProtection = await signAccessTokenInfo(factory.address, signer.privateKey, accessTokenInfo);
 
       await expect(
-        factory.connect(alice).produce(
-          {
-            metadata: { name: nftName, symbol: nftSymbol },
-            contractURI: contractURI,
-            paymentToken: NATIVE_CURRENCY_ADDRESS,
-            mintPrice: price,
-            whitelistMintPrice: price,
-            transferable: true,
-            maxTotalSupply: BigNumber.from('1000'),
-            feeNumerator: feeNumerator,
-            collectionExpire: BigNumber.from('86400'),
-            signature: signature,
-          } as AccessTokenInfoStruct,
-          hashedCodeFalse,
-        ),
+        factory.connect(alice).produce(accessTokenInfo, hashedCodeFalse, accessTokenInfoProtection),
       ).to.be.revertedWithCustomError(factory, 'ReferralCreatorNotExists');
 
       await expect(
-        factory.connect(alice).produce(
-          {
-            metadata: { name: nftName, symbol: nftSymbol },
-            contractURI: contractURI,
-            paymentToken: NATIVE_CURRENCY_ADDRESS,
-            mintPrice: price,
-            whitelistMintPrice: price,
-            transferable: true,
-            maxTotalSupply: BigNumber.from('1000'),
-            feeNumerator: feeNumerator,
-            collectionExpire: BigNumber.from('86400'),
-            signature: signature,
-          } as AccessTokenInfoStruct,
-          hashedCode,
-        ),
+        factory.connect(alice).produce(accessTokenInfo, hashedCode, accessTokenInfoProtection),
       ).to.be.revertedWithCustomError(factory, 'ReferralUserIsReferralCreator');
 
-      const tx = await factory.connect(bob).produce(
-        {
-          metadata: { name: nftName, symbol: nftSymbol },
-          contractURI: contractURI,
-          paymentToken: NATIVE_CURRENCY_ADDRESS,
-          mintPrice: price,
-          whitelistMintPrice: price,
-          transferable: true,
-          maxTotalSupply: BigNumber.from('1000'),
-          feeNumerator: feeNumerator,
-          collectionExpire: BigNumber.from('86400'),
-          signature: signature,
-        } as AccessTokenInfoStruct,
-        hashedCode,
+      accessTokenInfo.creator = bob.address;
+      const accessTokenInfoProtectionBob = await signAccessTokenInfo(
+        factory.address,
+        signer.privateKey,
+        accessTokenInfo,
       );
+
+      const tx = await factory.connect(bob).produce(accessTokenInfo, hashedCode, accessTokenInfoProtectionBob);
 
       await expect(tx).to.emit(factory, 'ReferralCodeUsed').withArgs(hashedCode, bob.address);
       expect((await factory.getReferralUsers(hashedCode))[0]).to.eq(bob.address);
@@ -956,31 +987,25 @@ describe('Factory', () => {
       nftName = 'Name2';
       nftSymbol = 'S2';
 
-      message = EthCrypto.hash.keccak256([
-        { type: 'string', value: nftName },
-        { type: 'string', value: nftSymbol },
-        { type: 'string', value: contractURI },
-        { type: 'uint96' as any, value: feeNumerator },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      signature = EthCrypto.sign(signer.privateKey, message);
-
-      await factory.connect(bob).produce(
-        {
-          metadata: { name: nftName, symbol: nftSymbol },
-          contractURI: contractURI,
-          paymentToken: NATIVE_CURRENCY_ADDRESS,
-          mintPrice: price,
-          whitelistMintPrice: price,
-          transferable: true,
-          maxTotalSupply: BigNumber.from('1000'),
-          feeNumerator: feeNumerator,
-          collectionExpire: BigNumber.from('86400'),
-          signature: signature,
-        } as AccessTokenInfoStruct,
-        hashedCode,
+      const accessTokenInfo2 = {
+        creator: bob.address,
+        metadata: { name: nftName, symbol: nftSymbol },
+        contractURI: contractURI,
+        paymentToken: NATIVE_CURRENCY_ADDRESS,
+        mintPrice: price,
+        whitelistMintPrice: price,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: feeNumerator,
+        collectionExpire: BigNumber.from('86400'),
+      } as AccessTokenInfoStruct;
+      const accessTokenInfoProtection2 = await signAccessTokenInfo(
+        factory.address,
+        signer.privateKey,
+        accessTokenInfo2,
       );
+
+      await factory.connect(bob).produce(accessTokenInfo2, hashedCode, accessTokenInfoProtection2);
 
       expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(
         getPercentage(amount, referralPercentages[2]),
@@ -989,31 +1014,25 @@ describe('Factory', () => {
       nftName = 'Name3';
       nftSymbol = 'S3';
 
-      message = EthCrypto.hash.keccak256([
-        { type: 'string', value: nftName },
-        { type: 'string', value: nftSymbol },
-        { type: 'string', value: contractURI },
-        { type: 'uint96' as any, value: feeNumerator },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      signature = EthCrypto.sign(signer.privateKey, message);
-
-      await factory.connect(bob).produce(
-        {
-          metadata: { name: nftName, symbol: nftSymbol },
-          contractURI: contractURI,
-          paymentToken: NATIVE_CURRENCY_ADDRESS,
-          mintPrice: price,
-          whitelistMintPrice: price,
-          transferable: true,
-          maxTotalSupply: BigNumber.from('1000'),
-          feeNumerator: feeNumerator,
-          collectionExpire: BigNumber.from('86400'),
-          signature: signature,
-        } as AccessTokenInfoStruct,
-        hashedCode,
+      const accessTokenInfo3 = {
+        creator: bob.address,
+        metadata: { name: nftName, symbol: nftSymbol },
+        contractURI: contractURI,
+        paymentToken: NATIVE_CURRENCY_ADDRESS,
+        mintPrice: price,
+        whitelistMintPrice: price,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: feeNumerator,
+        collectionExpire: BigNumber.from('86400'),
+      } as AccessTokenInfoStruct;
+      const accessTokenInfoProtection3 = await signAccessTokenInfo(
+        factory.address,
+        signer.privateKey,
+        accessTokenInfo3,
       );
+
+      await factory.connect(bob).produce(accessTokenInfo3, hashedCode, accessTokenInfoProtection3);
 
       expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(
         getPercentage(amount, referralPercentages[3]),
@@ -1022,31 +1041,25 @@ describe('Factory', () => {
       nftName = 'Name4';
       nftSymbol = 'S4';
 
-      message = EthCrypto.hash.keccak256([
-        { type: 'string', value: nftName },
-        { type: 'string', value: nftSymbol },
-        { type: 'string', value: contractURI },
-        { type: 'uint96' as any, value: feeNumerator },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      signature = EthCrypto.sign(signer.privateKey, message);
-
-      await factory.connect(bob).produce(
-        {
-          metadata: { name: nftName, symbol: nftSymbol },
-          contractURI: contractURI,
-          paymentToken: NATIVE_CURRENCY_ADDRESS,
-          mintPrice: price,
-          whitelistMintPrice: price,
-          transferable: true,
-          maxTotalSupply: BigNumber.from('1000'),
-          feeNumerator: feeNumerator,
-          collectionExpire: BigNumber.from('86400'),
-          signature: signature,
-        } as AccessTokenInfoStruct,
-        hashedCode,
+      const accessTokenInfo4 = {
+        creator: bob.address,
+        metadata: { name: nftName, symbol: nftSymbol },
+        contractURI: contractURI,
+        paymentToken: NATIVE_CURRENCY_ADDRESS,
+        mintPrice: price,
+        whitelistMintPrice: price,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: feeNumerator,
+        collectionExpire: BigNumber.from('86400'),
+      } as AccessTokenInfoStruct;
+      const accessTokenInfoProtection4 = await signAccessTokenInfo(
+        factory.address,
+        signer.privateKey,
+        accessTokenInfo4,
       );
+
+      await factory.connect(bob).produce(accessTokenInfo4, hashedCode, accessTokenInfoProtection4);
 
       expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(
         getPercentage(amount, referralPercentages[4]),
@@ -1055,31 +1068,25 @@ describe('Factory', () => {
       nftName = 'Name5';
       nftSymbol = 'S5';
 
-      message = EthCrypto.hash.keccak256([
-        { type: 'string', value: nftName },
-        { type: 'string', value: nftSymbol },
-        { type: 'string', value: contractURI },
-        { type: 'uint96' as any, value: feeNumerator },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      signature = EthCrypto.sign(signer.privateKey, message);
-
-      await factory.connect(bob).produce(
-        {
-          metadata: { name: nftName, symbol: nftSymbol },
-          contractURI: contractURI,
-          paymentToken: NATIVE_CURRENCY_ADDRESS,
-          mintPrice: price,
-          whitelistMintPrice: price,
-          transferable: true,
-          maxTotalSupply: BigNumber.from('1000'),
-          feeNumerator: feeNumerator,
-          collectionExpire: BigNumber.from('86400'),
-          signature: signature,
-        } as AccessTokenInfoStruct,
-        hashedCode,
+      const accessTokenInfo5 = {
+        creator: bob.address,
+        metadata: { name: nftName, symbol: nftSymbol },
+        contractURI: contractURI,
+        paymentToken: NATIVE_CURRENCY_ADDRESS,
+        mintPrice: price,
+        whitelistMintPrice: price,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: feeNumerator,
+        collectionExpire: BigNumber.from('86400'),
+      } as AccessTokenInfoStruct;
+      const accessTokenInfoProtection5 = await signAccessTokenInfo(
+        factory.address,
+        signer.privateKey,
+        accessTokenInfo5,
       );
+
+      await factory.connect(bob).produce(accessTokenInfo5, hashedCode, accessTokenInfoProtection5);
 
       expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(
         getPercentage(amount, referralPercentages[4]),
@@ -1088,31 +1095,25 @@ describe('Factory', () => {
       nftName = 'Name6';
       nftSymbol = 'S6';
 
-      message = EthCrypto.hash.keccak256([
-        { type: 'string', value: nftName },
-        { type: 'string', value: nftSymbol },
-        { type: 'string', value: contractURI },
-        { type: 'uint96' as any, value: feeNumerator },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      signature = EthCrypto.sign(signer.privateKey, message);
-
-      await factory.connect(bob).produce(
-        {
-          metadata: { name: nftName, symbol: nftSymbol },
-          contractURI: contractURI,
-          paymentToken: NATIVE_CURRENCY_ADDRESS,
-          mintPrice: price,
-          whitelistMintPrice: price,
-          transferable: true,
-          maxTotalSupply: BigNumber.from('1000'),
-          feeNumerator: feeNumerator,
-          collectionExpire: BigNumber.from('86400'),
-          signature: signature,
-        } as AccessTokenInfoStruct,
-        hashedCode,
+      const accessTokenInfo6 = {
+        creator: bob.address,
+        metadata: { name: nftName, symbol: nftSymbol },
+        contractURI: contractURI,
+        paymentToken: NATIVE_CURRENCY_ADDRESS,
+        mintPrice: price,
+        whitelistMintPrice: price,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: feeNumerator,
+        collectionExpire: BigNumber.from('86400'),
+      } as AccessTokenInfoStruct;
+      const accessTokenInfoProtection6 = await signAccessTokenInfo(
+        factory.address,
+        signer.privateKey,
+        accessTokenInfo6,
       );
+
+      await factory.connect(bob).produce(accessTokenInfo6, hashedCode, accessTokenInfoProtection6);
 
       expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(
         getPercentage(amount, referralPercentages[4]),
@@ -1165,48 +1166,24 @@ describe('Factory', () => {
       const contractURI = 'contractURI/AccessToken123';
       const price = ethers.utils.parseEther('0.05');
 
-      const message = EthCrypto.hash.keccak256([
-        { type: 'string', value: nftName },
-        { type: 'string', value: nftSymbol },
-        { type: 'string', value: contractURI },
-        { type: 'uint96' as any, value: 500 },
-        { type: 'uint256', value: chainId },
-      ]);
+      const accessTokenInfo = {
+        creator: alice.address,
+        metadata: { name: nftName, symbol: nftSymbol },
+        contractURI: contractURI,
+        paymentToken: NATIVE_CURRENCY_ADDRESS,
+        mintPrice: price,
+        whitelistMintPrice: price,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: BigNumber.from('500'),
+        collectionExpire: BigNumber.from('86400'),
+      } as AccessTokenInfoStruct;
+      const accessTokenInfoProtection = await signAccessTokenInfo(factory.address, signer.privateKey, accessTokenInfo);
 
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      await factory.connect(alice).produce(
-        {
-          metadata: { name: nftName, symbol: nftSymbol },
-          contractURI: contractURI,
-          paymentToken: NATIVE_CURRENCY_ADDRESS,
-          mintPrice: price,
-          whitelistMintPrice: price,
-          transferable: true,
-          maxTotalSupply: BigNumber.from('1000'),
-          feeNumerator: BigNumber.from('500'),
-          collectionExpire: BigNumber.from('86400'),
-          signature: signature,
-        } as AccessTokenInfoStruct,
-        ethers.constants.HashZero,
-      );
+      await factory.connect(alice).produce(accessTokenInfo, ethers.constants.HashZero, accessTokenInfoProtection);
 
       await expect(
-        factory.connect(alice).produce(
-          {
-            metadata: { name: nftName, symbol: nftSymbol },
-            contractURI: contractURI,
-            paymentToken: NATIVE_CURRENCY_ADDRESS,
-            mintPrice: price,
-            whitelistMintPrice: price,
-            transferable: true,
-            maxTotalSupply: BigNumber.from('1000'),
-            feeNumerator: BigNumber.from('500'),
-            collectionExpire: BigNumber.from('86400'),
-            signature: signature,
-          } as AccessTokenInfoStruct,
-          ethers.constants.HashZero,
-        ),
+        factory.connect(alice).produce(accessTokenInfo, ethers.constants.HashZero, accessTokenInfoProtection),
       ).to.be.revertedWithCustomError(factory, 'TokenAlreadyExists');
     });
   });
