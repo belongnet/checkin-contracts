@@ -429,7 +429,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
         _contracts.escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
 
-        _contracts.venueToken.mint(venueInfo.venue, venueId, venueInfo.amount, venueInfo.uri);
+        _contracts.venueToken.mint(venueInfo.venue, venueId, venueInfo.amount);
 
         emit VenuePaidDeposit(venueInfo.venue, venueInfo.affiliateReferralCode, venueInfo.rules, venueInfo.amount);
     }
@@ -552,7 +552,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
         uint256 toPromoter = promoterInfo.amountInUSD;
         uint256 platformFees = promoterInfo.paymentInUSDtoken
-            ? stakingInfo.usdTokenPercentage
+            ? stakingInfo.usdTokenPercentage.calculateRate(toPromoter)
             : stakingInfo.longPercentage.calculateRate(toPromoter);
         unchecked {
             toPromoter -= platformFees;
@@ -590,7 +590,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
         promoterToken.burn(promoter, venueId, promoterBalance);
 
-        venueToken.mint(venue, venueId, promoterBalance, venueToken.uri(venueId));
+        venueToken.mint(venue, venueId, promoterBalance);
 
         emit PromoterPaymentCancelled(venue, promoter, promoterBalance);
     }
@@ -733,7 +733,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         require(venueBalance >= rewards, NotEnoughBalance(rewards, venueBalance));
 
         contracts_.venueToken.burn(venue, venueId, rewards);
-        contracts_.promoterToken.mint(to, venueId, rewards, contracts_.venueToken.uri(venueId));
+        contracts_.promoterToken.mint(to, venueId, rewards);
     }
 
     /// @dev Builds the optimal encoded path for the configured V3 router, preferring a direct pool and otherwise routing through the configured wrapped native token.

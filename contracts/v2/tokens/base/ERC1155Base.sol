@@ -96,8 +96,7 @@ contract ERC1155Base is Initializable, ERC1155, Ownable, EnumerableRoles {
     /// @param to Recipient address.
     /// @param tokenId Token id to mint.
     /// @param amount Amount to mint.
-    /// @param tokenUri Token-specific URI to set (overrides collection URI).
-    function mint(address to, uint256 tokenId, uint256 amount, string calldata tokenUri) public onlyRole(MINTER_ROLE) {
+    function mint(address to, uint256 tokenId, uint256 amount) public onlyRole(MINTER_ROLE) {
         _mint(to, tokenId, amount, "0x");
     }
 
