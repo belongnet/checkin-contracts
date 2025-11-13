@@ -15,7 +15,7 @@ import {
 } from '../../../helpers/deployFixtures';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2 } from '../../../helpers/deployMockFixtures';
-import { hashVestingInfo } from '../../../helpers/math';
+import { signVestingWalletInfo } from '../../../helpers/signature';
 import {
   AccessToken,
   CreditToken,
@@ -457,7 +457,6 @@ describe('VestingWalletExtended', () => {
         },
       );
 
-      const chainId = (await ethers.provider.getNetwork()).chainId;
       const start = (await time.latest()) + 1_000;
       const cliffDur = 60;
       const dur = 360;
@@ -474,14 +473,13 @@ describe('VestingWalletExtended', () => {
         description,
       };
 
-      const vestingWalletMessage = hashVestingInfo(admin.address, info, chainId);
-      const venueTokenSignature = EthCrypto.sign(signer.privateKey, vestingWalletMessage);
+      const protection = await signVestingWalletInfo(factory.address, signer.privateKey, admin.address, info);
 
       await LONG.approve(factory.address, info.totalAllocation);
 
-      await expect(factory.connect(admin).deployVestingWallet(admin.address, info, venueTokenSignature))
+      await expect(factory.connect(admin).deployVestingWallet(admin.address, info, protection))
         .to.be.revertedWithCustomError(factory, 'AllocationMismatch')
-        .withArgs(info.linearAllocation.add(info.tgeAmount), info.totalAllocation);
+        .withArgs(info.totalAllocation);
     });
   });
 });
