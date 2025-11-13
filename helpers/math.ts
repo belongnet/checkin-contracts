@@ -32,6 +32,19 @@ export async function u(amount: string | number, token: any) {
 
 export const U = (amount: string | number, dec: number) => parseUnits(String(amount), dec);
 
+export function calculatePlatformFee(
+  amount: BigNumberish,
+  commission: BigNumberish,
+  denominator: BigNumberish,
+): BigNumber {
+  const amountBN = BigNumber.from(amount);
+  const commissionBN = BigNumber.from(commission);
+  if (amountBN.isZero() || commissionBN.isZero()) {
+    return BigNumber.from(0);
+  }
+  return amountBN.mul(commissionBN).add(denominator).sub(1).div(denominator);
+}
+
 export function hashAccessTokenInfo(
   verifyingContract: string,
   nonce: BigNumberish,

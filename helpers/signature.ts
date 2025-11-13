@@ -227,6 +227,42 @@ export async function signPromoterInfo(
   );
 }
 
+export async function buildStaticProtection(
+  verifyingContract: string,
+  signerPrivateKey: string,
+  receiver: string,
+  params: StaticPriceParametersStruct,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  return buildProtection(
+    signerPrivateKey,
+    ({ nonce, deadline, chainId }) =>
+      ethers.utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'address', 'uint256', 'string', 'bool'],
+        [verifyingContract, nonce, deadline, chainId, receiver, params.tokenId, params.tokenUri, params.whitelisted],
+      ),
+    overrides,
+  );
+}
+
+export async function buildDynamicProtection(
+  verifyingContract: string,
+  signerPrivateKey: string,
+  receiver: string,
+  params: DynamicPriceParametersStruct,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  return buildProtection(
+    signerPrivateKey,
+    ({ nonce, deadline, chainId }) =>
+      ethers.utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'address', 'uint256', 'string', 'uint256'],
+        [verifyingContract, nonce, deadline, chainId, receiver, params.tokenId, params.tokenUri, params.price],
+      ),
+    overrides,
+  );
+}
+
 export function resetSignatureNonce(value = BigNumber.from(1)) {
   nonceCounter = value;
 }
