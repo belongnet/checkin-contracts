@@ -127,17 +127,17 @@ describe('CreditToken', () => {
     it('mint() only with MINTER_ROLE', async () => {
       const { venueToken, promoterToken, admin, minter } = await loadFixture(fixture);
 
-      await expect(venueToken.connect(admin).mint(admin.address, 1, 1000, '')).to.be.revertedWithCustomError(
+      await expect(venueToken.connect(admin).mint(admin.address, 1, 1000)).to.be.revertedWithCustomError(
         venueToken,
         'EnumerableRolesUnauthorized',
       );
-      await expect(promoterToken.connect(admin).mint(admin.address, 1, 1000, '')).to.be.revertedWithCustomError(
+      await expect(promoterToken.connect(admin).mint(admin.address, 1, 1000)).to.be.revertedWithCustomError(
         promoterToken,
         'EnumerableRolesUnauthorized',
       );
 
-      const venueTokenMint = await venueToken.connect(minter).mint(admin.address, 1, 1000, '');
-      const promoterTokenMint = await promoterToken.connect(minter).mint(admin.address, 1, 1000, '1');
+      const venueTokenMint = await venueToken.connect(minter).mint(admin.address, 1, 1000);
+      const promoterTokenMint = await promoterToken.connect(minter).mint(admin.address, 1, 1000);
 
       expect(await venueToken.uri(1)).to.eq('contractURI/VenueToken');
       expect(await promoterToken.uri(1)).to.eq('contractURI/PromoterToken');
@@ -161,8 +161,8 @@ describe('CreditToken', () => {
         'EnumerableRolesUnauthorized',
       );
 
-      await venueToken.connect(minter).mint(admin.address, 1, 1000, '');
-      await promoterToken.connect(minter).mint(admin.address, 1, 1000, '');
+      await venueToken.connect(minter).mint(admin.address, 1, 1000);
+      await promoterToken.connect(minter).mint(admin.address, 1, 1000);
 
       const venueTokenBurn = await venueToken.connect(burner).burn(admin.address, 1, 1000);
       const promoterTokenBurn = await promoterToken.connect(burner).burn(admin.address, 1, 1000);
@@ -180,8 +180,8 @@ describe('CreditToken', () => {
     it('_beforeTokenTransfer() checks the transferrable state', async () => {
       const { venueToken, promoterToken, admin, minter, manager } = await loadFixture(fixture);
 
-      await venueToken.connect(minter).mint(admin.address, 1, 1000, '');
-      await promoterToken.connect(minter).mint(admin.address, 1, 1000, '');
+      await venueToken.connect(minter).mint(admin.address, 1, 1000);
+      await promoterToken.connect(minter).mint(admin.address, 1, 1000);
 
       await venueToken.connect(admin).safeTransferFrom(admin.address, minter.address, 1, 1000, '0x');
       await expect(
