@@ -97,7 +97,7 @@ function cloneFactoryParams(overrides: Partial<Factory.FactoryParametersStruct> 
   return { ...factoryParams, ...overrides };
 }
 
-describe.only('AccessToken', () => {
+describe('AccessToken', () => {
   async function fixture() {
     const [owner, creator, referral, charlie, pete] = await ethers.getSigners();
     const signer = EthCrypto.createIdentity();
