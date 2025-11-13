@@ -1,10 +1,32 @@
-import { ethers } from 'hardhat';
-import { BigNumber } from 'ethers';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
+import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
+import { BigNumber } from 'ethers';
+import { ethers } from 'hardhat';
+
+import {
+  deployAccessTokenImplementation,
+  deployBelongCheckIn,
+  deployCreditTokenImplementation,
+  deployCreditTokens,
+  deployDualDexSwapV4Lib,
+  deployEscrow,
+  deployFactory,
+  deployRoyaltiesReceiverV2Implementation,
+  deployStaking,
+  deployVestingWalletImplementation,
+} from '../../../helpers/deployFixtures';
+import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
+import { deployMockTransferValidatorV2, deployPriceFeeds } from '../../../helpers/deployMockFixtures';
+import { getSignerFromAddress, getToken, startSimulateBSC, stopSimulate } from '../../../helpers/fork';
+import { u } from '../../../helpers/math';
+import { CAKE_ADDRESS, PCS_V2_ROUTER, USDT_ADDRESS } from '../../../helpers/pcs';
+import { signCustomerInfo, signPromoterInfo, signVenueInfo } from '../../../helpers/signature';
 import {
   AccessToken,
+  BelongCheckIn,
   CreditToken,
+  DualDexSwapV4Lib,
   Escrow,
   Factory,
   Helper,
@@ -12,35 +34,16 @@ import {
   RoyaltiesReceiverV2,
   SignatureVerifier,
   Staking,
-  BelongCheckIn,
   VestingWalletExtended,
-  DualDexSwapV4Lib,
 } from '../../../typechain-types';
-import {
-  deployCreditTokens,
-  deployAccessTokenImplementation,
-  deployCreditTokenImplementation,
-  deployFactory,
-  deployRoyaltiesReceiverV2Implementation,
-  deployStaking,
-  deployDualDexSwapV4Lib,
-  deployBelongCheckIn,
-  deployEscrow,
-  deployVestingWalletImplementation,
-} from '../../../helpers/deployFixtures';
-import { getSignerFromAddress, getToken, startSimulateBSC, stopSimulate } from '../../../helpers/fork';
-import { PCS_V2_ROUTER, USDT_ADDRESS, CAKE_ADDRESS } from '../../../helpers/pcs';
-import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
-import { deployMockTransferValidatorV2, deployPriceFeeds } from '../../../helpers/deployMockFixtures';
-import { expect } from 'chai';
 import {
   CustomerInfoStruct,
   PromoterInfoStruct,
   VenueInfoStruct,
   VenueRulesStruct,
 } from '../../../typechain-types/contracts/v2/platform/BelongCheckIn';
-import { u } from '../../../helpers/math';
 import { DualDexSwapV4Lib as DualDexSwapV4LibType } from '../../../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
+import { ChainIds } from '../../../utils/chain-ids';
 
 enum DexType {
   UniV4,
@@ -49,7 +52,7 @@ enum DexType {
 }
 
 describe('BelongCheckIn BSC PancakeSwapV2', () => {
-  const chainId = 31337;
+  const chainId = ChainIds.bsc;
 
   const USDT_WHALE_ADDRESS = '0x8894E0a0c962CB723c1976a4421c95949bE2D4E3';
   const CAKE_WHALE_ADDRESS = '0xD183F2BBF8b28d9fec8367cb06FE72B88778C86B';
@@ -166,13 +169,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
 
     const staking: Staking = await deployStaking(admin.address, treasury.address, CAKE.address);
 
-    const referralCode = EthCrypto.hash.keccak256([
-      { type: 'address', value: referral.address },
-      { type: 'address', value: factory.address },
-      { type: 'uint256', value: chainId },
-    ]);
-
     await factory.connect(referral).createReferralCode();
+    const referralCode = await factory.getReferralCodeByCreator(referral.address);
 
     const dualDexSwapV4Lib: DualDexSwapV4Lib = await deployDualDexSwapV4Lib();
 
@@ -534,11 +532,6 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, ethers.constants.HashZero, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
       const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
@@ -546,8 +539,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         amount,
         affiliateReferralCode: ethers.constants.HashZero,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const venueInfoFake: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
@@ -555,8 +548,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         amount,
         affiliateReferralCode: ethers.constants.HashZero,
         uri,
-        signature: signature,
       };
+      const fakeInfoProtection = venueInfoProtection;
 
       const willBeTaken = convenienceFeeAmount.add(amount);
 
@@ -564,12 +557,11 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
 
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
 
-      await expect(belongCheckIn.connect(USDT_whale).venueDeposit(venueInfoFake)).to.be.revertedWithCustomError(
-        signatureVerifier,
-        'InvalidSignature',
-      );
+      await expect(
+        belongCheckIn.connect(USDT_whale).venueDeposit(venueInfoFake, fakeInfoProtection),
+      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
 
-      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const escrowDeposit = await escrow.venueDeposits(USDT_whale.address);
 
@@ -584,7 +576,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       expect((await belongCheckIn.generalVenueInfo(USDT_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdTokenDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDT_whale.address, await helper.getVenueId(USDT_whale.address))).to.eq(amount);
-      expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDT_whale.address))).to.eq(uri);
+      expect(await venueToken.uri(await helper.getVenueId(USDT_whale.address))).to.eq('contractURI/VenueToken');
       expect(await USDT.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDT.balanceOf(escrow.address)).to.eq(amount);
       expect(await CAKE.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
@@ -601,20 +593,15 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, ethers.constants.HashZero, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: ethers.constants.HashZero,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToTreasury = await helper.calculateRate(1000, amount);
       const willBeTaken = paymentToTreasury.add(convenienceFeeAmount.add(amount));
@@ -626,7 +613,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
 
       const USDT_balance_before = await USDT.balanceOf(USDT_whale.address);
 
-      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const escrowDeposit = await escrow.venueDeposits(USDT_whale.address);
 
@@ -648,7 +635,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       expect((await belongCheckIn.generalVenueInfo(USDT_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdTokenDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDT_whale.address, await helper.getVenueId(USDT_whale.address))).to.eq(amount);
-      expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDT_whale.address))).to.eq(uri);
+      expect(await venueToken.uri(await helper.getVenueId(USDT_whale.address))).to.eq('contractURI/VenueToken');
       expect(await USDT.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDT.balanceOf(escrow.address)).to.eq(amount);
       expect(await CAKE.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
@@ -672,66 +659,63 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const referralCodeWrong = EthCrypto.hash.keccak256([
         { type: 'address', value: referral.address },
         { type: 'address', value: referral.address },
         { type: 'uint256', value: chainId },
       ]);
-      const messageCodeWrong = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCodeWrong, uri, chainId],
-      );
-      const signatureCodeWrong = EthCrypto.sign(signer.privateKey, messageCodeWrong);
-
-      let venueInfoWrongCode: VenueInfoStruct = {
+      const venueInfoWrongCode: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCodeWrong,
         uri,
-        signature: signatureCodeWrong,
       };
+      const venueInfoWrongCodeProtection = await signVenueInfo(
+        belongCheckIn.address,
+        signer.privateKey,
+        venueInfoWrongCode,
+      );
 
-      let venueInfoWrongPaymentType: VenueInfoStruct = {
+      const venueInfoWrongPaymentType: VenueInfoStruct = {
         rules: { paymentType: 0, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: signature,
       };
+      const venueInfoWrongPaymentTypeProtection = await signVenueInfo(
+        belongCheckIn.address,
+        signer.privateKey,
+        venueInfoWrongPaymentType,
+      );
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, amount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(amount));
 
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
 
-      await expect(belongCheckIn.connect(USDT_whale).venueDeposit(venueInfoWrongCode))
+      await expect(belongCheckIn.connect(USDT_whale).venueDeposit(venueInfoWrongCode, venueInfoWrongCodeProtection))
         .to.be.revertedWithCustomError(belongCheckIn, 'WrongReferralCode')
         .withArgs(venueInfoWrongCode.affiliateReferralCode);
       await expect(
-        belongCheckIn.connect(USDT_whale).venueDeposit(venueInfoWrongPaymentType),
+        belongCheckIn.connect(USDT_whale).venueDeposit(venueInfoWrongPaymentType, venueInfoWrongPaymentTypeProtection),
       ).to.be.revertedWithCustomError(belongCheckIn, 'WrongPaymentTypeProvided');
 
       const USDT_balance_before = await USDT.balanceOf(USDT_whale.address);
       const CAKE_balance_before = await CAKE.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const escrowDeposit = await escrow.venueDeposits(USDT_whale.address);
 
@@ -753,7 +737,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       expect((await belongCheckIn.generalVenueInfo(USDT_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdTokenDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDT_whale.address, await helper.getVenueId(USDT_whale.address))).to.eq(amount);
-      expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDT_whale.address))).to.eq(uri);
+      expect(await venueToken.uri(await helper.getVenueId(USDT_whale.address))).to.eq('contractURI/VenueToken');
       expect(await USDT.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDT.balanceOf(escrow.address)).to.eq(amount);
       expect(await USDT.balanceOf(treasury.address)).to.eq(0);
@@ -778,20 +762,15 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, amount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(amount));
@@ -801,7 +780,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const USDT_balance_before = await USDT.balanceOf(USDT_whale.address);
       const CAKE_balance_before = await CAKE.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const escrowDeposit = await escrow.venueDeposits(USDT_whale.address);
 
@@ -823,7 +802,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       expect((await belongCheckIn.generalVenueInfo(USDT_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdTokenDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDT_whale.address, await helper.getVenueId(USDT_whale.address))).to.eq(amount);
-      expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDT_whale.address))).to.eq(uri);
+      expect(await venueToken.uri(await helper.getVenueId(USDT_whale.address))).to.eq('contractURI/VenueToken');
       expect(await USDT.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDT.balanceOf(escrow.address)).to.eq(amount);
       expect(await USDT.balanceOf(treasury.address)).to.eq(0);
@@ -849,20 +828,15 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToTreasury = await helper.calculateRate(1000, amount);
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, amount);
@@ -876,7 +850,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const USDT_balance_before = await USDT.balanceOf(USDT_whale.address);
       const CAKE_balance_before = await CAKE.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const escrowDeposit = await escrow.venueDeposits(USDT_whale.address);
 
@@ -898,7 +872,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       expect((await belongCheckIn.generalVenueInfo(USDT_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdTokenDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDT_whale.address, await helper.getVenueId(USDT_whale.address))).to.eq(amount);
-      expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDT_whale.address))).to.eq(uri);
+      expect(await venueToken.uri(await helper.getVenueId(USDT_whale.address))).to.eq('contractURI/VenueToken');
       expect(await USDT.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDT.balanceOf(escrow.address)).to.eq(amount);
       expect(await CAKE.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
@@ -930,20 +904,15 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToTreasury = await helper.calculateRate(900, amount);
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, amount);
@@ -957,7 +926,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const USDT_balance_before = await USDT.balanceOf(USDT_whale.address);
       const CAKE_balance_before = await CAKE.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const escrowDeposit = await escrow.venueDeposits(USDT_whale.address);
 
@@ -979,7 +948,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       expect((await belongCheckIn.generalVenueInfo(USDT_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdTokenDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDT_whale.address, await helper.getVenueId(USDT_whale.address))).to.eq(amount);
-      expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDT_whale.address))).to.eq(uri);
+      expect(await venueToken.uri(await helper.getVenueId(USDT_whale.address))).to.eq('contractURI/VenueToken');
       expect(await USDT.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDT.balanceOf(escrow.address)).to.eq(amount);
       expect(await CAKE.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
@@ -1012,20 +981,15 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToTreasury = await helper.calculateRate(900, amount);
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, amount);
@@ -1039,7 +1003,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const USDT_balance_before = await USDT.balanceOf(USDT_whale.address);
       const CAKE_balance_before = await CAKE.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const escrowDeposit = await escrow.venueDeposits(USDT_whale.address);
 
@@ -1061,7 +1025,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       expect((await belongCheckIn.generalVenueInfo(USDT_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdTokenDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDT_whale.address, await helper.getVenueId(USDT_whale.address))).to.eq(amount);
-      expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDT_whale.address))).to.eq(uri);
+      expect(await venueToken.uri(await helper.getVenueId(USDT_whale.address))).to.eq('contractURI/VenueToken');
       expect(await USDT.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDT.balanceOf(escrow.address)).to.eq(amount);
       expect(await CAKE.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
@@ -1091,20 +1055,15 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToTreasury = await helper.calculateRate(800, amount);
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, amount);
@@ -1118,7 +1077,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const USDT_balance_before = await USDT.balanceOf(USDT_whale.address);
       const CAKE_balance_before = await CAKE.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const escrowDeposit = await escrow.venueDeposits(USDT_whale.address);
 
@@ -1140,7 +1099,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       expect((await belongCheckIn.generalVenueInfo(USDT_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdTokenDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDT_whale.address, await helper.getVenueId(USDT_whale.address))).to.eq(amount);
-      expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDT_whale.address))).to.eq(uri);
+      expect(await venueToken.uri(await helper.getVenueId(USDT_whale.address))).to.eq('contractURI/VenueToken');
       expect(await USDT.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDT.balanceOf(escrow.address)).to.eq(amount);
       expect(await CAKE.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
@@ -1169,20 +1128,15 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToTreasury = await helper.calculateRate(700, amount);
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, amount);
@@ -1196,7 +1150,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const USDT_balance_before = await USDT.balanceOf(USDT_whale.address);
       const CAKE_balance_before = await CAKE.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const escrowDeposit = await escrow.venueDeposits(USDT_whale.address);
 
@@ -1218,7 +1172,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       expect((await belongCheckIn.generalVenueInfo(USDT_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdTokenDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDT_whale.address, await helper.getVenueId(USDT_whale.address))).to.eq(amount);
-      expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDT_whale.address))).to.eq(uri);
+      expect(await venueToken.uri(await helper.getVenueId(USDT_whale.address))).to.eq('contractURI/VenueToken');
       expect(await USDT.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDT.balanceOf(escrow.address)).to.eq(amount);
       expect(await CAKE.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
@@ -1247,20 +1201,15 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToTreasury = await helper.calculateRate(500, amount);
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, amount);
@@ -1274,7 +1223,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const USDT_balance_before = await USDT.balanceOf(USDT_whale.address);
       const CAKE_balance_before = await CAKE.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      const tx = await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const escrowDeposit = await escrow.venueDeposits(USDT_whale.address);
 
@@ -1296,7 +1245,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       expect((await belongCheckIn.generalVenueInfo(USDT_whale.address)).rules.paymentType).to.eq(1);
       expect(escrowDeposit.usdTokenDeposits).to.eq(amount);
       expect(await venueToken.balanceOf(USDT_whale.address, await helper.getVenueId(USDT_whale.address))).to.eq(amount);
-      expect(await venueToken['uri(uint256)'](await helper.getVenueId(USDT_whale.address))).to.eq(uri);
+      expect(await venueToken.uri(await helper.getVenueId(USDT_whale.address))).to.eq('contractURI/VenueToken');
       expect(await USDT.balanceOf(belongCheckIn.address)).to.eq(0);
       expect(await USDT.balanceOf(escrow.address)).to.eq(amount);
       expect(await CAKE.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
@@ -1308,26 +1257,21 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: signature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, amount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(amount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
 
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       await expect(
         belongCheckIn
@@ -1354,40 +1298,21 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, ethers.constants.HashZero, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
       const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 0, bountyAllocationType: 0, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
+
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          0, // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          ethers.constants.HashZero, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -1402,8 +1327,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
@@ -1411,7 +1336,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const customerBalance_before = await USDT.balanceOf(CAKE_whale.address);
       const venueBalance_before = await USDT.balanceOf(USDT_whale.address);
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const customerBalance_after = await USDT.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDT.balanceOf(USDT_whale.address);
@@ -1436,40 +1361,21 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, ethers.constants.HashZero, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
       const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 0, bountyAllocationType: 0, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
+
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          0, // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          ethers.constants.HashZero, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -1484,8 +1390,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
@@ -1493,7 +1399,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const customerBalance_before = await USDT.balanceOf(CAKE_whale.address);
       const venueBalance_before = await USDT.balanceOf(USDT_whale.address);
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const customerBalance_after = await USDT.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDT.balanceOf(USDT_whale.address);
@@ -1521,43 +1427,23 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
+
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -1572,8 +1458,9 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
+
       const customerInfoFakeMessage1: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -1588,8 +1475,13 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: CAKE_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoFakeMessage1Protection = await signCustomerInfo(
+        belongCheckIn.address,
+        signer.privateKey,
+        customerInfoFakeMessage1,
+      );
+
       const customerInfoFakeMessage2: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -1604,42 +1496,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount.add(1),
-        signature: customerSignature,
       };
-
-      const customerMessageWrongSpendBountyPercentage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint24', 'uint24', 'address', 'address', 'address', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // visitBountyAmount
-          10, // spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignatureWrongSpendBountyPercentage = EthCrypto.sign(
-        signer.privateKey,
-        customerMessageWrongSpendBountyPercentage,
-      );
-      const customerInfoWrongSpendBountyPercentage: CustomerInfoStruct = {
-        paymentInUSDtoken: true,
-        toCustomer: {
-          visitBountyAmount: 0,
-          spendBountyPercentage: 0,
-        },
-        toPromoter: {
-          visitBountyAmount: 0,
-          spendBountyPercentage: 10,
-        },
-        customer: CAKE_whale.address,
-        venueToPayFor: USDT_whale.address,
-        promoterReferralCode: referralCode,
-        amount: customerAmount,
-        signature: customerSignatureWrongSpendBountyPercentage,
-      };
+      const customerInfoFakeMessage2Protection = customerInfoProtection;
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
@@ -1656,13 +1514,13 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       );
 
       await expect(
-        belongCheckIn.connect(CAKE_whale).payToVenue(customerInfoFakeMessage1),
+        belongCheckIn.connect(CAKE_whale).payToVenue(customerInfoFakeMessage1, customerInfoFakeMessage1Protection),
       ).to.be.revertedWithCustomError(signatureVerifier, 'WrongPaymentType');
       await expect(
-        belongCheckIn.connect(CAKE_whale).payToVenue(customerInfoFakeMessage2),
+        belongCheckIn.connect(CAKE_whale).payToVenue(customerInfoFakeMessage2, customerInfoFakeMessage2Protection),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const customerBalance_after = await USDT.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDT.balanceOf(USDT_whale.address);
@@ -1703,43 +1561,23 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = 1;
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
+
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -1754,16 +1592,15 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await expect(belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo)).to.be.revertedWithCustomError(
-        belongCheckIn,
-        'NotEnoughBalance',
-      );
+      await expect(
+        belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'NotEnoughBalance');
     });
 
     it('payToVenue() (both payment) (w/ promoter) (visit bounty)', async () => {
@@ -1784,43 +1621,23 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
+
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -1835,8 +1652,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
@@ -1852,7 +1669,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const customerBalance_after = await USDT.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDT.balanceOf(USDT_whale.address);
@@ -1894,43 +1711,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          0, // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -1945,8 +1741,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const rewardsToPromoter = await helper.calculateRate(
         customerInfo.toPromoter.spendBountyPercentage,
@@ -1967,7 +1763,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const customerBalance_after = await USDT.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDT.balanceOf(USDT_whale.address);
@@ -2005,43 +1801,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          0, // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -2056,8 +1831,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const rewardsToPromoter = await helper.calculateRate(
         customerInfo.toPromoter.spendBountyPercentage,
@@ -2078,7 +1853,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const customerBalance_after = await USDT.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDT.balanceOf(USDT_whale.address);
@@ -2116,43 +1891,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -2167,8 +1921,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const rewardsToPromoter = (
         await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount)
@@ -2188,7 +1942,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const customerBalance_after = await USDT.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDT.balanceOf(USDT_whale.address);
@@ -2226,43 +1980,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -2277,8 +2010,8 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const rewardsToPromoter = (
         await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount)
@@ -2298,7 +2031,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const customerBalance_after = await USDT.balanceOf(CAKE_whale.address);
       const venueBalance_after = await USDT.balanceOf(USDT_whale.address);
@@ -2326,40 +2059,21 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, ethers.constants.HashZero, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
       const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 2, bountyType: 0, bountyAllocationType: 0, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
+
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          false, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          0, // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          ethers.constants.HashZero, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: false,
         toCustomer: {
@@ -2374,32 +2088,24 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const buyback = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.buybackBurnPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.buybackBurnPercentage,
         processingFee,
       );
       const feesToCollector = processingFee.sub(buyback);
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2411,7 +2117,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const customerBalance_before = await CAKE.balanceOf(CAKE_whale.address);
       const venueBalance_before = await CAKE.balanceOf(USDT_whale.address);
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const escrowBalance_after = await CAKE.balanceOf(escrow.address);
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
@@ -2427,47 +2133,27 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
     });
 
     it('payToVenue() (AutoStake) (w/o promoter)', async () => {
-      const { belongCheckIn, escrow, staking, helper, signer, USDT, CAKE, USDT_whale, CAKE_whale } = await loadFixture(
-        fixture,
-      );
+      const { belongCheckIn, escrow, staking, helper, signer, USDT, CAKE, USDT_whale, CAKE_whale } =
+        await loadFixture(fixture);
 
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, ethers.constants.HashZero, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
       const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 2, bountyType: 0, bountyAllocationType: 0, longPaymentType: 1 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
+
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          false, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          0, // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          ethers.constants.HashZero, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: false,
         toCustomer: {
@@ -2482,25 +2168,19 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2512,7 +2192,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const customerBalance_before = await CAKE.balanceOf(CAKE_whale.address);
       const venueBalance_before = await staking.balanceOf(USDT_whale.address);
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const escrowBalance_after = await CAKE.balanceOf(escrow.address);
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
@@ -2533,47 +2213,27 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
     });
 
     it('payToVenue() (AutoConvert) (w/o promoter)', async () => {
-      const { belongCheckIn, escrow, staking, helper, signer, USDT, CAKE, USDT_whale, CAKE_whale } = await loadFixture(
-        fixture,
-      );
+      const { belongCheckIn, escrow, staking, helper, signer, USDT, CAKE, USDT_whale, CAKE_whale } =
+        await loadFixture(fixture);
 
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, ethers.constants.HashZero, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
       const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 2, bountyType: 0, bountyAllocationType: 0, longPaymentType: 2 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
+
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          false, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          0, // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          ethers.constants.HashZero, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: false,
         toCustomer: {
@@ -2588,25 +2248,19 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2618,7 +2272,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const customerBalance_before = await CAKE.balanceOf(CAKE_whale.address);
       const venueBalance_before = await USDT.balanceOf(USDT_whale.address);
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const escrowBalance_after = await CAKE.balanceOf(escrow.address);
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
@@ -2636,40 +2290,21 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, ethers.constants.HashZero, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
+
       const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 0, bountyAllocationType: 0, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: ethers.constants.HashZero,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
+
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          false, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          0, // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          ethers.constants.HashZero, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: false,
         toCustomer: {
@@ -2684,25 +2319,19 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2714,7 +2343,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const customerBalance_before = await CAKE.balanceOf(CAKE_whale.address);
       const venueBalance_before = await CAKE.balanceOf(USDT_whale.address);
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const escrowBalance_after = await CAKE.balanceOf(escrow.address);
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
@@ -2745,43 +2374,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 2, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          false, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: false,
         toCustomer: {
@@ -2796,25 +2404,19 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2834,7 +2436,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const escrowBalance_after = await CAKE.balanceOf(escrow.address);
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
@@ -2879,43 +2481,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          false, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          0, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: false,
         toCustomer: {
@@ -2930,25 +2511,19 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2968,7 +2543,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const escrowBalance_after = await CAKE.balanceOf(escrow.address);
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
@@ -3013,43 +2588,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 2, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          false, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          0, // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: false,
         toCustomer: {
@@ -3064,25 +2618,19 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -3094,9 +2642,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
           customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             CAKE.address,
-            (
-              await belongCheckIn.belongCheckInStorage()
-            ).contracts.longPF,
+            (await belongCheckIn.belongCheckInStorage()).contracts.longPF,
             customerAmount,
             MAX_PRICEFEED_DELAY,
           ),
@@ -3126,7 +2672,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const escrowBalance_after = await CAKE.balanceOf(escrow.address);
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
@@ -3182,43 +2728,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          false, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          0, // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: false,
         toCustomer: {
@@ -3233,25 +2758,19 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -3263,9 +2782,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
           customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             CAKE.address,
-            (
-              await belongCheckIn.belongCheckInStorage()
-            ).contracts.longPF,
+            (await belongCheckIn.belongCheckInStorage()).contracts.longPF,
             customerAmount,
             MAX_PRICEFEED_DELAY,
           ),
@@ -3295,7 +2812,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const escrowBalance_after = await CAKE.balanceOf(escrow.address);
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
@@ -3351,43 +2868,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 2, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          false, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: false,
         toCustomer: {
@@ -3402,25 +2898,19 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -3432,9 +2922,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
           customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             CAKE.address,
-            (
-              await belongCheckIn.belongCheckInStorage()
-            ).contracts.longPF,
+            (await belongCheckIn.belongCheckInStorage()).contracts.longPF,
             customerAmount,
             MAX_PRICEFEED_DELAY,
           ),
@@ -3464,7 +2952,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const escrowBalance_after = await CAKE.balanceOf(escrow.address);
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
@@ -3526,43 +3014,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          false, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: false,
         toCustomer: {
@@ -3577,25 +3044,19 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -3607,9 +3068,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
           customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             CAKE.address,
-            (
-              await belongCheckIn.belongCheckInStorage()
-            ).contracts.longPF,
+            (await belongCheckIn.belongCheckInStorage()).contracts.longPF,
             customerAmount,
             MAX_PRICEFEED_DELAY,
           ),
@@ -3639,7 +3098,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      const tx = await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const escrowBalance_after = await CAKE.balanceOf(escrow.address);
       const customerBalance_after = await CAKE.balanceOf(CAKE_whale.address);
@@ -3704,43 +3163,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -3755,44 +3193,34 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
-        ['bytes32', 'address', 'uint256', 'uint256'],
-        [
-          referralCode, // promoter referral code
-          USDT_whale.address, // venue
-          promoterBalance_promoterToken_before, // amountInUSD
-          chainId, // block.chainid
-        ],
-      );
-      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDtoken: true,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
-        signature: promoterSignature,
       };
+      const promoterInfoProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
 
       const promoterInfoFake: PromoterInfoStruct = {
         paymentInUSDtoken: true,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before.add(1),
-        signature: promoterSignature,
       };
+      const promoterInfoFakeProtection = promoterInfoProtection;
 
       let toPromoter = promoterBalance_promoterToken_before;
       const platformFees = await helper.calculateRate(1000, toPromoter);
@@ -3803,9 +3231,9 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const promoterBalance_before = await USDT.balanceOf(referral.address);
 
       await expect(
-        belongCheckIn.connect(referral).distributePromoterPayments(promoterInfoFake),
+        belongCheckIn.connect(referral).distributePromoterPayments(promoterInfoFake, promoterInfoFakeProtection),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo, promoterInfoProtection);
 
       const escrowBalance_after = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDT.balanceOf(treasury.address);
@@ -3834,43 +3262,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -3885,40 +3292,30 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
-        ['bytes32', 'address', 'uint256', 'uint256'],
-        [
-          referralCode, // promoter referral code
-          USDT_whale.address, // venue
-          promoterBalance_promoterToken_before.add(1), // amountInUSD
-          chainId, // block.chainid
-        ],
-      );
-      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDtoken: true,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before.add(1),
-        signature: promoterSignature,
       };
+      const promoterInfoProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
 
       await expect(
-        belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo),
-      ).to.be.revertedWithCustomError(belongCheckIn, 'NotEnoughBalance');
+        belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo, promoterInfoProtection),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'NotEnoughPromoterBalance');
     });
 
     it('distributePromoterPayments() (partial amount)', async () => {
@@ -3940,43 +3337,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -3991,36 +3367,26 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
-        ['bytes32', 'address', 'uint256', 'uint256'],
-        [
-          referralCode, // promoter referral code
-          USDT_whale.address, // venue
-          promoterBalance_promoterToken_before.div(2), // amountInUSD
-          chainId, // block.chainid
-        ],
-      );
-      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDtoken: true,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before.div(2),
-        signature: promoterSignature,
       };
+      const promoterInfoProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
 
       let toPromoter = promoterBalance_promoterToken_before.div(2);
       const platformFees = await helper.calculateRate(1000, toPromoter);
@@ -4030,7 +3396,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const feeReceiverBalance_before = await USDT.balanceOf(treasury.address);
       const promoterBalance_before = await USDT.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo, promoterInfoProtection);
 
       const escrowBalance_after = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDT.balanceOf(treasury.address);
@@ -4132,43 +3498,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -4183,36 +3528,26 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
-        ['bytes32', 'address', 'uint256', 'uint256'],
-        [
-          referralCode, // promoter referral code
-          USDT_whale.address, // venue
-          promoterBalance_promoterToken_before, // amountInUSD
-          chainId, // block.chainid
-        ],
-      );
-      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDtoken: true,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
-        signature: promoterSignature,
       };
+      const promoterInfoProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
 
       let toPromoter = promoterBalance_promoterToken_before;
       const platformFees = await helper.calculateRate(800, toPromoter);
@@ -4222,7 +3557,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const feeReceiverBalance_before = await USDT.balanceOf(treasury.address);
       const promoterBalance_before = await USDT.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo, promoterInfoProtection);
 
       const escrowBalance_after = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDT.balanceOf(treasury.address);
@@ -4329,43 +3664,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -4380,36 +3694,26 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
-        ['bytes32', 'address', 'uint256', 'uint256'],
-        [
-          referralCode, // promoter referral code
-          USDT_whale.address, // venue
-          promoterBalance_promoterToken_before, // amountInUSD
-          chainId, // block.chainid
-        ],
-      );
-      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDtoken: true,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
-        signature: promoterSignature,
       };
+      const promoterInfoProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
 
       let toPromoter = promoterBalance_promoterToken_before;
       const platformFees = await helper.calculateRate(700, toPromoter);
@@ -4419,7 +3723,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const feeReceiverBalance_before = await USDT.balanceOf(treasury.address);
       const promoterBalance_before = await USDT.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo, promoterInfoProtection);
 
       const escrowBalance_after = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDT.balanceOf(treasury.address);
@@ -4526,43 +3830,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -4577,36 +3860,26 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
-        ['bytes32', 'address', 'uint256', 'uint256'],
-        [
-          referralCode, // promoter referral code
-          USDT_whale.address, // venue
-          promoterBalance_promoterToken_before, // amountInUSD
-          chainId, // block.chainid
-        ],
-      );
-      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDtoken: true,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
-        signature: promoterSignature,
       };
+      const promoterInfoProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
 
       let toPromoter = promoterBalance_promoterToken_before;
       const platformFees = await helper.calculateRate(600, toPromoter);
@@ -4616,7 +3889,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const feeReceiverBalance_before = await USDT.balanceOf(treasury.address);
       const promoterBalance_before = await USDT.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo, promoterInfoProtection);
 
       const escrowBalance_after = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDT.balanceOf(treasury.address);
@@ -4723,43 +3996,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -4774,36 +4026,26 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
-        ['bytes32', 'address', 'uint256', 'uint256'],
-        [
-          referralCode, // promoter referral code
-          USDT_whale.address, // venue
-          promoterBalance_promoterToken_before, // amountInUSD
-          chainId, // block.chainid
-        ],
-      );
-      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDtoken: true,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
-        signature: promoterSignature,
       };
+      const promoterInfoProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
 
       let toPromoter = promoterBalance_promoterToken_before;
       const platformFees = await helper.calculateRate(500, toPromoter);
@@ -4813,7 +4055,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const feeReceiverBalance_before = await USDT.balanceOf(treasury.address);
       const promoterBalance_before = await USDT.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo, promoterInfoProtection);
 
       const escrowBalance_after = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDT.balanceOf(treasury.address);
@@ -4920,43 +4162,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -4971,36 +4192,26 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
-        ['bytes32', 'address', 'uint256', 'uint256'],
-        [
-          referralCode, // promoter referral code
-          USDT_whale.address, // venue
-          promoterBalance_promoterToken_before, // amountInUSD
-          chainId, // block.chainid
-        ],
-      );
-      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDtoken: true,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
-        signature: promoterSignature,
       };
+      const promoterInfoProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
 
       let toPromoter = promoterBalance_promoterToken_before;
       const platformFees = await helper.calculateRate(400, toPromoter);
@@ -5010,7 +4221,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const feeReceiverBalance_before = await USDT.balanceOf(treasury.address);
       const promoterBalance_before = await USDT.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo, promoterInfoProtection);
 
       const escrowBalance_after = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDT.balanceOf(treasury.address);
@@ -5053,43 +4264,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -5104,36 +4294,26 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
-        ['bytes32', 'address', 'uint256', 'uint256'],
-        [
-          referralCode, // promoter referral code
-          USDT_whale.address, // venue
-          promoterBalance_promoterToken_before, // amountInUSD
-          chainId, // block.chainid
-        ],
-      );
-      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDtoken: false,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before,
-        signature: promoterSignature,
       };
+      const promoterInfoProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
 
       let toPromoter = promoterBalance_promoterToken_before;
       const platformFees = await helper.calculateRate(800, toPromoter);
@@ -5142,7 +4322,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const escrowBalance_before = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_before = await CAKE.balanceOf(treasury.address);
       const promoterBalance_before = await CAKE.balanceOf(referral.address);
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo, promoterInfoProtection);
 
       const escrowBalance_after = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_after = await CAKE.balanceOf(treasury.address);
@@ -5183,43 +4363,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -5234,36 +4393,26 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDT_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
-        ['bytes32', 'address', 'uint256', 'uint256'],
-        [
-          referralCode, // promoter referral code
-          USDT_whale.address, // venue
-          promoterBalance_promoterToken_before.div(2), // amountInUSD
-          chainId, // block.chainid
-        ],
-      );
-      const promoterSignature = EthCrypto.sign(signer.privateKey, promoterMessage);
       const promoterInfo: PromoterInfoStruct = {
         paymentInUSDtoken: false,
         promoterReferralCode: referralCode,
         venue: USDT_whale.address,
         amountInUSD: promoterBalance_promoterToken_before.div(2),
-        signature: promoterSignature,
       };
+      const promoterInfoProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
 
       let toPromoter = promoterBalance_promoterToken_before.div(2);
       const platformFees = await helper.calculateRate(800, toPromoter);
@@ -5272,7 +4421,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const escrowBalance_before = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_before = await CAKE.balanceOf(treasury.address);
       const promoterBalance_before = await CAKE.balanceOf(referral.address);
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo, promoterInfoProtection);
 
       const escrowBalance_after = await USDT.balanceOf(escrow.address);
       const feeReceiverBalance_after = await CAKE.balanceOf(treasury.address);
@@ -5314,43 +4463,22 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDT);
       const venue = USDT_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, referralCode, uri, chainId],
-      );
-      const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
         affiliateReferralCode: referralCode,
         uri,
-        signature: venueSignature,
       };
+      const venueInfoProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
 
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo);
+      await belongCheckIn.connect(USDT_whale).venueDeposit(venueInfo, venueInfoProtection);
 
       const customerAmount = await u(5, USDT);
-      const customerMessage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
-        [
-          true, // paymentInUSDtoken
-          0, // toCustomer.visitBountyAmount
-          0, // toCustomer.spendBountyPercentage
-          await u(1, USDT), // toPromoter.visitBountyAmount
-          1000, // toPromoter.spendBountyPercentage
-          CAKE_whale.address, // customer
-          USDT_whale.address, // venueToPayFor
-          referralCode, // promoter referral code
-          customerAmount, // amount
-          chainId, // block.chainid
-        ],
-      );
-      const customerSignature = EthCrypto.sign(signer.privateKey, customerMessage);
       const customerInfo: CustomerInfoStruct = {
         paymentInUSDtoken: true,
         toCustomer: {
@@ -5365,13 +4493,13 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
         venueToPayFor: USDT_whale.address,
         promoterReferralCode: referralCode,
         amount: customerAmount,
-        signature: customerSignature,
       };
+      const customerInfoProtection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
 
       await USDT.connect(USDT_whale).transfer(CAKE_whale.address, customerAmount);
       await USDT.connect(CAKE_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo);
+      await belongCheckIn.connect(CAKE_whale).payToVenue(customerInfo, customerInfoProtection);
 
       const venueBalance_venueToken_before = await venueToken.balanceOf(
         USDT_whale.address,
