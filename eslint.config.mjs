@@ -42,6 +42,7 @@ export default [
       'comma-spacing': ['error', { before: false, after: true }],
       '@typescript-eslint/no-namespace': 'off',
       '@typescript-eslint/no-inferrable-types': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
 
       // Import hygiene
       'import/order': [
@@ -59,13 +60,15 @@ export default [
       '@typescript-eslint/no-unused-vars': 'off',
       'unused-imports/no-unused-imports': 'error',
       'unused-imports/no-unused-vars': [
-        'warn',
+        'error',
         {
           vars: 'all',
-          varsIgnorePattern: '^_',
           args: 'after-used',
-          argsIgnorePattern: '^_',
           ignoreRestSiblings: true,
+
+          // IMPORTANT: don’t force underscore names anymore
+          varsIgnorePattern: '',
+          argsIgnorePattern: '',
         },
       ],
     },
