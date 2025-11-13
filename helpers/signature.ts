@@ -1,15 +1,19 @@
-import { ethers } from 'hardhat';
-import { BigNumber, BigNumberish, BytesLike } from 'ethers';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
+import { BigNumber, BigNumberish, BytesLike } from 'ethers';
+import { ethers } from 'hardhat';
 
-import { SignatureVerifier } from '../typechain-types/contracts/v2/utils/SignatureVerifier';
-import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
+import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 import {
   CustomerInfoStruct,
   PromoterInfoStruct,
   VenueInfoStruct,
 } from '../typechain-types/contracts/v2/platform/BelongCheckIn';
-import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
+import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
+import {
+  DynamicPriceParametersStruct,
+  StaticPriceParametersStruct,
+} from '../typechain-types/contracts/v2/tokens/AccessToken';
+import { SignatureVerifier } from '../typechain-types/contracts/v2/utils/SignatureVerifier';
 
 export type SignatureProtectionStruct = SignatureVerifier.SignatureProtectionStruct;
 

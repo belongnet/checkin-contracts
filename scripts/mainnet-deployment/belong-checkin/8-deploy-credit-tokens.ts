@@ -1,8 +1,10 @@
 import dotenv from 'dotenv';
-import fs from 'fs';
 import { ethers } from 'hardhat';
+
 import { deployCreditTokens } from '../../../helpers/deployFixtures';
 import { verifyContract } from '../../../helpers/verify';
+
+import fs from 'fs';
 
 dotenv.config();
 

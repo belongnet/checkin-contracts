@@ -1,9 +1,11 @@
 import dotenv from 'dotenv';
-import fs from 'fs';
-import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
+
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
+import { verifyContract } from '../../../helpers/verify';
 import { SignatureVerifier } from '../../../typechain-types';
+
+import fs from 'fs';
 
 dotenv.config();
 

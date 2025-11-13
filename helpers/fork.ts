@@ -1,5 +1,6 @@
-import hre, { ethers, network } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import hre, { ethers, network } from 'hardhat';
+
 import { IERC20Metadata } from '../typechain-types';
 import { ChainIds, chainRPCs } from '../utils/chain-ids';
 

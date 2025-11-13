@@ -1,12 +1,14 @@
-import { BelongCheckIn } from '../../../typechain-types';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import { verifyContract } from '../../../helpers/verify';
-import { ethers } from 'hardhat';
-import { deployBelongCheckIn } from '../../../helpers/deployFixtures';
 import { BigNumber } from 'ethers';
-import { DualDexSwapV4Lib } from '../../../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
+import { ethers } from 'hardhat';
+
+import { deployBelongCheckIn } from '../../../helpers/deployFixtures';
 import { encodePcsPoolKey } from '../../../helpers/math';
+import { verifyContract } from '../../../helpers/verify';
+import { BelongCheckIn } from '../../../typechain-types';
+import { DualDexSwapV4Lib } from '../../../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
+
+import fs from 'fs';
 
 dotenv.config();
 

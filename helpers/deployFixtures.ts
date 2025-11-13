@@ -1,23 +1,25 @@
-import { ethers, upgrades } from 'hardhat';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumberish, BigNumber as BN, BytesLike, ContractFactory } from 'ethers';
+import { ethers, upgrades } from 'hardhat';
+
 import {
   AccessToken,
+  BelongCheckIn,
   CreditToken,
+  DualDexSwapV4Lib,
   Escrow,
   Factory,
   LONG,
+  NFT,
   RoyaltiesReceiverV2,
   Staking,
-  BelongCheckIn,
   VestingWalletExtended,
-  NFT,
-  DualDexSwapV4Lib,
 } from '../typechain-types';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
 import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
-import { signAccessTokenInfo, signCreditTokenInfo, signVestingWalletInfo } from './signature';
+import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
 import { DualDexSwapV4Lib as DualDexSwapV4LibType } from '../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
+
+import { signAccessTokenInfo, signCreditTokenInfo, signVestingWalletInfo } from './signature';
 
 export type TokenMetadata = { name: string; symbol: string; uri: string };
 

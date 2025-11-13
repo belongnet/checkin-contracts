@@ -1,10 +1,12 @@
 import dotenv from 'dotenv';
-import fs from 'fs';
-import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
-import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
-import { DualDexSwapV4Lib, Helper, SignatureVerifier } from '../../../typechain-types';
+
 import { deployDualDexSwapV4Lib } from '../../../helpers/deployFixtures';
+import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
+import { verifyContract } from '../../../helpers/verify';
+import { DualDexSwapV4Lib, Helper, SignatureVerifier } from '../../../typechain-types';
+
+import fs from 'fs';
 
 dotenv.config();
 

@@ -1,39 +1,10 @@
-import { ethers } from 'hardhat';
 import { loadFixture, time } from '@nomicfoundation/hardhat-network-helpers';
-import { BigNumber, BigNumberish, BytesLike } from 'ethers';
-import {
-  WETHMock,
-  MockTransferValidatorV2,
-  Factory,
-  RoyaltiesReceiverV2,
-  CreditToken,
-  AccessToken,
-  SignatureVerifier,
-  VestingWalletExtended,
-  LONG,
-} from '../../../typechain-types';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { PromiseOrValue } from '../../../typechain-types/common';
-import {
-  AccessTokenInfoStruct,
-  AccessTokenInfoStructOutput,
-  ERC1155InfoStruct,
-} from '../../../typechain-types/contracts/v2/platform/Factory';
-import {
-  abiEncodeHash,
-  getPercentage,
-  hashAccessTokenInfo,
-  hashERC1155Info,
-  hashVestingInfo,
-} from '../../../helpers/math';
-import {
-  signAccessTokenInfo,
-  signCreditTokenInfo,
-  signVestingWalletInfo,
-  SignatureOverrides,
-} from '../../../helpers/signature';
+import { BigNumber, BigNumberish, BytesLike } from 'ethers';
+import { ethers } from 'hardhat';
+
 import {
   deployAccessTokenImplementation,
   deployCreditTokenImplementation,
@@ -44,9 +15,33 @@ import {
 } from '../../../helpers/deployFixtures';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2, deployWETHMock } from '../../../helpers/deployMockFixtures';
+import { abiEncodeHash, getPercentage } from '../../../helpers/math';
+import {
+  signAccessTokenInfo,
+  SignatureOverrides,
+  signCreditTokenInfo,
+  signVestingWalletInfo,
+} from '../../../helpers/signature';
+import {
+  AccessToken,
+  CreditToken,
+  Factory,
+  LONG,
+  MockTransferValidatorV2,
+  RoyaltiesReceiverV2,
+  SignatureVerifier,
+  VestingWalletExtended,
+  WETHMock,
+} from '../../../typechain-types';
+import { PromiseOrValue } from '../../../typechain-types/common';
 import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
+import {
+  AccessTokenInfoStruct,
+  AccessTokenInfoStructOutput,
+  ERC1155InfoStruct,
+} from '../../../typechain-types/contracts/v2/platform/Factory';
 
-describe.only('Factory', () => {
+describe('Factory', () => {
   const NATIVE_CURRENCY_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const chainId = 31337;
@@ -295,7 +290,7 @@ describe.only('Factory', () => {
 
       const RoyaltiesReceiverV2: RoyaltiesReceiverV2 = await ethers.getContractAt('RoyaltiesReceiverV2', feeReceiver);
 
-      let payees: RoyaltiesReceiverV2.RoyaltiesReceiversStruct = await RoyaltiesReceiverV2.royaltiesReceivers();
+      const payees: RoyaltiesReceiverV2.RoyaltiesReceiversStruct = await RoyaltiesReceiverV2.royaltiesReceivers();
 
       const shares = await Promise.all([
         RoyaltiesReceiverV2.shares(payees.creator),
@@ -1125,7 +1120,7 @@ describe.only('Factory', () => {
     it('Can set params', async () => {
       const { factory, alice } = await loadFixture(fixture);
 
-      let _factoryParams = factoryParams;
+      const _factoryParams = factoryParams;
 
       await expect(
         factory.connect(alice).setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages),

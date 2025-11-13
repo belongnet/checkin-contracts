@@ -1,9 +1,11 @@
-import fs from 'fs';
-import { ethers, upgrades } from 'hardhat';
-import { waitForNextBlock } from '../../../helpers/wait';
-import { verifyContract } from '../../../helpers/verify';
 import dotenv from 'dotenv';
+import { ethers, upgrades } from 'hardhat';
+
 import { deployFactory } from '../../../helpers/deployFixtures';
+import { verifyContract } from '../../../helpers/verify';
+import { waitForNextBlock } from '../../../helpers/wait';
+
+import fs from 'fs';
 dotenv.config();
 
 const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';

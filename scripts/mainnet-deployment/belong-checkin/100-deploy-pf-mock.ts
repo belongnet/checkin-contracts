@@ -1,7 +1,9 @@
-import { ethers } from 'hardhat';
-import { ContractFactory } from 'ethers';
-import { LONGPriceFeedMockV3 } from '../../../typechain-types';
 import dotenv from 'dotenv';
+import { ContractFactory } from 'ethers';
+import { ethers } from 'hardhat';
+
+import { LONGPriceFeedMockV3 } from '../../../typechain-types';
+
 dotenv.config();
 
 async function deploy() {

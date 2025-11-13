@@ -1,13 +1,14 @@
-import { ethers } from 'hardhat';
+import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { ContractFactory } from 'ethers';
+import { ethers } from 'hardhat';
+
 import {
-  MockTransferValidatorV2,
-  WETHMock,
   LONGPriceFeedMockV1,
   LONGPriceFeedMockV2,
   LONGPriceFeedMockV3,
+  MockTransferValidatorV2,
+  WETHMock,
 } from '../typechain-types';
-import { time } from '@nomicfoundation/hardhat-network-helpers';
 
 export async function deployWETHMock(): Promise<WETHMock> {
   const WETHMock: ContractFactory = await ethers.getContractFactory('WETHMock');

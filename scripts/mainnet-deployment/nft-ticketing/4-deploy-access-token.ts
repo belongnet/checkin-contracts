@@ -1,10 +1,11 @@
-import fs from 'fs';
 import dotenv from 'dotenv';
-import { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
+import { ethers } from 'hardhat';
 
 import { deployAccessToken } from '../../../helpers/deployFixtures';
 import { verifyContract } from '../../../helpers/verify';
+
+import fs from 'fs';
 
 dotenv.config();
 
@@ -63,8 +64,7 @@ async function main() {
   const contractURI = process.env.ACCESS_TOKEN_URI;
   const mintPriceRaw = process.env.ACCESS_TOKEN_MINT_PRICE;
   const whitelistMintPriceRaw = process.env.ACCESS_TOKEN_WHITELIST_PRICE ?? mintPriceRaw;
-  const paymentToken =
-    process.env.ACCESS_TOKEN_PAYMENT_TOKEN ?? '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+  const paymentToken = process.env.ACCESS_TOKEN_PAYMENT_TOKEN ?? '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const referralCode = process.env.ACCESS_TOKEN_REFERRAL_CODE ?? '0x';
   const feeNumerator = Number(process.env.ACCESS_TOKEN_FEE_NUMERATOR ?? '600');
   const maxTotalSupplyRaw = process.env.ACCESS_TOKEN_MAX_TOTAL_SUPPLY ?? '0';

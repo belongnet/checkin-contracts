@@ -1,4 +1,4 @@
-import { ChainIds, chainRPCs } from "./chain-ids";
+import { ChainIds, chainRPCs } from './chain-ids';
 
 interface NetworkConfig {
   url: string;
@@ -21,13 +21,9 @@ interface CustomChainScanConfig {
   };
 }
 
-export function createConnect(
-  chainId: ChainIds,
-  accounts: string[],
-  apiKey?: string
-): NetworkConfig {
+export function createConnect(chainId: ChainIds, accounts: string[], apiKey?: string): NetworkConfig {
   if (accounts.length == 0) {
-    throw Error("Account private key is not found in environment variables.");
+    throw Error('Account private key is not found in environment variables.');
   }
 
   return {
@@ -37,13 +33,9 @@ export function createConnect(
   } as NetworkConfig;
 }
 
-export function createLedgerConnect(
-  chainId: ChainIds,
-  ledgerAccounts: string[],
-  apiKey?: string
-): NetworkConfig {
+export function createLedgerConnect(chainId: ChainIds, ledgerAccounts: string[], apiKey?: string): NetworkConfig {
   if (ledgerAccounts.length == 0) {
-    throw Error("Ledger address not found in environment variables.");
+    throw Error('Ledger address not found in environment variables.');
   }
 
   return {
@@ -53,14 +45,9 @@ export function createLedgerConnect(
   } as NetworkConfig;
 }
 
-export const blockscanConfig = (
-  network: string,
-  chainId: ChainIds
-): CustomChainScanConfig => {
-  if (
-    [ChainIds.mainnet, ChainIds.polygon, ChainIds.sepolia].includes(chainId)
-  ) {
-    throw Error("Not a custom chain.");
+export const blockscanConfig = (network: string, chainId: ChainIds): CustomChainScanConfig => {
+  if ([ChainIds.mainnet, ChainIds.polygon, ChainIds.sepolia].includes(chainId)) {
+    throw Error('Not a custom chain.');
   }
 
   let browserURL: string;
@@ -104,7 +91,7 @@ export const blockscanConfig = (
       browserURL = `giant-half-dual-testnet.explorer.testnet.skalenodes.com/`;
       break;
     default:
-      throw Error("No networks provided");
+      throw Error('No networks provided');
   }
 
   if (
@@ -113,11 +100,7 @@ export const blockscanConfig = (
     chainId !== ChainIds.skale_calypso &&
     chainId !== ChainIds.skale_calypso_testnet
   ) {
-    if (
-      [ChainIds.blast_sepolia, ChainIds.amoy, ChainIds.sepolia].includes(
-        chainId as ChainIds
-      )
-    ) {
+    if ([ChainIds.blast_sepolia, ChainIds.amoy, ChainIds.sepolia].includes(chainId as ChainIds)) {
       apiURL = `https://api-${browserURL}api`;
     } else {
       apiURL = `https://api.${browserURL}api`;

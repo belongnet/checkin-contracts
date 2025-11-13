@@ -1,11 +1,13 @@
 import dotenv from 'dotenv';
-import fs from 'fs';
-import { ethers } from 'hardhat';
-import { BelongCheckIn } from '../../../typechain-types';
 import EthCrypto from 'eth-crypto';
-import { U } from '../../../helpers/math';
+import { ethers } from 'hardhat';
+
 import { getToken } from '../../../helpers/fork';
+import { U } from '../../../helpers/math';
+import { BelongCheckIn } from '../../../typechain-types';
 import { VenueInfoStruct, VenueRulesStruct } from '../../../typechain-types/contracts/v2/platform/BelongCheckIn';
+
+import fs from 'fs';
 
 dotenv.config();
 

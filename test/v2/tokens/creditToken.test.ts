@@ -1,28 +1,29 @@
-import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
-import {
-  Factory,
-  RoyaltiesReceiverV2,
-  AccessToken,
-  CreditToken,
-  SignatureVerifier,
-  MockTransferValidatorV2,
-  LONG,
-  VestingWalletExtended,
-} from '../../../typechain-types';
+import { ethers } from 'hardhat';
+
 import {
   deployAccessTokenImplementation,
   deployCreditTokenImplementation,
-  deployFactory,
-  deployRoyaltiesReceiverV2Implementation,
-  deployLONG,
   deployCreditTokens,
+  deployFactory,
+  deployLONG,
+  deployRoyaltiesReceiverV2Implementation,
   deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2 } from '../../../helpers/deployMockFixtures';
+import {
+  AccessToken,
+  CreditToken,
+  Factory,
+  LONG,
+  MockTransferValidatorV2,
+  RoyaltiesReceiverV2,
+  SignatureVerifier,
+  VestingWalletExtended,
+} from '../../../typechain-types';
 import { ERC1155InfoStruct } from '../../../typechain-types/contracts/v2/platform/Factory';
 
 describe('CreditToken', () => {

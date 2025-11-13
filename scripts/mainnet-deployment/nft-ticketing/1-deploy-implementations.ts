@@ -1,13 +1,15 @@
 import dotenv from 'dotenv';
-import fs from 'fs';
-import { verifyContract } from '../../../helpers/verify';
+import { ethers } from 'hardhat';
+
 import {
   deployAccessTokenImplementation,
   deployCreditTokenImplementation,
   deployRoyaltiesReceiverV2Implementation,
   deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
-import { ethers } from 'hardhat';
+import { verifyContract } from '../../../helpers/verify';
+
+import fs from 'fs';
 
 dotenv.config();
 

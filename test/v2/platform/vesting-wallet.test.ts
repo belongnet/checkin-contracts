@@ -1,19 +1,8 @@
-import { ethers } from 'hardhat';
 import { loadFixture, time } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
-import { BigNumber } from 'ethers';
 import EthCrypto from 'eth-crypto';
-
-import {
-  AccessToken,
-  CreditToken,
-  Factory,
-  LONG,
-  MockTransferValidatorV2,
-  RoyaltiesReceiverV2,
-  SignatureVerifier,
-  VestingWalletExtended,
-} from '../../../typechain-types';
+import { BigNumber } from 'ethers';
+import { ethers } from 'hardhat';
 
 import {
   deployAccessTokenImplementation,
@@ -24,11 +13,20 @@ import {
   deployVestingWallet,
   deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
-
-import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2 } from '../../../helpers/deployMockFixtures';
 import { hashVestingInfo } from '../../../helpers/math';
+import {
+  AccessToken,
+  CreditToken,
+  Factory,
+  LONG,
+  MockTransferValidatorV2,
+  RoyaltiesReceiverV2,
+  SignatureVerifier,
+  VestingWalletExtended,
+} from '../../../typechain-types';
+import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 
 describe('VestingWalletExtended', () => {
   const description = 'VestingWallet';
@@ -464,7 +462,7 @@ describe('VestingWalletExtended', () => {
       const cliffDur = 60;
       const dur = 360;
 
-      let info: VestingWalletInfoStruct = {
+      const info: VestingWalletInfoStruct = {
         startTimestamp: start,
         cliffDurationSeconds: cliffDur,
         durationSeconds: dur,
@@ -476,8 +474,8 @@ describe('VestingWalletExtended', () => {
         description,
       };
 
-      let vestingWalletMessage = hashVestingInfo(admin.address, info, chainId);
-      let venueTokenSignature = EthCrypto.sign(signer.privateKey, vestingWalletMessage);
+      const vestingWalletMessage = hashVestingInfo(admin.address, info, chainId);
+      const venueTokenSignature = EthCrypto.sign(signer.privateKey, vestingWalletMessage);
 
       await LONG.approve(factory.address, info.totalAllocation);
 

@@ -16,8 +16,8 @@
 // - For your case (token0=USDC(6), token1=LONG(18), 1 LONG = 0.5 USDC) use PRICE_NUM=2, PRICE_DEN=1.
 // - If the order comes out reversed (token0=LONG, token1=USDC), the script automatically inverts the ratio.
 
-import { ethers } from 'hardhat';
 import type { Contract } from 'ethers';
+import { ethers } from 'hardhat';
 
 const IF_FACTORY = ['function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address)'];
 

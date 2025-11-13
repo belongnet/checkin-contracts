@@ -1,5 +1,6 @@
-import { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
+import { ethers } from 'hardhat';
+
 import { encodePcsPoolKey } from './math';
 
 // ---------- Addresses (BSC mainnet)

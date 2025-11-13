@@ -4,6 +4,7 @@ import '@openzeppelin/hardhat-upgrades';
 import dotenv from 'dotenv';
 import 'hardhat-contract-sizer';
 import { HardhatUserConfig } from 'hardhat/config';
+
 import 'solidity-docgen';
 import { ChainIds } from './utils/chain-ids';
 import { blockscanConfig, createConnect, createLedgerConnect } from './utils/config';

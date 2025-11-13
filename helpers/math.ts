@@ -1,7 +1,8 @@
 import { BigNumber, BigNumberish } from 'ethers';
 import { parseUnits } from 'ethers/lib/utils';
-import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 import { ethers } from 'hardhat';
+
+import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
 
 type AbiItem = {
@@ -15,8 +16,8 @@ export function abiEncodeHashFromTypes(types: string[], values: unknown[]): stri
 
 export function abiEncodeHash(items: AbiItem[]): string {
   return abiEncodeHashFromTypes(
-    items.map((item) => item.type),
-    items.map((item) => item.value),
+    items.map(item => item.type),
+    items.map(item => item.value),
   );
 }
 

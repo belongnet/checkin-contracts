@@ -1,5 +1,5 @@
+import type { BigNumber, Contract } from 'ethers';
 import { ethers } from 'hardhat';
-import type { Contract, BigNumber } from 'ethers';
 
 const IF_NPM = [
   // view

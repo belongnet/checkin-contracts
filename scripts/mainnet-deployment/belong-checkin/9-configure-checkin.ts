@@ -1,7 +1,9 @@
 import dotenv from 'dotenv';
-import fs from 'fs';
 import { ethers } from 'hardhat';
+
 import { BelongCheckIn } from '../../../typechain-types';
+
+import fs from 'fs';
 
 dotenv.config();
 
