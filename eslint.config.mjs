@@ -7,7 +7,16 @@ import prettierConfig from 'eslint-config-prettier';
 
 export default [
   // Ignore paths (flat config way)
-  { ignores: ['node_modules/**', 'build/**', 'generated/**', 'tests/**'] },
+  {
+    ignores: [
+      'node_modules/**',
+      'lib/**',
+      'cache/**',
+      'scripts/testnet-deployment/**',
+      'scripts/mocks/**',
+      'test/v1/**',
+    ],
+  },
 
   // Base + TS
   eslintJs.configs.recommended,
