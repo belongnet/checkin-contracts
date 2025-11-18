@@ -26,7 +26,7 @@ import {
 /// @dev
 /// - Uses `SignatureCheckerLib.isValidSignatureNow` for EOA or ERC1271 signatures.
 /// - All hashes include `block.chainid` to bind signatures to a specific chain.
-/// - Uses `abi.encode` (not `abi.encodePacked`) for collision-safe hashing of multiple dynamic fields.
+/// - Uses `abi.encode` for collision-safe hashing of multiple dynamic fields.
 /// - Mint digests are bound to the specific verifying contract, include `nonce` and `deadline`,
 ///   and hash dynamic strings with `keccak256(bytes(...))` to avoid ambiguity.
 library SignatureVerifier {
@@ -87,7 +87,7 @@ library SignatureVerifier {
         require(
             signer.isValidSignatureNow(
                 keccak256(
-                    abi.encodePacked(
+                    abi.encode(
                         verifyingContract,
                         protection.nonce,
                         protection.deadline,
