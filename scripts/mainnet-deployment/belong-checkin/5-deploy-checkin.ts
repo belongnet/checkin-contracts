@@ -51,7 +51,6 @@ async function deploy() {
 
     const owner = process.env.ADMIN_ADDRESS;
     const router = process.env.ROUTER_ADDRESS;
-    const quoter = process.env.QUOTER_ADDRESS;
     const poolManager = process.env.POOL_MANAGER_ADDRESS;
     const usdc = process.env.USDC_ADDRESS;
     const hookDataEnv = process.env.HOOK_DATA ?? '0x';
@@ -64,13 +63,12 @@ async function deploy() {
       !deployments.libraries.dualDexSwapV4 ||
       !owner ||
       !router ||
-      !quoter ||
       !poolManager ||
       !usdc ||
       !deployments.tokens.long
     ) {
       throw new Error(
-        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.sigantureVerifier}\nHelper: ${deployments.libraries.helper}\nDualDexSwapV4Lib: ${deployments.libraries.dualDexSwapV4}\nOWNER_ADDRESS: ${owner}\nROUTER_ADDRESS: ${router}\nQUOTER_ADDRESS: ${quoter}\nPOOL_MANAGER_ADDRESS: ${poolManager}\nUSDC_ADDRESS: ${usdc}\nLONG_ADDRESS: ${deployments.tokens.long}`,
+        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.sigantureVerifier}\nHelper: ${deployments.libraries.helper}\nDualDexSwapV4Lib: ${deployments.libraries.dualDexSwapV4}\nOWNER_ADDRESS: ${owner}\nROUTER_ADDRESS: ${router}\nPOOL_MANAGER_ADDRESS: ${poolManager}\nUSDC_ADDRESS: ${usdc}\nLONG_ADDRESS: ${deployments.tokens.long}`,
       );
     }
 
@@ -81,7 +79,6 @@ async function deploy() {
       deployments.libraries.dualDexSwapV4,
       owner,
       router,
-      quoter,
       poolManager,
       usdc,
       deployments.tokens.long,
@@ -96,8 +93,7 @@ async function deploy() {
       dexType: DexType.PcsV4,
       slippageBps: BigNumber.from(10).pow(27).sub(1),
       router,
-      quoter,
-      usdc,
+      usdToken: usdc,
       long: deployments.tokens.long,
       maxPriceFeedDelay: 86_400,
       poolKey: encodePcsPoolKey(usdc, deployments.tokens.long, poolManager),

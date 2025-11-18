@@ -41,14 +41,14 @@ export async function deployPriceFeeds(): Promise<{
   const longPriceFeedMockV2: LONGPriceFeedMockV2 = (await LONGPriceFeedMockV2.deploy(
     0,
     await time.latest(),
-    50000000,
+    100000000,
   )) as LONGPriceFeedMockV2;
   await longPriceFeedMockV2.deployed();
 
   const longPriceFeedMockV2_2: LONGPriceFeedMockV2 = (await LONGPriceFeedMockV2.deploy(
     252525,
     (await time.latest()) + 10000,
-    50000000,
+    100000000,
   )) as LONGPriceFeedMockV2;
   await longPriceFeedMockV2.deployed();
 
