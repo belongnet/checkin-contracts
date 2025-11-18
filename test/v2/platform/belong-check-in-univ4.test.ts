@@ -1,39 +1,42 @@
-import { ethers } from 'hardhat';
-import { BigNumber } from 'ethers';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
+import { BigNumber } from 'ethers';
+import { ethers } from 'hardhat';
+
+import {
+  deployAccessTokenImplementation,
+  deployBelongCheckIn,
+  deployCreditTokenImplementation,
+  deployCreditTokens,
+  deployDualDexSwapV4Lib,
+  deployEscrow,
+  deployFactory,
+  deployRoyaltiesReceiverV2Implementation,
+  deployStaking,
+  deployVestingWalletImplementation,
+} from '../../../helpers/deployFixtures';
+import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
+import { deployMockTransferValidatorV2, deployPriceFeeds } from '../../../helpers/deployMockFixtures';
+import { abiEncodeHash, abiEncodeHashFromTypes, u } from '../../../helpers/math';
+import { signCustomerInfo, signPromoterInfo, signVenueInfo } from '../../../helpers/signature';
 import {
   AccessToken,
+  BelongCheckIn,
   CreditToken,
+  DualDexSwapV4Lib,
   Escrow,
   Factory,
   Helper,
   MockTransferValidatorV2,
+  MockUniV4Router,
   RoyaltiesReceiverV2,
   SignatureVerifier,
   Staking,
-  BelongCheckIn,
   VestingWalletExtended,
-  DualDexSwapV4Lib,
-  MockUniV4Router,
   WETHMock,
 } from '../../../typechain-types';
-import {
-  deployCreditTokens,
-  deployAccessTokenImplementation,
-  deployCreditTokenImplementation,
-  deployFactory,
-  deployRoyaltiesReceiverV2Implementation,
-  deployStaking,
-  deployDualDexSwapV4Lib,
-  deployBelongCheckIn,
-  deployEscrow,
-  deployVestingWalletImplementation,
-} from '../../../helpers/deployFixtures';
-import { u } from '../../../helpers/math';
-import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
-import { deployMockTransferValidatorV2, deployPriceFeeds } from '../../../helpers/deployMockFixtures';
-import { expect } from 'chai';
 import {
   CustomerInfoStruct,
   PromoterInfoStruct,
@@ -49,6 +52,103 @@ enum DexType {
   UniV2,
 }
 
+type PlatformSigner = ReturnType<typeof EthCrypto.createIdentity>;
+
+function sanitizeVenueInfo(venueInfo: VenueInfoStruct): VenueInfoStruct {
+  return {
+    rules: venueInfo.rules,
+    venue: venueInfo.venue,
+    amount: venueInfo.amount,
+    affiliateReferralCode: venueInfo.affiliateReferralCode,
+    uri: venueInfo.uri,
+  };
+}
+
+function toVenueInfoTuple(venueInfo: VenueInfoStruct): VenueInfoStruct {
+  return [
+    venueInfo.rules,
+    venueInfo.venue,
+    venueInfo.amount,
+    venueInfo.affiliateReferralCode,
+    venueInfo.uri,
+  ] as unknown as VenueInfoStruct;
+}
+
+function sanitizeCustomerInfo(customerInfo: CustomerInfoStruct): CustomerInfoStruct {
+  return {
+    paymentInUSDtoken: customerInfo.paymentInUSDtoken,
+    toCustomer: customerInfo.toCustomer,
+    toPromoter: customerInfo.toPromoter,
+    customer: customerInfo.customer,
+    venueToPayFor: customerInfo.venueToPayFor,
+    promoterReferralCode: customerInfo.promoterReferralCode,
+    amount: customerInfo.amount,
+  };
+}
+
+function toCustomerInfoTuple(customerInfo: CustomerInfoStruct): CustomerInfoStruct {
+  return [
+    customerInfo.paymentInUSDtoken,
+    customerInfo.toCustomer,
+    customerInfo.toPromoter,
+    customerInfo.customer,
+    customerInfo.venueToPayFor,
+    customerInfo.promoterReferralCode,
+    customerInfo.amount,
+  ] as unknown as CustomerInfoStruct;
+}
+
+function sanitizePromoterInfo(promoterInfo: PromoterInfoStruct): PromoterInfoStruct {
+  return {
+    paymentInUSDtoken: promoterInfo.paymentInUSDtoken,
+    promoterReferralCode: promoterInfo.promoterReferralCode,
+    venue: promoterInfo.venue,
+    amountInUSD: promoterInfo.amountInUSD,
+  };
+}
+
+function toPromoterInfoTuple(promoterInfo: PromoterInfoStruct): PromoterInfoStruct {
+  return [
+    promoterInfo.paymentInUSDtoken,
+    promoterInfo.promoterReferralCode,
+    promoterInfo.venue,
+    promoterInfo.amountInUSD,
+  ] as unknown as PromoterInfoStruct;
+}
+
+async function executeVenueDeposit(
+  contract: BelongCheckIn,
+  platformSigner: PlatformSigner,
+  depositor: SignerWithAddress,
+  venueInfo: VenueInfoStruct,
+) {
+  const sanitized = sanitizeVenueInfo(venueInfo);
+  const protection = await signVenueInfo(contract.address, platformSigner.privateKey, sanitized);
+  return contract.connect(depositor).venueDeposit(toVenueInfoTuple(sanitized), protection);
+}
+
+async function executePayToVenue(
+  contract: BelongCheckIn,
+  platformSigner: PlatformSigner,
+  payer: SignerWithAddress,
+  customerInfo: CustomerInfoStruct,
+) {
+  const sanitized = sanitizeCustomerInfo(customerInfo);
+  const protection = await signCustomerInfo(contract.address, platformSigner.privateKey, sanitized);
+  return contract.connect(payer).payToVenue(toCustomerInfoTuple(sanitized), protection);
+}
+
+async function executeDistributePromoterPayments(
+  contract: BelongCheckIn,
+  platformSigner: PlatformSigner,
+  caller: SignerWithAddress,
+  promoterInfo: PromoterInfoStruct,
+) {
+  const sanitized = sanitizePromoterInfo(promoterInfo);
+  const protection = await signPromoterInfo(contract.address, platformSigner.privateKey, sanitized);
+  return contract.connect(caller).distributePromoterPayments(toPromoterInfoTuple(sanitized), protection);
+}
+
 describe('BelongCheckIn ETH UniswapV4', () => {
   const chainId = 31337;
 
@@ -58,15 +158,8 @@ describe('BelongCheckIn ETH UniswapV4', () => {
 
   const usdTokenPercentage = 1000;
   const convenienceFeeAmount = ethers.utils.parseEther('5'); // $5
-  function encodeUniPoolKey(
-    tokenA: string,
-    tokenB: string,
-    fee: number,
-    tickSpacing: number,
-    hooks: string,
-  ): string {
-    const [currency0, currency1] =
-      ethers.BigNumber.from(tokenA).lt(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA];
+  function encodeUniPoolKey(tokenA: string, tokenB: string, fee: number, tickSpacing: number, hooks: string): string {
+    const [currency0, currency1] = ethers.BigNumber.from(tokenA).lt(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA];
     return ethers.utils.defaultAbiCoder.encode(
       ['tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks)'],
       [[currency0, currency1, fee, tickSpacing, hooks]],
@@ -162,7 +255,6 @@ describe('BelongCheckIn ETH UniswapV4', () => {
     )) as MockUniV4Router;
     await mockRouter.deployed();
 
-    
     const largeUsd = await u(1_000_000, USDC);
     await USDC.mint(USDC_whale.address, largeUsd);
     await USDC.mint(ENA_whale.address, largeUsd);
@@ -201,7 +293,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
 
     const staking: Staking = await deployStaking(admin.address, treasury.address, ENA.address);
 
-    const referralCode = EthCrypto.hash.keccak256([
+    const referralCode = abiEncodeHash([
       { type: 'address', value: referral.address },
       { type: 'address', value: factory.address },
       { type: 'uint256', value: chainId },
@@ -211,13 +303,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
 
     const dualDexSwapV4Lib: DualDexSwapV4Lib = await deployDualDexSwapV4Lib();
 
-    const poolKey = encodeUniPoolKey(
-      USDC.address,
-      ENA.address,
-      3000,
-      10,
-      ethers.constants.AddressZero,
-    );
+    const poolKey = encodeUniPoolKey(USDC.address, ENA.address, 3000, 10, ethers.constants.AddressZero);
 
     paymentsInfo = {
       dexType: DexType.UniV4,
@@ -250,6 +336,8 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       manager.address,
       belongCheckIn.address,
       belongCheckIn.address,
+      { name: 'VenueToken', symbol: 'VET', uri: 'uriuri' },
+      { name: 'PromoterToken', symbol: 'PMT', uri: 'uriuri' },
     );
 
     contracts = {
@@ -568,11 +656,6 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
-        ['address', 'bytes32', 'string', 'uint256'],
-        [venue, ethers.constants.HashZero, uri, chainId],
-      );
-      const signature = EthCrypto.sign(signer.privateKey, message);
 
       const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
@@ -580,17 +663,12 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         amount,
         affiliateReferralCode: ethers.constants.HashZero,
         uri,
-        signature: signature,
       };
 
-      const venueInfoFake: VenueInfoStruct = {
-        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
-        venue: treasury.address,
-        amount,
-        affiliateReferralCode: ethers.constants.HashZero,
-        uri,
-        signature: signature,
-      };
+      const invalidSignatureProtection = await signVenueInfo(belongCheckIn.address, signer.privateKey, {
+        ...venueInfo,
+        uri: 'mismatch',
+      });
 
       const willBeTaken = convenienceFeeAmount.add(amount);
 
@@ -598,12 +676,11 @@ describe('BelongCheckIn ETH UniswapV4', () => {
 
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
-      await expect(belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoFake)).to.be.revertedWithCustomError(
-        signatureVerifier,
-        'InvalidSignature',
-      );
+      await expect(
+        belongCheckIn.connect(USDC_whale).venueDeposit(toVenueInfoTuple(venueInfo), invalidSignatureProtection),
+      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
 
-      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -635,13 +712,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
+      const message = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, ethers.constants.HashZero, uri, chainId],
       );
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -660,7 +737,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
 
-      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -706,13 +783,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
+      const message = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -721,18 +798,18 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         signature: signature,
       };
 
-      const referralCodeWrong = EthCrypto.hash.keccak256([
+      const referralCodeWrong = abiEncodeHash([
         { type: 'address', value: referral.address },
         { type: 'address', value: referral.address },
         { type: 'uint256', value: chainId },
       ]);
-      const messageCodeWrong = ethers.utils.solidityKeccak256(
+      const messageCodeWrong = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCodeWrong, uri, chainId],
       );
       const signatureCodeWrong = EthCrypto.sign(signer.privateKey, messageCodeWrong);
 
-      let venueInfoWrongCode: VenueInfoStruct = {
+      const venueInfoWrongCode: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -741,7 +818,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         signature: signatureCodeWrong,
       };
 
-      let venueInfoWrongPaymentType: VenueInfoStruct = {
+      const venueInfoWrongPaymentType: VenueInfoStruct = {
         rules: { paymentType: 0, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -755,17 +832,17 @@ describe('BelongCheckIn ETH UniswapV4', () => {
 
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
-      await expect(belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoWrongCode))
+      await expect(executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfoWrongCode))
         .to.be.revertedWithCustomError(belongCheckIn, 'WrongReferralCode')
         .withArgs(venueInfoWrongCode.affiliateReferralCode);
       await expect(
-        belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoWrongPaymentType),
+        executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfoWrongPaymentType),
       ).to.be.revertedWithCustomError(belongCheckIn, 'WrongPaymentTypeProvided');
 
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
       const ENA_balance_before = await ENA.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -812,13 +889,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
+      const message = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -835,7 +912,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
       const ENA_balance_before = await ENA.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -883,13 +960,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
+      const message = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -910,7 +987,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
       const ENA_balance_before = await ENA.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -964,13 +1041,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
+      const message = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -991,7 +1068,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
       const ENA_balance_before = await ENA.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -1046,13 +1123,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
+      const message = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -1073,7 +1150,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
       const ENA_balance_before = await ENA.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -1125,13 +1202,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
+      const message = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -1152,7 +1229,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
       const ENA_balance_before = await ENA.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -1203,13 +1280,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
+      const message = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -1230,7 +1307,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
       const ENA_balance_before = await ENA.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -1281,13 +1358,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
+      const message = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -1308,7 +1385,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const USDC_balance_before = await USDC.balanceOf(USDC_whale.address);
       const ENA_balance_before = await ENA.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      const tx = await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
 
@@ -1342,13 +1419,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const amount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const message = ethers.utils.solidityKeccak256(
+      const message = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const signature = EthCrypto.sign(signer.privateKey, message);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount,
@@ -1361,7 +1438,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(amount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
 
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       await expect(
         belongCheckIn
@@ -1388,7 +1465,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, ethers.constants.HashZero, uri, chainId],
       );
@@ -1403,10 +1480,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -1445,7 +1522,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -1470,7 +1547,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, ethers.constants.HashZero, uri, chainId],
       );
@@ -1485,10 +1562,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -1527,7 +1604,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -1555,13 +1632,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -1573,10 +1650,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -1620,7 +1697,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         },
         customer: ENA_whale.address,
         venueToPayFor: ENA_whale.address,
-        promoterReferralCode: referralCode,
+        promoterReferralCode: ethers.constants.HashZero,
         amount: customerAmount,
         signature: customerSignature,
       };
@@ -1641,8 +1718,8 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         signature: customerSignature,
       };
 
-      const customerMessageWrongSpendBountyPercentage = ethers.utils.solidityKeccak256(
-        ['bool', 'uint24', 'uint24', 'address', 'address', 'address', 'uint256', 'uint256'],
+      const customerMessageWrongSpendBountyPercentage = abiEncodeHashFromTypes(
+        ['bool', 'uint24', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
           0, // visitBountyAmount
@@ -1689,14 +1766,31 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
+      const customerInfoFakeMessage1Sanitized = sanitizeCustomerInfo(customerInfoFakeMessage1);
+      const customerInfoFakeMessage1Tuple = toCustomerInfoTuple(customerInfoFakeMessage1Sanitized);
+      const fakeMessage1Protection = await signCustomerInfo(
+        belongCheckIn.address,
+        signer.privateKey,
+        customerInfoFakeMessage1Sanitized,
+      );
       await expect(
-        belongCheckIn.connect(ENA_whale).payToVenue(customerInfoFakeMessage1),
+        belongCheckIn.connect(ENA_whale).payToVenue(customerInfoFakeMessage1Tuple, fakeMessage1Protection),
       ).to.be.revertedWithCustomError(signatureVerifier, 'WrongPaymentType');
+      const mismatchedCustomerProtection = await signCustomerInfo(
+        belongCheckIn.address,
+        signer.privateKey,
+        customerInfoFakeMessage1Sanitized,
+      );
       await expect(
-        belongCheckIn.connect(ENA_whale).payToVenue(customerInfoFakeMessage2),
+        belongCheckIn
+          .connect(ENA_whale)
+          .payToVenue(
+            toCustomerInfoTuple(sanitizeCustomerInfo(customerInfoFakeMessage2)),
+            mismatchedCustomerProtection,
+          ),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -1737,13 +1831,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = 1;
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -1755,10 +1849,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -1794,7 +1888,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await expect(belongCheckIn.connect(ENA_whale).payToVenue(customerInfo)).to.be.revertedWithCustomError(
+      await expect(executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo)).to.be.revertedWithCustomError(
         belongCheckIn,
         'NotEnoughBalance',
       );
@@ -1818,13 +1912,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -1836,10 +1930,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -1886,7 +1980,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -1928,13 +2022,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -1946,10 +2040,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -2001,7 +2095,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -2039,13 +2133,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -2057,10 +2151,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -2112,7 +2206,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -2150,13 +2244,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 1, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -2168,10 +2262,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -2222,7 +2316,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -2260,13 +2354,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -2278,10 +2372,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -2332,7 +2426,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
       const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
@@ -2360,7 +2454,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, ethers.constants.HashZero, uri, chainId],
       );
@@ -2375,10 +2469,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           false, // paymentInUSDtoken
@@ -2412,28 +2506,20 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const buyback = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.buybackBurnPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.buybackBurnPercentage,
         processingFee,
       );
       const feesToCollector = processingFee.sub(buyback);
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2445,7 +2531,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
       const venueBalance_before = await ENA.balanceOf(USDC_whale.address);
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -2461,14 +2547,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
     });
 
     it('payToVenue() (AutoStake) (w/o promoter)', async () => {
-      const { belongCheckIn, escrow, staking, helper, signer, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(
-        fixture,
-      );
+      const { belongCheckIn, escrow, staking, helper, signer, USDC, ENA, USDC_whale, ENA_whale } =
+        await loadFixture(fixture);
 
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, ethers.constants.HashZero, uri, chainId],
       );
@@ -2483,10 +2568,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           false, // paymentInUSDtoken
@@ -2520,21 +2605,15 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2546,7 +2625,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
       const venueBalance_before = await staking.balanceOf(USDC_whale.address);
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -2567,14 +2646,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
     });
 
     it('payToVenue() (AutoConvert) (w/o promoter)', async () => {
-      const { belongCheckIn, escrow, staking, helper, signer, USDC, ENA, USDC_whale, ENA_whale } = await loadFixture(
-        fixture,
-      );
+      const { belongCheckIn, escrow, staking, helper, signer, USDC, ENA, USDC_whale, ENA_whale } =
+        await loadFixture(fixture);
 
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, ethers.constants.HashZero, uri, chainId],
       );
@@ -2589,10 +2667,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           false, // paymentInUSDtoken
@@ -2626,21 +2704,15 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2652,7 +2724,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
       const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -2670,7 +2742,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, ethers.constants.HashZero, uri, chainId],
       );
@@ -2685,10 +2757,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
       const willBeTaken = convenienceFeeAmount.add(venueAmount);
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           false, // paymentInUSDtoken
@@ -2722,21 +2794,15 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2748,7 +2814,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const customerBalance_before = await ENA.balanceOf(ENA_whale.address);
       const venueBalance_before = await ENA.balanceOf(USDC_whale.address);
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -2779,13 +2845,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 2, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -2797,10 +2863,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           false, // paymentInUSDtoken
@@ -2834,21 +2900,15 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -2868,7 +2928,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -2913,13 +2973,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -2931,10 +2991,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           false, // paymentInUSDtoken
@@ -2968,21 +3028,15 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -3002,7 +3056,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -3047,13 +3101,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 2, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -3065,10 +3119,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           false, // paymentInUSDtoken
@@ -3102,21 +3156,15 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -3128,9 +3176,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
           customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             ENA.address,
-            (
-              await belongCheckIn.belongCheckInStorage()
-            ).contracts.longPF,
+            (await belongCheckIn.belongCheckInStorage()).contracts.longPF,
             customerAmount,
             MAX_PRICEFEED_DELAY,
           ),
@@ -3160,7 +3206,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -3216,13 +3262,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 2, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -3234,10 +3280,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           false, // paymentInUSDtoken
@@ -3271,21 +3317,15 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -3297,9 +3337,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
           customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             ENA.address,
-            (
-              await belongCheckIn.belongCheckInStorage()
-            ).contracts.longPF,
+            (await belongCheckIn.belongCheckInStorage()).contracts.longPF,
             customerAmount,
             MAX_PRICEFEED_DELAY,
           ),
@@ -3329,7 +3367,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -3385,13 +3423,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 2, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -3403,10 +3441,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           false, // paymentInUSDtoken
@@ -3440,21 +3478,15 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -3466,9 +3498,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
           customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             ENA.address,
-            (
-              await belongCheckIn.belongCheckInStorage()
-            ).contracts.longPF,
+            (await belongCheckIn.belongCheckInStorage()).contracts.longPF,
             customerAmount,
             MAX_PRICEFEED_DELAY,
           ),
@@ -3498,7 +3528,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -3560,13 +3590,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -3578,10 +3608,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = ethers.utils.parseEther('5');
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           false, // paymentInUSDtoken
@@ -3615,21 +3645,15 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       const platformSubsidy = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.platformSubsidyPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.platformSubsidyPercentage,
         customerAmount,
       );
       const processingFee = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.processingFeePercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.processingFeePercentage,
         platformSubsidy,
       );
       const longCustomerDiscount = await helper.calculateRate(
-        (
-          await belongCheckIn.belongCheckInStorage()
-        ).fees.longCustomerDiscountPercentage,
+        (await belongCheckIn.belongCheckInStorage()).fees.longCustomerDiscountPercentage,
         customerAmount,
       );
       const fromEscrowToVenue = platformSubsidy.sub(processingFee);
@@ -3641,9 +3665,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
           customerInfo.toPromoter.spendBountyPercentage,
           await helper.getStandardizedPrice(
             ENA.address,
-            (
-              await belongCheckIn.belongCheckInStorage()
-            ).contracts.longPF,
+            (await belongCheckIn.belongCheckInStorage()).contracts.longPF,
             customerAmount,
             MAX_PRICEFEED_DELAY,
           ),
@@ -3673,7 +3695,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const tx = await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      const tx = await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const escrowBalance_after = await ENA.balanceOf(escrow.address);
       const customerBalance_after = await ENA.balanceOf(ENA_whale.address);
@@ -3738,13 +3760,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -3756,10 +3778,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -3795,14 +3817,14 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
+      const promoterMessage = abiEncodeHashFromTypes(
         ['bytes32', 'address', 'uint256', 'uint256'],
         [
           referralCode, // promoter referral code
@@ -3836,10 +3858,20 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
+      const mismatchedPromoterProtection = await signPromoterInfo(
+        belongCheckIn.address,
+        signer.privateKey,
+        sanitizePromoterInfo(promoterInfo),
+      );
       await expect(
-        belongCheckIn.connect(referral).distributePromoterPayments(promoterInfoFake),
+        belongCheckIn
+          .connect(referral)
+          .distributePromoterPayments(
+            toPromoterInfoTuple(sanitizePromoterInfo(promoterInfoFake)),
+            mismatchedPromoterProtection,
+          ),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -3868,13 +3900,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -3886,10 +3918,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -3925,14 +3957,14 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
+      const promoterMessage = abiEncodeHashFromTypes(
         ['bytes32', 'address', 'uint256', 'uint256'],
         [
           referralCode, // promoter referral code
@@ -3951,8 +3983,8 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
 
       await expect(
-        belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo),
-      ).to.be.revertedWithCustomError(belongCheckIn, 'NotEnoughBalance');
+        executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'NotEnoughPromoterBalance');
     });
 
     it('distributePromoterPayments() (partial amount)', async () => {
@@ -3974,13 +4006,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -3992,10 +4024,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -4031,14 +4063,14 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
+      const promoterMessage = abiEncodeHashFromTypes(
         ['bytes32', 'address', 'uint256', 'uint256'],
         [
           referralCode, // promoter referral code
@@ -4064,7 +4096,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -4166,13 +4198,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -4184,10 +4216,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -4223,14 +4255,14 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
+      const promoterMessage = abiEncodeHashFromTypes(
         ['bytes32', 'address', 'uint256', 'uint256'],
         [
           referralCode, // promoter referral code
@@ -4256,7 +4288,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -4363,13 +4395,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -4381,10 +4413,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -4420,14 +4452,14 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
+      const promoterMessage = abiEncodeHashFromTypes(
         ['bytes32', 'address', 'uint256', 'uint256'],
         [
           referralCode, // promoter referral code
@@ -4453,7 +4485,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -4560,13 +4592,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -4578,10 +4610,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -4617,14 +4649,14 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
+      const promoterMessage = abiEncodeHashFromTypes(
         ['bytes32', 'address', 'uint256', 'uint256'],
         [
           referralCode, // promoter referral code
@@ -4650,7 +4682,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -4757,13 +4789,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -4775,10 +4807,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -4814,14 +4846,14 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
+      const promoterMessage = abiEncodeHashFromTypes(
         ['bytes32', 'address', 'uint256', 'uint256'],
         [
           referralCode, // promoter referral code
@@ -4847,7 +4879,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -4954,13 +4986,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -4972,10 +5004,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -5011,14 +5043,14 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
+      const promoterMessage = abiEncodeHashFromTypes(
         ['bytes32', 'address', 'uint256', 'uint256'],
         [
           referralCode, // promoter referral code
@@ -5044,7 +5076,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const feeReceiverBalance_before = await USDC.balanceOf(treasury.address);
       const promoterBalance_before = await USDC.balanceOf(referral.address);
 
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
@@ -5087,13 +5119,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -5105,10 +5137,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -5144,14 +5176,14 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
+      const promoterMessage = abiEncodeHashFromTypes(
         ['bytes32', 'address', 'uint256', 'uint256'],
         [
           referralCode, // promoter referral code
@@ -5176,7 +5208,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const escrowBalance_before = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_before = await ENA.balanceOf(treasury.address);
       const promoterBalance_before = await ENA.balanceOf(referral.address);
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await ENA.balanceOf(treasury.address);
@@ -5217,13 +5249,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -5235,10 +5267,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -5274,14 +5306,14 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
         await helper.getVenueId(USDC_whale.address),
       );
 
-      const promoterMessage = ethers.utils.solidityKeccak256(
+      const promoterMessage = abiEncodeHashFromTypes(
         ['bytes32', 'address', 'uint256', 'uint256'],
         [
           referralCode, // promoter referral code
@@ -5306,7 +5338,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const escrowBalance_before = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_before = await ENA.balanceOf(treasury.address);
       const promoterBalance_before = await ENA.balanceOf(referral.address);
-      const tx = await belongCheckIn.connect(referral).distributePromoterPayments(promoterInfo);
+      const tx = await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await ENA.balanceOf(treasury.address);
@@ -5348,13 +5380,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
-      const venueMessage = ethers.utils.solidityKeccak256(
+      const venueMessage = abiEncodeHashFromTypes(
         ['address', 'bytes32', 'string', 'uint256'],
         [venue, referralCode, uri, chainId],
       );
       const venueSignature = EthCrypto.sign(signer.privateKey, venueMessage);
 
-      let venueInfo: VenueInfoStruct = {
+      const venueInfo: VenueInfoStruct = {
         rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
         venue,
         amount: venueAmount,
@@ -5366,10 +5398,10 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       const paymentToAffiliate = await helper.calculateRate(fees.affiliatePercentage, venueAmount);
       const willBeTaken = paymentToAffiliate.add(convenienceFeeAmount.add(venueAmount));
       await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
-      await belongCheckIn.connect(USDC_whale).venueDeposit(venueInfo);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
 
       const customerAmount = await u(5, USDC);
-      const customerMessage = ethers.utils.solidityKeccak256(
+      const customerMessage = abiEncodeHashFromTypes(
         ['bool', 'uint128', 'uint24', 'uint128', 'uint24', 'address', 'address', 'bytes32', 'uint256', 'uint256'],
         [
           true, // paymentInUSDtoken
@@ -5405,7 +5437,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await belongCheckIn.connect(ENA_whale).payToVenue(customerInfo);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
 
       const venueBalance_venueToken_before = await venueToken.balanceOf(
         USDC_whale.address,
