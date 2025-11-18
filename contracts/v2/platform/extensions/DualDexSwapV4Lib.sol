@@ -124,13 +124,10 @@ library DualDexSwapV4Lib {
         external
         returns (uint256 received)
     {
-        if (params.amountIn == 0) revert ZeroAmountIn();
-        if (params.recipient == address(0)) revert InvalidRecipient();
-        if (params.tokens.length < 2) revert PoolKeyMissing();
-        if (params.poolKeys.length != params.tokens.length - 1) {
-            revert PoolKeyMissing();
-        }
-        if (info.router == address(0)) revert RouterNotConfigured(info.dexType);
+        require(params.amountIn > 0, ZeroAmountIn());
+        require(params.recipient != address(0), InvalidRecipient());
+        require(params.tokens.length >= 2 || params.poolKeys.length == params.tokens.length - 1, PoolKeyMissing());
+        require(info.router != address(0), RouterNotConfigured(info.dexType));
 
         params.tokens[0].safeApproveWithRetry(info.router, params.amountIn);
 
@@ -150,7 +147,7 @@ library DualDexSwapV4Lib {
 
         uint256 afterBal = _balanceOf(params.tokens[params.tokens.length - 1], params.recipient);
         received = afterBal - beforeBal;
-        if (received < params.amountOutMinimum) revert QuoteFailed();
+        require(received >= params.amountOutMinimum, QuoteFailed());
     }
 
     /// @notice Swaps USDtoken to LONG for a recipient using the configured v4 router.
@@ -165,7 +162,7 @@ library DualDexSwapV4Lib {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
-        if (info.poolKey.length == 0) revert PoolKeyMissing();
+        require(info.poolKey.length > 0, PoolKeyMissing());
 
         swapped = _swapExact(
             info,
@@ -193,7 +190,7 @@ library DualDexSwapV4Lib {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
-        if (info.poolKey.length == 0) revert PoolKeyMissing();
+        require(info.poolKey.length > 0, PoolKeyMissing());
 
         swapped = _swapExact(
             info,
@@ -215,23 +212,21 @@ library DualDexSwapV4Lib {
         internal
         returns (uint256 received)
     {
-        if (params.amountIn == 0) revert ZeroAmountIn();
-        if (params.recipient == address(0)) revert InvalidRecipient();
-        if (params.tokenIn == address(0)) revert NativeInputUnsupported();
-        if (info.router == address(0)) revert RouterNotConfigured(info.dexType);
+        require(params.amountIn > 0, ZeroAmountIn());
+        require(params.recipient != address(0), InvalidRecipient());
+        require(params.tokenIn != address(0), NativeInputUnsupported());
+        require(info.router != address(0), RouterNotConfigured(info.dexType));
 
         uint256 balanceBefore = _balanceOf(params.tokenOut, params.recipient);
 
         params.tokenIn.safeApproveWithRetry(info.router, params.amountIn);
 
+        require(params.poolKey.length > 0, PoolKeyMissing());
         if (info.dexType == DexType.UniV4) {
-            if (params.poolKey.length == 0) revert PoolKeyMissing();
             _executeOnUniswapV4(info, params);
         } else if (info.dexType == DexType.PcsV4) {
-            if (params.poolKey.length == 0) revert PoolKeyMissing();
             _executeOnPancakeV4(info, params);
         } else if (info.dexType == DexType.PcsV3 || info.dexType == DexType.UniV3) {
-            if (params.poolKey.length == 0) revert PoolKeyMissing();
             _executeOnV3(info, params);
         } else {
             revert RouterNotConfigured(info.dexType);
@@ -398,7 +393,7 @@ library DualDexSwapV4Lib {
     // ========== Validation & Utils ==========
 
     function _toUint128(uint256 amount) private pure returns (uint128 casted) {
-        if (amount > type(uint128).max) revert AmountTooLarge(amount);
+        require(amount <= type(uint128).max, AmountTooLarge(amount));
         casted = uint128(amount);
     }
 
@@ -441,19 +436,17 @@ library DualDexSwapV4Lib {
     }
 
     function _decodeV3Fee(bytes memory data) private pure returns (uint24 fee) {
-        if (data.length == 0) revert PoolKeyMissing();
+        require(data.length > 0, PoolKeyMissing());
         fee = abi.decode(data, (uint24));
     }
 
     function _buildV3Path(address[] memory tokens, bytes[] memory feeData) private pure returns (bytes memory path) {
-        if (tokens.length < 2) revert PoolKeyMissing();
-        if (feeData.length != tokens.length - 1) revert PoolKeyMissing();
+        require(tokens.length >= 2 || feeData.length == tokens.length - 1 || tokens[0] != address(0), PoolKeyMissing());
 
-        if (tokens[0] == address(0)) revert PoolKeyMissing();
         path = abi.encodePacked(tokens[0]);
         for (uint256 i = 0; i < feeData.length; i++) {
             uint24 fee = abi.decode(feeData[i], (uint24));
-            if (tokens[i + 1] == address(0)) revert PoolKeyMissing();
+            require(tokens[i + 1] != address(0), PoolKeyMissing());
             path = bytes.concat(path, abi.encodePacked(fee, tokens[i + 1]));
         }
     }
