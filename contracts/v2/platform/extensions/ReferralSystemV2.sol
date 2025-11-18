@@ -25,12 +25,13 @@ abstract contract ReferralSystemV2 {
     error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
 
     error PercentageExceedsMax(uint16 percentage);
+    error MaxArrayLengthExceedsMax(uint16 maxArrayLength);
 
     // ========== Events ==========
 
     /// @notice Emitted when referral percentages are set.
     /// @param percentages The new referral percentages.
-    event ReferralParametersSet(uint16[5] percentages);
+    event ReferralParametersSet(uint16[5] percentages, uint16 maxArrayLength);
 
     /// @notice Emitted when a new referral code is created.
     /// @param createdBy The address that created the referral code.
@@ -57,6 +58,8 @@ abstract contract ReferralSystemV2 {
     uint8 public constant MAX_TIER_INDEX = 4; // tiers: 0..4
 
     // ========== State Variables ==========
+
+    uint16 private _maxArrayLength;
 
     /// @notice Maps the number of times a referral code was used to the corresponding percentage.
     uint16[5] public usedToPercentage;
@@ -145,8 +148,12 @@ abstract contract ReferralSystemV2 {
         // Check if the user is already in the array
         address[] storage users = referral.referralUsers;
 
-        bool inArray;
         uint256 len = users.length;
+        if (len + 1 >= _maxArrayLength) {
+            return;
+        }
+
+        bool inArray;
         for (uint256 i; i < len; ++i) {
             if (users[i] == referralUser) {
                 // User already added; no need to add again
@@ -166,13 +173,16 @@ abstract contract ReferralSystemV2 {
         emit ReferralCodeUsed(hashedCode, referralUser);
     }
 
-    function _setReferralParameters(uint16[5] calldata percentages) internal {
+    function _setReferralParameters(uint16[5] calldata percentages, uint16 maxArrayLength) internal {
         for (uint256 i; i < percentages.length; ++i) {
             require(percentages[i] <= SCALING_FACTOR, PercentageExceedsMax(percentages[i]));
             usedToPercentage[i] = percentages[i];
         }
 
-        emit ReferralParametersSet(percentages);
+        require(maxArrayLength <= SCALING_FACTOR, MaxArrayLengthExceedsMax(maxArrayLength));
+        _maxArrayLength = maxArrayLength;
+
+        emit ReferralParametersSet(percentages, maxArrayLength);
     }
 
     // ========== Reserved Storage Space ==========

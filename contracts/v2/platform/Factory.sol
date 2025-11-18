@@ -198,21 +198,25 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         FactoryParameters calldata factoryParameters,
         RoyaltiesParameters calldata _royalties,
         Implementations calldata _implementations,
-        uint16[5] calldata percentages
+        uint16[5] calldata percentages,
+        uint16 maxArrayLength
     ) external initializer {
         _setFactoryParameters(factoryParameters, _royalties, _implementations);
-        _setReferralParameters(percentages);
+        _setReferralParameters(percentages, maxArrayLength);
         _initializeOwner(msg.sender);
     }
 
     /// @notice Upgrades stored royalties parameters and implementation addresses (reinitializer v2).
     /// @param _royalties New royalties parameters (BPS).
     /// @param _implementations New implementation addresses.
-    function upgradeToV2(RoyaltiesParameters calldata _royalties, Implementations calldata _implementations)
-        external
-        reinitializer(2)
-    {
+    function upgradeToV2(
+        RoyaltiesParameters calldata _royalties,
+        Implementations calldata _implementations,
+        uint16[5] calldata percentages,
+        uint16 maxArrayLength
+    ) external reinitializer(2) {
         _setFactoryParameters(_nftFactoryParameters, _royalties, _implementations);
+        _setReferralParameters(percentages, maxArrayLength);
     }
 
     // ========== Creation Flows ==========
@@ -391,10 +395,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         FactoryParameters calldata factoryParameters_,
         RoyaltiesParameters calldata _royalties,
         Implementations calldata _implementations,
-        uint16[5] calldata percentages
+        uint16[5] calldata percentages,
+        uint16 maxArrayLength
     ) external onlyOwner {
         _setFactoryParameters(factoryParameters_, _royalties, _implementations);
-        _setReferralParameters(percentages);
+        _setReferralParameters(percentages, maxArrayLength);
     }
 
     // ========== Views ==========
