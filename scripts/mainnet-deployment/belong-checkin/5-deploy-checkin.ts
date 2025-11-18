@@ -15,8 +15,8 @@ dotenv.config();
 enum DexType {
   UniV4,
   PcsV4,
-  PcsV2,
-  UniV2,
+  PcsV3,
+  UniV3,
 }
 
 const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
