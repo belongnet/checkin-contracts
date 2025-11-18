@@ -395,9 +395,8 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
         _contracts.factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), protection, venueInfo);
 
-        uint256 venueAssets = _storage.contracts.staking.convertToAssets(_getUserStakingTier(venueInfo.venue));
-
-        VenueStakingRewardInfo memory stakingInfo = stakingRewards[venueAssets.stakingTiers()].venueStakingInfo;
+        VenueStakingRewardInfo memory stakingInfo =
+        stakingRewards[_getUserStakingTier(venueInfo.venue)].venueStakingInfo;
 
         address affiliate;
         uint256 affiliateFee;
@@ -550,8 +549,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             NotEnoughPromoterBalance(promoterInfo.amountInUSD)
         );
 
-        PromoterStakingRewardInfo memory stakingInfo =
-        stakingRewards[_getUserStakingTier(promoterInfo.promoter)].promoterStakingInfo;
+        PromoterStakingRewardInfo memory stakingInfo = stakingRewards[_getUserStakingTier(promoter)].promoterStakingInfo;
 
         uint256 toPromoter = promoterInfo.amountInUSD;
         uint256 platformFees = promoterInfo.paymentInUSDtoken
@@ -776,7 +774,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     }
 
     function _getUserStakingTier(address user) internal view returns (StakingTiers) {
-        address staking = belongCheckInStorage.contracts.staking;
+        Staking staking = belongCheckInStorage.contracts.staking;
 
         uint256 userShares = staking.balanceOf(user);
         uint256 userAssets = staking.convertToAssets(userShares);
