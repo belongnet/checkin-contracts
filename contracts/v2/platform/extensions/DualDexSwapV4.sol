@@ -27,7 +27,7 @@ abstract contract DualDexSwapV4 {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
-        swapped = DualDexSwapV4Lib.swapUSDtokenToLONG(_paymentsInfo, recipient, amount);
+        swapped = DualDexSwapV4Lib.swapUSDtokenToLONG(_paymentsInfo, recipient, amount, _quoteUSDtokenToLONG(amount));
     }
 
     /// @notice Swaps LONG to USDC for a recipient using the configured v4 router.
@@ -38,7 +38,7 @@ abstract contract DualDexSwapV4 {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
-        swapped = DualDexSwapV4Lib.swapLONGtoUSDtoken(_paymentsInfo, recipient, amount);
+        swapped = DualDexSwapV4Lib.swapLONGtoUSDtoken(_paymentsInfo, recipient, amount, _quoteLONGtoUSDtoken(amount));
     }
 
     /// @notice Executes a multi-hop swap along a precomputed path using the configured dex.
@@ -50,12 +50,7 @@ abstract contract DualDexSwapV4 {
         received = DualDexSwapV4Lib.swapExactPath(_paymentsInfo, params);
     }
 
-    /// @notice Quotes minimum out for a multi-hop path using the configured quoter & slippage.
-    function _quotePathMinOut(address[] memory tokens, bytes[] memory poolKeys, uint256 amountIn)
-        internal
-        virtual
-        returns (uint256 minOut)
-    {
-        minOut = DualDexSwapV4Lib.quotePathMinOut(_paymentsInfo, tokens, poolKeys, amountIn);
-    }
+    function _quoteUSDtokenToLONG(uint256) internal view virtual returns (uint256);
+
+    function _quoteLONGtoUSDtoken(uint256) internal view virtual returns (uint256);
 }
