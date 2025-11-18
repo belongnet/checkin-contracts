@@ -88,7 +88,7 @@ Staking tiers (`stakingRewards`) define per-tier:
 
 - **Scripts**: `scripts/mainnet-deployment/belong-checkin/*` deploy libraries, implementations, proxies, and helper tooling. See [`docs/guides/BelongCheckIn.md`](./BelongCheckIn.md) for step-by-step instructions.
 - **State file**: Scripts persist addresses in `deployments/chainId-<id>.json` (keys include `sigantureVerifier`, `helper`, `factory`, `checkIn`, etc.).
-- **Environment variables**: Configure Uniswap routers/quoters, token addresses (USDC, LONG, WNative), Chainlink price feeds, and signer keys.
+- **Environment variables**: Configure DEX routers, token addresses (USDC, LONG, WNative), Chainlink price feeds, and signer keys.
 - **Upgrades**: Proxies are owned by the platform address. Use the provided upgrade scripts to deploy new implementations, then execute `ProxyAdmin` upgrades safely.
 
 ## Related Documentation

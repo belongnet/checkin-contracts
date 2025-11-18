@@ -6,7 +6,7 @@ Coordinates venue deposits, customer check-ins, and promoter settlements for the
 @dev
 - Maintains venue and promoter balances as denominated ERC1155 credits (1 credit == 1 USD unit).
 - Delegates token custody to {Escrow} while enforcing platform fees, referral incentives, and staking perks.
-- Prices and swaps LONG through a configured Uniswap V3 router/quoter pairing and a Chainlink price feed.
+- Prices and swaps LONG through a configured DEX router while deriving swap limits from a Chainlink price feed.
 - Applies staking-tier-dependent deposit fees, customer discounts, and promoter fee splits.
 - Streams platform revenue through a buyback-and-burn routine before forwarding the remainder to Factory.platformAddress.
 - All externally triggered flows require EIP-712 signatures produced by the platform signer held in {Factory}.
@@ -694,4 +694,3 @@ function _buildPath(struct BelongCheckIn.PaymentsInfo _paymentsInfo, address tok
 ```
 
 _Builds the optimal encoded path for the configured V3 router, preferring a direct pool and otherwise routing through the configured wrapped native token._
-
