@@ -262,11 +262,11 @@ library SignatureVerifier {
                         protection.nonce,
                         protection.deadline,
                         block.chainid,
+                        rules.bountyType,
+                        rules.bountyAllocationType,
                         customerInfo.paymentInUSDtoken,
-                        customerInfo.toCustomer.visitBountyAmount,
-                        customerInfo.toCustomer.spendBountyPercentage,
-                        customerInfo.toPromoter.visitBountyAmount,
-                        customerInfo.toPromoter.spendBountyPercentage,
+                        _encodeBounties(customerInfo.toCustomer),
+                        _encodeBounties(customerInfo.toPromoter),
                         customerInfo.customer,
                         customerInfo.venueToPayFor,
                         customerInfo.promoterReferralCode,
@@ -277,6 +277,10 @@ library SignatureVerifier {
             ),
             InvalidSignature(protection.signature)
         );
+    }
+
+    function _encodeBounties(Bounties calldata bounties) internal view returns (bytes memory) {
+        return abi.encode(bounties.visitBountyAmount, bounties.spendBountyPercentage);
     }
 
     /// @notice Verifies promoter payout distribution payload.
