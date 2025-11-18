@@ -20,7 +20,7 @@ import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLi
 import { deployMockTransferValidatorV2, deployPriceFeeds } from '../../../helpers/deployMockFixtures';
 import { getSignerFromAddress, getToken, startSimulateBSC, stopSimulate } from '../../../helpers/fork';
 import { u } from '../../../helpers/math';
-import { CAKE_ADDRESS, PCS_V2_ROUTER, USDT_ADDRESS } from '../../../helpers/pcs';
+import { CAKE_ADDRESS, PCS_V3_ROUTER, USDT_ADDRESS } from '../../../helpers/pcs';
 import { signCustomerInfo, signPromoterInfo, signVenueInfo } from '../../../helpers/signature';
 import {
   AccessToken,
@@ -48,10 +48,11 @@ import { ChainIds } from '../../../utils/chain-ids';
 enum DexType {
   UniV4,
   PcsV4,
-  PcsV2,
+  PcsV3,
+  UniV3,
 }
 
-describe('BelongCheckIn BSC PancakeSwapV2', () => {
+describe('BelongCheckIn BSC PancakeSwapV3', () => {
   const chainId = ChainIds.bsc;
 
   const USDT_WHALE_ADDRESS = '0x8894E0a0c962CB723c1976a4421c95949bE2D4E3';
@@ -182,16 +183,16 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
     // const mockQuoter = await MockPcsQuoter.deploy();
     // await mockQuoter.deployed();
 
-    const v2PathEncoded = ethers.utils.defaultAbiCoder.encode(['address[]'], [[USDT.address, CAKE.address]]);
+    const v3FeeEncoded = ethers.utils.defaultAbiCoder.encode(['uint24'], [2500]);
 
     paymentsInfo = {
-      dexType: DexType.PcsV2,
+      dexType: DexType.PcsV3,
       slippageBps: SLIPPAGE_1pct_27dec,
-      router: PCS_V2_ROUTER,
+      router: PCS_V3_ROUTER,
       usdToken: USDT.address,
       long: CAKE.address,
       maxPriceFeedDelay: MAX_PRICEFEED_DELAY,
-      poolKey: v2PathEncoded,
+      poolKey: v3FeeEncoded,
       hookData: '0x',
     };
 
@@ -326,7 +327,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
 
       await expect(
         belongCheckIn.initialize(belongCheckIn.address, {
-          dexType: DexType.PcsV2,
+          dexType: DexType.PcsV3,
           slippageBps: 10,
           router: belongCheckIn.address,
           usdToken: belongCheckIn.address,
@@ -359,7 +360,7 @@ describe('BelongCheckIn BSC PancakeSwapV2', () => {
       const { belongCheckIn, minter } = await loadFixture(fixture);
 
       const paymentsInfoNew = {
-        dexType: DexType.PcsV2,
+        dexType: DexType.PcsV3,
         slippageBps: BigNumber.from(10).pow(27).sub(1),
         router: paymentsInfo.router,
         usdToken: USDT_ADDRESS,

@@ -47,11 +47,11 @@ import { DualDexSwapV4Lib as DualDexSwapV4LibType } from '../../../typechain-typ
 enum DexType {
   UniV4,
   PcsV4,
-  PcsV2,
-  UniV2,
+  PcsV3,
+  UniV3,
 }
 
-describe('BelongCheckIn ETH UniswapV2', () => {
+describe('BelongCheckIn ETH UniswapV3', () => {
   const chainId = 31337;
 
   const MAX_PRICEFEED_DELAY = 3600;
@@ -193,10 +193,10 @@ describe('BelongCheckIn ETH UniswapV2', () => {
 
     const dualDexSwapV4Lib: DualDexSwapV4Lib = await deployDualDexSwapV4Lib();
 
-    const poolKey = ethers.utils.defaultAbiCoder.encode(['address[]'], [[USDC.address, ENA.address]]);
+    const poolKey = ethers.utils.defaultAbiCoder.encode(['uint24'], [3000]);
 
     paymentsInfo = {
-      dexType: DexType.UniV2,
+      dexType: DexType.UniV3,
       slippageBps: SLIPPAGE_1pct_27dec,
       router: mockRouter.address,
       usdToken: USDC.address,
@@ -337,7 +337,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
 
       await expect(
         belongCheckIn.initialize(belongCheckIn.address, {
-          dexType: DexType.UniV2,
+          dexType: DexType.UniV3,
           slippageBps: 10,
           router: belongCheckIn.address,
           usdToken: belongCheckIn.address,
@@ -370,7 +370,7 @@ describe('BelongCheckIn ETH UniswapV2', () => {
       const { belongCheckIn, minter } = await loadFixture(fixture);
 
       const paymentsInfoNew = {
-        dexType: DexType.UniV2,
+        dexType: DexType.UniV3,
         slippageBps: BigNumber.from(10).pow(27).sub(1),
         router: paymentsInfo.router,
         usdToken: paymentsInfo.usdToken,

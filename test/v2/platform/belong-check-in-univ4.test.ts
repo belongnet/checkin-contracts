@@ -48,8 +48,8 @@ import { DualDexSwapV4Lib as DualDexSwapV4LibType } from '../../../typechain-typ
 enum DexType {
   UniV4,
   PcsV4,
-  PcsV2,
-  UniV2,
+  PcsV3,
+  UniV3,
 }
 
 type PlatformSigner = ReturnType<typeof EthCrypto.createIdentity>;
