@@ -66,7 +66,7 @@ export async function signAccessTokenInfo(
   return buildProtection(
     signerPrivateKey,
     ({ nonce, deadline, chainId }) =>
-      ethers.utils.solidityPack(
+      ethers.utils.defaultAbiCoder.encode(
         ['address', 'uint256', 'uint256', 'uint256', 'address', 'string', 'string', 'string', 'uint96'],
         [
           verifyingContract,
