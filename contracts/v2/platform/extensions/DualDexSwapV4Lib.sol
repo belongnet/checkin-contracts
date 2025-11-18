@@ -7,7 +7,6 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {Currency as UniCurrency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {PoolKey as UniPoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {IV4Router as IUniV4Router} from "@uniswap/v4-periphery/src/interfaces/IV4Router.sol";
-import {IV4Quoter} from "@uniswap/v4-periphery/src/interfaces/IV4Quoter.sol";
 import {Actions as UniActions} from "@uniswap/v4-periphery/src/libraries/Actions.sol";
 import {ActionConstants as UniActionConstants} from "@uniswap/v4-periphery/src/libraries/ActionConstants.sol";
 
@@ -15,8 +14,6 @@ import {ActionConstants as UniActionConstants} from "@uniswap/v4-periphery/src/l
 import {Currency as PcsCurrency} from "../../external/@pancakeswap/infinity-core/src/types/Currency.sol";
 import {PoolKey as PcsPoolKey} from "../../external/@pancakeswap/infinity-core/src/types/PoolKey.sol";
 import {ICLRouterBase} from "../../external/@pancakeswap/infinity-periphery/src/pool-cl/interfaces/ICLRouterBase.sol";
-import {ICLQuoter} from "../../external/@pancakeswap/infinity-periphery/src/pool-cl/interfaces/ICLQuoter.sol";
-import {IQuoter} from "../../external/@pancakeswap/infinity-periphery/src/interfaces/IQuoter.sol";
 import {Actions as PcsActions} from "../../external/@pancakeswap/infinity-periphery/src/libraries/Actions.sol";
 import {
     Plan as PcsPlan,
@@ -90,7 +87,6 @@ library DualDexSwapV4Lib {
         DexType dexType;
         uint96 slippageBps;
         address router;
-        address quoter;
         address usdToken;
         address long;
         uint256 maxPriceFeedDelay;
@@ -154,7 +150,7 @@ library DualDexSwapV4Lib {
     /// @param recipient Address receiving the LONG output.
     /// @param amount Exact USDtoken amount to swap.
     /// @return swapped The amount of LONG delivered to `recipient`.
-    function swapUSDtokenToLONG(PaymentsInfo memory info, address recipient, uint256 amount)
+    function swapUSDtokenToLONG(PaymentsInfo memory info, address recipient, uint256 amount, uint256 amountOutMinimum)
         external
         returns (uint256 swapped)
     {
@@ -165,7 +161,6 @@ library DualDexSwapV4Lib {
             revert PoolKeyMissing();
         }
 
-        uint256 amountOutMinimum = _quoteMinOut(info, info.usdToken, info.long, amount);
         swapped = _swapExact(
             info,
             ExactInputSingleParams({
@@ -185,7 +180,7 @@ library DualDexSwapV4Lib {
     /// @param recipient Address receiving the USDtoken output.
     /// @param amount Exact LONG amount to swap.
     /// @return swapped The amount of USDtoken delivered to `recipient`.
-    function swapLONGtoUSDtoken(PaymentsInfo memory info, address recipient, uint256 amount)
+    function swapLONGtoUSDtoken(PaymentsInfo memory info, address recipient, uint256 amount, uint256 amountOutMinimum)
         external
         returns (uint256 swapped)
     {
@@ -196,7 +191,6 @@ library DualDexSwapV4Lib {
             revert PoolKeyMissing();
         }
 
-        uint256 amountOutMinimum = _quoteMinOut(info, info.long, info.usdToken, amount);
         swapped = _swapExact(
             info,
             ExactInputSingleParams({
@@ -416,130 +410,6 @@ library DualDexSwapV4Lib {
             .swapExactTokensForTokens(
                 params.amountIn, params.amountOutMinimum, path, params.recipient, block.timestamp + 15
             );
-    }
-
-    // ========== Quoting Helpers ==========
-
-    function quotePathMinOut(
-        PaymentsInfo memory info,
-        address[] memory tokens,
-        bytes[] memory poolKeys,
-        uint256 amountIn
-    ) internal returns (uint256 minOut) {
-        if (tokens.length < 2) {
-            revert PoolKeyMissing();
-        }
-        if (info.dexType == DexType.PcsV2 || info.dexType == DexType.UniV2) {
-            if (poolKeys.length != 0 && poolKeys.length != tokens.length - 1) {
-                revert PoolKeyMissing();
-            }
-        } else if (poolKeys.length != tokens.length - 1) {
-            revert PoolKeyMissing();
-        }
-        if (amountIn == 0 || info.quoter == address(0)) revert QuoteFailed();
-
-        uint256 running = amountIn;
-
-        if (info.dexType == DexType.UniV4) {
-            for (uint256 i = 0; i < poolKeys.length; i++) {
-                UniPoolKey memory key = abi.decode(poolKeys[i], (UniPoolKey));
-                (bool zf,) = _validateUniPoolKey(key, tokens[i], tokens[i + 1]);
-
-                try IV4Quoter(info.quoter)
-                    .quoteExactInputSingle(
-                        IV4Quoter.QuoteExactSingleParams({
-                            poolKey: key, zeroForOne: zf, exactAmount: _toUint128(running), hookData: info.hookData
-                        })
-                    ) returns (uint256 outAmount, uint256) {
-                    running = outAmount;
-                } catch {
-                    revert QuoteFailed();
-                }
-            }
-        } else if (info.dexType == DexType.PcsV4) {
-            for (uint256 i = 0; i < poolKeys.length; i++) {
-                PcsPoolKey memory key = abi.decode(poolKeys[i], (PcsPoolKey));
-                (bool zf,) = _validatePcsPoolKey(key, tokens[i], tokens[i + 1]);
-
-                try ICLQuoter(info.quoter)
-                    .quoteExactInputSingle(
-                        IQuoter.QuoteExactSingleParams({
-                            poolKey: key, zeroForOne: zf, exactAmount: _toUint128(running), hookData: info.hookData
-                        })
-                    ) returns (uint256 outAmount, uint256) {
-                    running = outAmount;
-                } catch {
-                    revert QuoteFailed();
-                }
-            }
-        } else if (info.dexType == DexType.PcsV2 || info.dexType == DexType.UniV2) {
-            address[] memory path = _buildV2Path(tokens);
-            try IV2RouterLike(info.quoter).getAmountsOut(running, path) returns (uint256[] memory amounts) {
-                running = amounts[amounts.length - 1];
-            } catch {
-                revert QuoteFailed();
-            }
-        } else {
-            revert RouterNotConfigured(info.dexType);
-        }
-
-        minOut = Helper.amountOutMin(running, info.slippageBps);
-    }
-
-    function _quoteMinOut(PaymentsInfo memory info, address tokenIn, address tokenOut, uint256 amountIn)
-        private
-        returns (uint256 minOut)
-    {
-        if (amountIn == 0 || info.quoter == address(0)) {
-            return 0;
-        }
-
-        if (info.dexType == DexType.UniV4) {
-            if (info.poolKey.length == 0) revert PoolKeyMissing();
-            UniPoolKey memory poolKey = abi.decode(info.poolKey, (UniPoolKey));
-            (bool zeroForOne,) = _validateUniPoolKey(poolKey, tokenIn, tokenOut);
-
-            try IV4Quoter(info.quoter)
-                .quoteExactInputSingle(
-                    IV4Quoter.QuoteExactSingleParams({
-                        poolKey: poolKey,
-                        zeroForOne: zeroForOne,
-                        exactAmount: _toUint128(amountIn),
-                        hookData: info.hookData
-                    })
-                ) returns (uint256 amountOut, uint256) {
-                minOut = Helper.amountOutMin(amountOut, info.slippageBps);
-            } catch {
-                revert QuoteFailed();
-            }
-        } else if (info.dexType == DexType.PcsV4) {
-            if (info.poolKey.length == 0) revert PoolKeyMissing();
-            PcsPoolKey memory poolKey = abi.decode(info.poolKey, (PcsPoolKey));
-            (bool zeroForOne,) = _validatePcsPoolKey(poolKey, tokenIn, tokenOut);
-
-            try ICLQuoter(info.quoter)
-                .quoteExactInputSingle(
-                    IQuoter.QuoteExactSingleParams({
-                        poolKey: poolKey,
-                        zeroForOne: zeroForOne,
-                        exactAmount: _toUint128(amountIn),
-                        hookData: info.hookData
-                    })
-                ) returns (uint256 amountOut, uint256) {
-                minOut = Helper.amountOutMin(amountOut, info.slippageBps);
-            } catch {
-                revert QuoteFailed();
-            }
-        } else if (info.dexType == DexType.PcsV2 || info.dexType == DexType.UniV2) {
-            address[] memory path = _decodeV2Path(info.poolKey, tokenIn, tokenOut);
-            try IV2RouterLike(info.quoter).getAmountsOut(amountIn, path) returns (uint256[] memory amounts) {
-                minOut = Helper.amountOutMin(amounts[amounts.length - 1], info.slippageBps);
-            } catch {
-                revert QuoteFailed();
-            }
-        } else {
-            revert RouterNotConfigured(info.dexType);
-        }
     }
 
     // ========== Validation & Utils ==========
