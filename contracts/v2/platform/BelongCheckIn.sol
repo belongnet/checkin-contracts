@@ -395,8 +395,9 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
         _contracts.factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), protection, venueInfo);
 
-        VenueStakingRewardInfo memory stakingInfo =
-        stakingRewards[_contracts.staking.balanceOf(venueInfo.venue).stakingTiers()].venueStakingInfo;
+        uint256 venueAssets = _storage.contracts.staking.convertToAssets(_getUserStakingTier(venueInfo.venue));
+
+        VenueStakingRewardInfo memory stakingInfo = stakingRewards[venueAssets.stakingTiers()].venueStakingInfo;
 
         address affiliate;
         uint256 affiliateFee;
@@ -550,7 +551,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         );
 
         PromoterStakingRewardInfo memory stakingInfo =
-        stakingRewards[_contracts.staking.balanceOf(promoter).stakingTiers()].promoterStakingInfo;
+        stakingRewards[_getUserStakingTier(promoterInfo.promoter)].promoterStakingInfo;
 
         uint256 toPromoter = promoterInfo.amountInUSD;
         uint256 platformFees = promoterInfo.paymentInUSDtoken
@@ -774,5 +775,12 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         contracts_.promoterToken.mint(to, venueId, rewards);
     }
 
-    /// @dev Builds the optimal encoded path for the configured V3 router, preferring a direct pool and otherwise routing through the configured wrapped native token.
+    function _getUserStakingTier(address user) internal view returns (StakingTiers) {
+        address staking = belongCheckInStorage.contracts.staking;
+
+        uint256 userShares = staking.balanceOf(user);
+        uint256 userAssets = staking.convertToAssets(userShares);
+
+        return userAssets.stakingTiers();
+    }
 }
