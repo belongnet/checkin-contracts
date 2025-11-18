@@ -5,6 +5,7 @@ import {Initializable} from "solady/src/utils/Initializable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {MetadataReaderLib} from "solady/src/utils/MetadataReaderLib.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 import {Factory} from "./Factory.sol";
 import {LONG} from "../tokens/LONG.sol";
@@ -33,7 +34,7 @@ import {
 /// @dev
 /// - Maintains venue and promoter balances as denominated ERC1155 credits (1 credit == 1 USD unit).
 /// - Delegates token custody to {Escrow} while enforcing platform fees, referral incentives, and staking perks.
-/// - Prices and swaps LONG through a dual DEX (Uniswap v4 / Pancake Infinity) router + quoter pairing and a Chainlink price feed.
+/// - Prices and swaps LONG through a dual DEX (Uniswap v4 / Pancake Infinity) router while deriving slippage bounds from a Chainlink price feed.
 /// - Applies staking-tier-dependent deposit fees, customer discounts, and promoter fee splits.
 /// - Streams platform revenue through a buyback-and-burn routine before forwarding the remainder to Factory.platformAddress.
 /// - All externally triggered flows require EIP-712 signatures produced by the platform signer held in {Factory}.
@@ -42,6 +43,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     using MetadataReaderLib for address;
     using SafeTransferLib for address;
     using Helper for *;
+    using FixedPointMathLib for uint256;
 
     // ========== Errors ==========
 
@@ -660,6 +662,14 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         }
     }
 
+    function _quoteUSDtokenToLONG(uint256 amount) internal view override returns (uint256) {
+        return _usdToLongMinOut(amount);
+    }
+
+    function _quoteLONGtoUSDtoken(uint256 amount) internal view override returns (uint256) {
+        return _longToUsdMinOut(amount);
+    }
+
     /// @dev Splits platform revenue: swaps a configurable portion for LONG and burns it, then forwards the remainder to the fee collector.
     /// @param token Revenue token address (USDtoken/LONG supported; unknown tokens are forwarded intact).
     /// @param amount Revenue amount received by this contract.
@@ -704,6 +714,34 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         token.safeTransfer(feeCollector, feesToCollector);
 
         emit RevenueBuybackBurn(token, amount, buyback, toBurn, feesToCollector);
+    }
+
+    function _usdToLongMinOut(uint256 amount) private view returns (uint256 minOut) {
+        if (amount == 0) {
+            return 0;
+        }
+        DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
+
+        uint256 usdStandardized = payments.usdToken.standardize(amount);
+        uint256 pricePerLongStd = payments.long
+            .getStandardizedPrice(
+                belongCheckInStorage.contracts.longPF, 10 ** payments.long.readDecimals(), payments.maxPriceFeedDelay
+            );
+        uint256 longStandardized = usdStandardized.fullMulDiv(Helper.BPS, pricePerLongStd);
+        uint256 quote = payments.long.unstandardize(longStandardized);
+        minOut = Helper.amountOutMin(quote, payments.slippageBps);
+    }
+
+    function _longToUsdMinOut(uint256 amount) private view returns (uint256 minOut) {
+        if (amount == 0) {
+            return 0;
+        }
+        DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
+
+        uint256 usdStandardized = payments.long
+        .getStandardizedPrice(belongCheckInStorage.contracts.longPF, amount, payments.maxPriceFeedDelay);
+        uint256 quote = payments.usdToken.unstandardize(usdStandardized);
+        minOut = Helper.amountOutMin(quote, payments.slippageBps);
     }
 
     function _calculateRewards(
