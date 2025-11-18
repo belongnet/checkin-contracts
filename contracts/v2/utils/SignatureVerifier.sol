@@ -74,8 +74,8 @@ library SignatureVerifier {
     function checkAccessTokenInfo(
         address signer,
         address verifyingContract,
-        SignatureProtection memory protection,
-        AccessTokenInfo memory accessTokenInfo
+        SignatureProtection calldata protection,
+        AccessTokenInfo calldata accessTokenInfo
     ) external view {
         _validateProtection(protection);
 
@@ -113,7 +113,7 @@ library SignatureVerifier {
     function checkCreditTokenInfo(
         address signer,
         address verifyingContract,
-        SignatureProtection memory protection,
+        SignatureProtection calldata protection,
         ERC1155Info calldata creditTokenInfo
     ) external view {
         _validateProtection(protection);
@@ -151,7 +151,7 @@ library SignatureVerifier {
     function checkVestingWalletInfo(
         address signer,
         address verifyingContract,
-        SignatureProtection memory protection,
+        SignatureProtection calldata protection,
         address owner,
         VestingWalletInfo calldata vestingWalletInfo
     ) external view {
@@ -189,7 +189,7 @@ library SignatureVerifier {
     function checkVenueInfo(
         address signer,
         address verifyingContract,
-        SignatureProtection memory protection,
+        SignatureProtection calldata protection,
         VenueInfo calldata venueInfo
     ) external view {
         _validateProtection(protection);
@@ -222,9 +222,9 @@ library SignatureVerifier {
     function checkCustomerInfo(
         address signer,
         address verifyingContract,
-        SignatureProtection memory protection,
+        SignatureProtection calldata protection,
         CustomerInfo calldata customerInfo,
-        VenueRules memory rules
+        VenueRules calldata rules
     ) external view {
         _validateProtection(protection);
 
@@ -290,8 +290,8 @@ library SignatureVerifier {
     function checkPromoterPaymentDistribution(
         address signer,
         address verifyingContract,
-        SignatureProtection memory protection,
-        PromoterInfo memory promoterInfo
+        SignatureProtection calldata protection,
+        PromoterInfo calldata promoterInfo
     ) external view {
         _validateProtection(protection);
 
@@ -325,7 +325,7 @@ library SignatureVerifier {
     function checkDynamicPriceParameters(
         address signer,
         address verifyingContract,
-        SignatureProtection memory protection,
+        SignatureProtection calldata protection,
         address receiver,
         DynamicPriceParameters calldata params
     ) external view {
@@ -360,7 +360,7 @@ library SignatureVerifier {
     function checkStaticPriceParameters(
         address signer,
         address verifyingContract,
-        SignatureProtection memory protection,
+        SignatureProtection calldata protection,
         address receiver,
         StaticPriceParameters calldata params
     ) internal view {
@@ -388,7 +388,7 @@ library SignatureVerifier {
 
     // ============================== Helpers ==============================
 
-    function _checkBountiesPayment(Bounties calldata bounties, VenueRules memory rules)
+    function _checkBountiesPayment(Bounties calldata bounties, VenueRules calldata rules)
         internal
         pure
         returns (BountyTypes bountyType)
@@ -404,7 +404,7 @@ library SignatureVerifier {
         require(rules.bountyType == bountyType, WrongCustomerBountyType());
     }
 
-    function _validateProtection(SignatureProtection memory protection) private view {
+    function _validateProtection(SignatureProtection calldata protection) private view {
         if (protection.deadline < block.timestamp) {
             revert SignatureExpired();
         }
