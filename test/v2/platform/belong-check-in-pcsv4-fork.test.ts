@@ -251,7 +251,6 @@ describe('BelongCheckIn BSC PancakeSwapV4', () => {
       dexType: DexType.PcsV4,
       slippageBps: SLIPPAGE_1pct_27dec,
       router: mockRouter.address,
-      quoter: mockQuoter.address,
       usdToken: USDT.address,
       long: CAKE.address,
       maxPriceFeedDelay: MAX_PRICEFEED_DELAY,
@@ -354,7 +353,6 @@ describe('BelongCheckIn BSC PancakeSwapV4', () => {
         dexType: belongCheckInStorage.paymentsInfo.dexType,
         slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
         router: belongCheckInStorage.paymentsInfo.router,
-        quoter: belongCheckInStorage.paymentsInfo.quoter,
         usdToken: belongCheckInStorage.paymentsInfo.usdToken,
         long: belongCheckInStorage.paymentsInfo.long,
         maxPriceFeedDelay: belongCheckInStorage.paymentsInfo.maxPriceFeedDelay,
@@ -396,7 +394,6 @@ describe('BelongCheckIn BSC PancakeSwapV4', () => {
           dexType: DexType.PcsV4,
           slippageBps: 10,
           router: belongCheckIn.address,
-          quoter: belongCheckIn.address,
           usdToken: belongCheckIn.address,
           long: belongCheckIn.address,
           maxPriceFeedDelay: 10,
@@ -430,7 +427,6 @@ describe('BelongCheckIn BSC PancakeSwapV4', () => {
         dexType: DexType.PcsV4,
         slippageBps: BigNumber.from(10).pow(27).sub(1),
         router: paymentsInfo.router,
-        quoter: paymentsInfo.quoter,
         usdToken: paymentsInfo.usdToken,
         long: paymentsInfo.long,
         maxPriceFeedDelay: MAX_PRICEFEED_DELAY,
@@ -523,7 +519,6 @@ describe('BelongCheckIn BSC PancakeSwapV4', () => {
         dexType: belongCheckInStorage.paymentsInfo.dexType,
         slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
         router: belongCheckInStorage.paymentsInfo.router,
-        quoter: belongCheckInStorage.paymentsInfo.quoter,
         usdToken: belongCheckInStorage.paymentsInfo.usdToken,
         long: belongCheckInStorage.paymentsInfo.long,
         maxPriceFeedDelay: belongCheckInStorage.paymentsInfo.maxPriceFeedDelay,
@@ -2989,7 +2984,7 @@ describe('BelongCheckIn BSC PancakeSwapV4', () => {
           USDT.address,
           await helper.standardize(
             CAKE.address,
-            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount.div(2)),
+            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount),
           ),
         ),
       );
@@ -3150,7 +3145,7 @@ describe('BelongCheckIn BSC PancakeSwapV4', () => {
           USDT.address,
           await helper.standardize(
             CAKE.address,
-            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount.div(2)),
+            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount),
           ),
         ),
       );
@@ -3311,7 +3306,7 @@ describe('BelongCheckIn BSC PancakeSwapV4', () => {
           USDT.address,
           await helper.standardize(
             CAKE.address,
-            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount.div(2)),
+            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount),
           ),
         ),
       );
@@ -3478,7 +3473,7 @@ describe('BelongCheckIn BSC PancakeSwapV4', () => {
           USDT.address,
           await helper.standardize(
             CAKE.address,
-            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount.div(2)),
+            await helper.calculateRate(customerInfo.toPromoter.spendBountyPercentage, customerAmount),
           ),
         ),
       );
