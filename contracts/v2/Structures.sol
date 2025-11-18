@@ -29,8 +29,6 @@ struct AccessTokenInfo {
     uint256 mintPrice;
     /// @notice Whitelist mint price.
     uint256 whitelistMintPrice;
-    /// @notice Optional collection expiration timestamp (seconds since epoch).
-    uint256 collectionExpire;
     /// @notice Collection name and symbol stored as NftMetadata struct.
     NftMetadata metadata;
     /// @notice Contract-level metadata URI.
