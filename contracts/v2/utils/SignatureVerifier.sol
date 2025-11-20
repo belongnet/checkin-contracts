@@ -413,6 +413,9 @@ library SignatureVerifier {
 
     function _enforceCanonicalSignature(bytes memory signature) private pure {
         uint256 signatureLength = signature.length;
+        if (signatureLength != 64 && signatureLength != 65) {
+            revert InvalidSignature(signature);
+        }
         if (signatureLength == 65) {
             bytes32 s;
             uint8 v;
