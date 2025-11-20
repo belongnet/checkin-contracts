@@ -129,9 +129,9 @@ library DualDexSwapV4Lib {
         require(params.tokens.length >= 2 || params.poolKeys.length == params.tokens.length - 1, PoolKeyMissing());
         require(info.router != address(0), RouterNotConfigured(info.dexType));
 
-        params.tokens[0].safeApproveWithRetry(info.router, params.amountIn);
-
         uint256 beforeBal = _balanceOf(params.tokens[params.tokens.length - 1], params.recipient);
+
+        params.tokens[0].safeApproveWithRetry(info.router, params.amountIn);
 
         if (info.dexType == DexType.UniV4) {
             _executeUniV4Path(info, params);
@@ -145,8 +145,7 @@ library DualDexSwapV4Lib {
 
         params.tokens[0].safeApprove(info.router, 0);
 
-        uint256 afterBal = _balanceOf(params.tokens[params.tokens.length - 1], params.recipient);
-        received = afterBal - beforeBal;
+        received = _balanceOf(params.tokens[params.tokens.length - 1], params.recipient) - beforeBal;
         require(received >= params.amountOutMinimum, QuoteFailed());
     }
 
@@ -234,8 +233,7 @@ library DualDexSwapV4Lib {
 
         params.tokenIn.safeApprove(info.router, 0);
 
-        uint256 balanceAfter = _balanceOf(params.tokenOut, params.recipient);
-        received = balanceAfter - balanceBefore;
+        received = _balanceOf(params.tokenOut, params.recipient) - balanceBefore;
     }
 
     function _executeOnUniswapV4(PaymentsInfo memory info, ExactInputSingleParams memory params) private {
@@ -357,8 +355,12 @@ library DualDexSwapV4Lib {
                 _validatePcsPoolKey(key, params.tokens[i], params.tokens[i + 1]);
             PcsCurrency inCurrency = zeroForOne ? key.currency0 : key.currency1;
 
-            if (i == 0) inputC = inCurrency;
-            if (i == params.poolKeys.length - 1) outputC = outCurrency;
+            if (i == 0) {
+                inputC = inCurrency;
+            }
+            if (i == params.poolKeys.length - 1) {
+                outputC = outCurrency;
+            }
 
             ICLRouterBase.CLSwapExactInputSingleParams memory hop = ICLRouterBase.CLSwapExactInputSingleParams({
                 poolKey: key,
