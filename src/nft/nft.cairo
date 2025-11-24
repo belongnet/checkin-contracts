@@ -403,7 +403,7 @@ pub mod NFT {
             token_uri: ByteArray,
         ) {
             assert(
-                token_id + 1 <= self.nft_parameters.max_total_supply.read(),
+                self.totalSupply() + 1 <= self.nft_parameters.max_total_supply.read(),
                 super::Errors::TOTAL_SUPPLY_LIMIT,
             );
 
