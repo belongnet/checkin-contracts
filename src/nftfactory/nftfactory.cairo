@@ -14,6 +14,8 @@ mod Errors {
     pub const REFFERAL_CODE_NOT_USED_BY_USER: felt252 = 'User code did not used';
     pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
     pub const WRONG_PERCENTAGES_LEN: felt252 = 'Wrong percentages length';
+    pub const WRONG_PLATFORM_COMMISSION: felt252 = 'Wrong platform commission set';
+    pub const WRONG_PERCENTAGE: felt252 = 'Wrong percentage value';
 }
 
 #[starknet::contract]
@@ -32,6 +34,7 @@ pub mod NFTFactory {
         access::ownable::OwnableComponent,
         upgrades::{UpgradeableComponent, interface::IUpgradeable},
         account::interface::{ISRC6Dispatcher, ISRC6DispatcherTrait},
+        token::common::erc2981::DefaultConfig,
     };
     use crate::{
         snip12::{
@@ -474,7 +477,9 @@ pub mod NFTFactory {
             assert(factory_parameters.signer.is_non_zero(), super::Errors::ZERO_ADDRESS);
             assert(factory_parameters.platform_address.is_non_zero(), super::Errors::ZERO_ADDRESS);
             assert(
-                factory_parameters.platform_commission.is_non_zero(), super::Errors::ZERO_AMOUNT,
+                factory_parameters.platform_commission.is_non_zero() &&
+                factory_parameters.platform_commission <= DefaultConfig::FEE_DENOMINATOR.into(),
+                super::Errors::WRONG_PLATFORM_COMMISSION,
             );
             self.factory_parameters.write(factory_parameters);
         }
@@ -482,12 +487,20 @@ pub mod NFTFactory {
         fn _set_referral_percentages(ref self: ContractState, percentages: Span<u16>) {
             assert(percentages.len() == 5, super::Errors::WRONG_PERCENTAGES_LEN);
 
-            for _ in 0..percentages.len() {
+            // Remove all existing entries by popping until empty (clear() is not available on storage Vec)
+            while self.used_to_percentage.len().is_non_zero() {
                 let _ = self.used_to_percentage.pop();
             };
 
+            let scaling_factor: u16 = 10000;
             for i in 0..percentages.len() {
-                self.used_to_percentage.push(*percentages.at(i));
+                let percentage_val = *percentages.at(i);
+                assert(
+                    percentage_val.is_non_zero() && percentage_val <= scaling_factor,
+                    super::Errors::WRONG_PERCENTAGE,
+                );
+
+                self.used_to_percentage.push(percentage_val);
             };
         }
 
