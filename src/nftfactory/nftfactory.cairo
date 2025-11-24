@@ -482,8 +482,12 @@ pub mod NFTFactory {
         fn _set_referral_percentages(ref self: ContractState, percentages: Span<u16>) {
             assert(percentages.len() == 5, super::Errors::WRONG_PERCENTAGES_LEN);
 
+            for _ in 0..percentages.len() {
+                let _ = self.used_to_percentage.pop();
+            };
+
             for i in 0..percentages.len() {
-                self.used_to_percentage.append().write(*percentages.at(i));
+                self.used_to_percentage.push(*percentages.at(i));
             };
         }
 
