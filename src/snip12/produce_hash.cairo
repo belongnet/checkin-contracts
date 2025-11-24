@@ -1,13 +1,19 @@
 use core::{poseidon::PoseidonTrait, hash::{HashStateExTrait, HashStateTrait}};
 use starknet::{ContractAddress, get_tx_info};
-use crate::snip12::{snip12::SNIP12::StarknetDomain, interfaces::{IMessageHash, IStructHash}};
+use crate::snip12::{
+    snip12::SNIP12::StarknetDomain, u256_hash::StructHashU256,
+    interfaces::{IMessageHash, IStructHash},
+};
 
 pub const MESSAGE_TYPE_HASH: felt252 = selector!(
-    "\"ProduceHash\"(\"creator_address\":\"ContractAddress\",\"name_hash\":\"felt\",\"symbol_hash\":\"felt\",\"contract_uri\":\"felt\",\"royalty_fraction\":\"u128\")",
+    "\"ProduceHash\"(\"verifying_contract\":\"ContractAddress\",\"nonce\":\"u128\",\"deadline\":\"u128\",\"creator_address\":\"ContractAddress\",\"name_hash\":\"felt\",\"symbol_hash\":\"felt\",\"contract_uri\":\"felt\",\"royalty_fraction\":\"u128\")",
 );
 
 #[derive(Hash, Drop, Copy)]
 pub struct ProduceHash {
+    pub verifying_contract: ContractAddress,
+    pub nonce: u128,
+    pub deadline: u128,
     pub creator_address: ContractAddress,
     pub name_hash: felt252,
     pub symbol_hash: felt252,

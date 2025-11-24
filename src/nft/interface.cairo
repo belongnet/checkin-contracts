@@ -1,4 +1,5 @@
 use starknet::ContractAddress;
+use crate::snip12::interfaces::SignatureProtection;
 
 #[derive(Drop, Serde, Copy, starknet::Store)]
 pub struct NftParameters {
@@ -22,7 +23,6 @@ pub struct DynamicPriceParameters {
     pub token_id: u256,
     pub price: u256,
     pub token_uri: ByteArray,
-    pub signature: Array<felt252>,
 }
 
 #[derive(Clone, Drop, Serde)]
@@ -31,7 +31,6 @@ pub struct StaticPriceParameters {
     pub token_id: u256,
     pub whitelisted: bool,
     pub token_uri: ByteArray,
-    pub signature: Array<felt252>,
 }
 
 #[starknet::interface]
@@ -49,12 +48,14 @@ pub trait INFT<TState> {
 
     fn mintDynamicPrice(
         ref self: TState,
+        signaturesProtection: Array<SignatureProtection>,
         dynamicParams: Array<DynamicPriceParameters>,
         expectedPayingToken: ContractAddress,
     );
 
     fn mintStaticPrice(
         ref self: TState,
+        signaturesProtection: Array<SignatureProtection>,
         staticParams: Array<StaticPriceParameters>,
         expectedPayingToken: ContractAddress,
         expectedMintPrice: u256,

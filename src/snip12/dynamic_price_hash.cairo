@@ -5,13 +5,15 @@ use crate::snip12::{
     interfaces::{IMessageHash, IStructHash},
 };
 
-
 pub const MESSAGE_TYPE_HASH: felt252 = selector!(
-    "\"DynamicPriceHash\"(\"receiver\":\"ContractAddress\",\"token_id\":\"u256\",\"price\":\"u256\",\"token_uri\":\"felt\")\"u256\"(\"low\":\"u128\",\"high\":\"u128\")",
+    "\"DynamicPriceHash\"(\"verifying_contract\":\"ContractAddress\",\"nonce\":\"u128\",\"deadline\":\"u128\",\"receiver\":\"ContractAddress\",\"token_id\":\"u256\",\"price\":\"u256\",\"token_uri\":\"felt\")\"u256\"(\"low\":\"u128\",\"high\":\"u128\")",
 );
 
 #[derive(Hash, Drop, Copy)]
 pub struct DynamicPriceHash {
+    pub verifying_contract: ContractAddress,
+    pub nonce: u128,
+    pub deadline: u128,
     pub receiver: ContractAddress,
     pub token_id: u256,
     pub price: u256,
@@ -37,6 +39,9 @@ impl StructDynamicPriceHash of IStructHash<DynamicPriceHash> {
     fn get_struct_hash(self: @DynamicPriceHash) -> felt252 {
         let mut state = PoseidonTrait::new();
         state = state.update_with(MESSAGE_TYPE_HASH);
+        state = state.update_with(*self.verifying_contract);
+        state = state.update_with(*self.nonce);
+        state = state.update_with(*self.deadline);
         state = state.update_with(*self.receiver);
         state = state.update_with(self.token_id.get_struct_hash());
         state = state.update_with(self.price.get_struct_hash());

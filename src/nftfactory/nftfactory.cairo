@@ -34,7 +34,10 @@ pub mod NFTFactory {
         account::interface::{ISRC6Dispatcher, ISRC6DispatcherTrait},
     };
     use crate::{
-        snip12::produce_hash::{MessageProduceHash, ProduceHash},
+        snip12::{
+            produce_hash::{MessageProduceHash, ProduceHash},
+            interfaces::SignatureProtection
+        },
         nftfactory::interface::{INFTFactory, FactoryParameters, NftInfo, InstanceInfo},
         nft::interface::{INFTDispatcher, INFTDispatcherTrait, NftParameters},
     };
@@ -146,9 +149,9 @@ pub mod NFTFactory {
         }
 
         fn produce(
-            ref self: ContractState, instance_info: InstanceInfo,
+            ref self: ContractState, signature_protection: SignatureProtection, instance_info: InstanceInfo,
         ) -> (ContractAddress, ContractAddress) {
-            let (deployed_address, receiver_address) = self._produce(instance_info);
+            let (deployed_address, receiver_address) = self._produce(signature_protection, instance_info);
             (deployed_address, receiver_address)
         }
 
@@ -262,7 +265,7 @@ pub mod NFTFactory {
     #[generate_trait]
     impl InternalImpl of InternalTrait {
         fn _produce(
-            ref self: ContractState, instance_info: InstanceInfo,
+            ref self: ContractState, signature_protection: SignatureProtection, instance_info: InstanceInfo,
         ) -> (ContractAddress, ContractAddress) {
             let info = instance_info.clone();
 
@@ -287,6 +290,9 @@ pub mod NFTFactory {
             let signer = ISRC6Dispatcher { contract_address: signerAddress };
 
             let message = ProduceHash {
+                verifying_contract: get_contract_address(),
+                nonce: signature_protection.nonce,
+                deadline: signature_protection.deadline,
                 name_hash: metadata_name_hash,
                 symbol_hash: metadata_symbol_hash,
                 contract_uri_hash: contract_uri_hash,
@@ -295,7 +301,7 @@ pub mod NFTFactory {
             };
 
             let hash = message.get_message_hash(signerAddress);
-            let is_valid_signature_felt = signer.is_valid_signature(hash, info.signature);
+            let is_valid_signature_felt = signer.is_valid_signature(hash, signature_protection.signature);
             assert(
                 is_valid_signature_felt == starknet::VALIDATED || is_valid_signature_felt == 1,
                 super::Errors::VALIDATION_ERROR,
@@ -323,7 +329,7 @@ pub mod NFTFactory {
                 array![
                     metadata_name_hash,
                     metadata_symbol_hash,
-                    get_caller_address().into(),
+                    info.creator_address.into(),
                     get_tx_info().unbox().nonce,
                 ]
                     .span(),
@@ -331,12 +337,12 @@ pub mod NFTFactory {
 
             // Deploy receiver contract if royalty_fraction is non-zero
             let mut receiver_address: ContractAddress = contract_address_const::<0>();
-            self._set_referral_user(info.referral_code, get_caller_address());
+            self._set_referral_user(info.referral_code, info.creator_address);
             if info.royalty_fraction.is_non_zero() {
                 let referral_creator = self._get_referral_creator(info.referral_code);
                 let receiver_constructor_calldata: Array<felt252> = array![
                     info.referral_code,
-                    get_caller_address().into(),
+                    info.creator_address.into(),
                     self.factory_parameters.platform_address.read().into(),
                     referral_creator.into(),
                 ];
@@ -352,7 +358,7 @@ pub mod NFTFactory {
             }
 
             let mut nft_constructor_calldata: Array<felt252> = array![];
-            nft_constructor_calldata.append_serde(get_caller_address());
+            nft_constructor_calldata.append_serde(info.creator_address);
             nft_constructor_calldata.append_serde(get_contract_address());
             nft_constructor_calldata.append_serde(info.name.clone());
             nft_constructor_calldata.append_serde(info.symbol.clone());
@@ -373,7 +379,7 @@ pub mod NFTFactory {
                     NftInfo {
                         name: info.name.clone(),
                         symbol: info.symbol.clone(),
-                        creator: get_caller_address(),
+                        creator: info.creator_address,
                         nft_address,
                         receiver_address,
                     },
@@ -384,7 +390,7 @@ pub mod NFTFactory {
                     Event::ProducedEvent(
                         Produced {
                             nft_address,
-                            creator: get_caller_address(),
+                            creator: info.creator_address,
                             receiver_address,
                             name: info.name,
                             symbol: info.symbol,

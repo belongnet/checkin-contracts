@@ -1,6 +1,13 @@
 /// Reference to SNIP-12: https://github.com/starknet-io/SNIPs/blob/main/SNIPS/snip-12.md
 use starknet::ContractAddress;
 
+#[derive(Clone, Drop, Serde)]
+pub struct SignatureProtection {
+    pub nonce: u128,
+    pub deadline: u128,
+    pub signature: Array<felt252>,
+}
+
 /// @notice Defines the function to generate the SNIP-12
 pub trait IMessageHash<T> {
     fn get_message_hash(self: @T, signer: ContractAddress) -> felt252;
