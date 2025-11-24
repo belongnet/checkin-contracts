@@ -4,8 +4,10 @@ mod Errors {
     pub const INITIALIZED: felt252 = 'Contract is already initialized';
     pub const ZERO_ADDRESS: felt252 = 'Zero address passed';
     pub const ZERO_AMOUNT: felt252 = 'Zero amount passed';
-    pub const EMPTY_NAME: felt252 = 'Name is empty';
-    pub const EMPTY_SYMBOL: felt252 = 'Symbol is empty';
+    pub const EMPTY_STRING: felt252 = 'Empty string';
+    pub const OOB_INDEX: felt252 = 'Index out of bounds';
+    pub const BAD_CHAR: felt252 = 'Bad char';
+    pub const NON_ASCII: felt252 = 'Non ASCII';
     pub const NFT_EXISTS: felt252 = 'NFT is already exists';
     pub const NFT_NOT_EXISTS: felt252 = 'NFT is not exists';
     pub const REFFERAL_CODE_EXISTS: felt252 = 'Referral code is already exists';
@@ -271,9 +273,9 @@ pub mod NFTFactory {
             ref self: ContractState, signature_protection: SignatureProtection, instance_info: InstanceInfo,
         ) -> (ContractAddress, ContractAddress) {
             let info = instance_info.clone();
-
-            assert(info.name.len().is_non_zero(), super::Errors::EMPTY_NAME);
-            assert(info.symbol.len().is_non_zero(), super::Errors::EMPTY_SYMBOL);
+            
+            self._assert_snip12_identifier(info.name.clone());
+            self._assert_snip12_identifier(info.symbol.clone());
 
             let metadata_name_hash: felt252 = info.name.hash();
             let metadata_symbol_hash: felt252 = info.symbol.hash();
@@ -459,7 +461,7 @@ pub mod NFTFactory {
             };
 
             if (!inArray) {
-                self.referrals.entry(referral_code).referral_users.append().write(referral_user);
+                self.referrals.entry(referral_code).referral_users.push(referral_user);
             }
 
             let used_code = self.used_code.entry(referral_user).entry(referral_code).read();
@@ -536,5 +538,19 @@ pub mod NFTFactory {
 
             creator
         }
+
+        fn _assert_snip12_identifier(self: @ContractState, id: ByteArray) {
+            // allowed: ASCII letters/digits/space/-/_/./ (adjust to SNIP-12 set)
+            let len = id.len();
+            assert(len.is_non_zero(), super::Errors::EMPTY_STRING);
+
+            for i in 0..len {
+                // `at` returns an Option; range is bounded by len so unwrap is safe.
+                let b = id.at(i).expect(super::Errors::OOB_INDEX);
+                assert(b != '(' && b != ')' && b != ',', super::Errors::BAD_CHAR);
+                assert(b >= 0x20 && b <= 0x7E, super::Errors::NON_ASCII);
+            }
+        }
+
     }
 }
