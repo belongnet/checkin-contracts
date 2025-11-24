@@ -102,7 +102,6 @@ fn deploy_factory_nft_receiver_erc20(
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        collection_expires: constants::EXPIRES(),
         referral_code,
         signature,
     };

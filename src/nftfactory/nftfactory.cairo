@@ -319,7 +319,6 @@ pub mod NFTFactory {
                 mint_price: info.mint_price,
                 whitelisted_mint_price: info.whitelisted_mint_price,
                 max_total_supply: info.max_total_supply,
-                collection_expires: info.collection_expires,
                 transferrable: info.transferrable,
                 referral_code: info.referral_code,
             };

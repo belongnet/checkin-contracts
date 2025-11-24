@@ -31,7 +31,6 @@ pub struct InstanceInfo {
     pub max_total_supply: u256, // The max total supply of a new collection
     pub mint_price: u256, // Mint price of a token from a new collection
     pub whitelisted_mint_price: u256, // Mint price for whitelisted users
-    pub collection_expires: u256, // Collection expiration period (timestamp)
     pub referral_code: felt252,
 }
 

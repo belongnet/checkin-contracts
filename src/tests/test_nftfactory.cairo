@@ -99,7 +99,6 @@ fn deploy_initialize_produce(
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        collection_expires: constants::EXPIRES(),
         referral_code: '',
         signature,
     };
@@ -467,7 +466,6 @@ fn test_produce() {
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        collection_expires: constants::EXPIRES(),
         referral_code,
         signature,
     };
@@ -545,7 +543,6 @@ fn test_produce_signature() {
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        collection_expires: constants::EXPIRES(),
         referral_code: '',
         signature,
     };
@@ -592,7 +589,6 @@ fn test_produce_with_referral_code() {
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        collection_expires: constants::EXPIRES(),
         referral_code: code,
         signature,
     };
@@ -657,7 +653,6 @@ fn test_produce_with_referral_code_refer_to_self() {
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        collection_expires: constants::EXPIRES(),
         referral_code: code,
         signature,
     };
@@ -704,7 +699,6 @@ fn test_produce_referral_code_exist() {
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        collection_expires: constants::EXPIRES(),
         referral_code: constants::REFERRAL_CODE(),
         signature,
     };
@@ -769,7 +763,6 @@ fn test_produce_with_multiple_referral_code_usage() {
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        collection_expires: constants::EXPIRES(),
         referral_code: code,
         signature,
     };

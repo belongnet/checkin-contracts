@@ -12,7 +12,6 @@ pub struct NftParameters {
     pub mint_price: u256, // Mint price of a token from a new collection
     pub whitelisted_mint_price: u256, // Mint price for whitelisted users
     pub max_total_supply: u256, // The max total supply of a new collection
-    pub collection_expires: u256, // Collection expiration period (timestamp)
     pub transferrable: bool,
     pub referral_code: felt252,
 }

@@ -124,7 +124,6 @@ fn deploy_factory_nft_receiver_erc20(
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        collection_expires: constants::EXPIRES(),
         referral_code: referral,
         signature,
     };
@@ -196,7 +195,6 @@ fn test_initialize() {
         mint_price: 200,
         whitelisted_mint_price: 100,
         max_total_supply: 1000,
-        collection_expires: 1010101010110010100,
         transferrable: true,
         referral_code: '0x000',
     };
@@ -211,7 +209,6 @@ fn test_initialize() {
     assert_eq!(nft.nftParameters().whitelisted_mint_price, nft_parameters.whitelisted_mint_price);
     assert_eq!(nft.nftParameters().max_total_supply, nft_parameters.max_total_supply);
     assert_eq!(nft.nftParameters().max_total_supply, nft_parameters.max_total_supply);
-    assert_eq!(nft.nftParameters().collection_expires, nft_parameters.collection_expires);
     assert_eq!(nft.nftParameters().transferrable, nft_parameters.transferrable);
     assert_eq!(nft.nftParameters().referral_code, nft_parameters.referral_code);
 
@@ -233,7 +230,6 @@ fn test_initialize_only_once() {
         mint_price: 200,
         whitelisted_mint_price: 100,
         max_total_supply: 1000,
-        collection_expires: 1010101010110010100,
         transferrable: true,
         referral_code: '0x000',
     };
@@ -309,7 +305,6 @@ fn test_setPaymentInfo_zero_amount() {
         mint_price: 200,
         whitelisted_mint_price: 100,
         max_total_supply: 1000,
-        collection_expires: 1010101010110010100,
         transferrable: true,
         referral_code: '0x000',
     };
