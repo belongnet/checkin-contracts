@@ -76,9 +76,9 @@ pub mod Receiver {
         self.shares.entry(creator).write(AMOUNT_TO_CREATOR.into());
         self.shares.entry(platform).write(amount_to_platform.try_into().unwrap());
 
-        self.payees.append().write(creator);
-        self.payees.append().write(platform);
-        self.payees.append().write(referral);
+        self.payees.push(creator);
+        self.payees.push(platform);
+        self.payees.push(referral);
     }
 
     #[abi(embed_v0)]
