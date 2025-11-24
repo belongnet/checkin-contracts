@@ -227,7 +227,7 @@ pub mod NFT {
         }
 
         fn isWhitelisted(self: @ContractState, whitelisted: ContractAddress) -> bool {
-            self.nft_node.whitelisted.read(whitelisted)
+            self.is_whitelisted(whitelisted)
         }
 
         fn tokenUriHash(self: @ContractState, token_uri: ByteArray) -> felt252 {
@@ -374,6 +374,7 @@ pub mod NFT {
                     is_valid_signature_felt == starknet::VALIDATED || is_valid_signature_felt == 1,
                     super::Errors::VALIDATION_ERROR,
                 );
+                assert(self.is_whitelisted(*params_ref.receiver) == *params_ref.whitelisted, super::Errors::VALIDATION_ERROR);
 
                 let mint_price = if *params_ref.whitelisted {
                     self.nft_parameters.whitelisted_mint_price.read()
@@ -490,6 +491,10 @@ pub mod NFT {
 
         fn _token_uri_hash(self: @ContractState, token_uri: ByteArray) -> felt252 {
             token_uri.hash()
+        }
+
+        fn is_whitelisted(self: @ContractState, whitelisted: ContractAddress) -> bool {
+            self.nft_node.whitelisted.read(whitelisted)
         }
     }
 }
