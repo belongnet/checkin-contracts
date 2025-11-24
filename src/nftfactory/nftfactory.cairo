@@ -24,7 +24,7 @@ mod Errors {
 pub mod NFTFactory {
     use core::{num::traits::Zero, traits::Into, poseidon::poseidon_hash_span};
     use starknet::{
-        ContractAddress, ClassHash, SyscallResultTrait, event::EventEmitter, contract_address_const,
+        ContractAddress, ClassHash, SyscallResultTrait, event::EventEmitter,
         get_caller_address, get_contract_address, get_tx_info, syscalls::deploy_syscall,
         storage::{
             StoragePointerReadAccess, StoragePointerWriteAccess, Map, StorageMapReadAccess,
@@ -340,7 +340,7 @@ pub mod NFTFactory {
             );
 
             // Deploy receiver contract if royalty_fraction is non-zero
-            let mut receiver_address: ContractAddress = contract_address_const::<0>();
+            let mut receiver_address: ContractAddress = Zero::zero();
             self._set_referral_user(info.referral_code, info.creator_address);
             if info.royalty_fraction.is_non_zero() {
                 let referral_creator = self._get_referral_creator(info.referral_code);
