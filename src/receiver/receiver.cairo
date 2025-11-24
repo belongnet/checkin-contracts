@@ -87,13 +87,6 @@ pub mod Receiver {
             self._release_all(payment_token);
         }
 
-        fn release(ref self: ContractState, payment_token: ContractAddress, to: ContractAddress) {
-            assert(to.is_non_zero(), super::Errors::ZERO_ADDRESS);
-            self._only_to_payee(to);
-            let to_release = self._release(payment_token, to);
-            assert(to_release.is_non_zero(), super::Errors::ACCOUNT_NOT_DUE_PAYMENT);
-        }
-
         fn released(self: @ContractState, account: ContractAddress) -> u256 {
             self.released.read(account)
         }

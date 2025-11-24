@@ -183,55 +183,6 @@ fn test_deploy_referral() {
 }
 
 #[test]
-#[should_panic(expected: 'Only payee call')]
-fn test_release() {
-    let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
-    IERC20MintableDispatcher { contract_address: erc20 }.mint(_receiver, 100000);
-
-    let receiver = IReceiverDispatcher { contract_address: _receiver };
-
-    let mut spy = spy_events();
-
-    receiver.release(erc20, constants::CREATOR());
-
-    spy
-        .assert_emitted(
-            @array![
-                (
-                    _receiver,
-                    Receiver::Event::PaymentReleasedEvent(
-                        Receiver::PaymentReleased {
-                            payment_token: erc20, payee: constants::CREATOR(), released: 80000,
-                        },
-                    ),
-                ),
-            ],
-        );
-
-    assert_eq!(receiver.released(constants::CREATOR()), 80000);
-    assert_eq!(receiver.totalReleased(), 80000);
-
-    // Throws: 'Only payee call'
-    receiver.release(erc20, erc20);
-}
-
-#[test]
-#[should_panic(expected: 'Account not due payment')]
-fn test_release_account_due_payment() {
-    let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
-    IERC20MintableDispatcher { contract_address: erc20 }.mint(_receiver, 100000);
-
-    let receiver = IReceiverDispatcher { contract_address: _receiver };
-
-    start_cheat_caller_address(_receiver, constants::CREATOR());
-
-    receiver.release(erc20, constants::CREATOR());
-
-    // Throws: 'Account not due payment'
-    receiver.release(erc20, constants::CREATOR());
-}
-
-#[test]
 fn test_releaseAll() {
     let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
     IERC20MintableDispatcher { contract_address: erc20 }.mint(_receiver, 100000);
