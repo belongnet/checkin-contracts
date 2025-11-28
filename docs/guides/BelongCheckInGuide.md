@@ -256,6 +256,7 @@ All scripts write back to `deployments/chainId-<id>.json` after every successful
 Use `scripts/mainnet-deployment/belong-checkin/14-deploy-vesting-wallet.ts` to mint ERC1967 vesting wallet proxies through the Factory. The script signs the payload with the backend signer, validates balances/allowance, and records the deployed wallet in `deployments/chainId-<id>.json` under `vestingWallets`.
 
 **What it does**
+
 - Hashes + signs the vesting payload with `SIGNER_PK`.
 - Checks sender balance, resets/sets allowance to Factory, and funds the wallet with `totalAllocation`.
 - Deploys via `Factory.deployVestingWallet` (deterministic salt per beneficiary/index) and saves the new entry.
@@ -305,6 +306,7 @@ Check `deployments/chainId-<id>.json` for the new entry (`vestingWallets[<index>
 `scripts/mainnet-deployment/belong-checkin/15-deploy-vesting-wallet-direct.ts` deploys a UUPS proxy for `VestingWalletExtended` without the Factory. It initializes the schedule and can optionally fund the wallet with the full allocation.
 
 **What it does**
+
 - Deploys a standalone proxy (no signature/Factory salt).
 - Initializes with the provided vesting params.
 - Optionally transfers `totalAllocation` from sender to the new wallet when `FUND=true`.
