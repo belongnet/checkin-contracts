@@ -77,7 +77,6 @@ BAND=1200                          # Tick radius for add-liquidity if you do not
 ```
 
 > `LONG_ADDRESS` is inferred from deployments in most scripts, but liquidity helpers expect it as an explicit env var.
-```
 
 ---
 
@@ -215,16 +214,60 @@ All scripts write back to `deployments/chainId-<id>.json` after every successful
 
 ---
 
+## Vesting wallets – shared rules (Factory & Direct)
+
+**How amounts work**
+
+- `totalAllocation` must be **>=** `tgeAmount + linearAllocation + Σ(tranches)`.
+- When `durationSeconds = 0`, `linearAllocation` **must** be `0` (pure TGE and/or tranches).
+- Deployment scripts only wire TGE + linear; step-based tranches can be added later on the vesting wallet by the owner via `addTranche` / `addTranches`, then locked with `finalizeTranchesConfiguration`.
+
+**Common schedules**
+
+- **TGE only**: `durationSeconds=0`, `cliffDurationSeconds=0`, `linearAllocation=0`, `tgeAmount = totalAllocation`.
+- **Cliffed linear**: `tgeAmount` (optional), `cliffDurationSeconds>0`, `durationSeconds>0`, `linearAllocation = totalAllocation - tgeAmount - Σ(tranches)` (Σ(tranches)=0 if you skip tranches).
+- **Pure step-based**: `durationSeconds=0`, `linearAllocation=0`, choose any `tgeAmount`, then add tranches on the deployed wallet until `tge + Σ(tranches) = totalAllocation`, finalize, then release.
+- **Mixed**: combine TGE + cliffed linear + future tranches; ensure totals balance before finalization.
+
+**Combinations cheat-sheet**
+
+- Instant TGE only: `tgeAmount = totalAllocation`, `linearAllocation = 0`, `durationSeconds = 0`.
+- TGE + cliffed linear: `tgeAmount > 0`, `cliffDurationSeconds > 0`, `durationSeconds > 0`, `linearAllocation = totalAllocation - tgeAmount`.
+- Linear with no TGE: `tgeAmount = 0`, `cliffDurationSeconds >= 0`, `durationSeconds > 0`, `linearAllocation = totalAllocation`.
+- Linear starting immediately: `cliffDurationSeconds = 0`, `durationSeconds > 0`, `tgeAmount` optional.
+- Step-only with optional TGE: `durationSeconds = 0`, `linearAllocation = 0`, pick `tgeAmount`, then add tranches so `tge + Σ(tranches) = totalAllocation`.
+- Mixed (TGE + linear + tranches): pick any `tgeAmount`, set `linearAllocation`, leave the rest for tranches; totals must equal `totalAllocation`.
+
+---
+
+### Vesting wallet scenarios & options
+
+- **Factory-signed vs direct**: Use script 14 for signer-validated factory deployments (transfers funds from caller to the proxy); use script 15 for a standalone proxy without signatures or Factory.
+- **Funded vs unfunded**: Factory path always funds from caller → wallet. Direct path can skip funding with `FUND=false` and let another party top up later.
+- **Multiple wallets per beneficiary**: Factory supports `keccak256(beneficiary, index)` salts—rerun with the same beneficiary to create indexed wallets; direct deployments are independent addresses.
+- **When to use tranches**: Start with TGE and/or linear, then add tranches on the deployed wallet (`addTranche` / `addTranches`) and lock with `finalizeTranchesConfiguration` once `tge + linear + Σ(tranches) = totalAllocation`.
+- **Release flow**: After finalization, beneficiary (or anyone) can call `releasable()` to preview and `release()` to pull vested tokens; nothing can be released before configuration is finalized.
+- **Cliff behavior**: Linear vesting begins at `start + cliffDurationSeconds`; TGE can still occur at `start` even with a non-zero cliff.
+
+---
+
 ## Vesting Wallet Deployment (Factory)
 
 Use `scripts/mainnet-deployment/belong-checkin/14-deploy-vesting-wallet.ts` to mint ERC1967 vesting wallet proxies through the Factory. The script signs the payload with the backend signer, validates balances/allowance, and records the deployed wallet in `deployments/chainId-<id>.json` under `vestingWallets`.
 
+**What it does**
+- Hashes + signs the vesting payload with `SIGNER_PK`.
+- Checks sender balance, resets/sets allowance to Factory, and funds the wallet with `totalAllocation`.
+- Deploys via `Factory.deployVestingWallet` (deterministic salt per beneficiary/index) and saves the new entry.
+
 **Prerequisites**
+
 - Factory deployed and configured with `implementations.vestingWallet`.
 - Vesting token minted to the deployer (script sender) with at least `totalAllocation`.
 - Backend signer private key (`SIGNER_PK`) for `checkVestingWalletInfo`.
 
 **Env vars**
+
 ```ini
 SIGNER_PK=<backend-signer-hex>          # required
 FACTORY_ADDRESS=0x...                   # optional, falls back to deployments.factory.proxy
@@ -249,30 +292,64 @@ DEPLOY=true                              # default when unset
 VERIFY=false                             # set true to verify
 ```
 
-**How amounts work**
-- `totalAllocation` must be **>=** `tgeAmount + linearAllocation + Σ(tranches)`.
-- When `durationSeconds = 0`, `linearAllocation` **must** be `0` (pure TGE and/or tranches).
-- The script only wires TGE + linear; step-based tranches can be added later on the vesting wallet by the owner via `addTranche` / `addTranches`, then locked with `finalizeTranchesConfiguration`.
-
-**Common schedules**
-- **TGE only**: `durationSeconds=0`, `cliffDurationSeconds=0`, `linearAllocation=0`, `tgeAmount = totalAllocation`.
-- **Cliffed linear**: `tgeAmount` (optional), `cliffDurationSeconds>0`, `durationSeconds>0`, `linearAllocation = totalAllocation - tgeAmount - Σ(tranches)` (Σ(tranches)=0 if you skip tranches).
-- **Pure step-based**: `durationSeconds=0`, `linearAllocation=0`, choose any `tgeAmount`, then add tranches on the deployed wallet until `tge + Σ(tranches) = totalAllocation`, finalize, then release.
-- **Mixed**: combine TGE + cliffed linear + future tranches; ensure totals balance before finalization.
-
-**Combinations cheat-sheet**
-- Instant TGE only: `tgeAmount = totalAllocation`, `linearAllocation = 0`, `durationSeconds = 0`.
-- TGE + cliffed linear: `tgeAmount > 0`, `cliffDurationSeconds > 0`, `durationSeconds > 0`, `linearAllocation = totalAllocation - tgeAmount`.
-- Linear with no TGE: `tgeAmount = 0`, `cliffDurationSeconds >= 0`, `durationSeconds > 0`, `linearAllocation = totalAllocation`.
-- Linear starting immediately: `cliffDurationSeconds = 0`, `durationSeconds > 0`, `tgeAmount` optional.
-- Step-only with optional TGE: `durationSeconds = 0`, `linearAllocation = 0`, pick `tgeAmount`, then add tranches so `tge + Σ(tranches) = totalAllocation`.
-- Mixed (TGE + linear + tranches): pick any `tgeAmount`, set `linearAllocation`, leave the rest for tranches; totals must equal `totalAllocation`.
-
 **Run**
+
 ```bash
 yarn hardhat run scripts/mainnet-deployment/belong-checkin/14-deploy-vesting-wallet.ts --network <net>
 ```
+
 Check `deployments/chainId-<id>.json` for the new entry (`vestingWallets[<index>]`) containing the vesting wallet address, token, beneficiary, and tx hash.
+
+## Vesting Wallet Deployment (Direct, no Factory)
+
+`scripts/mainnet-deployment/belong-checkin/15-deploy-vesting-wallet-direct.ts` deploys a UUPS proxy for `VestingWalletExtended` without the Factory. It initializes the schedule and can optionally fund the wallet with the full allocation.
+
+**What it does**
+- Deploys a standalone proxy (no signature/Factory salt).
+- Initializes with the provided vesting params.
+- Optionally transfers `totalAllocation` from sender to the new wallet when `FUND=true`.
+
+**Prerequisites**
+
+- Vesting token minted to the deployer (script sender) with at least `totalAllocation` if `FUND` is enabled.
+- No Factory needed; this is a standalone proxy.
+
+**Env vars**
+
+```ini
+VESTING_OWNER=0x...                   # optional owner (defaults to msg.sender)
+VESTING_BENEFICIARY=0x...             # required recipient
+VESTING_TOKEN=0x...                   # ERC20 address (defaults to deployments.tokens.long)
+VESTING_DESCRIPTION="Manual vesting"  # optional
+
+VESTING_START_TIMESTAMP=1718000000    # required; Unix seconds (TGE)
+VESTING_CLIFF_DURATION_SECONDS=0      # optional; defaults 0
+VESTING_DURATION_SECONDS=0            # optional; defaults 0
+
+# Amounts (pick ONE per line: human-readable OR raw base units)
+VESTING_TOTAL_ALLOCATION=100000
+VESTING_TOTAL_RAW=100000000000000000000
+VESTING_TGE_AMOUNT=10000              # optional; defaults 0
+VESTING_TGE_RAW=10000000000000000000
+VESTING_LINEAR_AMOUNT=90000           # optional; defaults 0
+VESTING_LINEAR_RAW=90000000000000000000
+
+DEPLOY=true                            # default when unset
+VERIFY=false                           # set true to verify
+FUND=true                              # transfer totalAllocation to the vesting wallet (set to false to skip)
+```
+
+**Notes**
+
+- Validations mirror the Factory script: `durationSeconds=0` requires `linearAllocation=0`, and `tge + linear <= totalAllocation`.
+- When `FUND=true`, the script checks sender balance and transfers `totalAllocation` to the new wallet; otherwise, fund it manually later.
+- Outputs are appended to `deployments/chainId-<id>.json` under `vestingWallets` with `factory: null`.
+
+**Run**
+
+```bash
+yarn hardhat run scripts/mainnet-deployment/belong-checkin/15-deploy-vesting-wallet-direct.ts --network <net>
+```
 
 ---
 
