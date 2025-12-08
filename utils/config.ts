@@ -45,7 +45,7 @@ export function createLedgerConnect(chainId: ChainIds, ledgerAccounts: string[],
 
 const allSlugs = Object.keys(chainConfig as Record<string, ChainConfig>);
 
-export function getBlockscanConfig(slug: string): CustomChain {
+export function getBlockscanConfig(slug: string, apiVersion: 'v1' | 'v2' = 'v2'): CustomChain {
   const entry = (chainConfig as Record<string, ChainConfig>)[slug];
 
   if (!entry) {
@@ -53,7 +53,20 @@ export function getBlockscanConfig(slug: string): CustomChain {
   }
 
   const { chainId, explorer, api } = entry;
-  const apiURL = api ?? `https://api.etherscan.io/v2/api?chainid=${chainId}`;
+
+  let apiURL: string;
+  if (apiVersion === 'v1') {
+    // derive host from api if present, else from explorer
+    const source = api ?? explorer;
+    try {
+      const parsed = new URL(source);
+      apiURL = `${parsed.protocol}//${parsed.hostname}/api`;
+    } catch {
+      apiURL = `https://api.etherscan.io/api`;
+    }
+  } else {
+    apiURL = api ?? `https://api.etherscan.io/v2/api?chainid=${chainId}`;
+  }
 
   return {
     network: slug,
@@ -65,9 +78,10 @@ export function getBlockscanConfig(slug: string): CustomChain {
 export const blockscanConfig = (
   slug: string,
   chainId?: ChainIds,
-  _options?: { apiVersion?: 'v1' | 'v2' },
+  options?: { apiVersion?: 'v1' | 'v2' },
 ): CustomChain => {
-  const config = getBlockscanConfig(slug);
+  const apiVersion = options?.apiVersion ?? 'v2';
+  const config = getBlockscanConfig(slug, apiVersion);
 
   if (chainId && config.chainId !== chainId) {
     throw new Error(`Chain ID mismatch for '${slug}': expected ${chainId}, found ${config.chainId}`);
