@@ -85,7 +85,7 @@ export async function deployFactory(
   });
   const factory: Factory = (await upgrades.deployProxy(
     Factory,
-    [factoryParams, royalties, implementations, referralPercentages],
+    [factoryParams, royalties, implementations, referralPercentages, 20],
     {
       unsafeAllow: ['constructor'],
       unsafeAllowLinkedLibraries: true,
