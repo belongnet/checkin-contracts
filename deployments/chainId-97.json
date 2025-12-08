@@ -1,0 +1,21 @@
+{
+  "libraries": {
+    "sigantureVerifier": "0xf83460fE951b741f5b3D6d510202675a1625b927",
+    "helper": "0x4beE9f94C187e80BDab296749c910E4667e13f66",
+    "dualDexSwapV4Lib": "0xcB5D949Bad43A7753e8a6cEE6eca37E418fbb9a3"
+  },
+  "implementations": {
+    "accessToken": "0x593EcE3eE5e42BB1B10580A69C265242a1fd0274",
+    "creditToken": "0x1C73357E4a70Afb1d92bc83c7Ce5E4becBb1695C",
+    "royaltiesReceiver": "0x9fd8A6ea8B88169faa9d70d45eE384F11AfC4d06",
+    "vestingWallet": "0x7076C00B67e56f53aC3e505934715c7cc9A1EAA3"
+  },
+  "factory": {
+    "proxy": "0x90c7F2Cc827Ac089682b707F0CB2ae2c9856EC14",
+    "implementation": "0x48B840e4900eE7392088003C1402b91bcc0e73A4"
+  },
+  "tokens": {
+    "long": "0xeb837b0039e7F31f1d561D08f929eF89D884914C",
+    "staking": "0xd302CEc28dE1F3168e87AE59A3Ae0B1244a7243c"
+  }
+}

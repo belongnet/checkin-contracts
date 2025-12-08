@@ -1,0 +1,715 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0xf85F79379d573Ac2b5fF165fc93Ed050851cD4eB",
+    "txHash": "0xf9416bd5570ba7c385d6cd48e4d3f77e9433040e8d04f299bb7b903466a17cd6"
+  },
+  "proxies": [
+    {
+      "address": "0x90c7F2Cc827Ac089682b707F0CB2ae2c9856EC14",
+      "txHash": "0xec1c21afecc0743587c03798b1c356b9bc11cf67c8b448f74a984856099ef8bf",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xeb837b0039e7F31f1d561D08f929eF89D884914C",
+      "txHash": "0xedcdb97729df41c33f95153a4e2afd22ffc11561320b1def4d44fa44d69b175f",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xd302CEc28dE1F3168e87AE59A3Ae0B1244a7243c",
+      "txHash": "0x76b845bb09da58aa8550f530ec0d44117a420bc5169c20cd98b7a5b52aa3b558",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "8096a6b2f215f5ac3703f166b6b4dbec17ca4f48ef7ce2e765f862dfd8120476": {
+      "address": "0x48B840e4900eE7392088003C1402b91bcc0e73A4",
+      "txHash": "0xdbc07dc540c3680cec98e7276f94a608eefcf5757345e9af3fe55afff81ce6cc",
+      "layout": {
+        "solcVersion": "0.8.27",
+        "storage": [
+          {
+            "label": "_maxArrayLength",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint16",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:62"
+          },
+          {
+            "label": "usedToPercentage",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint16)5_storage",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:65"
+          },
+          {
+            "label": "referrals",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_bytes32,t_struct(ReferralCode)20916_storage)",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:68"
+          },
+          {
+            "label": "usedCode",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_mapping(t_address,t_mapping(t_bytes32,t_uint8))",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:71"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ReferralSystemV2",
+            "src": "contracts/v2/platform/extensions/ReferralSystemV2.sol:191"
+          },
+          {
+            "label": "_nftFactoryParameters",
+            "offset": 0,
+            "slot": "54",
+            "type": "t_struct(FactoryParameters)18040_storage",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:166"
+          },
+          {
+            "label": "getNftInstanceInfo",
+            "offset": 0,
+            "slot": "60",
+            "type": "t_mapping(t_bytes32,t_struct(NftInstanceInfo)17932_storage)",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:169"
+          },
+          {
+            "label": "_creditTokenInstanceInfo",
+            "offset": 0,
+            "slot": "61",
+            "type": "t_mapping(t_bytes32,t_struct(CreditTokenInstanceInfo)18051_storage)",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:172"
+          },
+          {
+            "label": "_vestingWalletInstanceInfos",
+            "offset": 0,
+            "slot": "62",
+            "type": "t_mapping(t_address,t_array(t_struct(VestingWalletInstanceInfo)18070_storage)dyn_storage)",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:175"
+          },
+          {
+            "label": "_royaltiesParameters",
+            "offset": 0,
+            "slot": "63",
+            "type": "t_struct(RoyaltiesParameters)18076_storage",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:178"
+          },
+          {
+            "label": "_currentImplementations",
+            "offset": 0,
+            "slot": "64",
+            "type": "t_struct(Implementations)18086_storage",
+            "contract": "Factory",
+            "src": "contracts/v2/platform/Factory.sol:181"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_struct(VestingWalletInstanceInfo)18070_storage)dyn_storage": {
+            "label": "struct Factory.VestingWalletInstanceInfo[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint16)5_storage": {
+            "label": "uint16[5]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_array(t_struct(VestingWalletInstanceInfo)18070_storage)dyn_storage)": {
+            "label": "mapping(address => struct Factory.VestingWalletInstanceInfo[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_bytes32,t_uint8))": {
+            "label": "mapping(address => mapping(bytes32 => uint8))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(CreditTokenInstanceInfo)18051_storage)": {
+            "label": "mapping(bytes32 => struct Factory.CreditTokenInstanceInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(NftInstanceInfo)17932_storage)": {
+            "label": "mapping(bytes32 => struct NftInstanceInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(ReferralCode)20916_storage)": {
+            "label": "mapping(bytes32 => struct ReferralSystemV2.ReferralCode)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_uint8)": {
+            "label": "mapping(bytes32 => uint8)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(CreditTokenInstanceInfo)18051_storage": {
+            "label": "struct Factory.CreditTokenInstanceInfo",
+            "members": [
+              {
+                "label": "creditToken",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "symbol",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "2"
+              }
+            ],
+            "numberOfBytes": "96"
+          },
+          "t_struct(FactoryParameters)18040_storage": {
+            "label": "struct Factory.FactoryParameters",
+            "members": [
+              {
+                "label": "platformAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "signerAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "defaultPaymentCurrency",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "platformCommission",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "maxArraySize",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "transferValidator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_struct(Implementations)18086_storage": {
+            "label": "struct Factory.Implementations",
+            "members": [
+              {
+                "label": "accessToken",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "creditToken",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "royaltiesReceiver",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "vestingWallet",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_struct(NftInstanceInfo)17932_storage": {
+            "label": "struct NftInstanceInfo",
+            "members": [
+              {
+                "label": "creator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "nftAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "royaltiesReceiver",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "metadata",
+                "type": "t_struct(NftMetadata)10460_storage",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(NftMetadata)10460_storage": {
+            "label": "struct NftMetadata",
+            "members": [
+              {
+                "label": "name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "symbol",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(ReferralCode)20916_storage": {
+            "label": "struct ReferralSystemV2.ReferralCode",
+            "members": [
+              {
+                "label": "creator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "referralUsers",
+                "type": "t_array(t_address)dyn_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(RoyaltiesParameters)18076_storage": {
+            "label": "struct Factory.RoyaltiesParameters",
+            "members": [
+              {
+                "label": "amountToCreator",
+                "type": "t_uint16",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "amountToPlatform",
+                "type": "t_uint16",
+                "offset": 2,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(VestingWalletInstanceInfo)18070_storage": {
+            "label": "struct Factory.VestingWalletInstanceInfo",
+            "members": [
+              {
+                "label": "startTimestamp",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "cliffDurationSeconds",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "0"
+              },
+              {
+                "label": "durationSeconds",
+                "type": "t_uint64",
+                "offset": 16,
+                "slot": "0"
+              },
+              {
+                "label": "token",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "vestingWallet",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "description",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_uint16": {
+            "label": "uint16",
+            "numberOfBytes": "2"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {}
+      }
+    },
+    "5c62518f0dc8e95c1f874db470f52f36b90f61a3c7c18fcfc799f2fbfe5b1a5c": {
+      "address": "0x855C2cE5117700640aFB9fd780c54F92C951cE22",
+      "txHash": "0xf15dc1660284d4cae5d251dd2e32ae93d5ca5f4a5731e48e657e8f6d0308987d",
+      "layout": {
+        "solcVersion": "0.8.27",
+        "storage": [],
+        "types": {
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_string_storage": {
+            "label": "string"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)132_storage)": {
+            "label": "mapping(bytes32 => struct AccessControlUpgradeable.RoleData)"
+          },
+          "t_struct(RoleData)132_storage": {
+            "label": "struct AccessControlUpgradeable.RoleData",
+            "members": [
+              {
+                "label": "hasRole",
+                "type": "t_mapping(t_address,t_bool)"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32"
+              }
+            ]
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)"
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_address,t_mapping(t_address,t_uint256))": {
+            "label": "mapping(address => mapping(address => uint256))"
+          },
+          "t_uint64": {
+            "label": "uint64"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Nonces": [
+            {
+              "contract": "NoncesUpgradeable",
+              "label": "_nonces",
+              "type": "t_mapping(t_address,t_uint256)",
+              "src": "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol:17"
+            }
+          ],
+          "erc7201:openzeppelin.storage.EIP712": [
+            {
+              "contract": "EIP712Upgradeable",
+              "label": "_hashedName",
+              "type": "t_bytes32",
+              "src": "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol:38"
+            },
+            {
+              "contract": "EIP712Upgradeable",
+              "label": "_hashedVersion",
+              "type": "t_bytes32",
+              "src": "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol:40"
+            },
+            {
+              "contract": "EIP712Upgradeable",
+              "label": "_name",
+              "type": "t_string_storage",
+              "src": "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol:42"
+            },
+            {
+              "contract": "EIP712Upgradeable",
+              "label": "_version",
+              "type": "t_string_storage",
+              "src": "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol:43"
+            }
+          ],
+          "erc7201:openzeppelin.storage.AccessControl": [
+            {
+              "contract": "AccessControlUpgradeable",
+              "label": "_roles",
+              "type": "t_mapping(t_bytes32,t_struct(RoleData)132_storage)",
+              "src": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol:62"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol:21"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ERC20": [
+            {
+              "contract": "ERC20Upgradeable",
+              "label": "_balances",
+              "type": "t_mapping(t_address,t_uint256)",
+              "src": "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol:33"
+            },
+            {
+              "contract": "ERC20Upgradeable",
+              "label": "_allowances",
+              "type": "t_mapping(t_address,t_mapping(t_address,t_uint256))",
+              "src": "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol:35"
+            },
+            {
+              "contract": "ERC20Upgradeable",
+              "label": "_totalSupply",
+              "type": "t_uint256",
+              "src": "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol:37"
+            },
+            {
+              "contract": "ERC20Upgradeable",
+              "label": "_name",
+              "type": "t_string_storage",
+              "src": "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol:39"
+            },
+            {
+              "contract": "ERC20Upgradeable",
+              "label": "_symbol",
+              "type": "t_string_storage",
+              "src": "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol:40"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73"
+            }
+          ]
+        }
+      }
+    },
+    "326ec5adc7f3ef4de37eaf0d608b7b4caebe88faf9d3522a939ae5e4b6a45022": {
+      "address": "0x99da0D53ae4DbD6545214547eC981D026123df2f",
+      "txHash": "0x58683f97a7b1758612d1e3763279c0ebad18523c87a78b3b93ad84fc4903e1e6",
+      "layout": {
+        "solcVersion": "0.8.27",
+        "storage": [
+          {
+            "label": "stakes",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_mapping(t_address,t_array(t_struct(Stake)13450_storage)dyn_storage)",
+            "contract": "Staking",
+            "src": "contracts/v2/periphery/Staking.sol:125"
+          },
+          {
+            "label": "unlockedStakes",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "Staking",
+            "src": "contracts/v2/periphery/Staking.sol:128"
+          },
+          {
+            "label": "rewards",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_struct(Rewards)13445_storage",
+            "contract": "Staking",
+            "src": "contracts/v2/periphery/Staking.sol:130"
+          },
+          {
+            "label": "config",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_struct(Config)13433_storage",
+            "contract": "Staking",
+            "src": "contracts/v2/periphery/Staking.sol:131"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_struct(Stake)13450_storage)dyn_storage": {
+            "label": "struct Staking.Stake[]",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_array(t_struct(Stake)13450_storage)dyn_storage)": {
+            "label": "mapping(address => struct Staking.Stake[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Config)13433_storage": {
+            "label": "struct Staking.Config",
+            "members": [
+              {
+                "label": "LONG",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "treasury",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "minStakePeriod",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "penaltyPercentage",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_struct(Rewards)13445_storage": {
+            "label": "struct Staking.Rewards",
+            "members": [
+              {
+                "label": "duration",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "rate",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "periodFinish",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "lastUpdate",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "locked",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(Stake)13450_storage": {
+            "label": "struct Staking.Stake",
+            "members": [
+              {
+                "label": "shares",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "lockUntil",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {}
+      }
+    }
+  }
+}
