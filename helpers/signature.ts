@@ -1,4 +1,3 @@
-import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumber, BigNumberish, BytesLike } from 'ethers';
 import { ethers } from 'hardhat';
 
@@ -39,6 +38,11 @@ function normalizeBigNumberish(value: BigNumberish | undefined, fallback: BigNum
   return BigNumber.from(value);
 }
 
+function normalizePrivateKey(pk: string): string {
+  const trimmed = pk.trim();
+  return trimmed.startsWith('0x') ? trimmed : `0x${trimmed}`;
+}
+
 async function buildProtection(
   signerPrivateKey: string,
   encode: (opts: { nonce: BigNumber; deadline: BigNumber; chainId: BigNumber }) => BytesLike,
@@ -46,12 +50,13 @@ async function buildProtection(
 ): Promise<SignatureProtectionStruct> {
   const { chainId } = await ethers.provider.getNetwork();
   const nonce = normalizeBigNumberish(overrides?.nonce, nextNonce());
-  const latest = await time.latest();
+  const block = await ethers.provider.getBlock('latest');
+  const latest = block?.timestamp ?? Math.floor(Date.now() / 1000);
   const deadline = normalizeBigNumberish(overrides?.deadline, latest + DEFAULT_DEADLINE_WINDOW);
   const chainIdToUse = normalizeBigNumberish(overrides?.chainId, chainId);
 
   const digest = ethers.utils.keccak256(encode({ nonce, deadline, chainId: chainIdToUse }));
-  const signingKey = new ethers.utils.SigningKey(signerPrivateKey);
+  const signingKey = new ethers.utils.SigningKey(normalizePrivateKey(signerPrivateKey));
   const signature = ethers.utils.joinSignature(signingKey.signDigest(digest));
 
   return { nonce, deadline, signature };
