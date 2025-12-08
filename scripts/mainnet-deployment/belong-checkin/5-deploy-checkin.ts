@@ -47,28 +47,30 @@ async function deploy() {
   if (DEPLOY) {
     console.log('Deploy BelongCheckIn: ');
 
-    // Read addresses from environment variables
-
     const owner = process.env.ADMIN_ADDRESS;
-    const router = process.env.ROUTER_ADDRESS;
-    const poolManager = process.env.POOL_MANAGER_ADDRESS;
+    const router = process.env.PCS_ROUTER_ADDRESS ?? process.env.ROUTER_ADDRESS;
+    const poolManager = process.env.PCS_POOL_MANAGER_ADDRESS ?? process.env.POOL_MANAGER_ADDRESS;
     const usdc = process.env.USDC_ADDRESS;
+    const poolFee = process.env.PCS_POOL_FEE ?? process.env.UNISWAPV3_POOL_FEES;
+    const tickSpacingEnv = process.env.PCS_TICK_SPACING;
+    const hooks = process.env.PCS_HOOKS_ADDRESS ?? ethers.constants.AddressZero;
     const hookDataEnv = process.env.HOOK_DATA ?? '0x';
-    const dexTypeEnv = process.env.DEX_TYPE ?? `${DexType.PcsV4}`;
 
     // Validate environment variables
     if (
       !deployments.libraries.sigantureVerifier ||
       !deployments.libraries.helper ||
-      !deployments.libraries.dualDexSwapV4 ||
+      !deployments.libraries.dualDexSwapV4Lib ||
       !owner ||
       !router ||
       !poolManager ||
+      !poolFee ||
+      !tickSpacingEnv ||
       !usdc ||
       !deployments.tokens.long
     ) {
       throw new Error(
-        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.sigantureVerifier}\nHelper: ${deployments.libraries.helper}\nDualDexSwapV4Lib: ${deployments.libraries.dualDexSwapV4}\nOWNER_ADDRESS: ${owner}\nROUTER_ADDRESS: ${router}\nPOOL_MANAGER_ADDRESS: ${poolManager}\nUSDC_ADDRESS: ${usdc}\nLONG_ADDRESS: ${deployments.tokens.long}`,
+        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.sigantureVerifier}\nHelper: ${deployments.libraries.helper}\nDualDexSwapV4Lib: ${deployments.libraries.dualDexSwapV4Lib}\nADMIN_ADDRESS: ${owner}\nPCS_ROUTER_ADDRESS: ${router}\nPCS_POOL_MANAGER_ADDRESS: ${poolManager}\nPCS_POOL_FEE: ${poolFee}\nPCS_TICK_SPACING: ${tickSpacingEnv}\nPCS_HOOKS_ADDRESS: ${hooks}\nUSDC_ADDRESS: ${usdc}\nLONG_ADDRESS: ${deployments.tokens.long}`,
       );
     }
 
@@ -76,7 +78,7 @@ async function deploy() {
     for (const addr of [
       deployments.libraries.sigantureVerifier,
       deployments.libraries.helper,
-      deployments.libraries.dualDexSwapV4,
+      deployments.libraries.dualDexSwapV4Lib,
       owner,
       router,
       poolManager,
@@ -88,6 +90,20 @@ async function deploy() {
       }
     }
 
+    if (hooks !== ethers.constants.AddressZero && !ethers.utils.isAddress(hooks)) {
+      throw new Error(`Invalid hooks address: ${hooks}`);
+    }
+
+    const fee = Number(poolFee);
+    if (!Number.isInteger(fee) || fee <= 0 || fee > 1_000_000) {
+      throw new Error(`Invalid pool fee provided: ${poolFee}`);
+    }
+
+    const tickSpacing = Number(tickSpacingEnv);
+    if (!Number.isInteger(tickSpacing) || tickSpacing <= 0) {
+      throw new Error(`Invalid tick spacing provided: ${tickSpacingEnv}`);
+    }
+
     // Construct paymentsInfo struct
     const paymentsInfo: DualDexSwapV4Lib.PaymentsInfoStruct = {
       dexType: DexType.PcsV4,
@@ -96,7 +112,7 @@ async function deploy() {
       usdToken: usdc,
       long: deployments.tokens.long,
       maxPriceFeedDelay: 86_400,
-      poolKey: encodePcsPoolKey(usdc, deployments.tokens.long, poolManager),
+      poolKey: encodePcsPoolKey(usdc, deployments.tokens.long, poolManager, fee, tickSpacing, hooks),
       hookData: hookDataEnv,
     } as DualDexSwapV4Lib.PaymentsInfoStruct;
 

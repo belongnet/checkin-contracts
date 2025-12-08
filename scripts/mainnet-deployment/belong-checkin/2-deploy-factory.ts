@@ -52,7 +52,7 @@ async function main() {
       !transferValidator
     ) {
       throw new Error(
-        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.sigantureVerifier}\nAccessTokenImplementation: ${deployments.implementations.accessToken}\nCreditTokenImplementation: ${deployments.libraries.creditToken}\nRoyaltiesReceiverV2Implementation: ${deployments.implementations.royaltiesReceiver}\nVestingWalletImplementation: ${deployments.libraries.vestingWallet}\nTRANSFER_VALIDATOR: ${transferValidator}`,
+        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.sigantureVerifier}\nAccessTokenImplementation: ${deployments.implementations.accessToken}\nCreditTokenImplementation: ${deployments.implementations.creditToken}\nRoyaltiesReceiverV2Implementation: ${deployments.implementations.royaltiesReceiver}\nVestingWalletImplementation: ${deployments.implementations.vestingWallet}\nTRANSFER_VALIDATOR: ${transferValidator}`,
       );
     }
 

@@ -33,7 +33,7 @@ async function main() {
       libraries: {
         SignatureVerifier: deployments.libraries.sigantureVerifier,
         Helper: deployments.libraries.helper,
-        DualDexSwapV4Lib: deployments.libraries.dualDexSwapV4,
+        DualDexSwapV4Lib: deployments.libraries.dualDexSwapV4Lib,
       },
     });
 
