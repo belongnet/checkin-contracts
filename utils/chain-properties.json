@@ -7,37 +7,37 @@
   "sepolia": {
     "chainId": 11155111,
     "explorer": "https://sepolia.etherscan.io",
-    "api": "https://api-sepolia.etherscan.io/v2/api?chainid=11155111"
+    "api": "https://api.etherscan.io/v2/api?chainid=11155111"
   },
   "bsc": {
     "chainId": 56,
     "explorer": "https://bscscan.com",
-    "api": "https://api.bscscan.com/v2/api?chainid=56"
+    "api": "https://api.etherscan.io/v2/api?chainid=56"
   },
   "polygon": {
     "chainId": 137,
     "explorer": "https://polygonscan.com",
-    "api": "https://api.polygonscan.com/v2/api?chainid=137"
+    "api": "https://api.etherscan.io/v2/api?chainid=137"
   },
   "blast": {
     "chainId": 81457,
     "explorer": "https://blastscan.io",
-    "api": "https://api.blastscan.io/v2/api?chainid=81457"
+    "api": "https://api.etherscan.io/v2/api?chainid=81457"
   },
   "celo": {
     "chainId": 42220,
     "explorer": "https://celoscan.io",
-    "api": "https://api.celoscan.io/v2/api?chainid=42220"
+    "api": "https://api.etherscan.io/v2/api?chainid=42220"
   },
   "base": {
     "chainId": 8453,
     "explorer": "https://basescan.org",
-    "api": "https://api.basescan.org/v2/api?chainid=8453"
+    "api": "https://api.etherscan.io/v2/api?chainid=8453"
   },
   "linea": {
     "chainId": 59144,
     "explorer": "https://lineascan.build",
-    "api": "https://api.lineascan.build/v2/api?chainid=59144"
+    "api": "https://api.etherscan.io/v2/api?chainid=59144"
   },
   "astar": {
     "chainId": 592,
@@ -67,12 +67,12 @@
   "blast_sepolia": {
     "chainId": 168587773,
     "explorer": "https://sepolia.blastscan.io",
-    "api": "https://api-sepolia.blastscan.io/v2/api?chainid=168587773"
+    "api": "https://api.etherscan.io/v2/api?chainid=168587773"
   },
   "bsc_testnet": {
     "chainId": 97,
     "explorer": "https://testnet.bscscan.com",
-    "api": "https://api-testnet.bscscan.com/v2/api?chainid=97"
+    "api": "https://api.etherscan.io/v2/api?chainid=97"
   },
   "skale_calypso_testnet": {
     "chainId": 974399131,
@@ -82,6 +82,6 @@
   "amoy": {
     "chainId": 80002,
     "explorer": "https://amoy.polygonscan.com",
-    "api": "https://api-amoy.polygonscan.com/v2/api?chainid=80002"
+    "api": "https://api.etherscan.io/v2/api?chainid=80002"
   }
 }
