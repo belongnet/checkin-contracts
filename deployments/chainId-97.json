@@ -16,6 +16,52 @@
   },
   "tokens": {
     "long": "0xeb837b0039e7F31f1d561D08f929eF89D884914C",
-    "staking": "0xd302CEc28dE1F3168e87AE59A3Ae0B1244a7243c"
+    "staking": "0xd302CEc28dE1F3168e87AE59A3Ae0B1244a7243c",
+    "venueToken": {
+      "address": "0x49E563DfDd95d507c101cc9a88594179ef767A8b",
+      "parameters": [
+        {
+          "name": "VenueToken",
+          "symbol": "VET",
+          "uri": "contractURI/VenueToken",
+          "transferable": true
+        }
+      ]
+    },
+    "promoterToken": {
+      "address": "0xa28D71Fc979796d390910557e6746411B1CC0b9D",
+      "parameters": [
+        {
+          "name": "PromoterToken",
+          "symbol": "PMT",
+          "uri": "contractURI/PromoterToken",
+          "transferable": true
+        }
+      ]
+    }
+  },
+  "mocks": {
+    "mockUsdc": "0x325EF5CAECbaA15a72419310aDf573bE76759Abc",
+    "uniV4Router": "0x7073C38C6e92E3b54C64836C74248156bd6A0b5c",
+    "pcsV4Router": "0x564491E423cDccAe6B1A538d98F967EcF7d25A48",
+    "rate": "1000000000000000000",
+    "poolManager": "0x31CF6505d2529d8242e71acf12131122236EC612"
+  },
+  "checkIn": {
+    "address": "0xe3A59CEC8eB39A0E4872B3d55D9c3b75349700dB",
+    "paymentsInfo": {
+      "dexType": 1,
+      "slippageBps": {
+        "type": "BigNumber",
+        "hex": "0x033b2e3c9fd0803ce7ffffff"
+      },
+      "router": "0x564491E423cDccAe6B1A538d98F967EcF7d25A48",
+      "usdToken": "0x325EF5CAECbaA15a72419310aDf573bE76759Abc",
+      "long": "0xeb837b0039e7F31f1d561D08f929eF89D884914C",
+      "maxPriceFeedDelay": 86400,
+      "poolKey": "0x000000000000000000000000325ef5caecbaa15a72419310adf573be76759abc000000000000000000000000eb837b0039e7f31f1d561d08f929ef89d884914c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031cf6505d2529d8242e71acf12131122236ec612000000000000000000000000000000000000000000000000000000000000012c0000000000000000000000000000000000000000000000000000000001f40000",
+      "hookData": "0x"
+    },
+    "escrow": "0x8F37774Ce72F4b94981dE9604A21793D2E266aF1"
   }
 }
