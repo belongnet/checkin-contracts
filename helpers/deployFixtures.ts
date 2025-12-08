@@ -172,6 +172,23 @@ export async function deployCreditTokens(
   venueToken: CreditToken;
   promoterToken: CreditToken;
 }> {
+  const factory = await ethers.getContractAt('Factory', factoryAddress);
+
+  // Check existing deployments to make the script idempotent and avoid TokenAlreadyExists reverts.
+  const existingVenue = await factory.getCreditTokenInstanceInfo(venueTokenMetadata.name, venueTokenMetadata.symbol);
+  const existingPromoter = await factory.getCreditTokenInstanceInfo(
+    promoterTokenMetadata.name,
+    promoterTokenMetadata.symbol,
+  );
+
+  if (existingVenue.creditToken !== ethers.constants.AddressZero) {
+    console.log(`VenueToken already exists at ${existingVenue.creditToken}, skipping deployment`);
+  }
+
+  if (existingPromoter.creditToken !== ethers.constants.AddressZero) {
+    console.log(`PromoterToken already exists at ${existingPromoter.creditToken}, skipping deployment`);
+  }
+
   const vtInfo: ERC1155InfoStruct = {
     name: venueTokenMetadata.name,
     symbol: venueTokenMetadata.symbol,
@@ -192,16 +209,18 @@ export async function deployCreditTokens(
     uri: promoterTokenMetadata.uri,
     transferable: transferablePromoter,
   };
-  const factory = await ethers.getContractAt('Factory', factoryAddress);
 
-  const venueProtection = await signCreditTokenInfo(factoryAddress, signerPk, vtInfo);
-  const promoterProtection = await signCreditTokenInfo(factoryAddress, signerPk, ptInfo);
+  if (existingVenue.creditToken === ethers.constants.AddressZero) {
+    const venueProtection = await signCreditTokenInfo(factoryAddress, signerPk, vtInfo);
+    const tx1 = await factory.connect(admin).produceCreditToken(vtInfo, venueProtection);
+    await tx1.wait(1);
+  }
 
-  const tx1 = await factory.connect(admin).produceCreditToken(vtInfo, venueProtection);
-  await tx1.wait(1);
-
-  const tx2 = await factory.connect(admin).produceCreditToken(ptInfo, promoterProtection);
-  await tx2.wait(1);
+  if (existingPromoter.creditToken === ethers.constants.AddressZero) {
+    const promoterProtection = await signCreditTokenInfo(factoryAddress, signerPk, ptInfo);
+    const tx2 = await factory.connect(admin).produceCreditToken(ptInfo, promoterProtection);
+    await tx2.wait(1);
+  }
 
   const venueTokenInstanceInfo = await factory.getCreditTokenInstanceInfo(
     venueTokenMetadata.name,
@@ -211,6 +230,14 @@ export async function deployCreditTokens(
     promoterTokenMetadata.name,
     promoterTokenMetadata.symbol,
   );
+
+  if (venueTokenInstanceInfo.creditToken === ethers.constants.AddressZero) {
+    throw new Error(`VenueToken credit token address is zero; deployment likely failed`);
+  }
+
+  if (promoterTokenInstanceInfo.creditToken === ethers.constants.AddressZero) {
+    throw new Error(`PromoterToken credit token address is zero; deployment likely failed`);
+  }
 
   return {
     venueToken: await ethers.getContractAt('CreditToken', venueTokenInstanceInfo.creditToken),
