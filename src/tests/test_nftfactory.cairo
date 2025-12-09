@@ -17,8 +17,11 @@ use crate::{
             INFTFactoryDispatcher, INFTFactoryDispatcherTrait, FactoryParameters, InstanceInfo,
         },
     },
-    snip12::produce_hash::{ProduceHash, MessageProduceHash},
-    utils::{constants as constants, signing::StarkSerializedSigning},
+    snip12::{
+        interfaces::SignatureProtection,
+        produce_hash::{ProduceHash, MessageProduceHash},
+    },
+    utils::{constants as constants, signing::SerializedSigning},
 };
 
 
@@ -78,6 +81,9 @@ fn deploy_initialize_produce(
 
     let fraction = 0;
     let produce_hash = ProduceHash {
+        verifying_contract: contract,
+        nonce: 0,
+        deadline: 0,
         creator_address: constants::CREATOR(),
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
@@ -100,12 +106,17 @@ fn deploy_initialize_produce(
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         referral_code: '',
+    };
+
+    let signature_protection = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
         signature,
     };
 
     start_cheat_caller_address(contract, constants::CREATOR());
 
-    let (nft, receiver) = nft_factory.produce(instance_info.clone());
+    let (nft, receiver) = nft_factory.produce(signature_protection, instance_info.clone());
 
     stop_cheat_caller_address_global();
     stop_cheat_caller_address(contract);
@@ -197,7 +208,7 @@ fn test_initialize() {
     assert_eq!(platform_commission, factory_parameters.platform_commission);
     assert_eq!(platform_address, factory_parameters.platform_address);
 
-    start_cheat_caller_address(contract, constants::REFERRAL());
+    start_cheat_caller_address(contract, constants::CREATOR());
     // Throws: 'Caller is not the owner'
     nft_factory.initialize(nft_class_hash, receiver_class_hash, factory_parameters, percentages);
 }
@@ -215,7 +226,7 @@ fn test_updateNftClassHash() {
 
     nft_factory.updateNftClassHash(nft_class_hash);
 
-    start_cheat_caller_address(contract, constants::REFERRAL());
+    start_cheat_caller_address(contract, constants::CREATOR());
     // Throws: 'Caller is not the owner'
     nft_factory.updateNftClassHash(nft_class_hash);
 }
@@ -233,7 +244,7 @@ fn test_updateReceiverClassHash() {
 
     nft_factory.updateReceiverClassHash(receiver_class_hash);
 
-    start_cheat_caller_address(contract, constants::REFERRAL());
+    start_cheat_caller_address(contract, constants::CREATOR());
     // Throws: 'Caller is not the owner'
     nft_factory.updateReceiverClassHash(receiver_class_hash);
 }
@@ -273,7 +284,7 @@ fn test_setFactoryParameters() {
         nft_factory.nftFactoryParameters().max_array_size, factory_parameters.max_array_size,
     );
 
-    start_cheat_caller_address(contract, constants::REFERRAL());
+    start_cheat_caller_address(contract, constants::CREATOR());
     // Throws: 'Caller is not the owner'
     nft_factory.setFactoryParameters(factory_parameters);
 }
@@ -319,7 +330,7 @@ fn test_setFactoryParameters_platform_zero_address() {
 }
 
 #[test]
-#[should_panic(expected: 'Zero amount passed')]
+#[should_panic(expected: 'Wrong platform commission set')]
 fn test_setFactoryParameters_zero_amount() {
     let contract = deploy();
 
@@ -357,7 +368,7 @@ fn test_setReferralPercentages() {
     assert_eq!(nft_factory.usedToPercentage(3), *percentages[3]);
     assert_eq!(nft_factory.usedToPercentage(4), *percentages[4]);
 
-    start_cheat_caller_address(contract, constants::REFERRAL());
+    start_cheat_caller_address(contract, constants::CREATOR());
     // Throws: 'Caller is not the owner'
     nft_factory.setReferralPercentages(percentages);
 }
@@ -387,7 +398,7 @@ fn test_createReferralCode() {
 
     let mut spy = spy_events();
 
-    let code = nft_factory.createReferralCode();
+    let code: felt252 = nft_factory.createReferralCode();
 
     spy
         .assert_emitted(
@@ -404,7 +415,8 @@ fn test_createReferralCode() {
         );
 
     assert_eq!(code, nft_factory.referralCode(constants::CREATOR()));
-    assert_eq!(nft_factory.getReferralCreator(code), constants::CREATOR());
+    let referral_creator: ContractAddress = nft_factory.getReferralCreator(code);
+    assert_eq!(referral_creator, constants::CREATOR());
 
     // Throws: 'Referral code is already exists'
     nft_factory.createReferralCode();
@@ -424,6 +436,9 @@ fn test_produce() {
 
     let fraction = constants::FRACTION();
     let produce_hash = ProduceHash {
+        verifying_contract: contract,
+        nonce: 0,
+        deadline: 0,
         creator_address: constants::CREATOR(),
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
@@ -455,6 +470,12 @@ fn test_produce() {
     //     println!("{}", signature[i]);
     // };
 
+    let signature_protection = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature,
+    };
+
     let instance_info = InstanceInfo {
         creator_address: constants::CREATOR(),
         name: constants::NAME(),
@@ -467,7 +488,6 @@ fn test_produce() {
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         referral_code,
-        signature,
     };
 
     stop_cheat_caller_address_global();
@@ -475,7 +495,7 @@ fn test_produce() {
 
     let mut spy = spy_events();
 
-    let (nft, receiver) = nft_factory.produce(instance_info.clone());
+    let (nft, receiver) = nft_factory.produce(signature_protection.clone(), instance_info.clone());
 
     spy
         .assert_emitted(
@@ -508,7 +528,7 @@ fn test_produce() {
     );
 
     // Throws: 'NFT is already exists'
-    nft_factory.produce(instance_info);
+    nft_factory.produce(signature_protection, instance_info);
 }
 
 #[test]
@@ -522,6 +542,9 @@ fn test_produce_signature() {
 
     let fraction = 0;
     let produce_hash = ProduceHash {
+        verifying_contract: contract,
+        nonce: 0,
+        deadline: 0,
         creator_address: constants::CREATOR(),
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
@@ -531,6 +554,12 @@ fn test_produce_signature() {
     start_cheat_caller_address_global(account);
 
     let signature = sign_message(produce_hash.get_message_hash(account));
+
+    let signature_protection = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature,
+    };
 
     let instance_info = InstanceInfo {
         creator_address: constants::CREATOR(),
@@ -544,14 +573,13 @@ fn test_produce_signature() {
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         referral_code: '',
-        signature,
     };
 
     stop_cheat_caller_address_global();
     start_cheat_caller_address(contract, constants::CREATOR());
 
     // Throws: 'Invalid signature'
-    nft_factory.produce(instance_info);
+    nft_factory.produce(signature_protection, instance_info);
 }
 
 #[test]
@@ -564,6 +592,9 @@ fn test_produce_with_referral_code() {
 
     let fraction = 0;
     let produce_hash = ProduceHash {
+        verifying_contract: contract,
+        nonce: 0,
+        deadline: 0,
         creator_address: constants::CREATOR(),
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
@@ -574,6 +605,12 @@ fn test_produce_with_referral_code() {
     start_cheat_caller_address_global(account);
     let signature = sign_message(produce_hash.get_message_hash(account));
     stop_cheat_caller_address_global();
+
+    let signature_protection = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature,
+    };
 
     start_cheat_caller_address(contract, constants::REFERRAL());
     let code = nft_factory.createReferralCode();
@@ -590,14 +627,13 @@ fn test_produce_with_referral_code() {
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         referral_code: code,
-        signature,
     };
 
     start_cheat_caller_address(contract, constants::CREATOR());
 
     let mut spy = spy_events();
 
-    nft_factory.produce(instance_info);
+    nft_factory.produce(signature_protection, instance_info);
 
     spy
         .assert_emitted(
@@ -628,6 +664,9 @@ fn test_produce_with_referral_code_refer_to_self() {
 
     let fraction = 0;
     let produce_hash = ProduceHash {
+        verifying_contract: contract,
+        nonce: 0,
+        deadline: 0,
         creator_address: constants::CREATOR(),
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
@@ -639,7 +678,13 @@ fn test_produce_with_referral_code_refer_to_self() {
     let signature = sign_message(produce_hash.get_message_hash(account));
     stop_cheat_caller_address_global();
 
-    start_cheat_caller_address(contract, constants::REFERRAL());
+    let signature_protection = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature,
+    };
+
+    start_cheat_caller_address(contract, constants::CREATOR());
     let code = nft_factory.createReferralCode();
 
     let instance_info = InstanceInfo {
@@ -654,10 +699,9 @@ fn test_produce_with_referral_code_refer_to_self() {
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         referral_code: code,
-        signature,
     };
 
-    nft_factory.produce(instance_info);
+    nft_factory.produce(signature_protection, instance_info);
 }
 
 #[test]
@@ -671,6 +715,9 @@ fn test_produce_referral_code_exist() {
 
     let fraction = 0;
     let produce_hash = ProduceHash {
+        verifying_contract: contract,
+        nonce: 0,
+        deadline: 0,
         creator_address: constants::CREATOR(),
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
@@ -678,17 +725,19 @@ fn test_produce_referral_code_exist() {
         royalty_fraction: fraction,
     };
 
-    let mut produce_hash_2 = produce_hash.clone();
-    produce_hash_2.name_hash = constants::NAME_2().hash();
-
     start_cheat_caller_address_global(account);
     let signature = sign_message(produce_hash.get_message_hash(account));
-    let signature_2 = sign_message(produce_hash_2.get_message_hash(account));
     stop_cheat_caller_address_global();
+
+    let signature_protection = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature,
+    };
 
     start_cheat_caller_address(contract, constants::REFERRAL());
 
-    let mut instance_info = InstanceInfo {
+    let instance_info = InstanceInfo {
         creator_address: constants::CREATOR(),
         name: constants::NAME(),
         symbol: constants::SYMBOL(),
@@ -700,15 +749,10 @@ fn test_produce_referral_code_exist() {
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         referral_code: constants::REFERRAL_CODE(),
-        signature,
     };
 
-    let mut instance_info_2 = instance_info.clone();
-    instance_info_2.name = constants::NAME_2();
-    instance_info_2.signature = signature_2;
-
     // Throws: 'Referral code does not exist'
-    nft_factory.produce(instance_info.clone());
+    nft_factory.produce(signature_protection, instance_info);
 }
 
 #[test]
@@ -721,6 +765,9 @@ fn test_produce_with_multiple_referral_code_usage() {
 
     let fraction = 0;
     let produce_hash = ProduceHash {
+        verifying_contract: contract,
+        nonce: 0,
+        deadline: 0,
         creator_address: constants::CREATOR(),
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
@@ -749,6 +796,32 @@ fn test_produce_with_multiple_referral_code_usage() {
     let signature_5 = sign_message(produce_hash_5.get_message_hash(account));
     stop_cheat_caller_address_global();
 
+    let signature_protection = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature,
+    };
+    let signature_protection_2 = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature: signature_2,
+    };
+    let signature_protection_3 = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature: signature_3,
+    };
+    let signature_protection_4 = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature: signature_4,
+    };
+    let signature_protection_5 = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature: signature_5,
+    };
+
     start_cheat_caller_address(contract, constants::REFERRAL());
     let code = nft_factory.createReferralCode();
 
@@ -764,43 +837,38 @@ fn test_produce_with_multiple_referral_code_usage() {
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
         referral_code: code,
-        signature,
     };
 
     let mut instance_info_2 = instance_info.clone();
     instance_info_2.name = constants::NAME_2();
-    instance_info_2.signature = signature_2;
 
     let mut instance_info_3 = instance_info.clone();
     instance_info_3.symbol = constants::SYMBOL_2();
-    instance_info_3.signature = signature_3;
 
     let mut instance_info_4 = instance_info.clone();
     instance_info_4.name = constants::NAME_2();
     instance_info_4.symbol = constants::SYMBOL_2();
-    instance_info_4.signature = signature_4;
 
     let mut instance_info_5 = instance_info.clone();
     instance_info_5.name = constants::NAME_3();
-    instance_info_5.signature = signature_5;
 
     start_cheat_caller_address(contract, constants::CREATOR());
 
     let amount = 10000;
 
-    nft_factory.produce(instance_info);
+    nft_factory.produce(signature_protection, instance_info);
     assert_eq!(nft_factory.getReferralRate(constants::CREATOR(), code, amount), 5000);
 
-    nft_factory.produce(instance_info_2);
+    nft_factory.produce(signature_protection_2, instance_info_2);
     assert_eq!(nft_factory.getReferralRate(constants::CREATOR(), code, amount), 3000);
 
-    nft_factory.produce(instance_info_3);
+    nft_factory.produce(signature_protection_3, instance_info_3);
     assert_eq!(nft_factory.getReferralRate(constants::CREATOR(), code, amount), 1500);
 
-    nft_factory.produce(instance_info_4);
+    nft_factory.produce(signature_protection_4, instance_info_4);
     assert_eq!(nft_factory.getReferralRate(constants::CREATOR(), code, amount), 500);
 
-    nft_factory.produce(instance_info_5);
+    nft_factory.produce(signature_protection_5, instance_info_5);
     assert_eq!(nft_factory.getReferralRate(constants::CREATOR(), code, amount), 500);
 }
 

@@ -27,6 +27,7 @@ use crate::{
         StaticPriceParameters,
     },
     snip12::{
+        interfaces::SignatureProtection,
         produce_hash::{ProduceHash, MessageProduceHash},
         dynamic_price_hash::{DynamicPriceHash, MessageDynamicPriceHash},
         static_price_hash::{StaticPriceHash, MessageStaticPriceHash},
@@ -81,6 +82,9 @@ fn deploy_factory_nft_receiver_erc20(
     let royalty_fraction = constants::FRACTION();
 
     let produce_hash = ProduceHash {
+        verifying_contract: factory,
+        nonce: 0,
+        deadline: 0,
         creator_address: constants::CREATOR(),
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
@@ -90,6 +94,12 @@ fn deploy_factory_nft_receiver_erc20(
     start_cheat_caller_address_global(signer);
 
     let signature = sign_message(produce_hash.get_message_hash(signer));
+
+    let signature_protection = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature,
+    };
 
     let instance_info = InstanceInfo {
         creator_address: constants::CREATOR(),
@@ -102,14 +112,13 @@ fn deploy_factory_nft_receiver_erc20(
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        referral_code,
-        signature,
+        referral_code
     };
 
     stop_cheat_caller_address_global();
     start_cheat_caller_address(factory, constants::CREATOR());
 
-    let (nft, receiver) = nft_factory.produce(instance_info.clone());
+    let (nft, receiver) = nft_factory.produce(signature_protection, instance_info.clone());
 
     start_cheat_caller_address(erc20mock, signer);
     IERC20MintableDispatcher { contract_address: erc20mock }.mint(signer, 100000000);
