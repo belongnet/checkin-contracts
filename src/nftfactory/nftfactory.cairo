@@ -498,7 +498,8 @@ pub mod NFTFactory {
             for i in 0..percentages.len() {
                 let percentage_val = *percentages.at(i);
                 assert(
-                    percentage_val.is_non_zero() && percentage_val <= scaling_factor,
+                    percentage_val <= scaling_factor &&
+                    (percentage_val.is_non_zero() || i == 0),
                     super::Errors::WRONG_PERCENTAGE,
                 );
 
