@@ -52,13 +52,16 @@ mod tests {
     #[test]
     fn test_valid_hash() {
         // This value was computed using StarknetJS
-        let message_hash = 0x55dd2dbd7ecf4c06a432bbb17fbb85d342958c428e198533f509250f5ef47e2;
+        let message_hash = 0x227d383d7eb6ac6ff66ca41e921e2bb7d9500b0c65f3fc704b49ea0bbf60e23;
         let produce_hash = ProduceHash {
-            creator_address: 123.try_into().unwrap(),
-            name_hash: 456,
-            symbol_hash: 789,
-            contract_uri_hash: 101112,
-            royalty_fraction: 131415,
+            verifying_contract: 123.try_into().unwrap(),
+            nonce: 456,
+            deadline: 789, 
+            creator_address: 101112.try_into().unwrap(),
+            name_hash: 131415,
+            symbol_hash: 171819,
+            contract_uri_hash: 202122,
+            royalty_fraction: 232425,
         };
 
         start_cheat_caller_address_global(1337.try_into().unwrap());

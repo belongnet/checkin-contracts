@@ -57,9 +57,15 @@ mod tests {
     #[test]
     fn test_valid_hash() {
         // This value was computed using StarknetJS
-        let message_hash = 0x6ab4badd6739b9e3b15e3f23ea0ca219a0b2277bbc62dd838efe06bd19e7fad;
+        let message_hash = 0x6eacf760e6214bb041def09cd1c46cbafe32904c4dba06bbefe7b58814950d4;
         let dynamic_price_hash = DynamicPriceHash {
-            receiver: 123.try_into().unwrap(), token_id: 456, price: 789, token_uri_hash: 101112,
+            verifying_contract: 123.try_into().unwrap(),
+            nonce: 456,
+            deadline: 789,
+            receiver: 101112.try_into().unwrap(),
+            token_id: 141516,
+            price: 171819,
+            token_uri_hash: 202122,
         };
 
         start_cheat_caller_address_global(1337.try_into().unwrap());
