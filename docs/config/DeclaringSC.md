@@ -101,7 +101,6 @@ When using `starkli declare`, Starkli will do its best to identify the compiler 
    ```
 
 3. In case a different compiler version is required, switch to a different Scarb version using `asdf`:
-
    - Install the desired Scarb version:
 
      ```bash
@@ -140,3 +139,7 @@ Not declaring class as its already declared. Class hash: <CLASS_HASH>
 This is because declaration is a one-time process for each unique contract code, and a contract's class hash is its unique identifier
 
 In both cases, however, you should be able to see the declared contract on a block explorer like [StarkScan](https://sepolia.starkscan.co/) or [Voyager](https://sepolia.voyager.online/) by searching for its class hash.
+
+NFT class: 0x0034148718857cb7d8c60369e832e21a7f5f9a4d07eb9fc338d5bb396c2d1ba4
+Factory class: 0x069dfc77d4c65b1b953a371878752a97516db82af743b697d7e238110a1be1d5
+Receiver class: 0x026140c1a501a3bbcc66e5775e25894abf96211006aa4c1fc6675ea22fe2012b
