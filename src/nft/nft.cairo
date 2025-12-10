@@ -13,13 +13,15 @@ mod Errors {
     pub const INITIALIZE_ONLY_ONCE: felt252 = 'Initialize only once';
     pub const WRONG_ARRAY_SIZE: felt252 = 'Wrong array size';
     pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
+    pub const DEADLINE_EXPIRED: felt252 = 'Signature deadline expired';
 }
 
 #[starknet::contract]
 pub mod NFT {
-    use core::num::traits::Zero;
+    use core::{num::traits::Zero, traits::Into};
     use starknet::{
-        ClassHash, ContractAddress, event::EventEmitter, get_caller_address, get_contract_address,
+        ClassHash, ContractAddress, event::EventEmitter, get_block_timestamp, get_caller_address,
+        get_contract_address,
         storage::{
             StoragePointerReadAccess, StoragePointerWriteAccess, Map, StorageMapReadAccess,
             StorageMapWriteAccess,
@@ -298,6 +300,8 @@ pub mod NFT {
                 let protection_ref = signatures_protection.at(i);
                 let params_ref = dynamic_params.at(i);
 
+                self._assert_not_expired(*protection_ref.deadline);
+
                 let token_uri_hash: felt252 = params_ref.token_uri.hash();
 
                 let message = DynamicPriceHash {
@@ -352,6 +356,8 @@ pub mod NFT {
             for i in 0..array_size {
                 let protection_ref = signatures_protection.at(i);
                 let params_ref = static_params.at(i);
+
+                self._assert_not_expired(*protection_ref.deadline);
 
                 let token_uri_hash: felt252 = params_ref.token_uri.hash();
 
@@ -495,6 +501,15 @@ pub mod NFT {
 
         fn is_whitelisted(self: @ContractState, whitelisted: ContractAddress) -> bool {
             self.nft_node.whitelisted.read(whitelisted)
+        }
+
+        fn _assert_not_expired(self: @ContractState, deadline: u128) {
+            if deadline == 0 {
+                return;
+            }
+
+            let current_timestamp: u64 = get_block_timestamp();
+            assert(current_timestamp.into() <= deadline, super::Errors::DEADLINE_EXPIRED);
         }
     }
 }

@@ -18,15 +18,15 @@ mod Errors {
     pub const WRONG_PERCENTAGES_LEN: felt252 = 'Wrong percentages length';
     pub const WRONG_PLATFORM_COMMISSION: felt252 = 'Wrong platform commission set';
     pub const WRONG_PERCENTAGE: felt252 = 'Wrong percentage value';
+    pub const DEADLINE_EXPIRED: felt252 = 'Signature deadline expired';
 }
 
 #[starknet::contract]
 pub mod NFTFactory {
     use core::{num::traits::Zero, traits::Into, poseidon::poseidon_hash_span};
     use starknet::{
-        ContractAddress, ClassHash, SyscallResultTrait, event::EventEmitter,
-        get_caller_address, get_contract_address, get_tx_info, syscalls::deploy_syscall,
-        storage::{
+        ContractAddress, ClassHash, SyscallResultTrait, event::EventEmitter, get_block_timestamp,
+        get_caller_address, get_contract_address, get_tx_info, syscalls::deploy_syscall, storage::{
             StoragePointerReadAccess, StoragePointerWriteAccess, Map, StorageMapReadAccess,
             StorageMapWriteAccess, Vec, VecTrait, MutableVecTrait, StoragePathEntry,
         },
@@ -280,6 +280,8 @@ pub mod NFTFactory {
             let metadata_name_hash: felt252 = info.name.hash();
             let metadata_symbol_hash: felt252 = info.symbol.hash();
             let contract_uri_hash: felt252 = info.contract_uri.hash();
+
+            self._assert_not_expired(signature_protection.deadline);
 
             assert(
                 self
@@ -538,6 +540,15 @@ pub mod NFTFactory {
             let creator = self.referrals.entry(referral_code).referral_creator.read();
 
             creator
+        }
+
+        fn _assert_not_expired(self: @ContractState, deadline: u128) {
+            if deadline == 0 {
+                return;
+            }
+
+            let current_timestamp: u64 = get_block_timestamp();
+            assert(current_timestamp.into() <= deadline, super::Errors::DEADLINE_EXPIRED);
         }
 
         fn _assert_snip12_identifier(self: @ContractState, id: ByteArray) {
