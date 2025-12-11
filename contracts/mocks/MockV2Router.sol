@@ -11,14 +11,18 @@ contract MockV2Router {
     struct ExactInputSingleParams {
         address tokenIn;
         address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 deadline;
         uint256 amountIn;
         uint256 amountOutMinimum;
-        address recipient;
+        uint160 sqrtPriceLimitX96;
     }
 
     struct ExactInputParams {
         bytes path;
         address recipient;
+        uint256 deadline;
         uint256 amountIn;
         uint256 amountOutMinimum;
     }
@@ -38,15 +42,15 @@ contract MockV2Router {
         rate = newRate;
     }
 
-    function exactInputSingle(ExactInputSingleParams calldata params) external returns (uint256 amountOut) {
-        amountOut = _swap(
-            params.tokenIn, params.tokenOut, params.amountIn, params.amountOutMinimum, params.recipient, msg.sender
-        );
+    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut) {
+        // fee, deadline, sqrtPriceLimitX96 unused in the mock
+        amountOut = _swap(params.tokenIn, params.tokenOut, params.amountIn, params.amountOutMinimum, params.recipient);
     }
 
-    function exactInput(ExactInputParams calldata params) external returns (uint256 amountOut) {
+    function exactInput(ExactInputParams calldata params) external payable returns (uint256 amountOut) {
+        // deadline unused in the mock
         (address tokenIn, address tokenOut) = _decodeExactInputPath(params.path);
-        amountOut = _swap(tokenIn, tokenOut, params.amountIn, params.amountOutMinimum, params.recipient, msg.sender);
+        amountOut = _swap(tokenIn, tokenOut, params.amountIn, params.amountOutMinimum, params.recipient);
     }
 
     function swapExactTokensForTokens(
@@ -60,7 +64,7 @@ contract MockV2Router {
         address tokenIn = path[0];
         address tokenOut = path[path.length - 1];
 
-        uint256 amountOut = _swap(tokenIn, tokenOut, amountIn, amountOutMin, to, msg.sender);
+        uint256 amountOut = _swap(tokenIn, tokenOut, amountIn, amountOutMin, to);
 
         amounts = new uint256[](path.length);
         amounts[0] = amountIn;
@@ -81,21 +85,17 @@ contract MockV2Router {
         amounts[amounts.length - 1] = amountOut;
     }
 
-    function _swap(
-        address tokenIn,
-        address tokenOut,
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address to,
-        address payer
-    ) private returns (uint256 amountOut) {
+    function _swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, address to)
+        private
+        returns (uint256 amountOut)
+    {
         require(to != address(0), "MockV2Router: recipient");
         require(amountIn > 0, "MockV2Router: zero amount");
 
         amountOut = _quote(tokenIn, tokenOut, amountIn);
         require(amountOut >= amountOutMin, "MockV2Router: slippage");
 
-        IERC20(tokenIn).transferFrom(payer, address(this), amountIn);
+        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
         IERC20(tokenOut).transfer(to, amountOut);
     }
 
