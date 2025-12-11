@@ -22,23 +22,37 @@ abstract contract DualDexSwapV4 {
     /// @notice Swaps USDC to LONG for a recipient using the configured v4 router.
     /// @param recipient Address receiving the LONG output.
     /// @param amount Exact USDC amount to swap.
+    /// @param deadline Unix timestamp after which the swap should revert (0 to use library default).
     /// @return swapped The amount of LONG delivered to `recipient`.
-    function _swapUSDtokenToLONG(address recipient, uint256 amount) internal virtual returns (uint256 swapped) {
+    function _swapUSDtokenToLONG(address recipient, uint256 amount, uint256 deadline)
+        internal
+        virtual
+        returns (uint256 swapped)
+    {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
-        swapped = DualDexSwapV4Lib.swapUSDtokenToLONG(_paymentsInfo, recipient, amount, _quoteUSDtokenToLONG(amount));
+        swapped = DualDexSwapV4Lib.swapUSDtokenToLONG(
+            _paymentsInfo, recipient, amount, _quoteUSDtokenToLONG(amount), deadline
+        );
     }
 
     /// @notice Swaps LONG to USDC for a recipient using the configured v4 router.
     /// @param recipient Address receiving the USDC output.
     /// @param amount Exact LONG amount to swap.
+    /// @param deadline Unix timestamp after which the swap should revert (0 to use library default).
     /// @return swapped The amount of USDC delivered to `recipient`.
-    function _swapLONGtoUSDtoken(address recipient, uint256 amount) internal virtual returns (uint256 swapped) {
+    function _swapLONGtoUSDtoken(address recipient, uint256 amount, uint256 deadline)
+        internal
+        virtual
+        returns (uint256 swapped)
+    {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
-        swapped = DualDexSwapV4Lib.swapLONGtoUSDtoken(_paymentsInfo, recipient, amount, _quoteLONGtoUSDtoken(amount));
+        swapped = DualDexSwapV4Lib.swapLONGtoUSDtoken(
+            _paymentsInfo, recipient, amount, _quoteLONGtoUSDtoken(amount), deadline
+        );
     }
 
     /// @notice Executes a multi-hop swap along a precomputed path using the configured dex.

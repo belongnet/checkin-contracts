@@ -76,6 +76,7 @@ library DualDexSwapV4Lib {
         address tokenOut;
         uint256 amountIn;
         uint256 amountOutMinimum;
+        uint256 deadline;
         bytes poolKey; // ABI-encoded PoolKey (v4) or fee tier (v3)
         bytes hookData;
         address recipient;
@@ -87,6 +88,7 @@ library DualDexSwapV4Lib {
         bytes[] poolKeys; // ABI-encoded PoolKey (v4) or fee tier (v3) per hop (length = tokens.length - 1)
         uint256 amountIn;
         uint256 amountOutMinimum; // final hop min out
+        uint256 deadline;
         bytes hookData;
         address recipient;
     }
@@ -154,10 +156,13 @@ library DualDexSwapV4Lib {
     /// @param recipient Address receiving the LONG output.
     /// @param amount Exact USDtoken amount to swap.
     /// @return swapped The amount of LONG delivered to `recipient`.
-    function swapUSDtokenToLONG(PaymentsInfo memory info, address recipient, uint256 amount, uint256 amountOutMinimum)
-        external
-        returns (uint256 swapped)
-    {
+    function swapUSDtokenToLONG(
+        PaymentsInfo memory info,
+        address recipient,
+        uint256 amount,
+        uint256 amountOutMinimum,
+        uint256 deadline
+    ) external returns (uint256 swapped) {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
@@ -170,6 +175,7 @@ library DualDexSwapV4Lib {
                 tokenOut: info.long,
                 amountIn: amount,
                 amountOutMinimum: amountOutMinimum,
+                deadline: deadline,
                 poolKey: info.poolKey,
                 hookData: info.hookData,
                 recipient: recipient
@@ -182,10 +188,13 @@ library DualDexSwapV4Lib {
     /// @param recipient Address receiving the USDtoken output.
     /// @param amount Exact LONG amount to swap.
     /// @return swapped The amount of USDtoken delivered to `recipient`.
-    function swapLONGtoUSDtoken(PaymentsInfo memory info, address recipient, uint256 amount, uint256 amountOutMinimum)
-        external
-        returns (uint256 swapped)
-    {
+    function swapLONGtoUSDtoken(
+        PaymentsInfo memory info,
+        address recipient,
+        uint256 amount,
+        uint256 amountOutMinimum,
+        uint256 deadline
+    ) external returns (uint256 swapped) {
         if (recipient == address(0) || amount == 0) {
             return 0;
         }
@@ -198,6 +207,7 @@ library DualDexSwapV4Lib {
                 tokenOut: info.usdToken,
                 amountIn: amount,
                 amountOutMinimum: amountOutMinimum,
+                deadline: deadline,
                 poolKey: info.poolKey,
                 hookData: info.hookData,
                 recipient: recipient
@@ -285,6 +295,7 @@ library DualDexSwapV4Lib {
 
     function _executeOnV3(PaymentsInfo memory info, ExactInputSingleParams memory params) private {
         uint24 fee = _decodeV3Fee(params.poolKey);
+        uint256 deadline = params.deadline == 0 ? block.timestamp + 15 : params.deadline;
         IV3RouterLike(info.router)
             .exactInputSingle(
                 IV3RouterLike.ExactInputSingleParams({
@@ -292,7 +303,7 @@ library DualDexSwapV4Lib {
                     tokenOut: params.tokenOut,
                     fee: fee,
                     recipient: params.recipient,
-                    deadline: block.timestamp + 15,
+                    deadline: deadline,
                     amountIn: params.amountIn,
                     amountOutMinimum: params.amountOutMinimum,
                     sqrtPriceLimitX96: 0
@@ -380,13 +391,14 @@ library DualDexSwapV4Lib {
 
     function _executeV3Path(PaymentsInfo memory info, ExactInputMultiParams memory params) private {
         bytes memory path = _buildV3Path(params.tokens, params.poolKeys);
+        uint256 deadline = params.deadline == 0 ? block.timestamp + 15 : params.deadline;
 
         IV3RouterLike(info.router)
             .exactInput(
                 IV3RouterLike.ExactInputParams({
                     path: path,
                     recipient: params.recipient,
-                    deadline: block.timestamp + 15,
+                    deadline: deadline,
                     amountIn: params.amountIn,
                     amountOutMinimum: params.amountOutMinimum
                 })
