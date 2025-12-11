@@ -52,7 +52,14 @@ enum DexType {
   UniV3,
 }
 
-describe('BelongCheckIn BSC PancakeSwapV3', () => {
+const runBscForkTests = !!process.env.BSC_RPC_URL;
+const describeBscFork = runBscForkTests ? describe : describe.skip;
+
+if (!runBscForkTests) {
+  console.warn('Skipping BelongCheckIn BSC PancakeSwapV3 fork tests (set BSC_RPC_URL to an archive node to enable).');
+}
+
+describeBscFork('BelongCheckIn BSC PancakeSwapV3', () => {
   const chainId = ChainIds.bsc;
 
   const USDT_WHALE_ADDRESS = '0x8894E0a0c962CB723c1976a4421c95949bE2D4E3';

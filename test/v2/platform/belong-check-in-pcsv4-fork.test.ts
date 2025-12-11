@@ -658,6 +658,7 @@ describe('BelongCheckIn BSC PancakeSwapV4', () => {
         uri,
       };
 
+      const paymentToTreasury = await helper.calculateRate(1000, amount);
       const willBeTaken = paymentToTreasury.add(convenienceFeeAmount.add(amount));
 
       await USDT.connect(USDT_whale).approve(belongCheckIn.address, willBeTaken);
