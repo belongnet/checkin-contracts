@@ -115,9 +115,10 @@ describe('Staking', () => {
 
       await staking.connect(user1).deposit(amount, user1.address);
 
-      await expect(
-        staking.connect(user1).withdraw(amount, user1.address, user1.address),
-      ).to.be.revertedWithCustomError(staking, 'WithdrawMoreThanMax');
+      await expect(staking.connect(user1).withdraw(amount, user1.address, user1.address)).to.be.revertedWithCustomError(
+        staking,
+        'WithdrawMoreThanMax',
+      );
 
       await time.increase(oneDay + 1);
 
@@ -760,10 +761,7 @@ describe('Staking', () => {
     it('setRewardsDuration()', async () => {
       const { staking, admin, user1 } = await loadFixture(fixture);
 
-      await expect(staking.connect(user1).setRewardsDuration(1)).to.be.revertedWithCustomError(
-        staking,
-        'Unauthorized',
-      );
+      await expect(staking.connect(user1).setRewardsDuration(1)).to.be.revertedWithCustomError(staking, 'Unauthorized');
       await expect(staking.connect(admin).setRewardsDuration(0)).to.be.revertedWithCustomError(
         staking,
         'RewardDurationShouldBeGreaterThanZero',

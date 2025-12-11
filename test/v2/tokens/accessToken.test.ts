@@ -35,6 +35,7 @@ const NATIVE_CURRENCY_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
 const PLATFORM_COMMISSION = 100;
 const NFT_721_BASE_URI = 'test.com/';
 const BPS_DENOMINATOR = BigNumber.from('10000');
+const REFERRAL_MAX_ARRAY_LENGTH = 20;
 
 const INTERFACE_ID_ERC2981 = '0x2a55205a';
 const INTERFACE_ID_ERC4906 = '0x49064906';
@@ -426,7 +427,13 @@ describe('AccessToken', () => {
       ).to.be.revertedWithCustomError(accessTokenEth, 'WrongArraySize');
 
       const updatedParams = cloneFactoryParams({ maxArraySize: 1 });
-      await factory.setFactoryParameters(updatedParams, royalties, implementations, referralPercentages);
+      await factory.setFactoryParameters(
+        updatedParams,
+        royalties,
+        implementations,
+        referralPercentages,
+        REFERRAL_MAX_ARRAY_LENGTH,
+      );
 
       const batchParams = [buildStaticParams(6), buildStaticParams(7)];
       const protections = await Promise.all(
@@ -598,7 +605,13 @@ describe('AccessToken', () => {
       ).to.be.revertedWithCustomError(accessTokenEth, 'WrongArraySize');
 
       const updatedParams = cloneFactoryParams({ maxArraySize: 1 });
-      await factory.setFactoryParameters(updatedParams, royalties, implementations, referralPercentages);
+      await factory.setFactoryParameters(
+        updatedParams,
+        royalties,
+        implementations,
+        referralPercentages,
+        REFERRAL_MAX_ARRAY_LENGTH,
+      );
 
       const batchParams = [
         buildDynamicParams(33, ethPurchasePrice.div(2)),

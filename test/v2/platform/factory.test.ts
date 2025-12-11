@@ -45,6 +45,7 @@ describe('Factory', () => {
   const NATIVE_CURRENCY_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const chainId = 31337;
+  const REFERRAL_MAX_ARRAY_LENGTH = 20;
 
   let factoryParams: Factory.FactoryParametersStruct,
     referralPercentages: any,
@@ -169,7 +170,7 @@ describe('Factory', () => {
       const { factory } = await loadFixture(fixture);
 
       await expect(
-        factory.initialize(factoryParams, royalties, implementations, referralPercentages),
+        factory.initialize(factoryParams, royalties, implementations, referralPercentages, REFERRAL_MAX_ARRAY_LENGTH),
       ).to.be.revertedWithCustomError(factory, 'InvalidInitialization');
     });
 
@@ -188,7 +189,12 @@ describe('Factory', () => {
         amountToPlatform: 2000,
       };
 
-      const tx = await factory.upgradeToV2(_royalties, _implementations);
+      const tx = await factory.upgradeToV2(
+        _royalties,
+        _implementations,
+        referralPercentages,
+        REFERRAL_MAX_ARRAY_LENGTH,
+      );
 
       await expect(tx).to.emit(factory, 'FactoryParametersSet');
       expect((await factory.royaltiesParameters()).amountToCreator).to.eq(_royalties.amountToCreator);
@@ -198,10 +204,9 @@ describe('Factory', () => {
       expect((await factory.implementations()).royaltiesReceiver).to.eq(_implementations.royaltiesReceiver);
       expect((await factory.implementations()).vestingWallet).to.eq(_implementations.vestingWallet);
 
-      await expect(factory.upgradeToV2(_royalties, _implementations)).to.be.revertedWithCustomError(
-        factory,
-        'InvalidInitialization',
-      );
+      await expect(
+        factory.upgradeToV2(_royalties, _implementations, referralPercentages, REFERRAL_MAX_ARRAY_LENGTH),
+      ).to.be.revertedWithCustomError(factory, 'InvalidInitialization');
     });
   });
 
@@ -1123,10 +1128,26 @@ describe('Factory', () => {
       const _factoryParams = factoryParams;
 
       await expect(
-        factory.connect(alice).setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages),
+        factory
+          .connect(alice)
+          .setFactoryParameters(
+            _factoryParams,
+            royalties,
+            implementations,
+            referralPercentages,
+            REFERRAL_MAX_ARRAY_LENGTH,
+          ),
       ).to.be.revertedWithCustomError(factory, 'Unauthorized');
       referralPercentages[1] = 10001;
-      await expect(factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages))
+      await expect(
+        factory.setFactoryParameters(
+          _factoryParams,
+          royalties,
+          implementations,
+          referralPercentages,
+          REFERRAL_MAX_ARRAY_LENGTH,
+        ),
+      )
         .to.be.revertedWithCustomError(factory, 'PercentageExceedsMax')
         .withArgs(10001);
       referralPercentages[1] = 1;
@@ -1134,19 +1155,37 @@ describe('Factory', () => {
       royalties.amountToCreator = 9000;
       royalties.amountToPlatform = 1001;
       await expect(
-        factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages),
+        factory.setFactoryParameters(
+          _factoryParams,
+          royalties,
+          implementations,
+          referralPercentages,
+          REFERRAL_MAX_ARRAY_LENGTH,
+        ),
       ).to.be.revertedWithCustomError(factory, 'TotalRoyaltiesNot100Percent');
 
       royalties.amountToCreator = 9000;
       royalties.amountToPlatform = 900;
       await expect(
-        factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages),
+        factory.setFactoryParameters(
+          _factoryParams,
+          royalties,
+          implementations,
+          referralPercentages,
+          REFERRAL_MAX_ARRAY_LENGTH,
+        ),
       ).to.be.revertedWithCustomError(factory, 'TotalRoyaltiesNot100Percent');
 
       royalties.amountToCreator = 9000;
       royalties.amountToPlatform = 1000;
 
-      const tx = await factory.setFactoryParameters(_factoryParams, royalties, implementations, referralPercentages);
+      const tx = await factory.setFactoryParameters(
+        _factoryParams,
+        royalties,
+        implementations,
+        referralPercentages,
+        REFERRAL_MAX_ARRAY_LENGTH,
+      );
       await expect(tx).to.emit(factory, 'FactoryParametersSet');
       await expect(tx).to.emit(factory, 'ReferralParametersSet');
     });
