@@ -1,9 +1,11 @@
 import dotenv from 'dotenv';
-import fs from 'fs';
 import { BigNumber } from 'ethers';
 import { ethers, upgrades } from 'hardhat';
+
 import { verifyContract } from '../../../helpers/verify';
 import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
+
+import fs from 'fs';
 
 dotenv.config();
 
@@ -36,7 +38,8 @@ function parseAmount(
   decimals: number,
   defaultValue?: string,
 ) {
-  const source = rawEnv ?? (readableEnv !== undefined ? ethers.utils.parseUnits(readableEnv, decimals).toString() : undefined);
+  const source =
+    rawEnv ?? (readableEnv !== undefined ? ethers.utils.parseUnits(readableEnv, decimals).toString() : undefined);
   if (source === undefined) {
     if (defaultValue !== undefined) return BigNumber.from(defaultValue);
     throw new Error(`Missing amount for ${label}`);
@@ -84,10 +87,7 @@ async function main() {
     }
 
     const token = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
-    const [decimals, symbol] = await Promise.all([
-      token.decimals(),
-      token.symbol().catch(() => 'TOKEN'),
-    ]);
+    const [decimals, symbol] = await Promise.all([token.decimals(), token.symbol().catch(() => 'TOKEN')]);
 
     const totalAllocation = parseAmount(
       'VESTING_TOTAL_ALLOCATION',
@@ -120,7 +120,9 @@ async function main() {
     if (FUND) {
       const balance = await token.balanceOf(sender);
       if (balance.lt(totalAllocation)) {
-        throw new Error(`Insufficient ${symbol} balance. Have ${balance.toString()}, need ${totalAllocation.toString()}.`);
+        throw new Error(
+          `Insufficient ${symbol} balance. Have ${balance.toString()}, need ${totalAllocation.toString()}.`,
+        );
       }
     }
 
