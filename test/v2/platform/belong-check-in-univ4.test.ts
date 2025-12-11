@@ -127,6 +127,18 @@ async function executeVenueDeposit(
   return contract.connect(depositor).venueDeposit(toVenueInfoTuple(sanitized), protection);
 }
 
+async function executeVenueDepositWithDeadline(
+  contract: BelongCheckIn,
+  platformSigner: PlatformSigner,
+  depositor: SignerWithAddress,
+  venueInfo: VenueInfoStruct,
+  swapDeadline: number,
+) {
+  const sanitized = sanitizeVenueInfo(venueInfo);
+  const protection = await signVenueInfo(contract.address, platformSigner.privateKey, sanitized);
+  return contract.connect(depositor).venueDepositWithDeadline(toVenueInfoTuple(sanitized), protection, swapDeadline);
+}
+
 async function executePayToVenue(
   contract: BelongCheckIn,
   platformSigner: PlatformSigner,
@@ -138,6 +150,18 @@ async function executePayToVenue(
   return contract.connect(payer).payToVenue(toCustomerInfoTuple(sanitized), protection);
 }
 
+async function executePayToVenueWithDeadline(
+  contract: BelongCheckIn,
+  platformSigner: PlatformSigner,
+  payer: SignerWithAddress,
+  customerInfo: CustomerInfoStruct,
+  swapDeadline: number,
+) {
+  const sanitized = sanitizeCustomerInfo(customerInfo);
+  const protection = await signCustomerInfo(contract.address, platformSigner.privateKey, sanitized);
+  return contract.connect(payer).payToVenueWithDeadline(toCustomerInfoTuple(sanitized), protection, swapDeadline);
+}
+
 async function executeDistributePromoterPayments(
   contract: BelongCheckIn,
   platformSigner: PlatformSigner,
@@ -147,6 +171,20 @@ async function executeDistributePromoterPayments(
   const sanitized = sanitizePromoterInfo(promoterInfo);
   const protection = await signPromoterInfo(contract.address, platformSigner.privateKey, sanitized);
   return contract.connect(caller).distributePromoterPayments(toPromoterInfoTuple(sanitized), protection);
+}
+
+async function executeDistributePromoterPaymentsWithDeadline(
+  contract: BelongCheckIn,
+  platformSigner: PlatformSigner,
+  caller: SignerWithAddress,
+  promoterInfo: PromoterInfoStruct,
+  swapDeadline: number,
+) {
+  const sanitized = sanitizePromoterInfo(promoterInfo);
+  const protection = await signPromoterInfo(contract.address, platformSigner.privateKey, sanitized);
+  return contract
+    .connect(caller)
+    .distributePromoterPaymentsWithDeadline(toPromoterInfoTuple(sanitized), protection, swapDeadline);
 }
 
 describe('BelongCheckIn ETH UniswapV4', () => {
@@ -644,6 +682,41 @@ describe('BelongCheckIn ETH UniswapV4', () => {
   });
 
   describe('Venue flow', () => {
+    it('venueDepositWithDeadline() accepts explicit deadline', async () => {
+      const { belongCheckIn, escrow, helper, treasury, signer, USDC, ENA, USDC_whale } = await loadFixture(fixture);
+
+      const now = (await ethers.provider.getBlock('latest'))!.timestamp;
+      const swapDeadline = now + 3600;
+
+      const uri = 'uriuri';
+      const amount = await u(100, USDC);
+      const venue = USDC_whale.address;
+
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        venue,
+        amount,
+        affiliateReferralCode: ethers.constants.HashZero,
+        uri,
+      };
+
+      const willBeTaken = convenienceFeeAmount.add(amount);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+
+      const tx = await executeVenueDepositWithDeadline(belongCheckIn, signer, USDC_whale, venueInfo, swapDeadline);
+
+      const escrowDeposit = await escrow.venueDeposits(USDC_whale.address);
+      await expect(tx).to.emit(belongCheckIn, 'VenuePaidDeposit');
+      await expect(tx).to.emit(belongCheckIn, 'VenueRulesSet');
+      await expect(tx)
+        .to.emit(belongCheckIn, 'Swapped')
+        .withArgs(escrow.address, convenienceFeeAmount, escrowDeposit.longDeposits);
+      await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
+      expect((await belongCheckIn.generalVenueInfo(USDC_whale.address)).remainingCredits).to.eq(1);
+      expect(await USDC.balanceOf(treasury.address)).to.eq(0);
+      expect(await ENA.balanceOf(escrow.address)).to.eq(escrowDeposit.longDeposits);
+    });
+
     it('venueDeposit() (first deposit) (w/o referral) (no stakes)', async () => {
       const { belongCheckIn, escrow, venueToken, helper, signatureVerifier, treasury, signer, USDC, ENA, USDC_whale } =
         await loadFixture(fixture);
@@ -1454,6 +1527,66 @@ describe('BelongCheckIn ETH UniswapV4', () => {
   });
 
   describe('Customer flow usdToken payment', () => {
+    it('payToVenueWithDeadline() (w/o promoter)', async () => {
+      const { belongCheckIn, escrow, venueToken, helper, signer, USDC, ENA, USDC_whale, ENA_whale } =
+        await loadFixture(fixture);
+
+      const swapDeadline = (await ethers.provider.getBlock('latest'))!.timestamp + 3600;
+      const uri = 'uriuri';
+      const venueAmount = await u(100, USDC);
+      const venue = USDC_whale.address;
+
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 1, bountyType: 0, bountyAllocationType: 0, longPaymentType: 0 } as VenueRulesStruct,
+        venue,
+        amount: venueAmount,
+        affiliateReferralCode: ethers.constants.HashZero,
+        uri,
+      };
+      const willBeTaken = convenienceFeeAmount.add(venueAmount);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
+
+      const customerAmount = await u(5, USDC);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDtoken: true,
+        toCustomer: { visitBountyAmount: 0, spendBountyPercentage: 0 },
+        toPromoter: { visitBountyAmount: 0, spendBountyPercentage: 0 },
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoterReferralCode: ethers.constants.HashZero,
+        amount: customerAmount,
+      };
+
+      await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
+
+      const customerBalance_before = await USDC.balanceOf(ENA_whale.address);
+      const venueBalance_before = await USDC.balanceOf(USDC_whale.address);
+
+      const tx = await executePayToVenueWithDeadline(belongCheckIn, signer, ENA_whale, customerInfo, swapDeadline);
+
+      const customerBalance_after = await USDC.balanceOf(ENA_whale.address);
+      const venueBalance_after = await USDC.balanceOf(USDC_whale.address);
+
+      await expect(tx)
+        .to.emit(belongCheckIn, 'CustomerPaid')
+        .withArgs(
+          ENA_whale.address,
+          USDC_whale.address,
+          ethers.constants.AddressZero,
+          customerAmount,
+          [BigNumber.from(customerInfo.toCustomer.spendBountyPercentage), customerInfo.toCustomer.visitBountyAmount],
+          [BigNumber.from(customerInfo.toPromoter.spendBountyPercentage), customerInfo.toPromoter.visitBountyAmount],
+        );
+      expect(customerBalance_before.sub(customerAmount)).to.eq(customerBalance_after);
+      expect(venueBalance_before.add(customerAmount)).to.eq(venueBalance_after);
+      expect(await venueToken.balanceOf(USDC_whale.address, await helper.getVenueId(USDC_whale.address))).to.eq(
+        venueAmount,
+      );
+      expect(await ENA.balanceOf(escrow.address)).to.be.gte(0);
+    });
+
     it('payToVenue() (w/o promoter)', async () => {
       const { belongCheckIn, signer, USDC, USDC_whale, ENA_whale } = await loadFixture(fixture);
 
@@ -3752,6 +3885,8 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         ENA_whale,
       } = await loadFixture(fixture);
 
+      const swapDeadline = (await ethers.provider.getBlock('latest'))!.timestamp + 3600;
+
       const uri = 'uriuri';
       const venueAmount = await u(100, USDC);
       const venue = USDC_whale.address;
@@ -3812,7 +3947,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
       await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
 
-      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
+      await executePayToVenueWithDeadline(belongCheckIn, signer, ENA_whale, customerInfo, swapDeadline);
 
       const promoterBalance_promoterToken_before = await promoterToken.balanceOf(
         referral.address,
@@ -3866,7 +4001,13 @@ describe('BelongCheckIn ETH UniswapV4', () => {
             mismatchedPromoterProtection,
           ),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
-      const tx = await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
+      const tx = await executeDistributePromoterPaymentsWithDeadline(
+        belongCheckIn,
+        signer,
+        referral,
+        promoterInfo,
+        swapDeadline,
+      );
 
       const escrowBalance_after = await USDC.balanceOf(escrow.address);
       const feeReceiverBalance_after = await USDC.balanceOf(treasury.address);
