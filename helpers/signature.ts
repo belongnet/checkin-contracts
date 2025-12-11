@@ -1,11 +1,13 @@
 import { BigNumber, BigNumberish, BytesLike } from 'ethers';
 import { ethers } from 'hardhat';
 
+import type { BelongCheckIn } from '../typechain-types';
 import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 import {
   CustomerInfoStruct,
   PromoterInfoStruct,
   VenueInfoStruct,
+  VenueRulesStruct,
 } from '../typechain-types/contracts/v2/platform/BelongCheckIn';
 import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
 import {
@@ -20,6 +22,7 @@ export type SignatureOverrides = {
   nonce?: BigNumberish;
   deadline?: BigNumberish;
   chainId?: BigNumberish;
+  rules?: VenueRulesStruct;
 };
 
 const DEFAULT_DEADLINE_WINDOW = 3600; // 1 hour
@@ -176,6 +179,23 @@ export async function signCustomerInfo(
   info: CustomerInfoStruct,
   overrides?: SignatureOverrides,
 ): Promise<SignatureProtectionStruct> {
+  const rules =
+    overrides?.rules ??
+    (
+      await ((await ethers.getContractAt('BelongCheckIn', verifyingContract)) as BelongCheckIn).generalVenueInfo(
+        info.venueToPayFor,
+      )
+    ).rules;
+
+  const customerBounties = ethers.utils.defaultAbiCoder.encode(
+    ['uint128', 'uint24'],
+    [info.toCustomer.visitBountyAmount, info.toCustomer.spendBountyPercentage],
+  );
+  const promoterBounties = ethers.utils.defaultAbiCoder.encode(
+    ['uint128', 'uint24'],
+    [info.toPromoter.visitBountyAmount, info.toPromoter.spendBountyPercentage],
+  );
+
   return buildProtection(
     signerPrivateKey,
     ({ nonce, deadline, chainId }) =>
@@ -185,11 +205,11 @@ export async function signCustomerInfo(
           'uint256',
           'uint256',
           'uint256',
+          'uint8',
+          'uint8',
           'bool',
-          'uint128',
-          'uint24',
-          'uint128',
-          'uint24',
+          'bytes',
+          'bytes',
           'address',
           'address',
           'bytes32',
@@ -200,11 +220,11 @@ export async function signCustomerInfo(
           nonce,
           deadline,
           chainId,
+          rules.bountyType,
+          rules.bountyAllocationType,
           info.paymentInUSDtoken,
-          info.toCustomer.visitBountyAmount,
-          info.toCustomer.spendBountyPercentage,
-          info.toPromoter.visitBountyAmount,
-          info.toPromoter.spendBountyPercentage,
+          customerBounties,
+          promoterBounties,
           info.customer,
           info.venueToPayFor,
           info.promoterReferralCode,
