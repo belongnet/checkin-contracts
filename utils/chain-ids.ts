@@ -34,7 +34,7 @@ export const chainRPCs = (chainid: ChainIds, _apiKey?: string): string => {
       if (process.env.INFURA_ID_PROJECT) {
         return `https://bsc-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
       }
-      return 'https://bsc.drpc.org';
+      return 'https://bsc-dataseed.binance.org';
     case ChainIds.polygon:
       return `https://polygon.llamarpc.com`;
     case ChainIds.blast:

@@ -1,7 +1,8 @@
 import { CustomChain, EtherscanConfig } from '@nomiclabs/hardhat-etherscan/dist/src/types';
 import dotenv from 'dotenv';
-import chainConfig from './chain-properties.json';
+
 import { ChainIds, chainRPCs } from './chain-ids';
+import chainConfig from './chain-properties.json';
 
 dotenv.config();
 
