@@ -80,6 +80,8 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
     error OnlyEOA();
 
+    error ZeroAmountProvided();
+
     // ========== Events ==========
 
     /// @notice Emitted when global parameters are updated.
@@ -360,7 +362,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Allows a venue to withdraw unused USDtoken deposits when no promoter payouts occur.
     /// @param amount Amount of USDtoken to withdraw.
     function withdrawUnusedUSD(uint256 amount) external {
-        require(amount > 0, NotEnoughBalance(amount, 0));
+        require(amount > 0, ZeroAmountProvided());
         Contracts storage _contracts = belongCheckInStorage.contracts;
         CreditToken venueToken = _contracts.venueToken;
         Escrow escrow = _contracts.escrow;
