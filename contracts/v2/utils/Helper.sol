@@ -148,8 +148,9 @@ library Helper {
         int256 intAnswer;
         uint256 roundId;
         uint256 updatedAt;
-        try ILONGPriceFeed(priceFeed)
-            .latestRoundData() returns (uint80 _roundId, int256 _answer, uint256, uint256 _updatedAt, uint80) {
+        try ILONGPriceFeed(priceFeed).latestRoundData() returns (
+            uint80 _roundId, int256 _answer, uint256, uint256 _updatedAt, uint80
+        ) {
             roundId = uint256(_roundId);
             updatedAt = _updatedAt;
             intAnswer = _answer;
