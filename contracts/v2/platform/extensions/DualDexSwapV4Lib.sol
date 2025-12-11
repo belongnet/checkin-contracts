@@ -295,7 +295,7 @@ library DualDexSwapV4Lib {
 
     function _executeOnV3(PaymentsInfo memory info, ExactInputSingleParams memory params) private {
         uint24 fee = _decodeV3Fee(params.poolKey);
-        uint256 deadline = params.deadline == 0 ? block.timestamp + 15 : params.deadline;
+        uint256 deadline = params.deadline == 0 ? block.timestamp : params.deadline;
         IV3RouterLike(info.router)
             .exactInputSingle(
                 IV3RouterLike.ExactInputSingleParams({
