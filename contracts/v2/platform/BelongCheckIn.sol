@@ -391,6 +391,22 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         external
         onlyEOA
     {
+        _venueDeposit(venueInfo, protection, 0);
+    }
+
+    function venueDepositWithDeadline(
+        VenueInfo calldata venueInfo,
+        SignatureVerifier.SignatureProtection calldata protection,
+        uint256 swapDeadline
+    ) external onlyEOA {
+        _venueDeposit(venueInfo, protection, swapDeadline);
+    }
+
+    function _venueDeposit(
+        VenueInfo calldata venueInfo,
+        SignatureVerifier.SignatureProtection calldata protection,
+        uint256 swapDeadline
+    ) internal {
         Contracts storage _contracts = belongCheckInStorage.contracts;
         Fees storage fees_ = belongCheckInStorage.fees;
         address usdToken = _paymentsInfo.usdToken;
@@ -419,7 +435,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             // Collect deposit fee to this contract, then apply buyback/burn split and forward remainder.
             uint256 platformFee = stakingInfo.depositFeePercentage.calculateRate(venueInfo.amount);
             usdToken.safeTransferFrom(venueInfo.venue, address(this), platformFee);
-            _handleRevenue(usdToken, platformFee);
+            _handleRevenue(usdToken, platformFee, swapDeadline);
         }
 
         _setVenueRules(venueInfo.venue, venueInfo.rules);
@@ -428,8 +444,9 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
         usdToken.safeTransferFrom(venueInfo.venue, address(_contracts.escrow), venueInfo.amount);
 
-        uint256 convenienceFeeLong = _swapUSDtokenToLONG(address(_contracts.escrow), stakingInfo.convenienceFeeAmount);
-        _swapUSDtokenToLONG(affiliate, affiliateFee);
+        uint256 convenienceFeeLong =
+            _swapUSDtokenToLONG(address(_contracts.escrow), stakingInfo.convenienceFeeAmount, swapDeadline);
+        _swapUSDtokenToLONG(affiliate, affiliateFee, swapDeadline);
 
         _contracts.escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
 
@@ -449,6 +466,22 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         external
         onlyEOA
     {
+        _payToVenue(customerInfo, protection, 0);
+    }
+
+    function payToVenueWithDeadline(
+        CustomerInfo calldata customerInfo,
+        SignatureVerifier.SignatureProtection calldata protection,
+        uint256 swapDeadline
+    ) external onlyEOA {
+        _payToVenue(customerInfo, protection, swapDeadline);
+    }
+
+    function _payToVenue(
+        CustomerInfo calldata customerInfo,
+        SignatureVerifier.SignatureProtection calldata protection,
+        uint256 swapDeadline
+    ) internal {
         BelongCheckInStorage storage _storage = belongCheckInStorage;
         Contracts storage _contracts = _storage.contracts;
         Fees storage fees_ = _storage.fees;
@@ -484,35 +517,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             _paymentsInfo.usdToken
                 .safeTransferFrom(customerInfo.customer, customerInfo.venueToPayFor, customerInfo.amount);
         } else {
-            // Apply the processing fee on the subsidy itself so venues always receive the advertised top-up.
-            uint256 subsidy = fees_.platformSubsidyPercentage.calculateRate(customerInfo.amount);
-            uint256 processingFee = fees_.processingFeePercentage.calculateRate(subsidy);
-            uint256 subsidyMinusFees = subsidy - processingFee;
-            if (subsidy > 0) {
-                // Pull the full subsidy from escrow so the fee can be routed to platform revenue before paying the venue.
-                _contracts.escrow.distributeLONGDeposit(customerInfo.venueToPayFor, address(this), subsidy);
-                if (processingFee > 0) {
-                    _handleRevenue(_paymentsInfo.long, processingFee);
-                }
-            }
-
-            // customer paid amount - longCustomerDiscountPercentage (3%)
-            uint256 longFromCustomer =
-                customerInfo.amount - fees_.longCustomerDiscountPercentage.calculateRate(customerInfo.amount);
-            _paymentsInfo.long.safeTransferFrom(customerInfo.customer, address(this), longFromCustomer);
-
-            uint256 longAmount = subsidyMinusFees + longFromCustomer;
-
-            if (rules.longPaymentType == LongPaymentTypes.AutoStake) {
-                // Approve only what is needed, then clear allowance after deposit.
-                _paymentsInfo.long.safeApproveWithRetry(address(_contracts.staking), longAmount);
-                _contracts.staking.deposit(longAmount, customerInfo.venueToPayFor);
-                _paymentsInfo.long.safeApprove(address(_contracts.staking), 0);
-            } else if (rules.longPaymentType == LongPaymentTypes.AutoConvert) {
-                _swapLONGtoUSDtoken(customerInfo.venueToPayFor, longAmount);
-            } else {
-                _paymentsInfo.long.safeTransfer(customerInfo.venueToPayFor, longAmount);
-            }
+            _payToVenueLONG(customerInfo, fees_, _contracts, rules, swapDeadline);
         }
 
         emit CustomerPaid(
@@ -537,6 +542,22 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         PromoterInfo calldata promoterInfo,
         SignatureVerifier.SignatureProtection calldata protection
     ) external onlyEOA {
+        _distributePromoterPayments(promoterInfo, protection, 0);
+    }
+
+    function distributePromoterPaymentsWithDeadline(
+        PromoterInfo calldata promoterInfo,
+        SignatureVerifier.SignatureProtection calldata protection,
+        uint256 swapDeadline
+    ) external onlyEOA {
+        _distributePromoterPayments(promoterInfo, protection, swapDeadline);
+    }
+
+    function _distributePromoterPayments(
+        PromoterInfo calldata promoterInfo,
+        SignatureVerifier.SignatureProtection calldata protection,
+        uint256 swapDeadline
+    ) internal {
         Contracts storage _contracts = belongCheckInStorage.contracts;
         DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
 
@@ -566,13 +587,13 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         if (promoterInfo.paymentInUSDtoken) {
             // Route platform fees here for buyback/burn split, then forward remainder.
             _contracts.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), platformFees);
-            _handleRevenue(payments.usdToken, platformFees);
+            _handleRevenue(payments.usdToken, platformFees, swapDeadline);
             _contracts.escrow.distributeVenueDeposit(promoterInfo.venue, promoter, toPromoter);
         } else {
             _contracts.escrow.distributeVenueDeposit(promoterInfo.venue, address(this), promoterInfo.amountInUSD);
             // Swap fee portion to this contract for burning, then forward remainder to platform.
-            _handleRevenue(payments.long, _swapUSDtokenToLONG(address(this), platformFees));
-            _swapUSDtokenToLONG(promoter, toPromoter);
+            _handleRevenue(payments.long, _swapUSDtokenToLONG(address(this), platformFees, swapDeadline), swapDeadline);
+            _swapUSDtokenToLONG(promoter, toPromoter, swapDeadline);
         }
 
         emit PromoterPaymentsDistributed(
@@ -645,10 +666,52 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         emit VenueRulesSet(venue, rules);
     }
 
+    function _payToVenueLONG(
+        CustomerInfo calldata customerInfo,
+        Fees storage fees_,
+        Contracts storage _contracts,
+        VenueRules storage rules,
+        uint256 swapDeadline
+    ) private {
+        // Apply the processing fee on the subsidy itself so venues always receive the advertised top-up.
+        uint256 subsidy = fees_.platformSubsidyPercentage.calculateRate(customerInfo.amount);
+        uint256 processingFee = fees_.processingFeePercentage.calculateRate(subsidy);
+        uint256 subsidyMinusFees = subsidy - processingFee;
+        if (subsidy > 0) {
+            // Pull the full subsidy from escrow so the fee can be routed to platform revenue before paying the venue.
+            _contracts.escrow.distributeLONGDeposit(customerInfo.venueToPayFor, address(this), subsidy);
+            if (processingFee > 0) {
+                _handleRevenue(_paymentsInfo.long, processingFee, swapDeadline);
+            }
+        }
+
+        // customer paid amount - longCustomerDiscountPercentage (3%)
+        uint256 longFromCustomer =
+            customerInfo.amount - fees_.longCustomerDiscountPercentage.calculateRate(customerInfo.amount);
+        _paymentsInfo.long.safeTransferFrom(customerInfo.customer, address(this), longFromCustomer);
+
+        uint256 longAmount = subsidyMinusFees + longFromCustomer;
+
+        if (rules.longPaymentType == LongPaymentTypes.AutoStake) {
+            // Approve only what is needed, then clear allowance after deposit.
+            _paymentsInfo.long.safeApproveWithRetry(address(_contracts.staking), longAmount);
+            _contracts.staking.deposit(longAmount, customerInfo.venueToPayFor);
+            _paymentsInfo.long.safeApprove(address(_contracts.staking), 0);
+        } else if (rules.longPaymentType == LongPaymentTypes.AutoConvert) {
+            _swapLONGtoUSDtoken(customerInfo.venueToPayFor, longAmount, swapDeadline);
+        } else {
+            _paymentsInfo.long.safeTransfer(customerInfo.venueToPayFor, longAmount);
+        }
+    }
+
     /// @notice Swaps an exact USDtoken amount to LONG, then delivers proceeds to `recipient`.
     /// @dev Emits `Swapped` to maintain downstream observability.
-    function _swapUSDtokenToLONG(address recipient, uint256 amount) internal override returns (uint256 swapped) {
-        swapped = super._swapUSDtokenToLONG(recipient, amount);
+    function _swapUSDtokenToLONG(address recipient, uint256 amount, uint256 deadline)
+        internal
+        override
+        returns (uint256 swapped)
+    {
+        swapped = super._swapUSDtokenToLONG(recipient, amount, deadline);
         if (swapped > 0) {
             emit Swapped(recipient, amount, swapped);
         }
@@ -656,8 +719,12 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
     /// @notice Swaps an exact LONG amount to USDtoken, then delivers proceeds to `recipient`.
     /// @dev Emits `Swapped` to maintain downstream observability.
-    function _swapLONGtoUSDtoken(address recipient, uint256 amount) internal override returns (uint256 swapped) {
-        swapped = super._swapLONGtoUSDtoken(recipient, amount);
+    function _swapLONGtoUSDtoken(address recipient, uint256 amount, uint256 deadline)
+        internal
+        override
+        returns (uint256 swapped)
+    {
+        swapped = super._swapLONGtoUSDtoken(recipient, amount, deadline);
         if (swapped > 0) {
             emit Swapped(recipient, amount, swapped);
         }
@@ -674,7 +741,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @dev Splits platform revenue: swaps a configurable portion for LONG and burns it, then forwards the remainder to the fee collector.
     /// @param token Revenue token address (USDtoken/LONG supported; unknown tokens are forwarded intact).
     /// @param amount Revenue amount received by this contract.
-    function _handleRevenue(address token, uint256 amount) internal {
+    function _handleRevenue(address token, uint256 amount, uint256 swapDeadline) internal {
         if (amount == 0) {
             return;
         }
@@ -686,7 +753,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         uint256 buyback = _storage.fees.buybackBurnPercentage.calculateRate(amount);
         address long = payments.long;
         uint256 toBurn = token == payments.usdToken  // Buyback: swap USDtoken portion to LONG and burn.
-            ? _swapUSDtokenToLONG(address(this), buyback)
+            ? _swapUSDtokenToLONG(address(this), buyback, swapDeadline)
             : token == long  // Burn LONG directly, forward remainder to feeCollector.
                 ? buyback
                 : 0; // Unknown token: forward all to feeCollector to avoid trapping funds.
