@@ -35,15 +35,25 @@ export async function startSimulateMainnet() {
 }
 
 export async function startSimulateBSC() {
+  const blockFromEnv = Number(process.env.BSC_FORK_BLOCK ?? '');
+  const forkingConfig: {
+    jsonRpcUrl: string;
+    blockNumber?: number;
+    enable: boolean;
+  } = {
+    jsonRpcUrl: chainRPCs(ChainIds.bsc),
+    enable: true,
+  };
+
+  if (!Number.isNaN(blockFromEnv) && blockFromEnv > 0) {
+    forkingConfig.blockNumber = blockFromEnv;
+  }
+
   await network.provider.request({
     method: 'hardhat_reset',
     params: [
       {
-        forking: {
-          jsonRpcUrl: chainRPCs(ChainIds.bsc),
-          blockNumber: 67924992,
-          enable: true,
-        },
+        forking: forkingConfig,
       },
     ],
   });
