@@ -234,6 +234,7 @@ library DualDexSwapV4Lib {
         params.tokenIn.safeApprove(info.router, 0);
 
         received = _balanceOf(params.tokenOut, params.recipient) - balanceBefore;
+        require(received >= params.amountOutMinimum, QuoteFailed());
     }
 
     function _executeOnUniswapV4(PaymentsInfo memory info, ExactInputSingleParams memory params) private {
