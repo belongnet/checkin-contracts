@@ -294,16 +294,18 @@ describe('BelongCheckIn ETH UniswapV3', () => {
       expect(contractsFromStorage).to.deep.eq(contracts);
       expect(belongCheckInStorage.contracts).to.deep.eq(await belongCheckIn.contracts());
 
+      const paymentsInfoStored = await belongCheckIn.paymentsInfo();
+
       // Convert paymentsInfo tuple to object
       const paymentsInfoFromStorage = {
-        dexType: belongCheckInStorage.paymentsInfo.dexType,
-        slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
-        router: belongCheckInStorage.paymentsInfo.router,
-        usdToken: belongCheckInStorage.paymentsInfo.usdToken,
-        long: belongCheckInStorage.paymentsInfo.long,
-        maxPriceFeedDelay: belongCheckInStorage.paymentsInfo.maxPriceFeedDelay,
-        poolKey: belongCheckInStorage.paymentsInfo.poolKey,
-        hookData: belongCheckInStorage.paymentsInfo.hookData,
+        dexType: paymentsInfoStored.dexType,
+        slippageBps: paymentsInfoStored.slippageBps,
+        router: paymentsInfoStored.router,
+        usdToken: paymentsInfoStored.usdToken,
+        long: paymentsInfoStored.long,
+        maxPriceFeedDelay: paymentsInfoStored.maxPriceFeedDelay,
+        poolKey: paymentsInfoStored.poolKey,
+        hookData: paymentsInfoStored.hookData,
       };
       expect(paymentsInfoFromStorage).to.deep.eq(paymentsInfo);
       // Convert fees tuple to object
@@ -457,19 +459,22 @@ describe('BelongCheckIn ETH UniswapV3', () => {
       ).to.be.revertedWithCustomError(belongCheckIn, 'BPSTooHigh');
       paymentsInfoNew.slippageBps = BigNumber.from(10).pow(27).sub(1);
       const tx = await belongCheckIn.setParameters(paymentsInfoNew, feesNew, stakingRewardsNew);
-      await expect(tx).to.emit(belongCheckIn, 'ParametersSet');
+      await expect(tx).to.emit(belongCheckIn, 'PaymentsInfoSet');
+      await expect(tx).to.emit(belongCheckIn, 'FeesSet');
+      await expect(tx).to.emit(belongCheckIn, 'RewardsSet');
 
       const belongCheckInStorage = await belongCheckIn.belongCheckInStorage();
+      const paymentsInfoStored = await belongCheckIn.paymentsInfo();
       // Convert paymentsInfo tuple to object
       expect({
-        dexType: belongCheckInStorage.paymentsInfo.dexType,
-        slippageBps: belongCheckInStorage.paymentsInfo.slippageBps,
-        router: belongCheckInStorage.paymentsInfo.router,
-        usdToken: belongCheckInStorage.paymentsInfo.usdToken,
-        long: belongCheckInStorage.paymentsInfo.long,
-        maxPriceFeedDelay: belongCheckInStorage.paymentsInfo.maxPriceFeedDelay,
-        poolKey: belongCheckInStorage.paymentsInfo.poolKey,
-        hookData: belongCheckInStorage.paymentsInfo.hookData,
+        dexType: paymentsInfoStored.dexType,
+        slippageBps: paymentsInfoStored.slippageBps,
+        router: paymentsInfoStored.router,
+        usdToken: paymentsInfoStored.usdToken,
+        long: paymentsInfoStored.long,
+        maxPriceFeedDelay: paymentsInfoStored.maxPriceFeedDelay,
+        poolKey: paymentsInfoStored.poolKey,
+        hookData: paymentsInfoStored.hookData,
       }).to.deep.eq(paymentsInfoNew);
       // Convert fees tuple to object
       expect({
