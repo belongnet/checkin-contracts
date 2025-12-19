@@ -15,6 +15,8 @@ import {Escrow} from "../periphery/Escrow.sol";
 import {Staking} from "../periphery/Staking.sol";
 import {CreditToken} from "../tokens/CreditToken.sol";
 
+import {IERC20} from "../interfaces/IERC20.sol";
+
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
 import {Helper} from "../utils/Helper.sol";
 
@@ -200,6 +202,16 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     struct GeneralVenueInfo {
         VenueRules rules;
         uint16 remainingCredits;
+    }
+
+    /// @notice Computed fee breakdown for venue deposits.
+    struct VenueDepositFeesInfo {
+        uint256 feeAmount;
+        uint256 platformFee;
+        uint256 convenienceFeeAmount;
+        address affiliate;
+        uint256 affiliateFee;
+        bool useFreeCredit;
     }
 
     /// @notice Per-tier venue-side fee settings.
@@ -402,55 +414,95 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         _venueDeposit(venueInfo, protection, swapDeadline);
     }
 
+    function venueDepositFees(address venue, uint256 amount, bytes32 affiliateReferralCode)
+        public
+        view
+        returns (
+            uint256 feeAmount,
+            uint256 platformFee,
+            uint256 convenienceFeeAmount,
+            address affiliate,
+            uint256 affiliateFee
+        )
+    {
+        VenueDepositFeesInfo memory feesInfo = _venueDepositFees(venue, amount, affiliateReferralCode);
+        return (
+            feesInfo.feeAmount,
+            feesInfo.platformFee,
+            feesInfo.convenienceFeeAmount,
+            feesInfo.affiliate,
+            feesInfo.affiliateFee
+        );
+    }
+
+    function _venueDepositFees(address venue, uint256 amount, bytes32 affiliateReferralCode)
+        internal
+        view
+        returns (VenueDepositFeesInfo memory feesInfo)
+    {
+        VenueStakingRewardInfo memory stakingInfo = stakingRewards[_getUserStakingTier(venue)].venueStakingInfo;
+        Fees storage fees_ = belongCheckInStorage.fees;
+
+        if (affiliateReferralCode != bytes32(0)) {
+            feesInfo.affiliate = belongCheckInStorage.contracts.factory.getReferralCreator(affiliateReferralCode);
+            require(feesInfo.affiliate != address(0), WrongReferralCode(affiliateReferralCode));
+
+            feesInfo.affiliateFee = fees_.affiliatePercentage.calculateRate(amount);
+            feesInfo.feeAmount += feesInfo.affiliateFee;
+        }
+
+        if (generalVenueInfo[venue].remainingCredits < fees_.referralCreditsAmount) {
+            feesInfo.useFreeCredit = true;
+        } else {
+            feesInfo.platformFee = stakingInfo.depositFeePercentage.calculateRate(amount);
+            feesInfo.feeAmount += feesInfo.platformFee;
+        }
+
+        feesInfo.convenienceFeeAmount = stakingInfo.convenienceFeeAmount;
+        feesInfo.feeAmount += feesInfo.convenienceFeeAmount;
+    }
+
     function _venueDeposit(
         VenueInfo calldata venueInfo,
         SignatureVerifier.SignatureProtection calldata protection,
         uint256 swapDeadline
     ) internal {
         Contracts storage _contracts = belongCheckInStorage.contracts;
-        Fees storage fees_ = belongCheckInStorage.fees;
         address usdToken = _paymentsInfo.usdToken;
 
         _contracts.factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), protection, venueInfo);
 
-        VenueStakingRewardInfo memory stakingInfo =
-        stakingRewards[_getUserStakingTier(venueInfo.venue)].venueStakingInfo;
+        VenueDepositFeesInfo memory feesInfo =
+            _venueDepositFees(venueInfo.venue, venueInfo.amount, venueInfo.affiliateReferralCode);
 
-        address affiliate;
-        uint256 affiliateFee;
-        if (venueInfo.affiliateReferralCode != bytes32(0)) {
-            affiliate = _contracts.factory.getReferralCreator(venueInfo.affiliateReferralCode);
-            require(affiliate != address(0), WrongReferralCode(venueInfo.affiliateReferralCode));
+        uint256 allowance = IERC20(usdToken).allowance(venueInfo.venue, address(this));
+        require(
+            allowance >= feesInfo.feeAmount + venueInfo.amount,
+            NotEnoughBalance(feesInfo.feeAmount + venueInfo.amount, allowance)
+        );
 
-            affiliateFee = fees_.affiliatePercentage.calculateRate(venueInfo.amount);
-        }
-
-        uint256 venueId = venueInfo.venue.getVenueId();
-
-        if (generalVenueInfo[venueInfo.venue].remainingCredits < fees_.referralCreditsAmount) {
+        if (feesInfo.useFreeCredit) {
             unchecked {
                 ++generalVenueInfo[venueInfo.venue].remainingCredits;
             }
         } else {
-            // Collect deposit fee to this contract, then apply buyback/burn split and forward remainder.
-            uint256 platformFee = stakingInfo.depositFeePercentage.calculateRate(venueInfo.amount);
-            usdToken.safeTransferFrom(venueInfo.venue, address(this), platformFee);
-            _handleRevenue(usdToken, platformFee, swapDeadline);
+            usdToken.safeTransferFrom(venueInfo.venue, address(this), feesInfo.platformFee);
+            _handleRevenue(usdToken, feesInfo.platformFee, swapDeadline);
         }
 
         _setVenueRules(venueInfo.venue, venueInfo.rules);
 
-        usdToken.safeTransferFrom(venueInfo.venue, address(this), stakingInfo.convenienceFeeAmount + affiliateFee);
+        usdToken.safeTransferFrom(venueInfo.venue, address(this), feesInfo.convenienceFeeAmount + feesInfo.affiliateFee);
 
         usdToken.safeTransferFrom(venueInfo.venue, address(_contracts.escrow), venueInfo.amount);
 
         uint256 convenienceFeeLong =
-            _swapUSDtokenToLONG(address(_contracts.escrow), stakingInfo.convenienceFeeAmount, swapDeadline);
-        _swapUSDtokenToLONG(affiliate, affiliateFee, swapDeadline);
+            _swapUSDtokenToLONG(address(_contracts.escrow), feesInfo.convenienceFeeAmount, swapDeadline);
+        _swapUSDtokenToLONG(feesInfo.affiliate, feesInfo.affiliateFee, swapDeadline);
 
         _contracts.escrow.venueDeposit(venueInfo.venue, venueInfo.amount, convenienceFeeLong);
 
-        _contracts.venueToken.mint(venueInfo.venue, venueId, venueInfo.amount);
+        _contracts.venueToken.mint(venueInfo.venue, venueInfo.venue.getVenueId(), venueInfo.amount);
 
         emit VenuePaidDeposit(venueInfo.venue, venueInfo.affiliateReferralCode, venueInfo.rules, venueInfo.amount);
     }
