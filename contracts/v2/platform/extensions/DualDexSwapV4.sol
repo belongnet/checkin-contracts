@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.27;
 
+import {Helper} from "../../utils/Helper.sol";
 import {DualDexSwapV4Lib} from "./DualDexSwapV4Lib.sol";
 
 /// @notice Thin stateful wrapper over {DualDexSwapV4Lib} storing the active payments configuration.
 abstract contract DualDexSwapV4 {
+    /// @notice Reverts when a provided bps value exceeds the configured scaling domain.
+    error BPSTooHigh();
+
+    event PaymentsInfoSet(DualDexSwapV4Lib.PaymentsInfo info);
+
     DualDexSwapV4Lib.PaymentsInfo internal _paymentsInfo;
 
     /// @notice Returns the stored payments configuration.
@@ -16,7 +22,9 @@ abstract contract DualDexSwapV4 {
     /// @notice Stores a payments configuration without altering the active dex selection.
     /// @param info New payments configuration to persist.
     function _storePaymentsInfo(DualDexSwapV4Lib.PaymentsInfo calldata info) internal {
+        require(info.slippageBps <= Helper.BPS, BPSTooHigh());
         _paymentsInfo = info;
+        emit PaymentsInfoSet(info);
     }
 
     /// @notice Swaps USDC to LONG for a recipient using the configured v4 router.
