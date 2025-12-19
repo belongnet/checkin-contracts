@@ -65,6 +65,8 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param availableBalance The currently available balance.
     error NotEnoughBalance(uint256 requiredAmount, uint256 availableBalance);
 
+    /// @notice Thrown when a promoter lacks sufficient credits to distribute a payout.
+    /// @param requiredAmount The amount requested for distribution.
     error NotEnoughPromoterBalance(uint256 requiredAmount);
 
     /// @notice Thrown when a venue provides an invalid or disabled payment type.
@@ -76,14 +78,20 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Thrown when LONG cannot be burned or transferred to the burn address.
     error TokensCanNotBeBurned();
 
+    /// @notice Thrown when a contract (non-EOA) calls a restricted function.
     error OnlyEOA();
 
+    /// @notice Thrown when a zero amount is supplied where a positive value is required.
     error ZeroAmountProvided();
 
     // ========== Events ==========
 
+    /// @notice Emitted when platform fee settings are updated.
+    /// @param fees The new fee configuration.
     event FeesSet(Fees fees);
 
+    /// @notice Emitted when staking reward tiers are updated.
+    /// @param rewards The new rewards configuration for all tiers.
     event RewardsSet(RewardsInfo[5] rewards);
 
     /// @notice Emitted when a venue's rules are set or updated.
@@ -160,7 +168,6 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Top-level storage bundle for program configuration.
     struct BelongCheckInStorage {
         Contracts contracts;
-        DualDexSwapV4Lib.PaymentsInfo paymentsInfo;
         Fees fees;
     }
 
@@ -346,14 +353,20 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         _setParameters(paymentsInfo_, _fees, _stakingRewards);
     }
 
+    /// @notice Owner-only method to update swap routing and asset configuration.
+    /// @param paymentsInfo_ New DEX + asset configuration to persist.
     function setPaymentsInfo(DualDexSwapV4Lib.PaymentsInfo calldata paymentsInfo_) external onlyOwner {
         _storePaymentsInfo(paymentsInfo_);
     }
 
+    /// @notice Owner-only method to update platform fee configuration.
+    /// @param _fees New fee settings (basis points scaled by 1e4).
     function setFees(Fees calldata _fees) external onlyOwner {
         _setFees(_fees);
     }
 
+    /// @notice Owner-only method to update staking rewards tiers.
+    /// @param _stakingRewards New rewards configuration for all tiers.
     function setRewards(RewardsInfo[5] memory _stakingRewards) external onlyOwner {
         _setRewards(_stakingRewards);
     }
