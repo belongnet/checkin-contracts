@@ -9,6 +9,8 @@ abstract contract DualDexSwapV4 {
     /// @notice Reverts when a provided bps value exceeds the configured scaling domain.
     error BPSTooHigh();
 
+    /// @notice Emitted when the payments configuration is updated.
+    /// @param info The new payments configuration.
     event PaymentsInfoSet(DualDexSwapV4Lib.PaymentsInfo info);
 
     DualDexSwapV4Lib.PaymentsInfo internal _paymentsInfo;
