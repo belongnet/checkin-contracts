@@ -9,7 +9,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 import {Factory} from "./Factory.sol";
 import {LONG} from "../tokens/LONG.sol";
-import {DualDexSwapV4} from "./extensions/DualDexSwapV4.sol";
+import {DualDexSwapV4, Helper} from "./extensions/DualDexSwapV4.sol";
 import {DualDexSwapV4Lib} from "./extensions/DualDexSwapV4Lib.sol";
 import {Escrow} from "../periphery/Escrow.sol";
 import {Staking} from "../periphery/Staking.sol";
@@ -18,7 +18,6 @@ import {CreditToken} from "../tokens/CreditToken.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
 
 import {SignatureVerifier} from "../utils/SignatureVerifier.sol";
-import {Helper} from "../utils/Helper.sol";
 
 import {
     StakingTiers,
@@ -71,9 +70,6 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Thrown when a venue provides an invalid or disabled payment type.
     error WrongPaymentTypeProvided();
 
-    /// @notice Reverts when a provided bps value exceeds the configured scaling domain.
-    error BPSTooHigh();
-
     /// @notice Reverts when the processing fee percentage is configured above the subsidy percentage.
     error ProcessingFeeExceedsSubsidy();
 
@@ -86,11 +82,9 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
     // ========== Events ==========
 
-    /// @notice Emitted when global parameters are updated.
-    /// @param paymentsInfo DEX routing and asset addresses configuration.
-    /// @param fees Platform-level fee settings.
-    /// @param rewards Array of tiered staking rewards (index by `StakingTiers`).
-    event ParametersSet(DualDexSwapV4Lib.PaymentsInfo paymentsInfo, Fees fees, RewardsInfo[5] rewards);
+    event FeesSet(Fees fees);
+
+    event RewardsSet(RewardsInfo[5] rewards);
 
     /// @notice Emitted when a venue's rules are set or updated.
     /// @param venue The venue address.
@@ -350,6 +344,18 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         RewardsInfo[5] memory _stakingRewards
     ) external onlyOwner {
         _setParameters(paymentsInfo_, _fees, _stakingRewards);
+    }
+
+    function setPaymentsInfo(DualDexSwapV4Lib.PaymentsInfo calldata paymentsInfo_) external onlyOwner {
+        _storePaymentsInfo(paymentsInfo_);
+    }
+
+    function setFees(Fees calldata _fees) external onlyOwner {
+        _setFees(_fees);
+    }
+
+    function setRewards(RewardsInfo[5] memory _stakingRewards) external onlyOwner {
+        _setRewards(_stakingRewards);
     }
 
     /// @notice Owner-only method to update external contract references used by the module.
@@ -692,19 +698,23 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         Fees memory _fees,
         RewardsInfo[5] memory _stakingRewards
     ) private {
-        require(paymentsInfo_.slippageBps <= Helper.BPS, BPSTooHigh());
+        _setRewards(_stakingRewards);
+        _storePaymentsInfo(paymentsInfo_);
+        _setFees(_fees);
+    }
+
+    function _setFees(Fees memory _fees) private {
         require(_fees.processingFeePercentage <= _fees.platformSubsidyPercentage, ProcessingFeeExceedsSubsidy());
 
-        BelongCheckInStorage storage _storage = belongCheckInStorage;
-        _storePaymentsInfo(paymentsInfo_);
-        _storage.paymentsInfo = paymentsInfo_;
-        _storage.fees = _fees;
+        belongCheckInStorage.fees = _fees;
+        emit FeesSet(_fees);
+    }
 
+    function _setRewards(RewardsInfo[5] memory _stakingRewards) private {
         for (uint8 i = 0; i < 5; ++i) {
             stakingRewards[StakingTiers(i)] = _stakingRewards[i];
         }
-
-        emit ParametersSet(paymentsInfo_, _fees, _stakingRewards);
+        emit RewardsSet(_stakingRewards);
     }
 
     /// @notice Internal helper that stores rule updates after validation.
