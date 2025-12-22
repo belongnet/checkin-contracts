@@ -25,7 +25,7 @@ async function deploy() {
 
   console.log('Set BelongCheckIn up: ');
 
-  const longPF = process.env.LONG_PRICE_FEED;
+  const longPF = deployments.tokens.longPriceFeed;
 
   // Validate environment variables
   if (
@@ -35,7 +35,7 @@ async function deploy() {
     !deployments.tokens.staking ||
     !deployments.tokens.venueToken.address ||
     !deployments.tokens.promoterToken.address ||
-    !deployments.tokens.longPriceFeed
+    !longPF
   ) {
     throw new Error(
       `Missing required environment variables:\nBelongCheckIn: ${deployments.checkIn.address}\nFactory: ${deployments.factory.proxy}\nEscrow: ${deployments.checkIn.escrow}\nStaking: ${deployments.tokens.staking}\nVenueToken: ${deployments.tokens.venueToken.address}\nPromoterToken: ${deployments.tokens.promoterToken.address}\LONG_PRICE_FEED: ${longPF}\n`,
