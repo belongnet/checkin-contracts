@@ -41,7 +41,7 @@ async function deploy() {
     const signatureVerifier: SignatureVerifier = await deploySignatureVerifier();
 
     // Update deployments object
-    deployments.libraries.sigantureVerifier = signatureVerifier.address;
+    deployments.libraries.signatureVerifier = signatureVerifier.address;
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
     console.log('Deployed SignatureVerifier to: ', signatureVerifier.address);
@@ -52,10 +52,10 @@ async function deploy() {
   if (VERIFY) {
     console.log('Verification: ');
     try {
-      if (!deployments.libraries.sigantureVerifier) {
+      if (!deployments.libraries.signatureVerifier) {
         throw new Error('No SignatureVerifier deployment data found for verification.');
       }
-      await verifyContract(deployments.libraries.sigantureVerifier);
+      await verifyContract(deployments.libraries.signatureVerifier);
       console.log('SigantureVerifier verification successful.');
     } catch (error) {
       console.error('SigantureVerifier verification failed: ', error);

@@ -31,7 +31,7 @@ async function main() {
 
     const BelongCheckIn = await ethers.getContractFactory('BelongCheckIn', {
       libraries: {
-        SignatureVerifier: deployments.libraries.sigantureVerifier,
+        SignatureVerifier: deployments.libraries.signatureVerifier,
         Helper: deployments.libraries.helper,
         DualDexSwapV4Lib: deployments.libraries.dualDexSwapV4Lib,
       },

@@ -31,20 +31,20 @@ async function main() {
 
     // Validate environment variables
     if (
-      !deployments.libraries.sigantureVerifier ||
+      !deployments.libraries.signatureVerifier ||
       !deployments.implementations.accessToken ||
       !deployments.implementations.creditToken ||
       !deployments.implementations.royaltiesReceiver ||
       !deployments.implementations.vestingWallet
     ) {
       throw new Error(
-        `Missing required environment variables:\nSigantureVerifier: ${deployments.libraries.sigantureVerifier}\nAccessToken: ${deployments.libraries.accessToken}\nCreditTokenImplementation: ${deployments.libraries.creditToken}\nRoyaltiesReceiverV2Implementation: ${deployments.libraries.royaltiesReceiver}\nVestingWalletImplementation: ${deployments.libraries.vestingWallet}`,
+        `Missing required environment variables:\nSigantureVerifier: ${deployments.libraries.signatureVerifier}\nAccessToken: ${deployments.libraries.accessToken}\nCreditTokenImplementation: ${deployments.libraries.creditToken}\nRoyaltiesReceiverV2Implementation: ${deployments.libraries.royaltiesReceiver}\nVestingWalletImplementation: ${deployments.libraries.vestingWallet}`,
       );
     }
 
     // Validate addresses
     for (const addr of [
-      deployments.libraries.sigantureVerifier,
+      deployments.libraries.signatureVerifier,
       deployments.implementations.accessToken,
       deployments.implementations.royaltiesReceiver,
       deployments.implementations.creditToken,
@@ -57,7 +57,7 @@ async function main() {
     }
 
     const FactoryV2 = await ethers.getContractFactory('Factory', {
-      libraries: { SignatureVerifier: deployments.libraries.sigantureVerifier },
+      libraries: { SignatureVerifier: deployments.libraries.signatureVerifier },
     });
 
     // (Optional) pre-check: will fail if layout breaks

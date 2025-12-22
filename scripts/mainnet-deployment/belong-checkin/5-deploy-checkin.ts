@@ -58,7 +58,7 @@ async function deploy() {
 
     // Validate environment variables
     if (
-      !deployments.libraries.sigantureVerifier ||
+      !deployments.libraries.signatureVerifier ||
       !deployments.libraries.helper ||
       !deployments.libraries.dualDexSwapV4Lib ||
       !owner ||
@@ -70,13 +70,13 @@ async function deploy() {
       !deployments.tokens.long
     ) {
       throw new Error(
-        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.sigantureVerifier}\nHelper: ${deployments.libraries.helper}\nDualDexSwapV4Lib: ${deployments.libraries.dualDexSwapV4Lib}\nADMIN_ADDRESS: ${owner}\nPCS_ROUTER_ADDRESS: ${router}\nPCS_POOL_MANAGER_ADDRESS: ${poolManager}\nPCS_POOL_FEE: ${poolFee}\nPCS_TICK_SPACING: ${tickSpacingEnv}\nPCS_HOOKS_ADDRESS: ${hooks}\nUSDC_ADDRESS: ${usdc}\nLONG_ADDRESS: ${deployments.tokens.long}`,
+        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.signatureVerifier}\nHelper: ${deployments.libraries.helper}\nDualDexSwapV4Lib: ${deployments.libraries.dualDexSwapV4Lib}\nADMIN_ADDRESS: ${owner}\nPCS_ROUTER_ADDRESS: ${router}\nPCS_POOL_MANAGER_ADDRESS: ${poolManager}\nPCS_POOL_FEE: ${poolFee}\nPCS_TICK_SPACING: ${tickSpacingEnv}\nPCS_HOOKS_ADDRESS: ${hooks}\nUSDC_ADDRESS: ${usdc}\nLONG_ADDRESS: ${deployments.tokens.long}`,
       );
     }
 
     // Validate addresses (exclude swapPoolFees as it's not an address)
     for (const addr of [
-      deployments.libraries.sigantureVerifier,
+      deployments.libraries.signatureVerifier,
       deployments.libraries.helper,
       deployments.libraries.dualDexSwapV4Lib,
       owner,
@@ -118,7 +118,7 @@ async function deploy() {
 
     console.log('Deploying BelongCheckIn contract...');
     const belongCheckIn: BelongCheckIn = await deployBelongCheckIn(
-      deployments.libraries.sigantureVerifier,
+      deployments.libraries.signatureVerifier,
       deployments.libraries.helper,
       deployments.libraries.dualDexSwapV4Lib,
       owner,
