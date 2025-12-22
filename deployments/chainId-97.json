@@ -1,6 +1,6 @@
 {
   "libraries": {
-    "sigantureVerifier": "0xE156373Bb7a7764553E89f05EbE3B27945F7fa31",
+    "signatureVerifier": "0xE156373Bb7a7764553E89f05EbE3B27945F7fa31",
     "helper": "0x884c6C1D77b63e83D06ef767A079dEfB54d708f7",
     "dualDexSwapV4Lib": "0x95E06c554E1124866848e2C4c6f5D3C55fd44b3b"
   },
@@ -38,7 +38,8 @@
           "transferable": true
         }
       ]
-    }
+    },
+    "longPriceFeed": "0x150E23CEae62936C1bA45Ee9d1E009A78f1e364A"
   },
   "mocks": {
     "mockUsdc": "0x325EF5CAECbaA15a72419310aDf573bE76759Abc",

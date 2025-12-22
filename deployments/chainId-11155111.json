@@ -1,6 +1,6 @@
 {
   "libraries": {
-    "sigantureVerifier": "0x48B840e4900eE7392088003C1402b91bcc0e73A4",
+    "signatureVerifier": "0x48B840e4900eE7392088003C1402b91bcc0e73A4",
     "helper": "0xeCD6a84CC2f3bE8678587cc53303883adB3Aca06"
   },
   "implementations": {
