@@ -35,7 +35,7 @@ async function deploy() {
     !deployments.tokens.staking ||
     !deployments.tokens.venueToken.address ||
     !deployments.tokens.promoterToken.address ||
-    !longPF
+    !deployments.tokens.longPriceFeed
   ) {
     throw new Error(
       `Missing required environment variables:\nBelongCheckIn: ${deployments.checkIn.address}\nFactory: ${deployments.factory.proxy}\nEscrow: ${deployments.checkIn.escrow}\nStaking: ${deployments.tokens.staking}\nVenueToken: ${deployments.tokens.venueToken.address}\nPromoterToken: ${deployments.tokens.promoterToken.address}\LONG_PRICE_FEED: ${longPF}\n`,
