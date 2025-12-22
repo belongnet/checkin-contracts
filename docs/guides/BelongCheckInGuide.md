@@ -82,12 +82,12 @@ BAND=1200                          # Tick radius for add-liquidity if you do not
 
 ## Deployments File Layout
 
-Scripts persist data to `deployments/chainId-<id>.json`. Keep key names exactly as written (note the intentional `sigantureVerifier` spelling).
+Scripts persist data to `deployments/chainId-<id>.json`. Keep key names exactly as written (note the intentional `signatureVerifier` spelling).
 
 ```json
 {
   "libraries": {
-    "sigantureVerifier": "0x...",
+    "signatureVerifier": "0x...",
     "helper": "0x..."
   },
   "implementations": {
@@ -151,11 +151,11 @@ Call each script with `yarn hardhat run <script> --network <network>`.
 ## Deployment Order
 
 1. **SignatureVerifier** – `0-deploy-signature-verifier.ts`
-   - Populates `deployments.libraries.sigantureVerifier`.
+   - Populates `deployments.libraries.signatureVerifier`.
    - Example: `DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/belong-checkin/0-deploy-signature-verifier.ts --network sepolia`
 
 2. **Implementations** – `1-deploy-implementations.ts`
-   - Requires `deployments.libraries.sigantureVerifier` from step 1.
+   - Requires `deployments.libraries.signatureVerifier` from step 1.
    - Deploys AccessToken, CreditToken, RoyaltiesReceiverV2, VestingWallet implementations.
 
 3. **Factory (initial deploy)** – `2-deploy-factory.ts`
@@ -179,7 +179,7 @@ Call each script with `yarn hardhat run <script> --network <network>`.
 
 8. **BelongCheckIn** – `6-deploy-checkin.ts`
    - Requires:
-     - Libraries: `deployments.libraries.sigantureVerifier`, `deployments.libraries.helper`
+     - Libraries: `deployments.libraries.signatureVerifier`, `deployments.libraries.helper`
      - Token: `deployments.tokens.long`
      - Env vars: `ADMIN_ADDRESS`, `UNISWAPV3_POOL_FEES`, `UNISWAPV3_FACTORY_ADDRESS`, `UNISWAPV3_ROUTER_ADDRESS`, `UNISWAPV3_QUOTER_ADDRESS`, `WNATIVE_ADDRESS`, `USDC_ADDRESS`
    - Builds a `paymentsInfo` struct (slippage fixed to `1e27 - 1`, `maxPriceFeedDelay` = 86400 seconds) and stores it alongside the deployed address.
