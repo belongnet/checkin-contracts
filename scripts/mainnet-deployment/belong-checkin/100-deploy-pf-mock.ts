@@ -2,8 +2,9 @@ import dotenv from 'dotenv';
 import { ContractFactory } from 'ethers';
 import { ethers } from 'hardhat';
 
-import { LONGPriceFeedMockV3 } from '../../../typechain-types';
 import { verifyContract } from '../../../helpers/verify';
+import { LONGPriceFeedMockV3 } from '../../../typechain-types';
+
 import fs from 'fs';
 
 dotenv.config();
