@@ -102,8 +102,9 @@ Staking tiers (`stakingRewards`) define per-tier:
 4. Deploy `BelongCheckIn` and call `initialize(owner, paymentsInfo)`.
 5. Deploy `Escrow` and call `initialize(belongCheckIn)`.
 6. Deploy venue/promoter `CreditToken` contracts via the Factory.
-7. Call `BelongCheckIn.setContracts` with `Factory`, `Escrow`, `Staking`, credit tokens, and the LONG price feed.
-8. Optionally update `BelongCheckIn` fees/rewards/payments config as your economics evolve.
+7. Deploy a LONG price feed (script `16-deploy-long-price-feed.ts`) or use an existing Chainlink aggregator and set `deployments.tokens.longPriceFeed`.
+8. Call `BelongCheckIn.setContracts` with `Factory`, `Escrow`, `Staking`, credit tokens, and the LONG price feed.
+9. Optionally update `BelongCheckIn` fees/rewards/payments config as your economics evolve.
 
 ## Related Documentation
 

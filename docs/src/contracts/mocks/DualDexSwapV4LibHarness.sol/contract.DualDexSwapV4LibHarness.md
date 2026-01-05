@@ -1,5 +1,5 @@
 # DualDexSwapV4LibHarness
-[Git Source](https://gitlab.com/nomadhub/smart-contracts/blob/e023936db04d0b7e2f5bfdf55b2bcf9f827cb12c/contracts/mocks/DualDexSwapV4LibHarness.sol)
+[Git Source](https://gitlab.com/nomadhub/smart-contracts/blob/9a5d5791960776da326b790b7c18e7af6b05a3aa/contracts/mocks/DualDexSwapV4LibHarness.sol)
 
 Thin harness exposing DualDexSwapV4Lib entrypoints for testing.
 

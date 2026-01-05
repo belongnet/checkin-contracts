@@ -18,6 +18,8 @@ Coordinates venue deposits, customer check-ins, and promoter settlements for the
 - Deploy `Escrow` and call `Escrow.initialize(belongCheckIn)`.
 - Call `setContracts` with `Factory`, `Escrow`, `Staking`, venue/promoter `CreditToken`,
   and the LONG price feed address.
+- The LONG price feed can be a Chainlink aggregator or the `LONGPriceFeed` helper
+  deployed via `scripts/mainnet-deployment/belong-checkin/16-deploy-long-price-feed.ts`.
 - Ensure `Factory.nftFactoryParameters().signerAddress` is set; this signer is required
   for venue deposits, customer payments, and promoter settlements.
 - Note: `venueDeposit`, `payToVenue`, and `distributePromoterPayments` are EOA-only.

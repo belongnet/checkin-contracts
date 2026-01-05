@@ -1,5 +1,5 @@
 # NFT
-[Git Source](https://gitlab.com/nomadhub/smart-contracts/blob/e023936db04d0b7e2f5bfdf55b2bcf9f827cb12c/contracts/v1/NFT.sol)
+[Git Source](https://gitlab.com/nomadhub/smart-contracts/blob/9a5d5791960776da326b790b7c18e7af6b05a3aa/contracts/v1/NFT.sol)
 
 **Inherits:**
 ERC721, ERC2981, Ownable, [CreatorToken](/contracts/utils/CreatorToken.sol/abstract.CreatorToken.md)

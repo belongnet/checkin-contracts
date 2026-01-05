@@ -8,7 +8,8 @@ Hardhat scripts under `scripts/mainnet-deployment/belong-checkin` deploy, upgrad
 - Tokens: `LONG`, `VenueToken`, `PromoterToken`, `Staking`
 
 Utility scripts (`6-upgrade-checkin.ts`, `9-configure-checkin.ts`, `10-configure-tokens.ts`, `11-test-venueDeposit.ts`,
-`12-create-lp.ts`, `13-add-liqudity.ts`, `13-burn-liquidity.ts`, `list-positions.ts`) let you upgrade, wire, test, or seed liquidity once the core contracts exist.
+`12-create-lp.ts`, `13-add-liqudity.ts`, `13-burn-liquidity.ts`, `16-deploy-long-price-feed.ts`, `list-positions.ts`)
+let you upgrade, wire, test, deploy the LONG price feed, or seed liquidity once the core contracts exist.
 
 Every script reads/writes `deployments/chainId-<id>.json` and can run Etherscan-style verification.
 
@@ -20,6 +21,7 @@ Every script reads/writes `deployments/chainId-<id>.json` and can run Etherscan-
 
 - **SignatureVerifier**: Shared library for backend-signed payload verification (nonce/deadline + chain binding).
 - **Helper**: Pricing and math utilities (decimals, slippage, Chainlink checks).
+- **LONGPriceFeed**: Chainlink-compatible LONG/USD feed (deploy when no external aggregator exists).
 - **Factory**: Owns global parameters (platform address, signer) and deploys AccessToken/CreditToken/VestingWallet proxies.
 - **AccessToken**: ERC-721 collection used for token-gated access drops.
 - **CreditToken**: ERC-1155 used for venue/promoter credit accounting.
@@ -86,8 +88,15 @@ USDC_ADDRESS=0x...                 # USDtoken address (typically USDC)
 # Credit tokens deployment
 SIGNER_PK=<backend signer private key>
 
+# LONG price feed (optional deployment script)
+LONG_PRICE_FEED_OWNER=0x...          # defaults to ADMIN_ADDRESS
+LONG_PRICE_FEED_DECIMALS=8
+LONG_PRICE_FEED_DESCRIPTION="LONG / USD"
+LONG_PRICE_FEED_INITIAL_ANSWER=100000000
+
 # Post deployment wiring
-LONG_PRICE_FEED=0x...
+# If you use an existing Chainlink feed, set deployments.tokens.longPriceFeed manually
+# before running 9-configure-checkin.ts.
 
 # Liquidity tooling (optional)
 LONG_ADDRESS=0x...                # LONG that will pair with USDC on Uniswap V3
@@ -128,6 +137,12 @@ Scripts persist data to `deployments/chainId-<id>.json`. Keep key names exactly 
   "tokens": {
     "long": "0x...",
     "staking": "0x...",
+    "longPriceFeed": "0x...",
+    "longPriceFeedMeta": {
+      "decimals": 8,
+      "description": "LONG / USD",
+      "initialAnswer": "100000000"
+    },
     "venueToken": {
       "address": "0x...",
       "parameters": [ { "name": "VenueToken", "symbol": "VET", "uri": "contractURI/VenueToken", "transferable": true } ]
@@ -219,20 +234,25 @@ Call each script with `yarn hardhat run <script> --network <network>`.
     - Requires `SIGNER_PK`, `deployments.factory.proxy`, and `deployments.checkIn.address`.
     - Deploys VenueToken and PromoterToken via the factory and persists metadata (including `transferable` flags).
 
-12. **BelongCheckIn Wiring** – `9-configure-checkin.ts`
-    - Requires `LONG_PRICE_FEED` plus Factory, Escrow, Staking, VenueToken, and PromoterToken addresses.
+12. **LONG Price Feed (optional)** – `16-deploy-long-price-feed.ts`
+    - Deploys a Chainlink-compatible LONG price feed and stores it at `deployments.tokens.longPriceFeed`.
+    - Use this step if you do not have a real Chainlink aggregator for LONG yet.
+    - If you already have a feed, set `deployments.tokens.longPriceFeed` manually instead.
+
+13. **BelongCheckIn Wiring** – `9-configure-checkin.ts`
+    - Requires Factory, Escrow, Staking, VenueToken, PromoterToken, and `deployments.tokens.longPriceFeed`.
     - Calls `setContracts` on BelongCheckIn to register the core contract references.
 
-13. **Token Configuration (optional)** – `10-configure-tokens.ts`
+14. **Token Configuration (optional)** – `10-configure-tokens.ts`
     - Intended for post-deployment token tweaks; currently mirrors `setContracts` behaviour. Safe to re-run when the wiring needs to be refreshed.
 
-14. **Sanity Deposit (optional)** – `11-test-venueDeposit.ts`
+15. **Sanity Deposit (optional)** – `11-test-venueDeposit.ts`
     - Exercises `venueDeposit` against the deployed BelongCheckIn contract using the configured `SIGNER_PK`.
 
-15. **Uniswap Pool Setup (optional)** – `12-create-lp.ts`
+16. **Uniswap Pool Setup (optional)** – `12-create-lp.ts`
     - Creates/initialises a LONG/USDC V3 pool using the provided price ratio.
 
-16. **Uniswap Liquidity Management (optional)** – `13-add-liqudity.ts`, `13-burn-liquidity.ts`, `list-positions.ts`
+17. **Uniswap Liquidity Management (optional)** – `13-add-liqudity.ts`, `13-burn-liquidity.ts`, `list-positions.ts`
     - Add, remove, or inspect positions once the pool exists. Refer to the in-script comments for the required env vars.
 
 All scripts write back to `deployments/chainId-<id>.json` after every successful action.

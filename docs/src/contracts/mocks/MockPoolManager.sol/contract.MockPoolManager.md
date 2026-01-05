@@ -1,5 +1,5 @@
 # MockPoolManager
-[Git Source](https://gitlab.com/nomadhub/smart-contracts/blob/e023936db04d0b7e2f5bfdf55b2bcf9f827cb12c/contracts/mocks/MockPoolManager.sol)
+[Git Source](https://gitlab.com/nomadhub/smart-contracts/blob/9a5d5791960776da326b790b7c18e7af6b05a3aa/contracts/mocks/MockPoolManager.sol)
 
 Minimal stub pool manager for wiring tests; returns static slot0/liquidity and reverts state-changing calls.
 
