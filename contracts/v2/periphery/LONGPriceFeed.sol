@@ -69,12 +69,7 @@ contract LONGPriceFeed is ILONGPriceFeed, Ownable {
         return _version;
     }
 
-    function getRoundData(uint80 roundId)
-        external
-        view
-        override
-        returns (uint80, int256, uint256, uint256, uint80)
-    {
+    function getRoundData(uint80 roundId) external view override returns (uint80, int256, uint256, uint256, uint80) {
         RoundData memory data = _rounds[roundId];
         if (data.updatedAt == 0) {
             revert NoDataPresent(roundId);
@@ -115,12 +110,7 @@ contract LONGPriceFeed is ILONGPriceFeed, Ownable {
         _latestRoundId = roundId;
 
         uint256 ts = block.timestamp;
-        _rounds[roundId] = RoundData({
-            answer: answer,
-            startedAt: ts,
-            updatedAt: ts,
-            answeredInRound: roundId
-        });
+        _rounds[roundId] = RoundData({answer: answer, startedAt: ts, updatedAt: ts, answeredInRound: roundId});
 
         emit NewRound(roundId, msg.sender, ts);
         emit AnswerUpdated(answer, roundId, ts);
