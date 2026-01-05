@@ -25,7 +25,6 @@ async function deploy() {
 
   console.log('Set BelongCheckIn up: ');
 
-  const longPF = deployments.tokens.longPriceFeed;
   const platformAddressEnv = process.env.PLATFORM_ADDRESS;
   const signerAddressEnv = process.env.SIGNER_ADDRESS;
 
@@ -37,12 +36,12 @@ async function deploy() {
     !deployments.tokens.staking ||
     !deployments.tokens.venueToken.address ||
     !deployments.tokens.promoterToken.address ||
-    !longPF ||
+    !deployments.tokens.longPriceFeed ||
     !platformAddressEnv ||
     !signerAddressEnv
   ) {
     throw new Error(
-      `Missing required environment variables:\nBelongCheckIn: ${deployments.checkIn.address}\nFactory: ${deployments.factory.proxy}\nEscrow: ${deployments.checkIn.escrow}\nStaking: ${deployments.tokens.staking}\nVenueToken: ${deployments.tokens.venueToken.address}\nPromoterToken: ${deployments.tokens.promoterToken.address}\nLONG_PRICE_FEED: ${longPF}\nPLATFORM_ADDRESS: ${platformAddressEnv}\nSIGNER_ADDRESS: ${signerAddressEnv}\n`,
+      `Missing required environment variables:\nBelongCheckIn: ${deployments.checkIn.address}\nFactory: ${deployments.factory.proxy}\nEscrow: ${deployments.checkIn.escrow}\nStaking: ${deployments.tokens.staking}\nVenueToken: ${deployments.tokens.venueToken.address}\nPromoterToken: ${deployments.tokens.promoterToken.address}\nLONG_PRICE_FEED: ${deployments.tokens.longPriceFeed}\nPLATFORM_ADDRESS: ${platformAddressEnv}\nSIGNER_ADDRESS: ${signerAddressEnv}\n`,
     );
   }
 
@@ -54,7 +53,7 @@ async function deploy() {
     deployments.tokens.staking,
     deployments.tokens.venueToken.address,
     deployments.tokens.promoterToken.address,
-    longPF,
+    deployments.tokens.longPriceFeed,
     platformAddressEnv,
     signerAddressEnv,
   ]) {
@@ -139,7 +138,7 @@ async function deploy() {
     staking: deployments.tokens.staking,
     venueToken: deployments.tokens.venueToken.address,
     promoterToken: deployments.tokens.promoterToken.address,
-    longPF,
+    deployments.tokens.longPriceFeed,
   };
 
   console.log('Setting BelongCheckIn up...');
