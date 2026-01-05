@@ -74,9 +74,29 @@ async function deploy() {
     factory.royaltiesParameters(),
     factory.implementations(),
   ]);
+  const normalizeNumber = (value: unknown): number => {
+    if (value === null || value === undefined) {
+      throw new Error('Unable to resolve numeric value.');
+    }
+    if (typeof value === 'number') {
+      return value;
+    }
+    if (typeof value === 'bigint') {
+      return Number(value);
+    }
+    if (typeof value === 'string') {
+      return Number(value);
+    }
+    if (typeof (value as { toString?: () => string }).toString === 'function') {
+      return Number((value as { toString: () => string }).toString());
+    }
+    throw new Error(`Unsupported numeric value: ${String(value)}`);
+  };
+
   const referralPercentages = [0, 0, 0, 0, 0] as [number, number, number, number, number];
   for (let i = 0; i < referralPercentages.length; i += 1) {
-    referralPercentages[i] = (await factory.usedToPercentage(i)).toNumber();
+    const rawValue = await factory.usedToPercentage(i);
+    referralPercentages[i] = normalizeNumber(rawValue);
   }
 
   const referralEvents = await factory.queryFilter(factory.filters.ReferralParametersSet());
@@ -84,7 +104,7 @@ async function deploy() {
   if (!latestReferralEvent?.args?.maxArrayLength) {
     throw new Error('Unable to resolve referral max array length from events.');
   }
-  const maxArrayLength = latestReferralEvent.args.maxArrayLength.toNumber();
+  const maxArrayLength = normalizeNumber(latestReferralEvent.args.maxArrayLength);
 
   try {
     await factory.callStatic.upgradeToV2(royaltiesParameters, implementations, referralPercentages, maxArrayLength);
