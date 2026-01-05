@@ -1,151 +1,164 @@
-# Belong CheckIn Signature Matrix
+# Belong CheckIn Signature Matrix (v2)
 
-Belong CheckIn relies on backend-issued EIP-712 style signatures for every state-changing action involving venues, customers, or promoters. The signer lives in `Factory.nftFactoryParameters().signerAddress`, and `BelongCheckIn` calls `SignatureVerifier` to enforce the signatures. The table below lists **every** signature-validated payload, along with the exact hashing recipe and integration notes.
+BelongCheckIn and Factory rely on backend-issued signatures validated by
+`SignatureVerifier`. Hashing uses `keccak256(abi.encode(...))` with a shared
+prefix of `(verifyingContract, nonce, deadline, chainId)`. The
+`SignatureProtection` struct carries `nonce`, `deadline`, and `signature`.
 
-> ⚠️ The implementation uses `abi.encodePacked(...)` with `keccak256`, not a full `EIP712Domain` struct. You must reproduce the same packed encoding when generating the digest to sign.
+> Note: `SignatureVerifier` does not store or consume nonces on-chain. The
+> backend must persist nonces and reject replays.
+
+## SignatureProtection
+
+```solidity
+struct SignatureProtection {
+    uint256 nonce;
+    uint256 deadline;
+    bytes signature;
+}
+```
 
 ## Shared Rules
 
-- **Signer source**: `belongCheckInStorage.contracts.factory.nftFactoryParameters().signerAddress`
-- **Verification helper**: `SignatureVerifier` in `contracts/v2/utils/SignatureVerifier.sol`
-- **Signature format**: `signMessage(arrayify(hash))` (EIP-191 personal hash equivalent). For EIP-712 toolchains, construct a custom type hash that mirrors the packed encoding.
-- **Chain binding**: Every digest includes `block.chainid` as the final field; signatures are chain-specific.
-- **ERC-1271 support**: `SignatureCheckerLib.isValidSignatureNow` means smart contract signers are valid if they implement ERC-1271.
+- **Signer**: `Factory.nftFactoryParameters().signerAddress`.
+- **verifyingContract**: the contract performing verification (`BelongCheckIn`,
+  `Factory`, or an `AccessToken` instance).
+- **deadline**: unix seconds; reverts if `deadline < block.timestamp`.
+- **nonce**: arbitrary; enforce uniqueness off-chain.
+- **Encoding**: `keccak256(abi.encode(...))` (not `encodePacked`, no EIP-712 domain).
+- **Signature format**: EIP-191 `signMessage(arrayify(digest))`; ERC-1271 is supported.
 
-## Venue Deposits (`venueDeposit`)
+## Digest Format
 
-- **Struct**: `VenueInfo`
-  ```solidity
-  struct VenueInfo {
-      VenueRules rules;      // Not part of the signature hash
-      address venue;
-      uint256 amount;        // Not part of the signature hash
-      bytes32 referralCode;
-      string uri;
-      bytes signature;
-  }
-  ```
-- **Digest**: `keccak256(abi.encodePacked(venue, referralCode, uri, block.chainid))`
-- **Reasoning**: Confirms the backend blessed the venue address, referral attribution, and metadata URI for this chain. Amount and rules are enforced on-chain but remain unsigned.
-- **Failure modes**: `InvalidSignature()` or `WrongReferralCode()`
-- **Example (ethers.js)**:
-  ```ts
-  const domainHash = ethers.utils.solidityKeccak256(
-    ["address","bytes32","string","uint256"],
-    [venueInfo.venue, venueInfo.referralCode, venueInfo.uri, chainId]
-  );
-  venueInfo.signature = await signer.signMessage(ethers.utils.arrayify(domainHash));
-  ```
-
-## Customer Payments (`payToVenue`)
-
-- **Struct**: `CustomerInfo`
-  ```solidity
-  struct CustomerInfo {
-      bool paymentInUSDC;
-      uint128 visitBountyAmount;
-      uint24 spendBountyPercentage;
-      address customer;
-      address venueToPayFor;
-      address promoter;
-      uint256 amount;
-      bytes signature;
-  }
-  ```
-- **Digest**: `keccak256(abi.encodePacked(paymentInUSDC, visitBountyAmount, spendBountyPercentage, customer, venueToPayFor, promoter, amount, block.chainid))`
-- **Additional checks**:
-  - `WrongPaymentType()` if the venue’s current `VenueRules.paymentType` disallows the requested currency.
-  - `WrongBountyType()` if bounty fields conflict with `VenueRules.bountyType`.
-  - `NotEnoughBalance()` if venue credits cannot cover the promoter bounty.
-- **Usage tips**:
-  - Include `promoter = customer` when self-promoting to direct rewards to the visitor.
-  - Backend should re-fetch `VenueRules` before signing to avoid mismatches.
-- **Example typescript snippet**:
-  ```ts
-  const hash = ethers.utils.solidityKeccak256(
-    ["bool","uint128","uint24","address","address","address","uint256","uint256"],
-    [
-      info.paymentInUSDC,
-      info.visitBountyAmount,
-      info.spendBountyPercentage,
-      info.customer,
-      info.venueToPayFor,
-      info.promoter,
-      info.amount,
-      chainId
-    ]
-  );
-  info.signature = await signer.signMessage(ethers.utils.arrayify(hash));
-  ```
-
-## Promoter Settlements (`distributePromoterPayments`)
-
-- **Struct**: `PromoterInfo`
-  ```solidity
-  struct PromoterInfo {
-      bool paymentInUSDC;      // Not part of the signature hash
-      address promoter;
-      address venue;
-      uint256 amountInUSD;
-      bytes signature;
-  }
-  ```
-- **Digest**: `keccak256(abi.encodePacked(promoter, venue, amountInUSD, block.chainid))`
-- **Flow**:
-  1. Backend calculates withdrawable USD credits and chooses payout currency.
-  2. Signs the digest above.
-  3. Promoter submits the struct; contract verifies signature, confirms credit balance, applies staking-tier fee (`usdcPercentage` or `longPercentage`), performs swaps, and burns consumed credits.
-- **Failure modes**: `InvalidSignature()`, `NotEnoughBalance()`
-- **Note**: `paymentInUSDC` flag directs fee calculation but is unsigned; backend must ensure the chosen currency matches business rules before signing.
-
-## Signature Generation Checklist
-
-1. **Normalize types**: Use the exact Solidity bit sizes (bool → `bool`, `uint128`, `uint24`, `address`, `uint256`, `bytes32`, `string`). Any mismatch changes the hash.
-2. **Pack fields in order**: The contract uses `abi.encodePacked`; the sequence must match the definitions above.
-3. **Include the chain id**: Always append the active chain id as the final argument in the hash.
-4. **Sign raw bytes**: Call `signMessage(arrayify(hash))` for EOAs. For EIP-712 frameworks, set `types` and `domain` to reproduce the same hash (see appendix below).
-5. **Distribute signature**: Attach the resulting signature to the payload before submitting the transaction.
-6. **Handle errors**: Bubble up contract reverts (`InvalidSignature`, `WrongPaymentType`, etc.) to guide retrials.
-
-## Appendix: Optional EIP-712 Typed Definitions
-
-If your tooling requires formal type hashes, you can emulate the packed encoding by introducing synthetic type strings that flatten fields into `bytes`. Example for `CustomerInfo`:
-
-```ts
-const types = {
-  CustomerInfoPacked: [
-    { name: "data", type: "bytes" }
-  ]
-};
-
-const encoded = ethers.utils.solidityPack(
-  ["bool","uint128","uint24","address","address","address","uint256","uint256"],
-  [
-    info.paymentInUSDC,
-    info.visitBountyAmount,
-    info.spendBountyPercentage,
-    info.customer,
-    info.venueToPayFor,
-    info.promoter,
-    info.amount,
-    chainId
-  ]
-);
-
-const signature = await signer._signTypedData(
-  { name: "BelongCheckIn", version: "1", chainId, verifyingContract: belongCheckIn },
-  types,
-  { data: encoded }
-);
+```
+digest = keccak256(abi.encode(
+  verifyingContract,
+  nonce,
+  deadline,
+  chainId,
+  ...payloadFields
+))
 ```
 
-This produces the same digest because `abi.encodePacked` is reproduced via `solidityPack`. Adjust the domain fields to your preferences; they are ignored on-chain but help standardize client code.
+Example (ethers.js):
 
-## Documentation To-Do
+```ts
+import { keccak256, defaultAbiCoder, arrayify } from "ethers/lib/utils";
 
-When updating user-facing docs:
+const digest = keccak256(
+  defaultAbiCoder.encode(
+    ["address","uint256","uint256","uint256","address","bytes32","string"],
+    [verifyingContract, nonce, deadline, chainId, venue, affiliateReferralCode, uri]
+  )
+);
+const signature = await signer.signMessage(arrayify(digest));
+```
 
-- Highlight that **every** venue deposit, customer payment, and promoter payout requires a fresh backend signature.
-- Clarify which fields are signed and which are validated on-chain.
-- Describe failure conditions so integrators know how to recover.
-- Provide client snippets (like the examples above) so partners can generate signatures correctly.
+## Payloads (BelongCheckIn)
+
+### Venue Deposits: `venueDeposit` / `venueDepositWithDeadline`
+
+Signed fields after the shared prefix:
+
+- `venue`
+- `affiliateReferralCode`
+- `uri`
+
+Unsigned but validated on-chain: `rules`, `amount`.
+
+### Customer Payments: `payToVenue` / `payToVenueWithDeadline`
+
+Signed fields after the shared prefix:
+
+- `rules.bountyType`
+- `rules.bountyAllocationType`
+- `customerInfo.paymentInUSDtoken`
+- `abi.encode(toCustomer.visitBountyAmount, toCustomer.spendBountyPercentage)`
+- `abi.encode(toPromoter.visitBountyAmount, toPromoter.spendBountyPercentage)`
+- `customer`
+- `venueToPayFor`
+- `promoterReferralCode`
+- `amount`
+
+Unsigned but validated on-chain: `VenueRules.paymentType`, credit balances, and
+reward limits.
+
+### Promoter Settlements: `distributePromoterPayments`
+
+Signed fields after the shared prefix:
+
+- `promoterReferralCode`
+- `venue`
+- `amountInUSD`
+
+Unsigned but used: `paymentInUSDtoken` (backend must enforce its business rules).
+
+## Payloads (Factory)
+
+### AccessToken creation: `Factory.produce`
+
+Signed fields after the shared prefix:
+
+- `creator`
+- `metadata.name`
+- `metadata.symbol`
+- `contractURI`
+- `feeNumerator`
+
+Unsigned but supplied: `paymentToken`, `transferable`, `maxTotalSupply`,
+`mintPrice`, `whitelistMintPrice`.
+
+### CreditToken creation: `Factory.produceCreditToken`
+
+Signed fields after the shared prefix:
+
+- `name`
+- `symbol`
+- `uri`
+
+Unsigned but supplied: `defaultAdmin`, `manager`, `minter`, `burner`,
+`transferable`.
+
+### Vesting wallet creation: `Factory.deployVestingWallet`
+
+Signed fields after the shared prefix:
+
+- `owner`
+- `startTimestamp`
+- `cliffDurationSeconds`
+- `durationSeconds`
+- `token`
+- `beneficiary`
+- `totalAllocation`
+- `tgeAmount`
+- `linearAllocation`
+
+Unsigned but supplied: `description`.
+
+## Payloads (AccessToken mints)
+
+### `mintStaticPrice`
+
+Signed fields after the shared prefix:
+
+- `receiver`
+- `tokenId`
+- `tokenUri`
+- `whitelisted`
+
+### `mintDynamicPrice`
+
+Signed fields after the shared prefix:
+
+- `receiver`
+- `tokenId`
+- `tokenUri`
+- `price`
+
+## Integration Checklist
+
+1. Use the correct `verifyingContract` address.
+2. Match the exact types and ordering used in `abi.encode`.
+3. Provide a future `deadline`; reject expired payloads.
+4. Persist and invalidate nonces server-side to prevent replay.
+5. Sign the raw digest bytes (`signMessage`) or use an ERC-1271 signer.

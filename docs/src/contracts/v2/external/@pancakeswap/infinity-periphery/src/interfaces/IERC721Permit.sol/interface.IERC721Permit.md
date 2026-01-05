@@ -1,0 +1,63 @@
+# IERC721Permit
+[Git Source](https://gitlab.com/nomadhub/smart-contracts/blob/e023936db04d0b7e2f5bfdf55b2bcf9f827cb12c/contracts/v2/external/@pancakeswap/infinity-periphery/src/interfaces/IERC721Permit.sol)
+
+**Inherits:**
+IERC721
+
+**Title:**
+ERC721 with permit
+
+Extension to ERC721 that includes a permit function for signature based approvals
+
+
+## Functions
+### PERMIT_TYPEHASH
+
+The permit typehash used in the permit signature
+
+
+```solidity
+function PERMIT_TYPEHASH() external pure returns (bytes32);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bytes32`|The typehash for the permit|
+
+
+### DOMAIN_SEPARATOR
+
+The domain separator used in the permit signature
+
+
+```solidity
+function DOMAIN_SEPARATOR() external view returns (bytes32);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bytes32`|The domain seperator used in encoding of permit signature|
+
+
+### permit
+
+Approve of a specific token ID for spending by spender via signature
+
+
+```solidity
+function permit(address spender, uint256 tokenId, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external payable;
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`spender`|`address`|The account that is being approved|
+|`tokenId`|`uint256`|The ID of the token that is being approved for spending|
+|`deadline`|`uint256`|The deadline timestamp by which the call must be mined for the approve to work|
+|`v`|`uint8`|Must produce valid secp256k1 signature from the holder along with `r` and `s`|
+|`r`|`bytes32`|Must produce valid secp256k1 signature from the holder along with `v` and `s`|
+|`s`|`bytes32`|Must produce valid secp256k1 signature from the holder along with `r` and `v`|
+
+

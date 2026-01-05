@@ -1,0 +1,22 @@
+
+
+# Contents
+- [BalanceDelta](BalanceDelta.sol/type.BalanceDelta.md)
+- [BalanceDeltaLibrary](BalanceDelta.sol/library.BalanceDeltaLibrary.md)
+- [eq](BalanceDelta.sol/function.eq.md)
+- [add](BalanceDelta.sol/function.add.md)
+- [sub](BalanceDelta.sol/function.sub.md)
+- [toBalanceDelta](BalanceDelta.sol/function.toBalanceDelta.md)
+- [neq](BalanceDelta.sol/function.neq.md)
+- [BeforeSwapDelta](BeforeSwapDelta.sol/type.BeforeSwapDelta.md)
+- [BeforeSwapDeltaLibrary](BeforeSwapDelta.sol/library.BeforeSwapDeltaLibrary.md)
+- [toBeforeSwapDelta](BeforeSwapDelta.sol/function.toBeforeSwapDelta.md)
+- [Currency](Currency.sol/type.Currency.md)
+- [CurrencyLibrary](Currency.sol/library.CurrencyLibrary.md)
+- [equals](Currency.sol/function.equals.md)
+- [greaterThanOrEqualTo](Currency.sol/function.greaterThanOrEqualTo.md)
+- [lessThan](Currency.sol/function.lessThan.md)
+- [greaterThan](Currency.sol/function.greaterThan.md)
+- [PoolId](PoolId.sol/type.PoolId.md)
+- [PoolIdLibrary](PoolId.sol/library.PoolIdLibrary.md)
+- [PoolKey](PoolKey.sol/struct.PoolKey.md)

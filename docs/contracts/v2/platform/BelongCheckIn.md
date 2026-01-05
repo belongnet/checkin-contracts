@@ -9,7 +9,26 @@ Coordinates venue deposits, customer check-ins, and promoter settlements for the
 - Prices and swaps LONG through a configured DEX router while deriving swap limits from a Chainlink price feed.
 - Applies staking-tier-dependent deposit fees, customer discounts, and promoter fee splits.
 - Streams platform revenue through a buyback-and-burn routine before forwarding the remainder to Factory.platformAddress.
-- All externally triggered flows require EIP-712 signatures produced by the platform signer held in {Factory}.
+- All externally triggered flows require backend signatures verified via {SignatureVerifier}
+  (keccak256(abi.encode(...)) with nonce/deadline and chainId).
+
+### Deployment and Wiring
+
+- Deploy behind a proxy and call `initialize(owner, paymentsInfo)`.
+- Deploy `Escrow` and call `Escrow.initialize(belongCheckIn)`.
+- Call `setContracts` with `Factory`, `Escrow`, `Staking`, venue/promoter `CreditToken`,
+  and the LONG price feed address.
+- Ensure `Factory.nftFactoryParameters().signerAddress` is set; this signer is required
+  for venue deposits, customer payments, and promoter settlements.
+- Note: `venueDeposit`, `payToVenue`, and `distributePromoterPayments` are EOA-only.
+
+### Core Flows (Brief)
+
+- `venueDeposit`: collects USDtoken + fees, mints venue credits, records escrow balances.
+- `payToVenue`: burns venue credits to mint promoter credits, collects USDtoken or LONG
+  payments, and routes LONG per venue rules.
+- `distributePromoterPayments`: burns promoter credits, pays out in USDtoken or LONG,
+  and routes platform fees through buyback/burn.
 
 ### WrongReferralCode
 

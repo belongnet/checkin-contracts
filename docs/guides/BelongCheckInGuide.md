@@ -3,7 +3,7 @@
 Hardhat scripts under `scripts/mainnet-deployment/belong-checkin` deploy, upgrade, and verify the BelongCheckIn stack. The main flow covers:
 
 - Libraries: `SignatureVerifier`, `Helper`
-- Implementations: `AccessToken`, `CreditToken`, `RoyaltiesReceiverV2`, `VestingWallet`
+- Implementations: `AccessToken`, `CreditToken`, `RoyaltiesReceiverV2`, `VestingWalletExtended`
 - Core/proxies: `Factory`, `BelongCheckIn`, `Escrow`
 - Tokens: `LONG`, `VenueToken`, `PromoterToken`, `Staking`
 
@@ -13,6 +13,31 @@ Utility scripts (`6-upgrade-checkin.ts`, `9-configure-checkin.ts`, `10-configure
 Every script reads/writes `deployments/chainId-<id>.json` and can run Etherscan-style verification.
 
 > ⚠️ Use **Node 18 or 20** with Hardhat. Example: `nvm use 20 && yarn install`.
+
+---
+
+## What Gets Deployed (and Why)
+
+- **SignatureVerifier**: Shared library for backend-signed payload verification (nonce/deadline + chain binding).
+- **Helper**: Pricing and math utilities (decimals, slippage, Chainlink checks).
+- **Factory**: Owns global parameters (platform address, signer) and deploys AccessToken/CreditToken/VestingWallet proxies.
+- **AccessToken**: ERC-721 collection used for token-gated access drops.
+- **CreditToken**: ERC-1155 used for venue/promoter credit accounting.
+- **RoyaltiesReceiverV2**: Splitter for creator/platform/referral royalties.
+- **VestingWalletExtended**: UUPS proxy with TGE + linear + tranche vesting.
+- **BelongCheckIn**: Main coordinator for deposits, check-ins, promoter payouts, and revenue routing.
+- **Escrow**: Custodies venue USDtoken/LONG balances and disburses on BelongCheckIn instructions.
+- **LONG**: ERC-20 token used for discounts, staking tiers, and buyback/burn.
+- **Staking**: ERC-4626 vault used to derive fee tiers and reward splits.
+
+## Wiring Requirements (Post-Deploy)
+
+After deployment, the system will not function until the core references are wired:
+
+1. `BelongCheckIn.initialize(owner, paymentsInfo)` (sets owner and swap config).
+2. `Escrow.initialize(belongCheckIn)` (authorizes the coordinator).
+3. `BelongCheckIn.setContracts` with `Factory`, `Escrow`, `Staking`, venue/promoter `CreditToken`, and `longPF`.
+4. Optional: `BelongCheckIn.setFees`, `BelongCheckIn.setRewards`, and `BelongCheckIn.setPaymentsInfo` to adjust economics.
 
 ---
 
@@ -56,7 +81,7 @@ UNISWAPV3_FACTORY_ADDRESS=0x...
 UNISWAPV3_ROUTER_ADDRESS=0x...
 UNISWAPV3_QUOTER_ADDRESS=0x...
 WNATIVE_ADDRESS=0x...
-USDC_ADDRESS=0x...
+USDC_ADDRESS=0x...                 # USDtoken address (typically USDC)
 
 # Credit tokens deployment
 SIGNER_PK=<backend signer private key>
