@@ -99,12 +99,7 @@ async function deploy() {
     referralPercentages[i] = normalizeNumber(rawValue);
   }
 
-  const referralEvents = await factory.queryFilter(factory.filters.ReferralParametersSet());
-  const latestReferralEvent = referralEvents[referralEvents.length - 1];
-  if (!latestReferralEvent?.args?.maxArrayLength) {
-    throw new Error('Unable to resolve referral max array length from events.');
-  }
-  const maxArrayLength = normalizeNumber(latestReferralEvent.args.maxArrayLength);
+  const maxArrayLength = 20;
 
   try {
     await factory.callStatic.upgradeToV2(royaltiesParameters, implementations, referralPercentages, maxArrayLength);
