@@ -78,6 +78,7 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       mainnet: process.env.ETHERSCAN_API_KEY! || '',
+      bsc: process.env.ETHERSCAN_API_KEY! || process.env.BSCSCAN_API_KEY! || '',
       // 'ethereum': 'empty',
       blast: process.env.BLASTSCAN_API_KEY! || '',
       polygon: process.env.POLYSCAN_API_KEY || '',
@@ -103,6 +104,7 @@ const config: HardhatUserConfig = {
       //     browserURL: "https://eth.blockscout.com"
       //   }
       // },
+      blockscanConfig('bsc', ChainIds.bsc),
       blockscanConfig('blast', ChainIds.blast),
       blockscanConfig('blast_sepolia', ChainIds.blast_sepolia),
       blockscanConfig('celo', ChainIds.celo),
