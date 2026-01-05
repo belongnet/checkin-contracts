@@ -42,8 +42,11 @@ describe('LONGPriceFeed', () => {
     const feed: LONGPriceFeed = (await factory.deploy(owner.address, 8, 'LONG / USD', 0)) as LONGPriceFeed;
     await feed.deployed();
 
+    expect(await feed.latestRound()).to.eq(0);
     await expect(feed.latestRoundData()).to.be.revertedWithCustomError(feed, 'NoDataPresent').withArgs(0);
     await expect(feed.getRoundData(1)).to.be.revertedWithCustomError(feed, 'NoDataPresent').withArgs(1);
+    await expect(feed.latestAnswer()).to.be.revertedWithCustomError(feed, 'NoDataPresent').withArgs(0);
+    await expect(feed.latestTimestamp()).to.be.revertedWithCustomError(feed, 'NoDataPresent').withArgs(0);
   });
 
   it('only owner can update answer and description', async () => {
@@ -62,7 +65,7 @@ describe('LONGPriceFeed', () => {
   it('updates rounds and accessors', async () => {
     const { feed } = await loadFixture(fixture);
 
-    await feed.updateAnswer(200000000);
+    await expect(feed.updateAnswer(200000000)).to.emit(feed, 'NewRound').to.emit(feed, 'AnswerUpdated');
 
     expect(await feed.latestRound()).to.eq(2);
     expect(await feed.latestAnswer()).to.eq(200000000);

@@ -86,10 +86,14 @@ contract LONGPriceFeed is ILONGPriceFeed, Ownable {
     }
 
     function latestAnswer() external view override returns (int256) {
+        RoundData storage d = _rounds[_latestRoundId];
+        require(d.updatedAt != 0, NoDataPresent(_latestRoundId));
         return _rounds[_latestRoundId].answer;
     }
 
     function latestTimestamp() external view override returns (uint256) {
+        RoundData storage d = _rounds[_latestRoundId];
+        require(d.updatedAt != 0, NoDataPresent(_latestRoundId));
         return _rounds[_latestRoundId].updatedAt;
     }
 
@@ -98,10 +102,12 @@ contract LONGPriceFeed is ILONGPriceFeed, Ownable {
     }
 
     function getAnswer(uint256 roundId) external view override returns (int256) {
+        require(roundId <= type(uint80).max, NoDataPresent(_latestRoundId));
         return _rounds[uint80(roundId)].answer;
     }
 
     function getTimestamp(uint256 roundId) external view override returns (uint256) {
+        require(roundId <= type(uint80).max, NoDataPresent(_latestRoundId));
         return _rounds[uint80(roundId)].updatedAt;
     }
 
