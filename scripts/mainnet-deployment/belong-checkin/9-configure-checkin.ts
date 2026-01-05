@@ -138,7 +138,7 @@ async function deploy() {
     staking: deployments.tokens.staking,
     venueToken: deployments.tokens.venueToken.address,
     promoterToken: deployments.tokens.promoterToken.address,
-    deployments.tokens.longPriceFeed,
+    longPF: deployments.tokens.longPriceFeed,
   };
 
   console.log('Setting BelongCheckIn up...');
