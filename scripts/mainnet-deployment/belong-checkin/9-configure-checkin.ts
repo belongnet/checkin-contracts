@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { ethers } from 'hardhat';
 
-import { BelongCheckIn } from '../../../typechain-types';
+import { BelongCheckIn } from '../../../typechain-types/contracts/v2/platform';
 
 import fs from 'fs';
 
@@ -145,19 +145,20 @@ async function deploy() {
     console.log('Factory parameters already match env; skipping update.');
   }
 
-  const belongCheckIn: BelongCheckIn = await ethers.getContractAt('BelongCheckIn', deployments.checkIn.address);
+  // const belongCheckIn: BelongCheckIn = (await ethers.getContractAt(
+  //   'BelongCheckIn',
+  //   deployments.checkIn.address,
+  // )) as BelongCheckIn;
 
-  const contracts = {
-    factory: deployments.factory.proxy,
-    escrow: deployments.checkIn.escrow,
-    staking: deployments.tokens.staking,
-    venueToken: deployments.tokens.venueToken.address,
-    promoterToken: deployments.tokens.promoterToken.address,
-    longPF: deployments.tokens.longPriceFeed,
-  };
-
-  console.log('Setting BelongCheckIn up...');
-  await belongCheckIn.setContracts(contracts);
+  // console.log('Setting BelongCheckIn up...');
+  // // await belongCheckIn.setContracts({
+  // //   factory: deployments.factory.proxy,
+  // //   escrow: deployments.checkIn.escrow,
+  // //   staking: deployments.tokens.staking,
+  // //   venueToken: deployments.tokens.venueToken.address,
+  // //   promoterToken: deployments.tokens.promoterToken.address,
+  // //   longPF: deployments.tokens.longPriceFeed,
+  // // } as BelongCheckIn.ContractsStruct);
 
   console.log('Done.');
 }
