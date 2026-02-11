@@ -111,6 +111,9 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     /// @param vestingParams Full vesting configuration (TGE, cliff, linear, tranches metadata).
     /// @custom:reverts ZeroAddressPassed If `_owner`, `vestingParams.token`, or `vestingParams.beneficiary` is zero.
     function initialize(address _owner, VestingWalletInfo calldata vestingParams) external initializer {
+        if (_owner == address(0) || vestingParams.token == address(0) || vestingParams.beneficiary == address(0)) {
+            revert ZeroAddressPassed();
+        }
         vestingStorage = vestingParams;
         _initializeOwner(_owner);
     }
