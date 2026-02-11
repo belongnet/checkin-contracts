@@ -183,6 +183,23 @@ describe('VestingWalletExtended', () => {
         } as VestingWalletInfoStruct),
       ).to.be.revertedWithCustomError(vestingWallet, 'InvalidInitialization');
     });
+
+    it('factory deployment should revert when owner is zero address', async () => {
+      const { vestingWallet, factory, signer, info, admin } = await loadFixture(fixture);
+
+      const protection = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        ethers.constants.AddressZero,
+        info,
+      );
+
+      await expect(
+        factory
+          .connect(admin)
+          .deployVestingWalletWithoutInitialFunding(ethers.constants.AddressZero, info, protection),
+      ).to.be.revertedWithCustomError(vestingWallet, 'ZeroAddressPassed');
+    });
   });
 
   describe('Tranche management (single & batch)', () => {
