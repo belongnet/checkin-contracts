@@ -1,7 +1,9 @@
-import fs from 'fs';
 import { ethers, upgrades } from 'hardhat';
-import { waitForNextBlock } from '../../../helpers/wait';
+
 import { verifyContract } from '../../../helpers/verify';
+import { waitForNextBlock } from '../../../helpers/wait';
+
+import fs from 'fs';
 
 const ENV_UPGRADE = process.env.UPGRADE?.toLowerCase() === 'true';
 const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
@@ -28,7 +30,11 @@ async function main() {
     console.log('Upgrade CheckIn: ');
 
     const BelongCheckIn = await ethers.getContractFactory('BelongCheckIn', {
-      libraries: { SignatureVerifier: deployments.libraries.sigantureVerifier, Helper: deployments.libraries.helper },
+      libraries: {
+        SignatureVerifier: deployments.libraries.signatureVerifier,
+        Helper: deployments.libraries.helper,
+        DualDexSwapV4Lib: deployments.libraries.dualDexSwapV4Lib,
+      },
     });
 
     // (Optional) pre-check: will fail if layout breaks

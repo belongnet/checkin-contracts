@@ -1,0 +1,66 @@
+{
+  "tokens": {
+    "long": "0x9Eca8dedb4882BD694aea786C0Cbe770e70D52e3",
+    "staking": "0xDdc105A50056d18848d4b439ED4c54AdF7091927",
+    "venueToken": {
+      "address": "0x9b4B1FBEC66b6bB28d4581D5151950190914Be2A",
+      "parameters": [
+        {
+          "name": "VenueToken",
+          "symbol": "VET",
+          "uri": "contractURI/VenueToken",
+          "transferable": true
+        }
+      ]
+    },
+    "promoterToken": {
+      "address": "0xa81E14Fa06D1E1CCDaD7a96247c394C1A7Ca2F69",
+      "parameters": [
+        {
+          "name": "PromoterToken",
+          "symbol": "PMT",
+          "uri": "contractURI/PromoterToken",
+          "transferable": true
+        }
+      ]
+    },
+    "longPriceFeed": "0xeC5c44DbB7DED54022195489Be98Fa7F731A63a1",
+    "longPriceFeedMeta": {
+      "decimals": 8,
+      "description": "LONG / USD",
+      "initialAnswer": "100000000"
+    }
+  },
+  "libraries": {
+    "signatureVerifier": "0x08f7bb613F28fb8D7748f479ABea07EcFFDF026F",
+    "helper": "0x5E3DB12280657F78E55E79507931662eEEe9E10E",
+    "dualDexSwapV4Lib": "0x483417ef62D5C47Af4592b2A039fFfcf36D84BbB"
+  },
+  "implementations": {
+    "accessToken": "0x4F3575D5eA19BE3D7859E231B746238219c2f216",
+    "creditToken": "0xc142F83985A31Cb3F3b44a71A96A75D40921DA02",
+    "royaltiesReceiver": "0xD66132faAa205AC8d758CfC64F0F54c1d670B3ea",
+    "vestingWallet": "0x5029763272cb7756aB4b4f8f15194a76bAd3C40d"
+  },
+  "factory": {
+    "proxy": "0xa46849C05470d16A87f39EA17cC4FfAa7a5962c8",
+    "implementation": "0x70eCdBC07E9643d187B216Fb36a3cD881ad6DbbE"
+  },
+  "checkIn": {
+    "address": "0x7c9B7Bd047A244aa9526106C687Cd39c593346fE",
+    "paymentsInfo": {
+      "dexType": 1,
+      "slippageBps": {
+        "type": "BigNumber",
+        "hex": "0x033b2e3c9fd0803ce7ffffff"
+      },
+      "router": "0xd9C500DfF816a1Da21A48A732d3498Bf09dc9AEB",
+      "usdToken": "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+      "long": "0x9Eca8dedb4882BD694aea786C0Cbe770e70D52e3",
+      "maxPriceFeedDelay": 86400,
+      "poolKey": "0x0000000000000000000000008ac76a51cc950d9822d68b83fe1ad97b32cd580d0000000000000000000000009eca8dedb4882bd694aea786c0cbe770e70d52e30000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a0ffb9c1ce1fe56963b0321b32e7a0302114058b000000000000000000000000000000000000000000000000000000000000012c0000000000000000000000000000000000000000000000000000000001f40000",
+      "hookData": "0x"
+    },
+    "escrow": "0x3E0F6a8CBF1f6f4F2488F9ca7a8EB95F8d14069f"
+  }
+}

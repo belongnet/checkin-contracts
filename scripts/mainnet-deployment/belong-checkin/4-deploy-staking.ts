@@ -1,9 +1,11 @@
-import { Staking } from '../../../typechain-types';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
+
 import { deployStaking } from '../../../helpers/deployFixtures';
+import { verifyContract } from '../../../helpers/verify';
+import { Staking } from '../../../typechain-types';
+
+import fs from 'fs';
 
 dotenv.config();
 
@@ -38,23 +40,24 @@ async function deploy() {
     // Read addresses from environment variables
     const owner = process.env.ADMIN_ADDRESS;
     const treasury = process.env.TREASURY_ADDRESS;
+    const longTokenAddress = process.env.LONG_ADDRESS ?? deployments.tokens.long;
 
     // Validate environment variables
-    if (!owner || !treasury || !deployments.tokens.long) {
+    if (!owner || !treasury || !longTokenAddress) {
       throw new Error(
-        `Missing required environment variables:\nADMIN_ADDRESS: ${process.env.ADMIN_ADDRESS}\nTREASURY_ADDRESS: ${process.env.TREASURY_ADDRESS}\nLong: ${deployments.tokens.long}`,
+        `Missing required environment variables:\nADMIN_ADDRESS: ${process.env.ADMIN_ADDRESS}\nTREASURY_ADDRESS: ${process.env.TREASURY_ADDRESS}\nLong: ${longTokenAddress}`,
       );
     }
 
     // Validate addresses
-    for (const addr of [owner, treasury, deployments.tokens.long]) {
+    for (const addr of [owner, treasury, longTokenAddress]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
 
     console.log('Deploying Staking contract...');
-    const staking: Staking = await deployStaking(owner, treasury, deployments.tokens.long);
+    const staking: Staking = await deployStaking(owner, treasury, longTokenAddress);
 
     // Update deployments object
     deployments.tokens.staking = staking.address;

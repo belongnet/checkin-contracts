@@ -1,8 +1,9 @@
-import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
-import { LONG } from '../../../typechain-types';
+import { ethers } from 'hardhat';
+
 import { deployLONG } from '../../../helpers/deployFixtures';
+import { LONG } from '../../../typechain-types';
 
 describe('LONG', () => {
   async function fixture() {

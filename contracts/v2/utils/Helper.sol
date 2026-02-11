@@ -103,7 +103,7 @@ library Helper {
         // (amount * price) / 10^priceFeedDecimals
         uint256 usdValue = amount.fullMulDiv(tokenPriceInUsd, 10 ** pfDecimals);
         // Standardize the USD value to 27 decimals
-        priceAmount = standardize(token, usdValue);
+        priceAmount = _standardize(token.readDecimals(), usdValue);
     }
 
     /// @notice Standardizes an amount to 27 decimals based on the token's decimals.
@@ -148,8 +148,9 @@ library Helper {
         int256 intAnswer;
         uint256 roundId;
         uint256 updatedAt;
-        try ILONGPriceFeed(priceFeed)
-            .latestRoundData() returns (uint80 _roundId, int256 _answer, uint256, uint256 _updatedAt, uint80) {
+        try ILONGPriceFeed(priceFeed).latestRoundData() returns (
+            uint80 _roundId, int256 _answer, uint256, uint256 _updatedAt, uint80
+        ) {
             roundId = uint256(_roundId);
             updatedAt = _updatedAt;
             intAnswer = _answer;
@@ -159,26 +160,22 @@ library Helper {
             } catch {
                 revert LatestRoundError(priceFeed);
             }
-
             try ILONGPriceFeed(priceFeed).latestTimestamp() returns (uint256 _updatedAt) {
                 updatedAt = _updatedAt;
             } catch {
                 revert LatestTimestampError(priceFeed);
             }
-
             try ILONGPriceFeed(priceFeed).latestAnswer() returns (int256 _answer) {
                 intAnswer = _answer;
             } catch {
                 revert LatestAnswerError(priceFeed);
             }
         }
-
         try ILONGPriceFeed(priceFeed).decimals() returns (uint8 _decimals) {
             decimals = _decimals;
         } catch {
             revert IncorrectPriceFeed(priceFeed);
         }
-
         require(roundId > 0, IncorrectRoundId(priceFeed, roundId));
         require(
             updatedAt > 0 && updatedAt <= block.timestamp && block.timestamp - updatedAt <= maxPriceFeedDelay,

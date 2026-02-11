@@ -1,5 +1,69 @@
 {
+  "libraries": {
+    "signatureVerifier": "0xE156373Bb7a7764553E89f05EbE3B27945F7fa31",
+    "helper": "0x884c6C1D77b63e83D06ef767A079dEfB54d708f7",
+    "dualDexSwapV4Lib": "0x95E06c554E1124866848e2C4c6f5D3C55fd44b3b"
+  },
+  "implementations": {
+    "accessToken": "0x593EcE3eE5e42BB1B10580A69C265242a1fd0274",
+    "creditToken": "0x1C73357E4a70Afb1d92bc83c7Ce5E4becBb1695C",
+    "royaltiesReceiver": "0x9fd8A6ea8B88169faa9d70d45eE384F11AfC4d06",
+    "vestingWallet": "0x7076C00B67e56f53aC3e505934715c7cc9A1EAA3"
+  },
+  "factory": {
+    "proxy": "0x90c7F2Cc827Ac089682b707F0CB2ae2c9856EC14",
+    "implementation": "0x48B840e4900eE7392088003C1402b91bcc0e73A4"
+  },
   "tokens": {
-    "long": "0xc9788f7BdF861708c6EefEb91dECF454c6F2A41C"
+    "long": "0xeb837b0039e7F31f1d561D08f929eF89D884914C",
+    "staking": "0xd302CEc28dE1F3168e87AE59A3Ae0B1244a7243c",
+    "venueToken": {
+      "address": "0x49E563DfDd95d507c101cc9a88594179ef767A8b",
+      "parameters": [
+        {
+          "name": "VenueToken",
+          "symbol": "VET",
+          "uri": "contractURI/VenueToken",
+          "transferable": true
+        }
+      ]
+    },
+    "promoterToken": {
+      "address": "0xa28D71Fc979796d390910557e6746411B1CC0b9D",
+      "parameters": [
+        {
+          "name": "PromoterToken",
+          "symbol": "PMT",
+          "uri": "contractURI/PromoterToken",
+          "transferable": true
+        }
+      ]
+    },
+    "longPriceFeed": "0x150E23CEae62936C1bA45Ee9d1E009A78f1e364A"
+  },
+  "mocks": {
+    "mockUsdc": "0x325EF5CAECbaA15a72419310aDf573bE76759Abc",
+    "uniV4Router": "0x7073C38C6e92E3b54C64836C74248156bd6A0b5c",
+    "pcsV4Router": "0x564491E423cDccAe6B1A538d98F967EcF7d25A48",
+    "rate": "1000000000000000000",
+    "poolManager": "0x31CF6505d2529d8242e71acf12131122236EC612",
+    "longPriceFeed": "0x150E23CEae62936C1bA45Ee9d1E009A78f1e364A"
+  },
+  "checkIn": {
+    "address": "0xa9F37a91532aa9747eD8Ed6D7196Fe6b31c6aF59",
+    "paymentsInfo": {
+      "dexType": 1,
+      "slippageBps": {
+        "type": "BigNumber",
+        "hex": "0x033b2e3c9fd0803ce7ffffff"
+      },
+      "router": "0x564491E423cDccAe6B1A538d98F967EcF7d25A48",
+      "usdToken": "0x325EF5CAECbaA15a72419310aDf573bE76759Abc",
+      "long": "0xeb837b0039e7F31f1d561D08f929eF89D884914C",
+      "maxPriceFeedDelay": "1000000000000000000000",
+      "poolKey": "0x000000000000000000000000325ef5caecbaa15a72419310adf573be76759abc000000000000000000000000eb837b0039e7f31f1d561d08f929ef89d884914c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000031cf6505d2529d8242e71acf12131122236ec612000000000000000000000000000000000000000000000000000000000000012c0000000000000000000000000000000000000000000000000000000001f40000",
+      "hookData": "0x"
+    },
+    "escrow": "0xB67c1951cB026e6af09cD8bcd533A58D3A6e8bC2"
   }
 }

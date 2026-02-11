@@ -7,8 +7,8 @@
 //   LONG_AMOUNT=2200 USDC_AMOUNT=1100 BAND=1200 \
 //   npx hardhat run scripts/add_liquidity_v3.ts --network <net>
 
+import type { BigNumber, Contract } from 'ethers';
 import { ethers } from 'hardhat';
-import type { Contract, BigNumber } from 'ethers';
 
 const IF_FACTORY = ['function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address)'];
 

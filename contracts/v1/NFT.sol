@@ -163,9 +163,8 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            NFTFactory(parameters.factory).nftFactoryParameters().signerAddress.checkStaticPriceParameters(
-                receiver, paramsArray[i]
-            );
+            NFTFactory(parameters.factory).nftFactoryParameters().signerAddress
+                .checkStaticPriceParameters(receiver, paramsArray[i]);
 
             // Determine the mint price based on whitelist status
             uint256 price = paramsArray[i].whitelisted ? info.whitelistMintPrice : info.mintPrice;
@@ -199,9 +198,8 @@ contract NFT is ERC721, ERC2981, Ownable, CreatorToken {
 
         uint256 amountToPay;
         for (uint256 i = 0; i < paramsArray.length; ++i) {
-            NFTFactory(parameters.factory).nftFactoryParameters().signerAddress.checkDynamicPriceParameters(
-                receiver, paramsArray[i]
-            );
+            NFTFactory(parameters.factory).nftFactoryParameters().signerAddress
+                .checkDynamicPriceParameters(receiver, paramsArray[i]);
 
             unchecked {
                 amountToPay += paramsArray[i].price;

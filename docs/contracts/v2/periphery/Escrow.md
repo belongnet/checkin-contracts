@@ -63,10 +63,10 @@ Emitted whenever a venue's escrow balances are updated.
 | venue | address | Venue address. |
 | deposits | struct Escrow.VenueDeposits | New USDC and LONG balances recorded for the venue. |
 
-### DistributedLONGDiscount
+### DistributedLONGDeposit
 
 ```solidity
-event DistributedLONGDiscount(address venue, address to, uint256 amount)
+event DistributedLONGDeposit(address venue, address to, uint256 amount)
 ```
 
 Emitted when LONG discount funds are disbursed to a venue.
@@ -170,10 +170,10 @@ _Called by BelongCheckIn when new funds are received and routed to escrow._
 | depositedUSDCs | uint256 | New USDC balance to record for `venue`. |
 | depositedLONGs | uint256 | New LONG balance to record for `venue`. |
 
-### distributeLONGDiscount
+### distributeLONGDeposit
 
 ```solidity
-function distributeLONGDiscount(address venue, address to, uint256 amount) external
+function distributeLONGDeposit(address venue, address to, uint256 amount) external
 ```
 
 Disburses LONG discount funds from a venue's LONG balance to the venue.

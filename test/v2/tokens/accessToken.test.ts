@@ -1,23 +1,9 @@
-import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
-import { BigNumber } from 'ethers';
-import {
-  WETHMock,
-  Factory,
-  RoyaltiesReceiverV2,
-  AccessToken,
-  CreditToken,
-  SignatureVerifier,
-  MockTransferValidatorV2,
-  VestingWalletExtended,
-} from '../../../typechain-types';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
-import {
-  DynamicPriceParametersStruct,
-  StaticPriceParametersStruct,
-} from '../../../typechain-types/contracts/v2/tokens/AccessToken';
-import { AccessTokenInfoStruct } from '../../../typechain-types/contracts/v2/platform/Factory';
+import { BigNumber, BigNumberish } from 'ethers';
+import { ethers } from 'hardhat';
+
 import {
   deployAccessToken,
   deployAccessTokenImplementation,
@@ -29,57 +15,90 @@ import {
 } from '../../../helpers/deployFixtures';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2, deployWETHMock } from '../../../helpers/deployMockFixtures';
+import { calculatePlatformFee } from '../../../helpers/math';
+import { buildDynamicProtection, buildStaticProtection } from '../../../helpers/signature';
+import {
+  AccessToken,
+  Factory,
+  MockTransferValidatorV2,
+  RoyaltiesReceiverV2,
+  SignatureVerifier,
+  WETHMock,
+} from '../../../typechain-types';
+import { AccessTokenInfoStruct } from '../../../typechain-types/contracts/v2/platform/Factory';
+import {
+  DynamicPriceParametersStruct,
+  StaticPriceParametersStruct,
+} from '../../../typechain-types/contracts/v2/tokens/AccessToken';
+
+const NATIVE_CURRENCY_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+const PLATFORM_COMMISSION = 100;
+const NFT_721_BASE_URI = 'test.com/';
+const BPS_DENOMINATOR = BigNumber.from('10000');
+const REFERRAL_MAX_ARRAY_LENGTH = 20;
+
+const INTERFACE_ID_ERC2981 = '0x2a55205a';
+const INTERFACE_ID_ERC4906 = '0x49064906';
+const INTERFACE_ID_CREATOR_TOKEN = '0xad0d7f6c';
+const INTERFACE_ID_LEGACY_CREATOR_TOKEN = '0xa07d229a';
+
+const AccessTokenEthMetadata: TokenMetadata = {
+  name: 'AccessTokenEth',
+  symbol: 'ATE',
+  uri: 'contractURI/AccessTokenEth',
+};
+
+const AccessTokenTokenMetadata: TokenMetadata = {
+  name: 'AccessTokenToken',
+  symbol: 'ATT',
+  uri: 'contractURI/AccessTokenToken',
+};
+
+const ethPurchasePrice = ethers.utils.parseEther('0.03');
+const tokenPurchasePrice = BigNumber.from(10_000);
+
+let factoryParams: Factory.FactoryParametersStruct;
+let implementations: Factory.ImplementationsStruct;
+const referralPercentages = [0, 5000, 3000, 1500, 500];
+const royalties: Factory.RoyaltiesParametersStruct = {
+  amountToCreator: 8000,
+  amountToPlatform: 2000,
+};
+let metadataNonce = 1;
+
+function nextMetadata(prefix: string): TokenMetadata {
+  metadataNonce += 1;
+  return {
+    name: `${prefix}-${metadataNonce}`,
+    symbol: `${prefix.slice(0, 3).toUpperCase()}${metadataNonce}`,
+    uri: `${NFT_721_BASE_URI}${prefix}-${metadataNonce}`,
+  };
+}
+
+function buildStaticParams(
+  tokenId: number,
+  overrides: Partial<StaticPriceParametersStruct> = {},
+): StaticPriceParametersStruct {
+  return {
+    tokenId,
+    tokenUri: overrides.tokenUri ?? `${NFT_721_BASE_URI}${tokenId}`,
+    whitelisted: overrides.whitelisted ?? false,
+  };
+}
+
+function buildDynamicParams(
+  tokenId: number,
+  price: BigNumberish,
+  tokenUri: string = `${NFT_721_BASE_URI}${tokenId}`,
+): DynamicPriceParametersStruct {
+  return { tokenId, price, tokenUri };
+}
+
+function cloneFactoryParams(overrides: Partial<Factory.FactoryParametersStruct> = {}): Factory.FactoryParametersStruct {
+  return { ...factoryParams, ...overrides };
+}
 
 describe('AccessToken', () => {
-  const PLATFORM_COMISSION = '100';
-  const NATIVE_CURRENCY_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
-  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
-  const chainId = 31337;
-  const NFT_721_BASE_URI = 'test.com/';
-
-  const AccessTokenEthMetadata = {
-    name: 'AccessTokenEth',
-    symbol: 'ATE',
-    uri: 'contractURI/AccessTokenEth',
-  } as TokenMetadata;
-  const AccessTokenTokenMetadata = {
-    name: 'AccessTokenToken',
-    symbol: 'ATT',
-    uri: 'contractURI/AccessTokenToken',
-  } as TokenMetadata;
-  const ethPurchasePrice = ethers.utils.parseEther('0.03');
-  const tokenPurchasePrice = 10000;
-
-  let instanceInfoETH: AccessTokenInfoStruct = {
-    metadata: { name: AccessTokenEthMetadata.name, symbol: AccessTokenEthMetadata.symbol },
-    contractURI: AccessTokenEthMetadata.uri,
-    paymentToken: NATIVE_CURRENCY_ADDRESS,
-    mintPrice: ethPurchasePrice,
-    whitelistMintPrice: ethPurchasePrice.div(2),
-    transferable: true,
-    maxTotalSupply: BigNumber.from('10'),
-    feeNumerator: BigNumber.from('600'),
-    collectionExpire: BigNumber.from('86400'),
-    signature: '0x',
-  };
-  let instanceInfoToken: AccessTokenInfoStruct = {
-    metadata: { name: AccessTokenTokenMetadata.name, symbol: AccessTokenTokenMetadata.symbol },
-    contractURI: AccessTokenTokenMetadata.uri,
-    paymentToken: '',
-    mintPrice: tokenPurchasePrice,
-    whitelistMintPrice: tokenPurchasePrice / 2,
-    transferable: true,
-    maxTotalSupply: BigNumber.from('10'),
-    feeNumerator: BigNumber.from('600'),
-    collectionExpire: BigNumber.from('86400'),
-    signature: '0x',
-  };
-
-  let factoryParams: Factory.FactoryParametersStruct;
-  let referralPercentages: number[];
-  let royalties: Factory.RoyaltiesParametersStruct;
-  let implementations: Factory.ImplementationsStruct;
-
   async function fixture() {
     const [owner, creator, referral, charlie, pete] = await ethers.getSigners();
     const signer = EthCrypto.createIdentity();
@@ -89,31 +108,24 @@ describe('AccessToken', () => {
     const validator: MockTransferValidatorV2 = await deployMockTransferValidatorV2();
     const accessTokenImplementation: AccessToken = await deployAccessTokenImplementation(signatureVerifier.address);
     const royaltiesReceiverV2Implementation: RoyaltiesReceiverV2 = await deployRoyaltiesReceiverV2Implementation();
-    const creditTokenImplementation: CreditToken = await deployCreditTokenImplementation();
-    const vestingWallet: VestingWalletExtended = await deployVestingWalletImplementation();
+    const creditTokenImplementation = await deployCreditTokenImplementation();
+    const vestingWalletImplementation = await deployVestingWalletImplementation();
 
     implementations = {
       accessToken: accessTokenImplementation.address,
       creditToken: creditTokenImplementation.address,
       royaltiesReceiver: royaltiesReceiverV2Implementation.address,
-      vestingWallet: vestingWallet.address,
-    };
-
-    royalties = {
-      amountToCreator: 8000,
-      amountToPlatform: 2000,
+      vestingWallet: vestingWalletImplementation.address,
     };
 
     factoryParams = {
       transferValidator: validator.address,
       platformAddress: owner.address,
       signerAddress: signer.address,
-      platformCommission: PLATFORM_COMISSION,
+      platformCommission: PLATFORM_COMMISSION,
       defaultPaymentCurrency: NATIVE_CURRENCY_ADDRESS,
       maxArraySize: 10,
     };
-
-    referralPercentages = [0, 5000, 3000, 1500, 500];
 
     const factory: Factory = await deployFactory(
       owner.address,
@@ -123,35 +135,11 @@ describe('AccessToken', () => {
       implementations,
     );
 
-    const referralCode = EthCrypto.hash.keccak256([
-      { type: 'address', value: referral.address },
-      { type: 'address', value: factory.address },
-      { type: 'uint256', value: chainId },
-    ]);
-
     await factory.connect(referral).createReferralCode();
-
-    const messageETH = EthCrypto.hash.keccak256([
-      { type: 'string', value: AccessTokenEthMetadata.name },
-      { type: 'string', value: AccessTokenEthMetadata.symbol },
-      { type: 'string', value: AccessTokenEthMetadata.uri },
-      { type: 'uint96', value: 600 },
-      { type: 'uint256', value: chainId },
-    ]);
-    instanceInfoETH.signature = EthCrypto.sign(signer.privateKey, messageETH);
-
-    instanceInfoToken.paymentToken = erc20Example.address;
-    const messageToken = EthCrypto.hash.keccak256([
-      { type: 'string', value: AccessTokenTokenMetadata.name },
-      { type: 'string', value: AccessTokenTokenMetadata.symbol },
-      { type: 'string', value: AccessTokenTokenMetadata.uri },
-      { type: 'uint96', value: 600 },
-      { type: 'uint256', value: chainId },
-    ]);
-    instanceInfoToken.signature = EthCrypto.sign(signer.privateKey, messageToken);
+    const referralCode = await factory.getReferralCodeByCreator(referral.address);
 
     const { accessToken: accessTokenEth, royaltiesReceiver: royaltiesReceiverEth } = await deployAccessToken(
-      AccessTokenEthMetadata,
+      { ...AccessTokenEthMetadata },
       ethPurchasePrice,
       ethPurchasePrice.div(2),
       signer,
@@ -161,9 +149,9 @@ describe('AccessToken', () => {
     );
 
     const { accessToken: accessTokenERC20, royaltiesReceiver: royaltiesReceiverERC20 } = await deployAccessToken(
-      AccessTokenTokenMetadata,
+      { ...AccessTokenTokenMetadata },
       tokenPurchasePrice,
-      tokenPurchasePrice / 2,
+      tokenPurchasePrice.div(2),
       signer,
       creator,
       factory,
@@ -172,1739 +160,689 @@ describe('AccessToken', () => {
     );
 
     return {
-      signatureVerifier,
-      factory,
-      accessTokenEth,
-      royaltiesReceiverEth,
-      accessTokenERC20,
-      royaltiesReceiverERC20,
-      validator,
-      erc20Example,
       owner,
       creator,
       referral,
       charlie,
       pete,
       signer,
+      signatureVerifier,
+      erc20Example,
+      validator,
+      factory,
       referralCode,
+      accessTokenEth,
+      accessTokenERC20,
+      royaltiesReceiverEth,
+      royaltiesReceiverERC20,
     };
   }
 
-  describe('Deployment', () => {
-    it('Should be deployed correctly', async () => {
-      const {
-        factory,
-        validator,
-        accessTokenEth,
-        royaltiesReceiverEth,
-        accessTokenERC20,
-        royaltiesReceiverERC20,
-        creator,
-      } = await loadFixture(fixture);
+  beforeEach(() => {
+    metadataNonce = 1;
+  });
 
-      let [, , feeReceiver, , infoReturned] = await accessTokenEth.parameters();
-      expect(infoReturned.metadata.name).to.be.equal(instanceInfoETH.metadata.name);
-      expect(infoReturned.metadata.symbol).to.be.equal(instanceInfoETH.metadata.symbol);
-      expect(infoReturned.contractURI).to.be.equal(instanceInfoETH.contractURI);
-      expect(infoReturned.paymentToken).to.be.equal(instanceInfoETH.paymentToken);
-      expect(infoReturned.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
-      expect(infoReturned.whitelistMintPrice).to.be.equal(instanceInfoETH.whitelistMintPrice);
-      expect(infoReturned.transferable).to.be.equal(instanceInfoETH.transferable);
-      expect(feeReceiver).to.be.equal(royaltiesReceiverEth.address);
+  describe('Deployment & initialization', () => {
+    it('exposes initialization parameters and interfaces', async () => {
+      const { factory, validator, accessTokenEth, royaltiesReceiverEth, creator, referralCode } =
+        await loadFixture(fixture);
 
-      expect((await accessTokenEth.parameters()).factory).to.be.equal(factory.address);
-      expect(await accessTokenEth.name()).to.be.equal(instanceInfoETH.metadata.name);
-      expect(await accessTokenEth.symbol()).to.be.equal(instanceInfoETH.metadata.symbol);
-      expect((await accessTokenEth.parameters()).info.paymentToken).to.be.equal(instanceInfoETH.paymentToken);
-      expect((await accessTokenEth.parameters()).info.mintPrice).to.be.equal(instanceInfoETH.mintPrice);
-      expect((await accessTokenEth.parameters()).info.whitelistMintPrice).to.be.equal(
-        instanceInfoETH.whitelistMintPrice,
-      );
-      expect((await accessTokenEth.parameters()).info.transferable).to.be.equal(instanceInfoETH.transferable);
-      expect((await accessTokenEth.parameters()).info.maxTotalSupply).to.be.equal(instanceInfoETH.maxTotalSupply);
-      expect((await accessTokenEth.parameters()).info.feeNumerator).to.be.equal(instanceInfoETH.feeNumerator);
-      expect((await accessTokenEth.parameters()).creator).to.be.equal(creator.address);
-      expect((await accessTokenEth.parameters()).info.collectionExpire).to.be.equal(instanceInfoETH.collectionExpire);
-      expect(await accessTokenEth.contractURI()).to.be.equal(instanceInfoETH.contractURI);
-      expect(await accessTokenEth.getTransferValidator()).to.be.equal(validator.address);
+      const params = await accessTokenEth.parameters();
 
-      [, , feeReceiver, , infoReturned] = await accessTokenERC20.parameters();
-      expect(infoReturned.maxTotalSupply).to.be.equal(instanceInfoToken.maxTotalSupply);
-      expect(infoReturned.feeNumerator).to.be.equal(instanceInfoToken.feeNumerator);
-      expect(feeReceiver).to.be.equal(royaltiesReceiverERC20.address);
-      expect(infoReturned.collectionExpire).to.be.equal(instanceInfoToken.collectionExpire);
-      expect(infoReturned.signature).to.be.equal(instanceInfoToken.signature);
-      expect(infoReturned.paymentToken).to.be.equal(instanceInfoToken.paymentToken);
+      expect(params.factory).to.eq(factory.address);
+      expect(params.feeReceiver).to.eq(royaltiesReceiverEth.address);
+      expect(params.referralCode).to.eq(referralCode);
+      expect(params.info.metadata.name).to.eq(AccessTokenEthMetadata.name);
+      expect(params.info.metadata.symbol).to.eq(AccessTokenEthMetadata.symbol);
+      expect(params.info.contractURI).to.eq(AccessTokenEthMetadata.uri);
+      expect(params.info.paymentToken).to.eq(NATIVE_CURRENCY_ADDRESS);
+      expect(params.info.mintPrice).to.eq(ethPurchasePrice);
+      expect(params.info.whitelistMintPrice).to.eq(ethPurchasePrice.div(2));
+      expect(params.info.maxTotalSupply).to.eq(BigNumber.from(10));
+      expect(params.info.transferable).to.be.true;
+      expect(params.info.creator).to.eq(creator.address);
 
-      const interfaceIdIERC2981 = '0x2a55205a'; // IERC2981 interface ID
-      const interfaceIdIERC4906 = '0x49064906'; // ERC4906 interface ID
-      const interfaceIdICreatorToken = '0xad0d7f6c'; // ICreatorToken interface ID
-      const interfaceIdILegacyCreatorToken = '0xa07d229a'; // ILegacyCreatorToken interface ID
+      expect(await accessTokenEth.name()).to.eq(AccessTokenEthMetadata.name);
+      expect(await accessTokenEth.symbol()).to.eq(AccessTokenEthMetadata.symbol);
+      expect(await accessTokenEth.contractURI()).to.eq(AccessTokenEthMetadata.uri);
+      expect(await accessTokenEth.totalSupply()).to.eq(0);
+      expect(await accessTokenEth.getTransferValidator()).to.eq(validator.address);
 
-      expect(await accessTokenEth.supportsInterface(interfaceIdIERC2981)).to.be.true;
-      expect(await accessTokenEth.supportsInterface(interfaceIdIERC4906)).to.be.true;
-      expect(await accessTokenEth.supportsInterface(interfaceIdICreatorToken)).to.be.true;
-      expect(await accessTokenEth.supportsInterface(interfaceIdILegacyCreatorToken)).to.be.true;
+      expect(await accessTokenEth.supportsInterface(INTERFACE_ID_ERC2981)).to.be.true;
+      expect(await accessTokenEth.supportsInterface(INTERFACE_ID_ERC4906)).to.be.true;
+      expect(await accessTokenEth.supportsInterface(INTERFACE_ID_CREATOR_TOKEN)).to.be.true;
+      expect(await accessTokenEth.supportsInterface(INTERFACE_ID_LEGACY_CREATOR_TOKEN)).to.be.true;
 
-      const [functionSignature, isViewFunction] = await accessTokenEth.getTransferValidationFunction();
+      const [selector, isView] = await accessTokenEth.getTransferValidationFunction();
+      expect(selector).to.eq('0xcaee23ea');
+      expect(isView).to.be.true;
 
-      expect(isViewFunction).to.be.true;
-      expect(functionSignature).to.eq('0xcaee23ea');
+      expect(await accessTokenEth.selfImplementation()).to.eq(implementations.accessToken);
 
-      expect(await accessTokenEth.selfImplementation()).to.be.equal(implementations.accessToken);
+      const salePrice = BigNumber.from(1000);
+      const [receiver, royaltyAmount] = await accessTokenEth.royaltyInfo(0, salePrice);
+      expect(receiver).to.eq(royaltiesReceiverEth.address);
+      expect(royaltyAmount).to.eq(salePrice.mul(600).div(BPS_DENOMINATOR));
+    });
+
+    it('reverts when initialized twice', async () => {
+      const { accessTokenEth, royaltiesReceiverEth, factory, validator, creator } = await loadFixture(fixture);
+
+      const params = await accessTokenEth.parameters();
+
       await expect(
         accessTokenEth.initialize(
           {
-            factory: accessTokenEth.address,
-            creator: accessTokenEth.address,
-            feeReceiver: accessTokenEth.address,
-            referralCode: ethers.utils.formatBytes32String('test'),
-            info: {
-              metadata: { name: AccessTokenTokenMetadata.name, symbol: AccessTokenTokenMetadata.symbol },
-              contractURI: AccessTokenTokenMetadata.uri,
-              paymentToken: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-              mintPrice: tokenPurchasePrice,
-              whitelistMintPrice: tokenPurchasePrice / 2,
-              transferable: true,
-              maxTotalSupply: 10,
-              feeNumerator: BigNumber.from('600'),
-              collectionExpire: BigNumber.from('86400'),
-              signature: '0x',
-            } as AccessTokenInfoStruct,
-          } as AccessToken.AccessTokenParametersStruct,
-          accessTokenEth.address,
+            factory: params.factory,
+            feeReceiver: params.feeReceiver,
+            referralCode: params.referralCode,
+            info: params.info as AccessTokenInfoStruct,
+          },
+          validator.address,
         ),
       ).to.be.revertedWithCustomError(accessTokenEth, 'InvalidInitialization');
 
+      const globalParams = await factory.nftFactoryParameters();
       await expect(
         royaltiesReceiverEth.initialize(
           {
-            creator: royaltiesReceiverEth.address,
-            platform: royaltiesReceiverEth.address,
-            referral: royaltiesReceiverEth.address,
-          } as RoyaltiesReceiverV2.RoyaltiesReceiversStruct,
-          royaltiesReceiverEth.address,
-          ethers.utils.formatBytes32String('test'),
+            creator: creator.address,
+            platform: globalParams.platformAddress,
+            referral: creator.address,
+          },
+          factory.address,
+          params.referralCode,
         ),
       ).to.be.revertedWithCustomError(royaltiesReceiverEth, 'InvalidInitialization');
     });
   });
 
-  describe('Functions from AutoValidatorTransferApprove and CreatorToken', () => {
-    it('Functions from AutoValidatorTransferApprove', async () => {
-      const { accessTokenEth, creator, validator } = await loadFixture(fixture);
+  describe('Admin', () => {
+    it('owner can update payment configuration and auto-approve validator', async () => {
+      const { accessTokenEth, creator, validator, erc20Example } = await loadFixture(fixture);
 
-      const accessTokenEthAlice = accessTokenEth.connect(creator);
+      const newMintPrice = ethers.utils.parseEther('0.05');
+      const newWhitelistPrice = ethers.utils.parseEther('0.02');
 
-      await accessTokenEthAlice.setNftParameters(
-        (
-          await accessTokenEth.parameters()
-        ).info.paymentToken,
-        (
-          await accessTokenEth.parameters()
-        ).info.mintPrice,
-        (
-          await accessTokenEth.parameters()
-        ).info.whitelistMintPrice,
-        true,
-      );
+      await expect(
+        accessTokenEth.connect(creator).setNftParameters(erc20Example.address, newMintPrice, newWhitelistPrice, true),
+      )
+        .to.emit(accessTokenEth, 'NftParametersChanged')
+        .withArgs(erc20Example.address, newMintPrice, newWhitelistPrice, true);
 
-      await accessTokenEthAlice.setApprovalForAll(validator.address, false);
-
-      expect(await accessTokenEthAlice.isApprovedForAll(creator.address, validator.address)).to.be.true;
-      expect(await accessTokenEthAlice.isApprovedForAll(validator.address, creator.address)).to.be.false;
-
-      await accessTokenEthAlice.setNftParameters(
-        (
-          await accessTokenEth.parameters()
-        ).info.paymentToken,
-        (
-          await accessTokenEth.parameters()
-        ).info.mintPrice,
-        (
-          await accessTokenEth.parameters()
-        ).info.whitelistMintPrice,
-        false,
-      );
-      expect(await accessTokenEthAlice.isApprovedForAll(creator.address, validator.address)).to.be.false;
-
-      await accessTokenEthAlice.setApprovalForAll(validator.address, true);
-
-      expect(await accessTokenEthAlice.isApprovedForAll(creator.address, validator.address)).to.be.true;
+      const params = await accessTokenEth.parameters();
+      expect(params.info.paymentToken).to.eq(erc20Example.address);
+      expect(params.info.mintPrice).to.eq(newMintPrice);
+      expect(params.info.whitelistMintPrice).to.eq(newWhitelistPrice);
+      expect(await accessTokenEth.isApprovedForAll(creator.address, validator.address)).to.be.true;
     });
 
-    it('Validator is caller', async () => {
-      const { signatureVerifier, owner, creator, referral, signer } = await loadFixture(fixture);
-
-      const factory: Factory = await deployFactory(
-        owner.address,
-        signer.address,
-        signatureVerifier.address,
-        referral.address,
-        implementations,
-      );
-
-      const referralCode = EthCrypto.hash.keccak256([
-        { type: 'address', value: referral.address },
-        { type: 'address', value: factory.address },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      await factory.connect(referral).createReferralCode();
-
-      const { accessToken: accessTokenEth } = await deployAccessToken(
-        AccessTokenEthMetadata,
-        ethPurchasePrice,
-        ethPurchasePrice.div(2),
-        signer,
-        creator,
-        factory,
-        referralCode,
-      );
-
-      let message = EthCrypto.hash.keccak256([
-        { type: 'address', value: referral.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      let signature = EthCrypto.sign(signer.privateKey, message);
-
-      await accessTokenEth.connect(creator).mintStaticPrice(
-        referral.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        ethPurchasePrice,
-        { value: ethPurchasePrice },
-      );
-
-      await accessTokenEth.connect(referral).transferFrom(referral.address, creator.address, 0);
-    });
-
-    it('Validator is address zero', async () => {
-      const { signatureVerifier, owner, creator, referral, signer } = await loadFixture(fixture);
-
-      const factory: Factory = await deployFactory(
-        owner.address,
-        signer.address,
-        signatureVerifier.address,
-        ZERO_ADDRESS,
-        implementations,
-      );
-
-      factoryParams.transferValidator = ZERO_ADDRESS;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
-
-      const referralCode = EthCrypto.hash.keccak256([
-        { type: 'address', value: referral.address },
-        { type: 'address', value: factory.address },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      await factory.connect(referral).createReferralCode();
-
-      const { accessToken: accessTokenEth } = await deployAccessToken(
-        AccessTokenEthMetadata,
-        ethPurchasePrice,
-        ethPurchasePrice.div(2),
-        signer,
-        creator,
-        factory,
-        referralCode,
-      );
-
-      let message = EthCrypto.hash.keccak256([
-        { type: 'address', value: referral.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      let signature = EthCrypto.sign(signer.privateKey, message);
-
-      await accessTokenEth.connect(creator).mintStaticPrice(
-        referral.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        ethPurchasePrice,
-        {
-          value: ethPurchasePrice,
-        },
-      );
-
-      await accessTokenEth.connect(referral).transferFrom(referral.address, creator.address, 0);
-    });
-  });
-
-  describe('Errors', () => {
-    it('only owner', async () => {
+    it('non-owner cannot change parameters', async () => {
       const { accessTokenEth, owner } = await loadFixture(fixture);
 
       await expect(
         accessTokenEth
           .connect(owner)
-          .setNftParameters(
-            (
-              await accessTokenEth.parameters()
-            ).info.paymentToken,
-            (
-              await accessTokenEth.parameters()
-            ).info.mintPrice,
-            (
-              await accessTokenEth.parameters()
-            ).info.whitelistMintPrice,
-            false,
-          ),
+          .setNftParameters(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, ethPurchasePrice, false),
       ).to.be.revertedWithCustomError(accessTokenEth, 'Unauthorized');
     });
   });
 
-  describe('Mint', () => {
-    it('Should mint correctly static prices', async () => {
-      const { accessTokenEth, royaltiesReceiverEth, creator, signer } = await loadFixture(fixture);
+  describe('tokenURI', () => {
+    it('reverts when querying a non-existent token', async () => {
+      const { accessTokenEth } = await loadFixture(fixture);
 
-      let message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
+      await expect(accessTokenEth.tokenURI(0)).to.be.revertedWithCustomError(accessTokenEth, 'TokenIdDoesNotExist');
+    });
+  });
 
-      let signature = EthCrypto.sign(signer.privateKey, message);
+  describe('mintStaticPrice', () => {
+    it('mints via native currency and stores metadata', async () => {
+      const { accessTokenEth, signer, charlie } = await loadFixture(fixture);
 
-      await expect(
-        accessTokenEth.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: 0,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature,
-            } as StaticPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          ethers.utils.parseEther('0.02'),
-          {
-            value: ethers.utils.parseEther('0.02'),
-          },
-        ),
-      )
-        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectNativeCurrencyAmountSent')
-        .withArgs(ethers.utils.parseEther('0.02'));
-
-      await expect(
-        accessTokenEth.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: 0,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature,
-            } as StaticPriceParametersStruct,
-          ],
-          creator.address,
-          ethPurchasePrice,
-          {
-            value: ethPurchasePrice,
-          },
-        ),
-      )
-        .to.be.revertedWithCustomError(accessTokenEth, 'TokenChanged')
-        .withArgs(creator.address);
-
-      await expect(
-        accessTokenEth.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: 0,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature,
-            } as StaticPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          ethers.utils.parseEther('0.04'),
-          {
-            value: ethPurchasePrice,
-          },
-        ),
-      )
-        .to.be.revertedWithCustomError(accessTokenEth, 'PriceChanged')
-        .withArgs(ethers.utils.parseEther('0.04'));
-
-      await accessTokenEth.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        ethPurchasePrice,
-        {
-          value: ethPurchasePrice,
-        },
+      const params = buildStaticParams(0);
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        params,
       );
 
-      const salePrice = 1000;
-      const feeNumerator = 600;
-      const feeDenominator = 10000;
-      const expectedResult = (salePrice * feeNumerator) / feeDenominator;
+      const tx = await accessTokenEth
+        .connect(charlie)
+        .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [charlie.address], [params], [protection], {
+          value: ethPurchasePrice,
+        });
 
-      const [receiver, realResult] = await accessTokenEth.royaltyInfo(0, salePrice);
-      expect(expectedResult).to.be.equal(realResult);
-      expect(receiver).to.be.equal(royaltiesReceiverEth.address);
+      await expect(tx)
+        .to.emit(accessTokenEth, 'Paid')
+        .withArgs(charlie.address, NATIVE_CURRENCY_ADDRESS, ethPurchasePrice);
 
-      for (let i = 1; i < 10; ++i) {
-        const message = EthCrypto.hash.keccak256([
-          { type: 'address', value: creator.address },
-          { type: 'uint256', value: i },
-          { type: 'string', value: NFT_721_BASE_URI },
-          { type: 'bool', value: false },
-          { type: 'uint256', value: chainId },
-        ]);
-
-        const signature = EthCrypto.sign(signer.privateKey, message);
-        await accessTokenEth.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: i,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature,
-            } as StaticPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          ethPurchasePrice,
-          {
-            value: ethPurchasePrice,
-          },
-        );
-      }
-
-      message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 11 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      signature = EthCrypto.sign(signer.privateKey, message);
-
-      await expect(
-        accessTokenEth.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: 11,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature,
-            } as StaticPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          ethPurchasePrice,
-          {
-            value: ethPurchasePrice,
-          },
-        ),
-      ).to.be.revertedWithCustomError(accessTokenEth, 'TotalSupplyLimitReached');
+      expect(await accessTokenEth.ownerOf(params.tokenId)).to.eq(charlie.address);
+      expect(await accessTokenEth.totalSupply()).to.eq(1);
+      expect(await accessTokenEth.tokenURI(params.tokenId)).to.eq(params.tokenUri);
     });
 
-    it('Should batch mint correctly static prices', async () => {
-      const { accessTokenEth, royaltiesReceiverEth, validator, factory, owner, creator, signer } = await loadFixture(
-        fixture,
-      );
+    it('mints with whitelist pricing when signature marks receiver as eligible', async () => {
+      const { accessTokenEth, signer, pete } = await loadFixture(fixture);
 
-      let message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: true },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      let signature = EthCrypto.sign(signer.privateKey, message);
-
-      let message2 = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 1 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      let signature2 = EthCrypto.sign(signer.privateKey, message2);
-
-      await factory.setFactoryParameters(
-        {
-          transferValidator: validator.address,
-          platformAddress: owner.address,
-          signerAddress: signer.address,
-          platformCommission: PLATFORM_COMISSION,
-          defaultPaymentCurrency: NATIVE_CURRENCY_ADDRESS,
-          maxArraySize: 1,
-        } as Factory.FactoryParametersStruct,
-        royalties,
-        implementations,
-        referralPercentages,
-      );
-      await expect(
-        accessTokenEth.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: 0,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature,
-            } as StaticPriceParametersStruct,
-            {
-              tokenId: 0,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature,
-            } as StaticPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          ethPurchasePrice,
-          {
-            value: ethPurchasePrice,
-          },
-        ),
-      ).to.be.revertedWithCustomError(accessTokenEth, 'WrongArraySize');
-      factoryParams.maxArraySize = 20;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
-
-      await expect(
-        accessTokenEth.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: 1,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature: signature2,
-            } as StaticPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          ethers.utils.parseEther('0.04'),
-          {
-            value: ethPurchasePrice,
-          },
-        ),
-      )
-        .to.be.revertedWithCustomError(accessTokenEth, 'PriceChanged')
-        .withArgs(ethers.utils.parseEther('0.04'));
-
-      await accessTokenEth.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: true,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        ethPurchasePrice.div(2),
-        {
-          value: ethPurchasePrice.div(2),
-        },
-      );
-
-      const salePrice = 1000;
-      const feeNumerator = 600;
-      const feeDenominator = 10000;
-      const expectedResult = (salePrice * feeNumerator) / feeDenominator;
-
-      const [receiver, realResult] = await accessTokenEth.royaltyInfo(0, salePrice);
-      expect(expectedResult).to.be.equal(realResult);
-      expect(receiver).to.be.equal(royaltiesReceiverEth.address);
-
-      let staticParams = [];
-      for (let i = 1; i < 10; i++) {
-        const message = EthCrypto.hash.keccak256([
-          { type: 'address', value: creator.address },
-          { type: 'uint256', value: i },
-          { type: 'string', value: NFT_721_BASE_URI },
-          { type: 'bool', value: false },
-          { type: 'uint256', value: chainId },
-        ]);
-
-        const signature = EthCrypto.sign(signer.privateKey, message);
-
-        staticParams.push({
-          tokenId: i,
-          tokenUri: NFT_721_BASE_URI,
-          whitelisted: false,
-          signature,
-        } as StaticPriceParametersStruct);
-      }
+      const params = buildStaticParams(1, { whitelisted: true });
+      const protection = await buildStaticProtection(accessTokenEth.address, signer.privateKey, pete.address, params);
+      const discountedPrice = ethPurchasePrice.div(2);
 
       await accessTokenEth
-        .connect(creator)
-        .mintStaticPrice(creator.address, staticParams, NATIVE_CURRENCY_ADDRESS, ethPurchasePrice.mul(9), {
-          value: ethPurchasePrice.mul(9),
+        .connect(pete)
+        .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, discountedPrice, [pete.address], [params], [protection], {
+          value: discountedPrice,
         });
+
+      expect(await accessTokenEth.ownerOf(params.tokenId)).to.eq(pete.address);
     });
 
-    it('Should mint correctly dynamic prices', async () => {
-      const { signatureVerifier, accessTokenEth, creator, signer } = await loadFixture(fixture);
+    it('reverts when expected payment token mismatches configuration', async () => {
+      const { accessTokenEth, signer, charlie, erc20Example } = await loadFixture(fixture);
 
-      let message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'uint256', value: ethers.utils.parseEther('0.02') },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      let signature = EthCrypto.sign(signer.privateKey, message);
+      const params = buildStaticParams(2);
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        params,
+      );
 
       await expect(
-        accessTokenEth.connect(creator).mintDynamicPrice(
-          creator.address,
-          [
-            {
-              tokenId: 0,
-              price: ethers.utils.parseEther('0.01'),
-              tokenUri: NFT_721_BASE_URI,
-              signature,
-            } as DynamicPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          {
-            value: ethers.utils.parseEther('0.01'),
-          },
-        ),
-      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
-      await expect(
-        accessTokenEth.connect(creator).mintDynamicPrice(
-          creator.address,
-          [
-            {
-              tokenId: 0,
-              price: ethers.utils.parseEther('0.01'),
-              tokenUri: NFT_721_BASE_URI,
-              signature,
-            } as DynamicPriceParametersStruct,
-          ],
-          creator.address,
-          {
-            value: ethers.utils.parseEther('0.01'),
-          },
-        ),
+        accessTokenEth
+          .connect(charlie)
+          .mintStaticPrice(erc20Example.address, ethPurchasePrice, [charlie.address], [params], [protection], {
+            value: ethPurchasePrice,
+          }),
       )
-        .to.be.revertedWithCustomError(accessTokenEth, `TokenChanged`)
-        .withArgs(creator.address);
-
-      await accessTokenEth.connect(creator).mintDynamicPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            price: ethers.utils.parseEther('0.02'),
-            tokenUri: NFT_721_BASE_URI,
-            signature,
-          } as DynamicPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        {
-          value: ethers.utils.parseEther('0.02'),
-        },
-      );
+        .to.be.revertedWithCustomError(accessTokenEth, 'TokenChanged')
+        .withArgs(erc20Example.address);
     });
 
-    it('Should batch mint correctly dynamic prices', async () => {
-      const { accessTokenEth, royaltiesReceiverEth, factory, validator, owner, creator, signer } = await loadFixture(
-        fixture,
+    it('reverts when the native value is incorrect', async () => {
+      const { accessTokenEth, signer, charlie } = await loadFixture(fixture);
+
+      const params = buildStaticParams(3);
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        params,
       );
+      const wrongValue = ethPurchasePrice.sub(1);
 
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'uint256', value: ethers.utils.parseEther('0.02') },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      let signature = EthCrypto.sign(signer.privateKey, message);
-
-      await factory.setFactoryParameters(
-        {
-          transferValidator: validator.address,
-          platformAddress: owner.address,
-          signerAddress: signer.address,
-          platformCommission: PLATFORM_COMISSION,
-          defaultPaymentCurrency: NATIVE_CURRENCY_ADDRESS,
-          maxArraySize: 1,
-        } as Factory.FactoryParametersStruct,
-        royalties,
-        implementations,
-        referralPercentages,
-      );
       await expect(
-        accessTokenEth.connect(creator).mintDynamicPrice(
-          creator.address,
-          [
-            {
-              tokenId: 0,
-              price: ethers.utils.parseEther('0.02'),
-              tokenUri: NFT_721_BASE_URI,
-              signature,
-            } as DynamicPriceParametersStruct,
-            {
-              tokenId: 0,
-              price: ethers.utils.parseEther('0.02'),
-              tokenUri: NFT_721_BASE_URI,
-              signature,
-            } as DynamicPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          {
-            value: ethers.utils.parseEther('0.02'),
-          },
-        ),
+        accessTokenEth
+          .connect(charlie)
+          .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [charlie.address], [params], [protection], {
+            value: wrongValue,
+          }),
+      )
+        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectNativeCurrencyAmountSent')
+        .withArgs(wrongValue);
+    });
+
+    it('reverts when the expected mint price does not match the effective price', async () => {
+      const { accessTokenEth, signer, charlie } = await loadFixture(fixture);
+
+      const params = buildStaticParams(4);
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        params,
+      );
+      const wrongExpectedPrice = ethPurchasePrice.add(1);
+
+      await expect(
+        accessTokenEth
+          .connect(charlie)
+          .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, wrongExpectedPrice, [charlie.address], [params], [protection], {
+            value: ethPurchasePrice,
+          }),
+      )
+        .to.be.revertedWithCustomError(accessTokenEth, 'PriceChanged')
+        .withArgs(wrongExpectedPrice);
+    });
+
+    it('reverts when array lengths differ or exceed the factory limit', async () => {
+      const { accessTokenEth, signer, charlie, creator, factory } = await loadFixture(fixture);
+
+      const params = buildStaticParams(5);
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        params,
+      );
+
+      await expect(
+        accessTokenEth
+          .connect(charlie)
+          .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [charlie.address], [], [protection], {
+            value: ethPurchasePrice,
+          }),
       ).to.be.revertedWithCustomError(accessTokenEth, 'WrongArraySize');
+
+      const updatedParams = cloneFactoryParams({ maxArraySize: 1 });
       await factory.setFactoryParameters(
-        {
-          transferValidator: validator.address,
-          platformAddress: owner.address,
-          signerAddress: signer.address,
-          platformCommission: PLATFORM_COMISSION,
-          defaultPaymentCurrency: NATIVE_CURRENCY_ADDRESS,
-          maxArraySize: 20,
-        } as Factory.FactoryParametersStruct,
+        updatedParams,
         royalties,
         implementations,
         referralPercentages,
+        REFERRAL_MAX_ARRAY_LENGTH,
       );
 
-      await accessTokenEth.connect(creator).mintDynamicPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            price: ethers.utils.parseEther('0.02'),
-            tokenUri: NFT_721_BASE_URI,
-            signature,
-          } as DynamicPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        {
-          value: ethers.utils.parseEther('0.02'),
-        },
+      const batchParams = [buildStaticParams(6), buildStaticParams(7)];
+      const protections = await Promise.all(
+        batchParams.map(entry =>
+          buildStaticProtection(accessTokenEth.address, signer.privateKey, creator.address, entry),
+        ),
       );
-
-      const salePrice = 1000;
-      const feeNumerator = 600;
-      const feeDenominator = 10000;
-      const expectedResult = (salePrice * feeNumerator) / feeDenominator;
-
-      const [receiver, realResult] = await accessTokenEth.royaltyInfo(0, salePrice);
-      expect(expectedResult).to.be.equal(realResult);
-      expect(receiver).to.be.equal(royaltiesReceiverEth.address);
-
-      let dynamicParams = [];
-      for (let i = 1; i < 10; i++) {
-        const message = EthCrypto.hash.keccak256([
-          { type: 'address', value: creator.address },
-          { type: 'uint256', value: i },
-          { type: 'string', value: NFT_721_BASE_URI },
-          { type: 'uint256', value: ethers.utils.parseEther('0.02') },
-          { type: 'uint256', value: chainId },
-        ]);
-
-        const signature = EthCrypto.sign(signer.privateKey, message);
-
-        dynamicParams.push({
-          tokenId: i,
-          price: ethers.utils.parseEther('0.02'),
-          tokenUri: NFT_721_BASE_URI,
-          signature,
-        } as DynamicPriceParametersStruct);
-      }
-
-      await accessTokenEth.connect(creator).mintDynamicPrice(creator.address, dynamicParams, NATIVE_CURRENCY_ADDRESS, {
-        value: ethers.utils.parseEther('0.02').mul(9),
-      });
-    });
-
-    it('Should correct set new values', async () => {
-      const { accessTokenEth, owner, creator, referral } = await loadFixture(fixture);
-
-      const newPrice = ethers.utils.parseEther('1');
-      const newWLPrice = ethers.utils.parseEther('0.1');
-      const newPayingToken = referral.address;
 
       await expect(
-        accessTokenEth.connect(owner).setNftParameters(newPayingToken, newPrice, newWLPrice, true),
-      ).to.be.revertedWithCustomError(accessTokenEth, 'Unauthorized');
-
-      await accessTokenEth.connect(creator).setNftParameters(newPayingToken, newPrice, newWLPrice, true);
-
-      const [, , , , infoReturned] = await accessTokenEth.parameters();
-
-      expect(infoReturned.paymentToken).to.be.equal(newPayingToken);
-      expect(infoReturned.mintPrice).to.be.equal(newPrice);
-      expect(infoReturned.whitelistMintPrice).to.be.equal(newWLPrice);
+        accessTokenEth
+          .connect(creator)
+          .mintStaticPrice(
+            NATIVE_CURRENCY_ADDRESS,
+            ethPurchasePrice.mul(batchParams.length),
+            [creator.address, creator.address],
+            batchParams,
+            protections,
+            { value: ethPurchasePrice.mul(batchParams.length) },
+          ),
+      ).to.be.revertedWithCustomError(accessTokenEth, 'WrongArraySize');
     });
 
-    it('Should mint correctly with erc20 token', async () => {
-      const { accessTokenERC20, creator, erc20Example, signer } = await loadFixture(fixture);
+    it('reverts when the signature payload does not match the receiver', async () => {
+      const { accessTokenEth, signer, charlie, signatureVerifier, creator } = await loadFixture(fixture);
 
-      await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice);
-      await erc20Example.connect(creator).approve(accessTokenERC20.address, ethers.constants.MaxUint256);
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      await accessTokenERC20.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        erc20Example.address,
-        tokenPurchasePrice,
+      const params = buildStaticParams(8);
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        params,
       );
-      expect(await accessTokenERC20.balanceOf(creator.address)).to.be.equal(1);
+
+      await expect(
+        accessTokenEth
+          .connect(creator)
+          .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [creator.address], [params], [protection], {
+            value: ethPurchasePrice,
+          }),
+      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
     });
 
-    it('Should mint correctly with erc20 token without fee', async () => {
-      const { factory, accessTokenERC20, creator, erc20Example, signer } = await loadFixture(fixture);
+    it('reverts when minting exceeds the collection supply', async () => {
+      const { factory, signer, creator } = await loadFixture(fixture);
 
-      factoryParams.platformCommission = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
-
-      await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice);
-      await erc20Example.connect(creator).approve(accessTokenERC20.address, tokenPurchasePrice);
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      await accessTokenERC20.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        erc20Example.address,
-        tokenPurchasePrice,
-      );
-      expect(await accessTokenERC20.balanceOf(creator.address)).to.be.equal(1);
-      expect(await erc20Example.balanceOf(creator.address)).to.be.equal(10000);
-    });
-
-    it('Should transfer if transferable', async () => {
-      const { factory, accessTokenERC20, creator, erc20Example, signer, referral } = await loadFixture(fixture);
-
-      factoryParams.platformCommission = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
-
-      await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice);
-      await erc20Example.connect(creator).approve(accessTokenERC20.address, ethers.constants.MaxUint256);
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      await accessTokenERC20.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        erc20Example.address,
-        tokenPurchasePrice,
-      );
-      expect(await accessTokenERC20.balanceOf(creator.address)).to.be.equal(1);
-
-      await accessTokenERC20.connect(creator).transferFrom(creator.address, referral.address, 0);
-      expect(await accessTokenERC20.balanceOf(referral.address)).to.be.equal(1);
-    });
-
-    it('Should transfer if transferable - multiple tokens', async () => {
-      const { factory, accessTokenERC20, creator, erc20Example, signer, referral } = await loadFixture(fixture);
-
-      factoryParams.platformCommission = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
-
-      await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice * 2);
-      await erc20Example.connect(creator).approve(accessTokenERC20.address, ethers.constants.MaxUint256);
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      await accessTokenERC20.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        erc20Example.address,
-        tokenPurchasePrice,
-      );
-      expect(await accessTokenERC20.balanceOf(creator.address)).to.be.equal(1);
-
-      await accessTokenERC20.connect(creator).transferFrom(creator.address, referral.address, 0);
-      expect(await accessTokenERC20.balanceOf(referral.address)).to.be.equal(1);
-
-      const message2 = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 1 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature2 = EthCrypto.sign(signer.privateKey, message2);
-
-      await accessTokenERC20.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 1,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature: signature2,
-          } as StaticPriceParametersStruct,
-        ],
-        erc20Example.address,
-        tokenPurchasePrice,
-      );
-      expect(await accessTokenERC20.balanceOf(creator.address)).to.be.equal(1);
-
-      await accessTokenERC20.connect(creator).transferFrom(creator.address, referral.address, 1);
-    });
-
-    it("Shouldn't transfer if not transferable", async () => {
-      const { factory, creator, erc20Example, signer, referral } = await loadFixture(fixture);
-
-      factoryParams.platformCommission = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
-
-      AccessTokenEthMetadata.name += '1';
+      const limitedMetadata = nextMetadata('Limited');
       const { accessToken } = await deployAccessToken(
-        AccessTokenEthMetadata,
-        tokenPurchasePrice,
-        tokenPurchasePrice / 2,
+        limitedMetadata,
+        ethPurchasePrice,
+        ethPurchasePrice,
         signer,
         creator,
         factory,
         ethers.constants.HashZero,
-        erc20Example.address,
-        false,
+        NATIVE_CURRENCY_ADDRESS,
+        true,
+        1,
       );
 
-      await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice);
-      await erc20Example.connect(creator).approve(accessToken.address, ethers.constants.MaxUint256);
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      await accessToken.connect(creator).mintStaticPrice(
+      const first = buildStaticParams(9);
+      const firstProtection = await buildStaticProtection(
+        accessToken.address,
+        signer.privateKey,
         creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        erc20Example.address,
-        tokenPurchasePrice,
+        first,
       );
-      expect(await accessToken.balanceOf(creator.address)).to.be.equal(1);
+
+      await accessToken
+        .connect(creator)
+        .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [creator.address], [first], [firstProtection], {
+          value: ethPurchasePrice,
+        });
+
+      const second = buildStaticParams(10);
+      const secondProtection = await buildStaticProtection(
+        accessToken.address,
+        signer.privateKey,
+        creator.address,
+        second,
+      );
 
       await expect(
-        accessToken.connect(creator).transferFrom(creator.address, referral.address, 0),
-      ).to.be.revertedWithCustomError(accessToken, 'NotTransferable');
+        accessToken
+          .connect(creator)
+          .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [creator.address], [second], [secondProtection], {
+            value: ethPurchasePrice,
+          }),
+      ).to.be.revertedWithCustomError(accessToken, 'TotalSupplyLimitReached');
     });
+  });
 
-    it('Should mint correctly with erc20 token if user in the WL', async () => {
-      const { creator, erc20Example, factory, signer, referral } = await loadFixture(fixture);
+  describe('mintDynamicPrice', () => {
+    it('mints multiple tokens via ERC20 dynamic pricing', async () => {
+      const { accessTokenERC20, erc20Example, signer, charlie } = await loadFixture(fixture);
 
-      AccessTokenEthMetadata.name += '2';
-      const { accessToken } = await deployAccessToken(
-        AccessTokenEthMetadata,
-        tokenPurchasePrice,
-        tokenPurchasePrice / 2,
-        signer,
-        referral,
-        factory,
-        ethers.constants.HashZero,
-        erc20Example.address,
-      );
+      await erc20Example.connect(charlie).mint(charlie.address, tokenPurchasePrice.mul(2));
+      await erc20Example.connect(charlie).approve(accessTokenERC20.address, tokenPurchasePrice.mul(2));
 
-      await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice);
-      await erc20Example.connect(creator).approve(accessToken.address, ethers.constants.MaxUint256);
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: true },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-      const aliceBalanceBefore = await erc20Example.balanceOf(creator.address);
-      const referralBalanceBefore = await erc20Example.balanceOf(referral.address);
-      await accessToken.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: true,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        erc20Example.address,
-        tokenPurchasePrice / 2,
-      );
-      const aliceBalanceAfter = await erc20Example.balanceOf(creator.address);
-      const referralBalanceAfter = await erc20Example.balanceOf(referral.address);
-
-      expect(await accessToken.balanceOf(creator.address)).to.be.equal(1);
-      expect(aliceBalanceBefore.sub(aliceBalanceAfter)).to.be.equal(tokenPurchasePrice / 2);
-      expect(referralBalanceAfter.sub(referralBalanceBefore)).to.be.equal(
-        BigNumber.from(tokenPurchasePrice / 2)
-          .mul(9900)
-          .div(10000),
-      );
-    });
-
-    it('Should fail with wrong signer', async () => {
-      const { signatureVerifier, creator, accessTokenEth } = await loadFixture(fixture);
-
-      const bad_message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 1 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-      const bad_signature = creator.signMessage(bad_message);
-
-      await expect(
-        accessTokenEth.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: 1,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature: bad_signature,
-            } as StaticPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          ethPurchasePrice,
-          { value: ethPurchasePrice },
+      const params = [
+        buildDynamicParams(20, tokenPurchasePrice.div(2), `${NFT_721_BASE_URI}20`),
+        buildDynamicParams(21, tokenPurchasePrice.div(2), `${NFT_721_BASE_URI}21`),
+      ];
+      const protections = await Promise.all(
+        params.map(param =>
+          buildDynamicProtection(accessTokenERC20.address, signer.privateKey, charlie.address, param),
         ),
+      );
+
+      const tx = await accessTokenERC20
+        .connect(charlie)
+        .mintDynamicPrice(erc20Example.address, [charlie.address, charlie.address], params, protections);
+
+      await expect(tx)
+        .to.emit(accessTokenERC20, 'Paid')
+        .withArgs(charlie.address, erc20Example.address, tokenPurchasePrice);
+
+      expect(await accessTokenERC20.balanceOf(charlie.address)).to.eq(2);
+      expect(await accessTokenERC20.tokenURI(20)).to.eq(params[0].tokenUri);
+      expect(await accessTokenERC20.tokenURI(21)).to.eq(params[1].tokenUri);
+    });
+
+    it('reverts when ETH amount does not match dynamic price', async () => {
+      const { accessTokenEth, signer, charlie } = await loadFixture(fixture);
+
+      const params = [buildDynamicParams(30, ethPurchasePrice)];
+      const protections = [
+        await buildDynamicProtection(accessTokenEth.address, signer.privateKey, charlie.address, params[0]),
+      ];
+      const wrongValue = ethPurchasePrice.sub(1);
+
+      await expect(
+        accessTokenEth
+          .connect(charlie)
+          .mintDynamicPrice(NATIVE_CURRENCY_ADDRESS, [charlie.address], params, protections, { value: wrongValue }),
+      )
+        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectNativeCurrencyAmountSent')
+        .withArgs(wrongValue);
+    });
+
+    it('reverts when expected payment token changes', async () => {
+      const { accessTokenEth, signer, charlie, erc20Example } = await loadFixture(fixture);
+
+      const params = [buildDynamicParams(31, ethPurchasePrice)];
+      const protections = [
+        await buildDynamicProtection(accessTokenEth.address, signer.privateKey, charlie.address, params[0]),
+      ];
+
+      await expect(
+        accessTokenEth
+          .connect(charlie)
+          .mintDynamicPrice(erc20Example.address, [charlie.address], params, protections, { value: ethPurchasePrice }),
+      )
+        .to.be.revertedWithCustomError(accessTokenEth, 'TokenChanged')
+        .withArgs(erc20Example.address);
+    });
+
+    it('reverts when array constraints are violated', async () => {
+      const { accessTokenEth, signer, creator, factory } = await loadFixture(fixture);
+
+      const params = [buildDynamicParams(32, ethPurchasePrice)];
+      const protections = [
+        await buildDynamicProtection(accessTokenEth.address, signer.privateKey, creator.address, params[0]),
+      ];
+
+      await expect(
+        accessTokenEth
+          .connect(creator)
+          .mintDynamicPrice(NATIVE_CURRENCY_ADDRESS, [], params, protections, { value: ethPurchasePrice }),
+      ).to.be.revertedWithCustomError(accessTokenEth, 'WrongArraySize');
+
+      const updatedParams = cloneFactoryParams({ maxArraySize: 1 });
+      await factory.setFactoryParameters(
+        updatedParams,
+        royalties,
+        implementations,
+        referralPercentages,
+        REFERRAL_MAX_ARRAY_LENGTH,
+      );
+
+      const batchParams = [
+        buildDynamicParams(33, ethPurchasePrice.div(2)),
+        buildDynamicParams(34, ethPurchasePrice.div(2)),
+      ];
+      const batchProtections = await Promise.all(
+        batchParams.map(param =>
+          buildDynamicProtection(accessTokenEth.address, signer.privateKey, creator.address, param),
+        ),
+      );
+
+      await expect(
+        accessTokenEth
+          .connect(creator)
+          .mintDynamicPrice(
+            NATIVE_CURRENCY_ADDRESS,
+            [creator.address, creator.address],
+            batchParams,
+            batchProtections,
+            { value: ethPurchasePrice },
+          ),
+      ).to.be.revertedWithCustomError(accessTokenEth, 'WrongArraySize');
+    });
+
+    it('reverts when dynamic signature payload is invalid', async () => {
+      const { accessTokenEth, signer, charlie, signatureVerifier, creator } = await loadFixture(fixture);
+
+      const params = [buildDynamicParams(35, ethPurchasePrice)];
+      const protections = [
+        await buildDynamicProtection(accessTokenEth.address, signer.privateKey, charlie.address, params[0]),
+      ];
+
+      await expect(
+        accessTokenEth
+          .connect(creator)
+          .mintDynamicPrice(NATIVE_CURRENCY_ADDRESS, [creator.address], params, protections, {
+            value: ethPurchasePrice,
+          }),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
     });
-
-    it('Should fail with wrong mint price', async () => {
-      const { creator, accessTokenEth, signer } = await loadFixture(fixture);
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      await expect(
-        accessTokenEth.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: 0,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature,
-            } as StaticPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          ethers.utils.parseEther('0.02'),
-          { value: ethers.utils.parseEther('0.02') },
-        ),
-      )
-        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectNativeCurrencyAmountSent')
-        .withArgs(ethers.utils.parseEther('0.02'));
-
-      await expect(
-        accessTokenEth.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: 0,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature,
-            } as StaticPriceParametersStruct,
-          ],
-          NATIVE_CURRENCY_ADDRESS,
-          ethers.utils.parseEther('0.02'),
-        ),
-      )
-        .to.be.revertedWithCustomError(accessTokenEth, 'IncorrectNativeCurrencyAmountSent')
-        .withArgs(0);
-    });
-
-    it('Should fail with 0 acc balance erc20', async () => {
-      const { creator, signer, accessTokenERC20, erc20Example } = await loadFixture(fixture);
-
-      await erc20Example.connect(creator).approve(accessTokenERC20.address, 99999999999999);
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 1 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      await expect(
-        accessTokenERC20.connect(creator).mintStaticPrice(
-          creator.address,
-          [
-            {
-              tokenId: 1,
-              tokenUri: NFT_721_BASE_URI,
-              whitelisted: false,
-              signature,
-            } as StaticPriceParametersStruct,
-          ],
-          erc20Example.address,
-          tokenPurchasePrice,
-        ),
-      ).to.be.reverted;
-    });
   });
 
-  describe('TokenURI test', async () => {
-    it('Should return correct metadataUri after mint', async () => {
-      const { creator, signer, accessTokenEth } = await loadFixture(fixture);
+  describe('Payments', () => {
+    it('routes ETH payments between platform, referral and creator', async () => {
+      const { accessTokenEth, signer, charlie, owner, referral, creator, factory, referralCode } =
+        await loadFixture(fixture);
 
-      const NFT_721_BASE_URI = 'test.com/1';
+      const params = buildStaticParams(40);
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        params,
+      );
 
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
+      const startPlatform = await owner.getBalance();
+      const startReferral = await referral.getBalance();
+      const startCreator = await creator.getBalance();
 
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      await accessTokenEth.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        ethPurchasePrice,
-        {
+      await accessTokenEth
+        .connect(charlie)
+        .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [charlie.address], [params], [protection], {
           value: ethPurchasePrice,
-        },
-      );
+        });
 
-      await expect(accessTokenEth.tokenURI(100)).to.be.revertedWithCustomError(accessTokenEth, 'TokenIdDoesNotExist');
-      expect(await accessTokenEth.tokenURI(0)).to.be.equal(NFT_721_BASE_URI);
-    });
-  });
+      const factoryParamsOnChain = await factory.nftFactoryParameters();
+      const fullFees = calculatePlatformFee(ethPurchasePrice, factoryParamsOnChain.platformCommission, BPS_DENOMINATOR);
+      const referralShare = await factory.getReferralRate(creator.address, referralCode, fullFees);
+      const platformShare = fullFees.sub(referralShare);
+      const creatorShare = ethPurchasePrice.sub(fullFees);
 
-  describe('Withdraw test', async () => {
-    it('Should withdraw all funds when contract has 0 commission', async () => {
-      const { creator, accessTokenERC20, erc20Example, signer, factory } = await loadFixture(fixture);
-
-      await erc20Example.connect(creator).mint(creator.address, tokenPurchasePrice);
-      await erc20Example.connect(creator).approve(accessTokenERC20.address, ethers.constants.MaxUint256);
-
-      factoryParams.platformCommission = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      const startBalance = await erc20Example.balanceOf(creator.address);
-
-      await accessTokenERC20.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        erc20Example.address,
-        tokenPurchasePrice,
-      );
-
-      const endBalance = await erc20Example.balanceOf(creator.address);
-      expect(endBalance.sub(startBalance)).to.eq(0);
+      expect(await owner.getBalance()).to.eq(startPlatform.add(platformShare));
+      expect(await referral.getBalance()).to.eq(startReferral.add(referralShare));
+      expect(await creator.getBalance()).to.eq(startCreator.add(creatorShare));
     });
 
-    it('Should withdraw all funds without 10% (commission)', async () => {
-      const { creator, accessTokenERC20, erc20Example, signer, factory, owner, referral, charlie, referralCode } =
+    it('routes ERC20 payments between platform, referral and creator', async () => {
+      const { accessTokenERC20, erc20Example, signer, charlie, owner, referral, creator, factory, referralCode } =
         await loadFixture(fixture);
 
       await erc20Example.connect(charlie).mint(charlie.address, tokenPurchasePrice);
-      await erc20Example.connect(charlie).approve(accessTokenERC20.address, ethers.constants.MaxUint256);
+      await erc20Example.connect(charlie).approve(accessTokenERC20.address, tokenPurchasePrice);
 
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: charlie.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      const startBalanceOwner = await erc20Example.balanceOf(owner.address);
-      const startBalanceReferral = await erc20Example.balanceOf(referral.address);
-
-      await accessTokenERC20.connect(charlie).mintStaticPrice(
+      const params = buildStaticParams(41);
+      const protection = await buildStaticProtection(
+        accessTokenERC20.address,
+        signer.privateKey,
         charlie.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        erc20Example.address,
+        params,
+      );
+
+      const startPlatform = await erc20Example.balanceOf(owner.address);
+      console.log('startPlatform', startPlatform.toString());
+      console.log('startPlatform', startPlatform.toString());
+      const startReferral = await erc20Example.balanceOf(referral.address);
+      const startCreator = await erc20Example.balanceOf(creator.address);
+
+      await accessTokenERC20
+        .connect(charlie)
+        .mintStaticPrice(erc20Example.address, tokenPurchasePrice, [charlie.address], [params], [protection]);
+
+      const factoryParamsOnChain = await factory.nftFactoryParameters();
+      const fullFees = calculatePlatformFee(
         tokenPurchasePrice,
+        factoryParamsOnChain.platformCommission,
+        BPS_DENOMINATOR,
       );
-      expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(owner.address);
-      const endBalanceOwner = await erc20Example.balanceOf(owner.address);
-      const endBalanceReferral = await erc20Example.balanceOf(referral.address);
+      const referralShare = await factory.getReferralRate(creator.address, referralCode, fullFees);
+      const platformShare = fullFees.sub(referralShare);
+      const creatorShare = tokenPurchasePrice.sub(fullFees);
 
-      const fullFees = BigNumber.from(tokenPurchasePrice)
-        .mul((await factory.nftFactoryParameters()).platformCommission)
-        .div(10000);
-      const feesToReferralCreator = await factory.getReferralRate(creator.address, referralCode, fullFees);
-      const feesToPlatform = fullFees.sub(feesToReferralCreator);
-
-      expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(feesToPlatform);
-      expect(endBalanceReferral.sub(startBalanceReferral)).to.be.equal(feesToReferralCreator);
+      expect(await erc20Example.balanceOf(owner.address)).to.eq(startPlatform.add(platformShare));
+      expect(await erc20Example.balanceOf(referral.address)).to.eq(startReferral.add(referralShare));
+      expect(await erc20Example.balanceOf(creator.address)).to.eq(startCreator.add(creatorShare));
     });
 
-    it('Should withdraw all funds when contract has 0 commission - ETH', async () => {
-      const { creator, accessTokenEth, signer, factory, owner } = await loadFixture(fixture);
+    it('rounds platform fees up for tiny ERC20 prices', async () => {
+      const { factory, signer, creator, erc20Example, owner, charlie } = await loadFixture(fixture);
 
-      factoryParams.platformCommission = 0;
-      await factory.setFactoryParameters(factoryParams, royalties, implementations, referralPercentages);
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: creator.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      const startBalance = await creator.getBalance();
-
-      await accessTokenEth.connect(creator).mintStaticPrice(
-        creator.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        ethPurchasePrice,
-        {
-          value: ethPurchasePrice,
-        },
-      );
-
-      const endBalance = await creator.getBalance();
-      expect(endBalance.lte(startBalance)).to.be.true; // Account for gas costs
-    });
-
-    it('Should withdraw all funds without 10% (commission) - ETH', async () => {
-      const { creator, accessTokenEth, signer, factory, owner, referral, charlie, referralCode } = await loadFixture(
-        fixture,
-      );
-
-      const message = EthCrypto.hash.keccak256([
-        { type: 'address', value: charlie.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
-
-      const signature = EthCrypto.sign(signer.privateKey, message);
-
-      const startBalanceOwner = await owner.getBalance();
-      const startBalanceReferral = await referral.getBalance();
-      const startBalanceCreator = await creator.getBalance();
-
-      await accessTokenEth.connect(charlie).mintStaticPrice(
-        charlie.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        ethPurchasePrice,
-        {
-          value: ethPurchasePrice,
-        },
-      );
-      expect((await factory.nftFactoryParameters()).platformAddress).to.be.equal(owner.address);
-      const endBalanceOwner = await owner.getBalance();
-      const endBalanceReferral = await referral.getBalance();
-      const endBalanceCreator = await creator.getBalance();
-
-      const fullFees = ethPurchasePrice.div(BigNumber.from('100'));
-      const feesToReferralCreator = await factory.getReferralRate(creator.address, referralCode, fullFees);
-      const feesToPlatform = fullFees.sub(feesToReferralCreator);
-
-      expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(feesToPlatform);
-      expect(endBalanceReferral.sub(startBalanceReferral)).to.be.equal(feesToReferralCreator);
-      expect(endBalanceCreator.sub(startBalanceCreator)).to.be.equal(
-        ethPurchasePrice.mul(BigNumber.from('99')).div(BigNumber.from('100')),
-      );
-    });
-
-    it('Should correct distribute royalties 2 payees', async () => {
-      const { creator, signer, erc20Example, factory, owner, referral, charlie, referralCode } = await loadFixture(
-        fixture,
-      );
-
-      AccessTokenEthMetadata.name += '3';
-      const { accessToken, royaltiesReceiver } = await deployAccessToken(
-        AccessTokenEthMetadata,
-        ethPurchasePrice,
-        ethPurchasePrice.div(2),
+      const metadata = nextMetadata('Tiny');
+      const tinyPrice = BigNumber.from(1);
+      const { accessToken: tinyAccessToken } = await deployAccessToken(
+        metadata,
+        tinyPrice,
+        tinyPrice,
         signer,
         creator,
         factory,
         ethers.constants.HashZero,
+        erc20Example.address,
       );
 
-      expect(await accessToken.owner()).to.be.equal(creator.address);
+      await erc20Example.connect(charlie).mint(charlie.address, tinyPrice);
+      await erc20Example.connect(charlie).approve(tinyAccessToken.address, tinyPrice);
 
-      let message = EthCrypto.hash.keccak256([
-        { type: 'address', value: charlie.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
+      const params = buildStaticParams(42);
+      const protection = await buildStaticProtection(
+        tinyAccessToken.address,
+        signer.privateKey,
+        creator.address,
+        params,
+      );
 
-      let signature = EthCrypto.sign(signer.privateKey, message);
+      const startPlatform = await erc20Example.balanceOf(owner.address);
+      const startCreator = await erc20Example.balanceOf(creator.address);
+      await tinyAccessToken
+        .connect(charlie)
+        .mintStaticPrice(erc20Example.address, tinyPrice, [creator.address], [params], [protection]);
 
-      let startBalanceOwner = await owner.getBalance();
-      let startBalanceCreator = await creator.getBalance();
+      const factoryParamsOnChain = await factory.nftFactoryParameters();
+      const expectedFee = calculatePlatformFee(tinyPrice, factoryParamsOnChain.platformCommission, BPS_DENOMINATOR);
 
-      await accessToken.connect(charlie).mintStaticPrice(
-        charlie.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        ethPurchasePrice,
-        {
+      expect(await erc20Example.balanceOf(owner.address)).to.eq(startPlatform.add(expectedFee));
+      expect(await erc20Example.balanceOf(creator.address)).to.eq(startCreator.add(tinyPrice.sub(expectedFee)));
+    });
+  });
+
+  describe('Transfers and validator', () => {
+    it('allows transfers when collection is transferable', async () => {
+      const { accessTokenEth, signer, creator, referral } = await loadFixture(fixture);
+
+      const params = buildStaticParams(50);
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        creator.address,
+        params,
+      );
+
+      await accessTokenEth
+        .connect(creator)
+        .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [creator.address], [params], [protection], {
           value: ethPurchasePrice,
-        },
-      );
+        });
 
-      let endBalanceOwner = await owner.getBalance();
-      let endBalanceCreator = await creator.getBalance();
-
-      const fullFees = ethPurchasePrice.div(BigNumber.from('100'));
-
-      expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(fullFees);
-      expect(endBalanceCreator.sub(startBalanceCreator)).to.be.equal(
-        ethPurchasePrice.mul(BigNumber.from('99')).div(BigNumber.from('100')),
-      );
-
-      // NFT was sold for ETH
-
-      let tx = {
-        from: owner.address,
-        to: royaltiesReceiver.address,
-        value: ethers.utils.parseEther('1'),
-        gasLimit: 1000000,
-      };
-
-      const platformAddress = (await factory.nftFactoryParameters()).platformAddress;
-
-      await owner.sendTransaction(tx);
-
-      let creatorBalanceBefore = await creator.getBalance();
-      let platformBalanceBefore = await owner.getBalance();
-
-      await royaltiesReceiver.connect(referral).releaseAll(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS());
-
-      expect(await royaltiesReceiver.totalReleased(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS())).to.eq(
-        ethers.utils.parseEther('1'),
-      );
-      expect(
-        await royaltiesReceiver.released(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS(), creator.address),
-      ).to.eq(ethers.utils.parseEther('0.8'));
-      expect(await royaltiesReceiver.released(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS(), owner.address)).to.eq(
-        ethers.utils.parseEther('0.2'),
-      );
-
-      let creatorBalanceAfter = await creator.getBalance();
-      let platformBalanceAfter = await owner.getBalance();
-
-      expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.8'));
-      expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.2'));
-
-      // NFT was sold for ERC20
-
-      creatorBalanceBefore = await erc20Example.balanceOf(creator.address);
-      platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
-
-      await erc20Example.connect(owner).mint(royaltiesReceiver.address, ethers.utils.parseEther('1'));
-
-      await royaltiesReceiver.connect(referral).releaseAll(erc20Example.address);
-
-      expect(await royaltiesReceiver.totalReleased(erc20Example.address)).to.eq(ethers.utils.parseEther('1'));
-      expect(await royaltiesReceiver.released(erc20Example.address, creator.address)).to.eq(
-        ethers.utils.parseEther('0.8'),
-      );
-      expect(await royaltiesReceiver.released(erc20Example.address, owner.address)).to.eq(
-        ethers.utils.parseEther('0.2'),
-      );
-
-      creatorBalanceAfter = await erc20Example.balanceOf(creator.address);
-      platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
-
-      expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.8'));
-      expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.2'));
-
-      // NFT was sold for ETH 2
-
-      tx = {
-        from: owner.address,
-        to: royaltiesReceiver.address,
-        value: ethers.utils.parseEther('1'),
-        gasLimit: 1000000,
-      };
-
-      await owner.sendTransaction(tx);
-
-      creatorBalanceBefore = await creator.getBalance();
-      platformBalanceBefore = await owner.getBalance();
-
-      await royaltiesReceiver
-        .connect(referral)
-        .release(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS(), creator.address);
-
-      expect(await royaltiesReceiver.totalReleased(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS())).to.eq(
-        ethers.utils.parseEther('1.8'),
-      );
-      expect(
-        await royaltiesReceiver.released(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS(), creator.address),
-      ).to.eq(ethers.utils.parseEther('1.6'));
-      expect(await royaltiesReceiver.released(await royaltiesReceiver.NATIVE_CURRENCY_ADDRESS(), owner.address)).to.eq(
-        ethers.utils.parseEther('0.2'),
-      );
-
-      creatorBalanceAfter = await creator.getBalance();
-      platformBalanceAfter = await owner.getBalance();
-
-      expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.8'));
-      expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(0);
-
-      // NFT was sold for ERC20 2
-
-      creatorBalanceBefore = await erc20Example.balanceOf(creator.address);
-      platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
-
-      await erc20Example.connect(owner).mint(royaltiesReceiver.address, ethers.utils.parseEther('1'));
-
-      await royaltiesReceiver.connect(referral).release(erc20Example.address, owner.address);
-
-      expect(await royaltiesReceiver.totalReleased(erc20Example.address)).to.eq(ethers.utils.parseEther('1.2'));
-      expect(await royaltiesReceiver.released(erc20Example.address, creator.address)).to.eq(
-        ethers.utils.parseEther('0.8'),
-      );
-      expect(await royaltiesReceiver.released(erc20Example.address, owner.address)).to.eq(
-        ethers.utils.parseEther('0.4'),
-      );
-
-      creatorBalanceAfter = await erc20Example.balanceOf(creator.address);
-      platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
-
-      expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(0);
-      expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.2'));
-
-      // NFT was sold for ERC20 3
-
-      creatorBalanceBefore = await erc20Example.balanceOf(creator.address);
-      platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
-
-      await expect(
-        royaltiesReceiver.connect(referral).release(erc20Example.address, charlie.address),
-      ).to.be.revertedWithCustomError(royaltiesReceiver, 'AccountNotDuePayment');
-      await royaltiesReceiver.connect(referral).release(erc20Example.address, owner.address);
-
-      expect(await royaltiesReceiver.totalReleased(erc20Example.address)).to.eq(ethers.utils.parseEther('1.2'));
-      expect(await royaltiesReceiver.released(erc20Example.address, creator.address)).to.eq(
-        ethers.utils.parseEther('0.8'),
-      );
-      expect(await royaltiesReceiver.released(erc20Example.address, owner.address)).to.eq(
-        ethers.utils.parseEther('0.4'),
-      );
-
-      creatorBalanceAfter = await erc20Example.balanceOf(creator.address);
-      platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
-
-      expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(0);
-      expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(0);
+      await accessTokenEth.connect(creator).transferFrom(creator.address, referral.address, params.tokenId);
+      expect(await accessTokenEth.ownerOf(params.tokenId)).to.eq(referral.address);
     });
 
-    it('Should correct distribute royalties 3 payees', async () => {
-      const {
-        creator,
-        signer,
-        royaltiesReceiverEth,
-        accessTokenEth,
-        erc20Example,
-        factory,
-        owner,
-        referral,
-        charlie,
-        pete,
-        referralCode,
-      } = await loadFixture(fixture);
+    it('enforces the transfer validator when it reverts', async () => {
+      const { accessTokenEth, signer, creator, validator, referral } = await loadFixture(fixture);
 
-      let message = EthCrypto.hash.keccak256([
-        { type: 'address', value: charlie.address },
-        { type: 'uint256', value: 0 },
-        { type: 'string', value: NFT_721_BASE_URI },
-        { type: 'bool', value: false },
-        { type: 'uint256', value: chainId },
-      ]);
+      const params = buildStaticParams(51);
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        creator.address,
+        params,
+      );
 
-      let signature = EthCrypto.sign(signer.privateKey, message);
-
-      const startBalanceOwner = await owner.getBalance();
-      const startBalanceCreator = await creator.getBalance();
-      const startBalanceReferral = await referral.getBalance();
-
-      await accessTokenEth.connect(charlie).mintStaticPrice(
-        charlie.address,
-        [
-          {
-            tokenId: 0,
-            tokenUri: NFT_721_BASE_URI,
-            whitelisted: false,
-            signature,
-          } as StaticPriceParametersStruct,
-        ],
-        NATIVE_CURRENCY_ADDRESS,
-        ethPurchasePrice,
-        {
+      await accessTokenEth
+        .connect(creator)
+        .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [creator.address], [params], [protection], {
           value: ethPurchasePrice,
-        },
+        });
+
+      await validator.setSwitcher(false);
+
+      await expect(
+        accessTokenEth.connect(creator).transferFrom(creator.address, referral.address, params.tokenId),
+      ).to.be.revertedWith('MockTransferValidator: always reverts');
+    });
+
+    it('blocks transfers when collection is non-transferable', async () => {
+      const { factory, signer, creator, referral } = await loadFixture(fixture);
+
+      const metadata = nextMetadata('NoTransfer');
+      const { accessToken } = await deployAccessToken(
+        metadata,
+        ethPurchasePrice,
+        ethPurchasePrice,
+        signer,
+        creator,
+        factory,
+        ethers.constants.HashZero,
+        NATIVE_CURRENCY_ADDRESS,
+        false,
       );
 
-      const endBalanceOwner = await owner.getBalance();
-      const endBalanceCreator = await creator.getBalance();
-      const endBalanceReferral = await referral.getBalance();
+      const params = buildStaticParams(60);
+      const protection = await buildStaticProtection(accessToken.address, signer.privateKey, creator.address, params);
 
-      const fullFees = ethPurchasePrice.div(BigNumber.from('100'));
-      const feesToReferralCreator = await factory.getReferralRate(creator.address, referralCode, fullFees);
-      const feesToPlatform = fullFees.sub(feesToReferralCreator);
+      await accessToken
+        .connect(creator)
+        .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [creator.address], [params], [protection], {
+          value: ethPurchasePrice,
+        });
 
-      expect(endBalanceOwner.sub(startBalanceOwner)).to.be.equal(feesToPlatform);
-      expect(endBalanceReferral.sub(startBalanceReferral)).to.be.equal(feesToReferralCreator);
-      expect(endBalanceCreator.sub(startBalanceCreator)).to.be.equal(
-        ethPurchasePrice.mul(BigNumber.from('99')).div(BigNumber.from('100')),
-      );
-
-      let tx = {
-        from: owner.address,
-        to: royaltiesReceiverEth.address,
-        value: ethers.utils.parseEther('1'),
-        gasLimit: 1000000,
-      };
-
-      const platformAddress = (await factory.nftFactoryParameters()).platformAddress;
-
-      await owner.sendTransaction(tx);
-
-      let creatorBalanceBefore = await creator.getBalance();
-      let platformBalanceBefore = await owner.getBalance();
-      let referralBalanceBefore = await referral.getBalance();
-
-      await royaltiesReceiverEth.connect(pete).releaseAll(royaltiesReceiverEth.NATIVE_CURRENCY_ADDRESS());
-
-      expect(await royaltiesReceiverEth.totalReleased(royaltiesReceiverEth.NATIVE_CURRENCY_ADDRESS())).to.eq(
-        ethers.utils.parseEther('1'),
-      );
-      expect(
-        await royaltiesReceiverEth.released(royaltiesReceiverEth.NATIVE_CURRENCY_ADDRESS(), creator.address),
-      ).to.eq(ethers.utils.parseEther('0.8'));
-      expect(await royaltiesReceiverEth.released(royaltiesReceiverEth.NATIVE_CURRENCY_ADDRESS(), owner.address)).to.eq(
-        ethers.utils.parseEther('0.14'),
-      );
-      expect(
-        await royaltiesReceiverEth.released(royaltiesReceiverEth.NATIVE_CURRENCY_ADDRESS(), referral.address),
-      ).to.eq(ethers.utils.parseEther('0.06'));
-
-      let creatorBalanceAfter = await creator.getBalance();
-      let platformBalanceAfter = await owner.getBalance();
-      let referralBalanceAfter = await referral.getBalance();
-
-      expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.8'));
-      expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.14'));
-      expect(referralBalanceAfter.sub(referralBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.06'));
-
-      creatorBalanceBefore = await erc20Example.balanceOf(creator.address);
-      platformBalanceBefore = await erc20Example.balanceOf(platformAddress);
-      referralBalanceBefore = await erc20Example.balanceOf(referral.address);
-
-      await erc20Example.connect(owner).mint(royaltiesReceiverEth.address, ethers.utils.parseEther('1'));
-
-      await royaltiesReceiverEth.connect(pete).releaseAll(erc20Example.address);
-
-      expect(await royaltiesReceiverEth.totalReleased(erc20Example.address)).to.eq(ethers.utils.parseEther('1'));
-      expect(await royaltiesReceiverEth.released(erc20Example.address, creator.address)).to.eq(
-        ethers.utils.parseEther('0.8'),
-      );
-      expect(await royaltiesReceiverEth.released(erc20Example.address, owner.address)).to.eq(
-        ethers.utils.parseEther('0.14'),
-      );
-      expect(await royaltiesReceiverEth.released(erc20Example.address, referral.address)).to.eq(
-        ethers.utils.parseEther('0.06'),
-      );
-
-      creatorBalanceAfter = await erc20Example.balanceOf(creator.address);
-      platformBalanceAfter = await erc20Example.balanceOf(platformAddress);
-      referralBalanceAfter = await erc20Example.balanceOf(referral.address);
-
-      expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.8'));
-      expect(platformBalanceAfter.sub(platformBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.14'));
-      expect(referralBalanceAfter.sub(referralBalanceBefore)).to.be.equal(ethers.utils.parseEther('0.06'));
+      await expect(
+        accessToken.connect(creator).transferFrom(creator.address, referral.address, params.tokenId),
+      ).to.be.revertedWithCustomError(accessToken, 'NotTransferable');
     });
   });
 });

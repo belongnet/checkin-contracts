@@ -4,11 +4,11 @@ Belong CheckIn (contracts under `contracts/v2`) powers venue-based referral mark
 
 ## Core Concepts
 
-- **Credit token accounting** – Venues pre-fund USDC deposits that mint ERC‑1155 “venue credits”. Promoter credits are minted on visits and burned on settlement, preventing double spending.
-- **Signature-gated actions** – All external flows are authorized off-chain by the platform signer and revalidated on-chain, keeping the backend in control of venue settings, check-ins, and payouts.
-- **Escrow & swaps** – Funds remain in `Escrow` until released; Uniswap V3 swaps handle LONG↔USDC conversions for customer subsidies, promoter payouts, and buyback/burn routines.
+- **Credit token accounting** – Venues pre-fund USDtoken deposits (typically USDC) that mint ERC‑1155 “venue credits”. Promoter credits are minted on visits and burned on settlement, preventing double spending.
+- **Signature-gated actions** – All external flows are authorized off-chain by the platform signer. Signatures carry a `SignatureProtection` prefix (`verifyingContract`, `nonce`, `deadline`, `chainId`) and are verified on-chain by `SignatureVerifier`.
+- **Escrow & swaps** – Funds remain in `Escrow` until released; DEX swaps handle LONG↔USDtoken conversions for customer subsidies, promoter payouts, and buyback/burn routines.
 - **Tiered economics** – Staking balances determine deposit fees, convenience charges, and promoter payout haircuts, aligning incentives for heavy LONG holders.
-- **Composable payment options** – Venues can accept USDC and/or LONG, choose how LONG payments are routed (auto-stake/auto-convert/direct), and optionally enable promoter bounty types (visit/spend/both).
+- **Composable payment options** – Venues can accept USDtoken and/or LONG, choose how LONG payments are routed (auto-stake/auto-convert/direct), and optionally enable promoter bounty types (visit/spend/both).
 
 ## Contract Map
 
@@ -26,26 +26,29 @@ Belong CheckIn (contracts under `contracts/v2`) powers venue-based referral mark
 
 - **Platform Owner** – Manages global parameters via `BelongCheckIn` (fees, staking rewards, payments config) and controls proxy upgrades.
 - **Backend Signer** – Lives in `Factory.nftFactoryParameters().signerAddress`; must sign all venue/customer/promoter payloads before they are accepted on-chain.
-- **Venue** – Deposits USDC, chooses bounty/payment rules, and maintains sufficient credits to cover promoter rewards.
+- **Venue** – Deposits USDtoken, chooses bounty/payment rules, and maintains sufficient credits to cover promoter rewards.
 - **Promoter** – Drives traffic to venues, accrues ERC-1155 promoter credits on verified visits, and redeems them via signed settlements.
-- **Customer** – Pays venues in USDC or LONG and may trigger promoter rewards depending on attribution.
+- **Customer** – Pays venues in USDtoken or LONG and may trigger promoter rewards depending on attribution.
 
 ## Signature Matrix
 
-Every state-changing action is signature gated. Detailed hashing formulas and client examples live in [`docs/guides/BelongCheckinSignatures.md`](./BelongCheckinSignatures.md). Quick reference:
+Every state-changing action is signature gated. All digests include the shared prefix
+`(verifyingContract, nonce, deadline, chainId)`. The table below lists the payload
+fields that follow that prefix. Full hashing recipes and client examples live in
+[`docs/guides/BelongCheckinSignatures.md`](./BelongCheckinSignatures.md).
 
-| Payload | Signed Fields (packed order) | Consumed By | Notes |
+| Payload | Signed Fields (after prefix) | Consumed By | Notes |
 |---------|------------------------------|-------------|-------|
-| `VenueInfo` | `venue`, `referralCode`, `uri`, `chainId` | `BelongCheckIn.venueDeposit` | Authorizes rule updates and referral attribution; deposit amount is validated on-chain. |
-| `CustomerInfo` | `paymentInUSDC`, `visitBountyAmount`, `spendBountyPercentage`, `customer`, `venueToPayFor`, `promoter`, `amount`, `chainId` | `BelongCheckIn.payToVenue` | Enforces venue payment/bounty rules, promoter attribution, and amount limits. |
-| `PromoterInfo` | `promoter`, `venue`, `amountInUSD`, `chainId` | `BelongCheckIn.distributePromoterPayments` | Controls cash- or LONG-settled payouts; payout currency (`paymentInUSDC`) influences fee haircut but is unsigned. |
+| `VenueInfo` | `venue`, `affiliateReferralCode`, `uri` | `BelongCheckIn.venueDeposit` | Authorizes referral attribution and metadata URI; `rules` and `amount` are validated on-chain but unsigned. |
+| `CustomerInfo` | `rules.bountyType`, `rules.bountyAllocationType`, `paymentInUSDtoken`, `toCustomer`, `toPromoter`, `customer`, `venueToPayFor`, `promoterReferralCode`, `amount` | `BelongCheckIn.payToVenue` | Bounties are signed as `abi.encode(visitBountyAmount, spendBountyPercentage)` for each side. |
+| `PromoterInfo` | `promoterReferralCode`, `venue`, `amountInUSD` | `BelongCheckIn.distributePromoterPayments` | Payout currency flag (`paymentInUSDtoken`) is unsigned and must be enforced by the backend. |
 
 ## Lifecycle Overview
 
 ### 1. Venue Deposit & Rule Configuration
 1. Venue shares desired `VenueRules` (payment types, bounty types, LONG settlement mode) and deposit amount with the backend.
 2. Backend validates referral code ownership, checks venue staking tier, and issues a signed `VenueInfo`.
-3. Venue calls `venueDeposit(venueInfo)`:
+3. Venue calls `venueDeposit(venueInfo)` (EOA-only):
    - Applies free-deposit counter (`fees.referralCreditsAmount`) before charging deposit fees.
    - Charges a flat convenience fee (converted to LONG and delivered to escrow) plus optional affiliate fee (`fees.affiliatePercentage`).
    - Mints venue ERC‑1155 credits mirroring the USD balance and forwards principal to `Escrow`.
@@ -53,16 +56,16 @@ Every state-changing action is signature gated. Detailed hashing formulas and cl
 ### 2. Customer Check-In & Payment
 1. App collects visit context (venue, promoter attribution, spend amount, currency) and forwards it to backend.
 2. Backend confirms rules allow the requested payment method and bounty combination; signs `CustomerInfo`.
-3. Customer calls `payToVenue(customerInfo)`:
+3. Customer calls `payToVenue(customerInfo)` (EOA-only):
    - If a promoter is set, burns venue credits equal to visit bounty + spend percentage, minting promoter credits instead.
-   - For USDC payments: transfers full amount from customer to venue wallet.
-   - For LONG payments: pulls platform subsidy from escrow, applies processing fee, collects discounted payment from customer, and routes LONG per venue rule (auto-stake, auto-convert to USDC, or direct transfer).
+   - For USDtoken payments: transfers full amount from customer to venue wallet.
+   - For LONG payments: pulls platform subsidy from escrow, applies processing fee, collects discounted payment from customer, and routes LONG per venue rule (auto-stake, auto-convert to USDtoken, or direct transfer).
 
 ### 3. Promoter Settlement
 1. Promoter requests payout and selects currency. Backend computes withdrawable USD amount (<= promoter credit balance) and signs `PromoterInfo`.
-2. Promoter (or platform) calls `distributePromoterPayments(promoterInfo)`:
+2. Promoter (or platform) calls `distributePromoterPayments(promoterInfo)` (EOA-only):
    - Retrieves staking tier to determine platform fee percentage (`stakingRewards[...] .promoterStakingInfo`).
-   - Transfers payout from escrow to promoter (USDC) or swaps to LONG before delivery.
+   - Transfers payout from escrow to promoter (USDtoken) or swaps to LONG before delivery.
    - Burns the consumed promoter credits to prevent re-claims and streams platform fees through the buyback routine.
 
 ### 4. Revenue Sharing & Buyback
@@ -87,9 +90,21 @@ Staking tiers (`stakingRewards`) define per-tier:
 ## Deployment & Operations
 
 - **Scripts**: `scripts/mainnet-deployment/belong-checkin/*` deploy libraries, implementations, proxies, and helper tooling. See [`docs/guides/BelongCheckIn.md`](./BelongCheckIn.md) for step-by-step instructions.
-- **State file**: Scripts persist addresses in `deployments/chainId-<id>.json` (keys include `sigantureVerifier`, `helper`, `factory`, `checkIn`, etc.).
-- **Environment variables**: Configure Uniswap routers/quoters, token addresses (USDC, LONG, WNative), Chainlink price feeds, and signer keys.
+- **State file**: Scripts persist addresses in `deployments/chainId-<id>.json` (keys include `signatureVerifier`, `helper`, `factory`, `checkIn`, etc.).
+- **Environment variables**: Configure DEX routers, token addresses (USDtoken, LONG, WNative), Chainlink price feeds, and signer keys.
 - **Upgrades**: Proxies are owned by the platform address. Use the provided upgrade scripts to deploy new implementations, then execute `ProxyAdmin` upgrades safely.
+
+## Deployment & Wiring Checklist (Quick)
+
+1. Deploy libraries (`SignatureVerifier`, `Helper`) and implementation contracts (AccessToken, CreditToken, RoyaltiesReceiverV2, VestingWalletExtended).
+2. Deploy the `Factory` proxy and initialize it with `FactoryParameters`, `RoyaltiesParameters`, implementations, and referral percentages.
+3. Deploy `LONG` and `Staking` (set admin/pauser/treasury).
+4. Deploy `BelongCheckIn` and call `initialize(owner, paymentsInfo)`.
+5. Deploy `Escrow` and call `initialize(belongCheckIn)`.
+6. Deploy venue/promoter `CreditToken` contracts via the Factory.
+7. Deploy a LONG price feed (script `16-deploy-long-price-feed.ts`) or use an existing Chainlink aggregator and set `deployments.tokens.longPriceFeed`.
+8. Call `BelongCheckIn.setContracts` with `Factory`, `Escrow`, `Staking`, credit tokens, and the LONG price feed.
+9. Optionally update `BelongCheckIn` fees/rewards/payments config as your economics evolve.
 
 ## Related Documentation
 

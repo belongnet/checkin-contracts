@@ -1,0 +1,293 @@
+import { BigNumber, BigNumberish, BytesLike } from 'ethers';
+import { ethers } from 'hardhat';
+
+import type { BelongCheckIn } from '../typechain-types';
+import { VestingWalletInfoStruct } from '../typechain-types/contracts/v2/periphery/VestingWalletExtended';
+import {
+  CustomerInfoStruct,
+  PromoterInfoStruct,
+  VenueInfoStruct,
+  VenueRulesStruct,
+} from '../typechain-types/contracts/v2/platform/BelongCheckIn';
+import { AccessTokenInfoStruct, ERC1155InfoStruct } from '../typechain-types/contracts/v2/platform/Factory';
+import {
+  DynamicPriceParametersStruct,
+  StaticPriceParametersStruct,
+} from '../typechain-types/contracts/v2/tokens/AccessToken';
+import { SignatureVerifier } from '../typechain-types/contracts/v2/utils/SignatureVerifier';
+
+export type SignatureProtectionStruct = SignatureVerifier.SignatureProtectionStruct;
+
+export type SignatureOverrides = {
+  nonce?: BigNumberish;
+  deadline?: BigNumberish;
+  chainId?: BigNumberish;
+  rules?: VenueRulesStruct;
+};
+
+const DEFAULT_DEADLINE_WINDOW = 3600; // 1 hour
+let nonceCounter = BigNumber.from(1);
+
+function nextNonce(): BigNumber {
+  const current = nonceCounter;
+  nonceCounter = nonceCounter.add(1);
+  return current;
+}
+
+function normalizeBigNumberish(value: BigNumberish | undefined, fallback: BigNumberish): BigNumber {
+  if (value === undefined) {
+    return BigNumber.from(fallback);
+  }
+  return BigNumber.from(value);
+}
+
+function normalizePrivateKey(pk: string): string {
+  const trimmed = pk.trim();
+  return trimmed.startsWith('0x') ? trimmed : `0x${trimmed}`;
+}
+
+async function buildProtection(
+  signerPrivateKey: string,
+  encode: (opts: { nonce: BigNumber; deadline: BigNumber; chainId: BigNumber }) => BytesLike,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  const { chainId } = await ethers.provider.getNetwork();
+  const nonce = normalizeBigNumberish(overrides?.nonce, nextNonce());
+  const block = await ethers.provider.getBlock('latest');
+  const latest = block?.timestamp ?? Math.floor(Date.now() / 1000);
+  const deadline = normalizeBigNumberish(overrides?.deadline, latest + DEFAULT_DEADLINE_WINDOW);
+  const chainIdToUse = normalizeBigNumberish(overrides?.chainId, chainId);
+
+  const digest = ethers.utils.keccak256(encode({ nonce, deadline, chainId: chainIdToUse }));
+  const signingKey = new ethers.utils.SigningKey(normalizePrivateKey(signerPrivateKey));
+  const signature = ethers.utils.joinSignature(signingKey.signDigest(digest));
+
+  return { nonce, deadline, signature };
+}
+
+export async function signAccessTokenInfo(
+  verifyingContract: string,
+  signerPrivateKey: string,
+  info: AccessTokenInfoStruct,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  return buildProtection(
+    signerPrivateKey,
+    ({ nonce, deadline, chainId }) =>
+      ethers.utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'address', 'string', 'string', 'string', 'uint96'],
+        [
+          verifyingContract,
+          nonce,
+          deadline,
+          chainId,
+          info.creator,
+          info.metadata.name,
+          info.metadata.symbol,
+          info.contractURI,
+          info.feeNumerator,
+        ],
+      ),
+    overrides,
+  );
+}
+
+export async function signCreditTokenInfo(
+  verifyingContract: string,
+  signerPrivateKey: string,
+  info: Pick<ERC1155InfoStruct, 'name' | 'symbol' | 'uri'>,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  const protection = await buildProtection(
+    signerPrivateKey,
+    ({ nonce, deadline, chainId }) =>
+      ethers.utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'string', 'string', 'string'],
+        [verifyingContract, nonce, deadline, chainId, info.name, info.symbol, info.uri],
+      ),
+    overrides,
+  );
+  return protection;
+}
+
+export async function signVestingWalletInfo(
+  verifyingContract: string,
+  signerPrivateKey: string,
+  owner: string,
+  info: VestingWalletInfoStruct,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  return buildProtection(
+    signerPrivateKey,
+    ({ nonce, deadline, chainId }) =>
+      ethers.utils.defaultAbiCoder.encode(
+        [
+          'address',
+          'uint256',
+          'uint256',
+          'uint256',
+          'address',
+          'uint64',
+          'uint64',
+          'uint64',
+          'address',
+          'address',
+          'uint256',
+          'uint256',
+          'uint256',
+        ],
+        [
+          verifyingContract,
+          nonce,
+          deadline,
+          chainId,
+          owner,
+          info.startTimestamp,
+          info.cliffDurationSeconds,
+          info.durationSeconds,
+          info.token,
+          info.beneficiary,
+          info.totalAllocation,
+          info.tgeAmount,
+          info.linearAllocation,
+        ],
+      ),
+    overrides,
+  );
+}
+
+export async function signVenueInfo(
+  verifyingContract: string,
+  signerPrivateKey: string,
+  info: VenueInfoStruct,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  return buildProtection(
+    signerPrivateKey,
+    ({ nonce, deadline, chainId }) =>
+      ethers.utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'address', 'bytes32', 'string'],
+        [verifyingContract, nonce, deadline, chainId, info.venue, info.affiliateReferralCode, info.uri],
+      ),
+    overrides,
+  );
+}
+
+export async function signCustomerInfo(
+  verifyingContract: string,
+  signerPrivateKey: string,
+  info: CustomerInfoStruct,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  const rules =
+    overrides?.rules ??
+    (
+      await ((await ethers.getContractAt('BelongCheckIn', verifyingContract)) as BelongCheckIn).generalVenueInfo(
+        info.venueToPayFor,
+      )
+    ).rules;
+
+  const customerBounties = ethers.utils.defaultAbiCoder.encode(
+    ['uint128', 'uint24'],
+    [info.toCustomer.visitBountyAmount, info.toCustomer.spendBountyPercentage],
+  );
+  const promoterBounties = ethers.utils.defaultAbiCoder.encode(
+    ['uint128', 'uint24'],
+    [info.toPromoter.visitBountyAmount, info.toPromoter.spendBountyPercentage],
+  );
+
+  return buildProtection(
+    signerPrivateKey,
+    ({ nonce, deadline, chainId }) =>
+      ethers.utils.defaultAbiCoder.encode(
+        [
+          'address',
+          'uint256',
+          'uint256',
+          'uint256',
+          'uint8',
+          'uint8',
+          'bool',
+          'bytes',
+          'bytes',
+          'address',
+          'address',
+          'bytes32',
+          'uint256',
+        ],
+        [
+          verifyingContract,
+          nonce,
+          deadline,
+          chainId,
+          rules.bountyType,
+          rules.bountyAllocationType,
+          info.paymentInUSDtoken,
+          customerBounties,
+          promoterBounties,
+          info.customer,
+          info.venueToPayFor,
+          info.promoterReferralCode,
+          info.amount,
+        ],
+      ),
+    overrides,
+  );
+}
+
+export async function signPromoterInfo(
+  verifyingContract: string,
+  signerPrivateKey: string,
+  info: PromoterInfoStruct,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  return buildProtection(
+    signerPrivateKey,
+    ({ nonce, deadline, chainId }) =>
+      ethers.utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'bytes32', 'address', 'uint256'],
+        [verifyingContract, nonce, deadline, chainId, info.promoterReferralCode, info.venue, info.amountInUSD],
+      ),
+    overrides,
+  );
+}
+
+export async function buildStaticProtection(
+  verifyingContract: string,
+  signerPrivateKey: string,
+  receiver: string,
+  params: StaticPriceParametersStruct,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  return buildProtection(
+    signerPrivateKey,
+    ({ nonce, deadline, chainId }) =>
+      ethers.utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'address', 'uint256', 'string', 'bool'],
+        [verifyingContract, nonce, deadline, chainId, receiver, params.tokenId, params.tokenUri, params.whitelisted],
+      ),
+    overrides,
+  );
+}
+
+export async function buildDynamicProtection(
+  verifyingContract: string,
+  signerPrivateKey: string,
+  receiver: string,
+  params: DynamicPriceParametersStruct,
+  overrides?: SignatureOverrides,
+): Promise<SignatureProtectionStruct> {
+  return buildProtection(
+    signerPrivateKey,
+    ({ nonce, deadline, chainId }) =>
+      ethers.utils.defaultAbiCoder.encode(
+        ['address', 'uint256', 'uint256', 'uint256', 'address', 'uint256', 'string', 'uint256'],
+        [verifyingContract, nonce, deadline, chainId, receiver, params.tokenId, params.tokenUri, params.price],
+      ),
+    overrides,
+  );
+}
+
+export function resetSignatureNonce(value = BigNumber.from(1)) {
+  nonceCounter = value;
+}

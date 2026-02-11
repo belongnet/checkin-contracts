@@ -1,9 +1,11 @@
-import fs from 'fs';
-import { ethers, upgrades } from 'hardhat';
-import { waitForNextBlock } from '../../../helpers/wait';
-import { verifyContract } from '../../../helpers/verify';
 import dotenv from 'dotenv';
+import { ethers, upgrades } from 'hardhat';
+
 import { deployFactory } from '../../../helpers/deployFixtures';
+import { verifyContract } from '../../../helpers/verify';
+import { waitForNextBlock } from '../../../helpers/wait';
+
+import fs from 'fs';
 dotenv.config();
 
 const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
@@ -42,7 +44,7 @@ async function main() {
 
     // Validate environment variables
     if (
-      !deployments.libraries.sigantureVerifier ||
+      !deployments.libraries.signatureVerifier ||
       !deployments.implementations.accessToken ||
       !deployments.implementations.creditToken ||
       !deployments.implementations.royaltiesReceiver ||
@@ -50,13 +52,13 @@ async function main() {
       !transferValidator
     ) {
       throw new Error(
-        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.sigantureVerifier}\nAccessTokenImplementation: ${deployments.implementations.accessToken}\nCreditTokenImplementation: ${deployments.libraries.creditToken}\nRoyaltiesReceiverV2Implementation: ${deployments.implementations.royaltiesReceiver}\nVestingWalletImplementation: ${deployments.libraries.vestingWallet}\nTRANSFER_VALIDATOR: ${transferValidator}`,
+        `Missing required environment variables:\nSignatureVerifier: ${deployments.libraries.signatureVerifier}\nAccessTokenImplementation: ${deployments.implementations.accessToken}\nCreditTokenImplementation: ${deployments.libraries.creditToken}\nRoyaltiesReceiverV2Implementation: ${deployments.implementations.royaltiesReceiver}\nVestingWalletImplementation: ${deployments.libraries.vestingWallet}\nTRANSFER_VALIDATOR: ${transferValidator}`,
       );
     }
 
     // Validate addresses
     for (const addr of [
-      deployments.libraries.sigantureVerifier,
+      deployments.libraries.signatureVerifier,
       deployments.implementations.accessToken,
       deployments.implementations.royaltiesReceiver,
       deployments.implementations.creditToken,
@@ -71,7 +73,7 @@ async function main() {
     const factory = await deployFactory(
       deployer.address,
       deployer.address,
-      deployments.libraries.sigantureVerifier,
+      deployments.libraries.signatureVerifier,
       transferValidator,
       deployments.implementations,
     );

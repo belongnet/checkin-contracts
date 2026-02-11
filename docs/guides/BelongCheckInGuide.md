@@ -3,16 +3,43 @@
 Hardhat scripts under `scripts/mainnet-deployment/belong-checkin` deploy, upgrade, and verify the BelongCheckIn stack. The main flow covers:
 
 - Libraries: `SignatureVerifier`, `Helper`
-- Implementations: `AccessToken`, `CreditToken`, `RoyaltiesReceiverV2`, `VestingWallet`
+- Implementations: `AccessToken`, `CreditToken`, `RoyaltiesReceiverV2`, `VestingWalletExtended`
 - Core/proxies: `Factory`, `BelongCheckIn`, `Escrow`
 - Tokens: `LONG`, `VenueToken`, `PromoterToken`, `Staking`
 
 Utility scripts (`6-upgrade-checkin.ts`, `9-configure-checkin.ts`, `10-configure-tokens.ts`, `11-test-venueDeposit.ts`,
-`12-create-lp.ts`, `13-add-liqudity.ts`, `13-burn-liquidity.ts`, `list-positions.ts`) let you upgrade, wire, test, or seed liquidity once the core contracts exist.
+`12-create-lp.ts`, `13-add-liqudity.ts`, `13-burn-liquidity.ts`, `16-deploy-long-price-feed.ts`, `list-positions.ts`)
+let you upgrade, wire, test, deploy the LONG price feed, or seed liquidity once the core contracts exist.
 
 Every script reads/writes `deployments/chainId-<id>.json` and can run Etherscan-style verification.
 
 > ⚠️ Use **Node 18 or 20** with Hardhat. Example: `nvm use 20 && yarn install`.
+
+---
+
+## What Gets Deployed (and Why)
+
+- **SignatureVerifier**: Shared library for backend-signed payload verification (nonce/deadline + chain binding).
+- **Helper**: Pricing and math utilities (decimals, slippage, Chainlink checks).
+- **LONGPriceFeed**: Chainlink-compatible LONG/USD feed (deploy when no external aggregator exists).
+- **Factory**: Owns global parameters (platform address, signer) and deploys AccessToken/CreditToken/VestingWallet proxies.
+- **AccessToken**: ERC-721 collection used for token-gated access drops.
+- **CreditToken**: ERC-1155 used for venue/promoter credit accounting.
+- **RoyaltiesReceiverV2**: Splitter for creator/platform/referral royalties.
+- **VestingWalletExtended**: UUPS proxy with TGE + linear + tranche vesting.
+- **BelongCheckIn**: Main coordinator for deposits, check-ins, promoter payouts, and revenue routing.
+- **Escrow**: Custodies venue USDtoken/LONG balances and disburses on BelongCheckIn instructions.
+- **LONG**: ERC-20 token used for discounts, staking tiers, and buyback/burn.
+- **Staking**: ERC-4626 vault used to derive fee tiers and reward splits.
+
+## Wiring Requirements (Post-Deploy)
+
+After deployment, the system will not function until the core references are wired:
+
+1. `BelongCheckIn.initialize(owner, paymentsInfo)` (sets owner and swap config).
+2. `Escrow.initialize(belongCheckIn)` (authorizes the coordinator).
+3. `BelongCheckIn.setContracts` with `Factory`, `Escrow`, `Staking`, venue/promoter `CreditToken`, and `longPF`.
+4. Optional: `BelongCheckIn.setFees`, `BelongCheckIn.setRewards`, and `BelongCheckIn.setPaymentsInfo` to adjust economics.
 
 ---
 
@@ -56,13 +83,20 @@ UNISWAPV3_FACTORY_ADDRESS=0x...
 UNISWAPV3_ROUTER_ADDRESS=0x...
 UNISWAPV3_QUOTER_ADDRESS=0x...
 WNATIVE_ADDRESS=0x...
-USDC_ADDRESS=0x...
+USDC_ADDRESS=0x...                 # USDtoken address (typically USDC)
 
 # Credit tokens deployment
 SIGNER_PK=<backend signer private key>
 
+# LONG price feed (optional deployment script)
+LONG_PRICE_FEED_OWNER=0x...          # defaults to ADMIN_ADDRESS
+LONG_PRICE_FEED_DECIMALS=8
+LONG_PRICE_FEED_DESCRIPTION="LONG / USD"
+LONG_PRICE_FEED_INITIAL_ANSWER=100000000
+
 # Post deployment wiring
-LONG_PRICE_FEED=0x...
+# If you use an existing Chainlink feed, set deployments.tokens.longPriceFeed manually
+# before running 9-configure-checkin.ts.
 
 # Liquidity tooling (optional)
 LONG_ADDRESS=0x...                # LONG that will pair with USDC on Uniswap V3
@@ -77,18 +111,17 @@ BAND=1200                          # Tick radius for add-liquidity if you do not
 ```
 
 > `LONG_ADDRESS` is inferred from deployments in most scripts, but liquidity helpers expect it as an explicit env var.
-```
 
 ---
 
 ## Deployments File Layout
 
-Scripts persist data to `deployments/chainId-<id>.json`. Keep key names exactly as written (note the intentional `sigantureVerifier` spelling).
+Scripts persist data to `deployments/chainId-<id>.json`. Keep key names exactly as written (note the intentional `signatureVerifier` spelling).
 
 ```json
 {
   "libraries": {
-    "sigantureVerifier": "0x...",
+    "signatureVerifier": "0x...",
     "helper": "0x..."
   },
   "implementations": {
@@ -104,6 +137,12 @@ Scripts persist data to `deployments/chainId-<id>.json`. Keep key names exactly 
   "tokens": {
     "long": "0x...",
     "staking": "0x...",
+    "longPriceFeed": "0x...",
+    "longPriceFeedMeta": {
+      "decimals": 8,
+      "description": "LONG / USD",
+      "initialAnswer": "100000000"
+    },
     "venueToken": {
       "address": "0x...",
       "parameters": [ { "name": "VenueToken", "symbol": "VET", "uri": "contractURI/VenueToken", "transferable": true } ]
@@ -152,11 +191,11 @@ Call each script with `yarn hardhat run <script> --network <network>`.
 ## Deployment Order
 
 1. **SignatureVerifier** – `0-deploy-signature-verifier.ts`
-   - Populates `deployments.libraries.sigantureVerifier`.
+   - Populates `deployments.libraries.signatureVerifier`.
    - Example: `DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/belong-checkin/0-deploy-signature-verifier.ts --network sepolia`
 
 2. **Implementations** – `1-deploy-implementations.ts`
-   - Requires `deployments.libraries.sigantureVerifier` from step 1.
+   - Requires `deployments.libraries.signatureVerifier` from step 1.
    - Deploys AccessToken, CreditToken, RoyaltiesReceiverV2, VestingWallet implementations.
 
 3. **Factory (initial deploy)** – `2-deploy-factory.ts`
@@ -180,7 +219,7 @@ Call each script with `yarn hardhat run <script> --network <network>`.
 
 8. **BelongCheckIn** – `6-deploy-checkin.ts`
    - Requires:
-     - Libraries: `deployments.libraries.sigantureVerifier`, `deployments.libraries.helper`
+     - Libraries: `deployments.libraries.signatureVerifier`, `deployments.libraries.helper`
      - Token: `deployments.tokens.long`
      - Env vars: `ADMIN_ADDRESS`, `UNISWAPV3_POOL_FEES`, `UNISWAPV3_FACTORY_ADDRESS`, `UNISWAPV3_ROUTER_ADDRESS`, `UNISWAPV3_QUOTER_ADDRESS`, `WNATIVE_ADDRESS`, `USDC_ADDRESS`
    - Builds a `paymentsInfo` struct (slippage fixed to `1e27 - 1`, `maxPriceFeedDelay` = 86400 seconds) and stores it alongside the deployed address.
@@ -195,23 +234,169 @@ Call each script with `yarn hardhat run <script> --network <network>`.
     - Requires `SIGNER_PK`, `deployments.factory.proxy`, and `deployments.checkIn.address`.
     - Deploys VenueToken and PromoterToken via the factory and persists metadata (including `transferable` flags).
 
-12. **BelongCheckIn Wiring** – `9-configure-checkin.ts`
-    - Requires `LONG_PRICE_FEED` plus Factory, Escrow, Staking, VenueToken, and PromoterToken addresses.
+12. **LONG Price Feed (optional)** – `16-deploy-long-price-feed.ts`
+    - Deploys a Chainlink-compatible LONG price feed and stores it at `deployments.tokens.longPriceFeed`.
+    - Use this step if you do not have a real Chainlink aggregator for LONG yet.
+    - If you already have a feed, set `deployments.tokens.longPriceFeed` manually instead.
+
+13. **BelongCheckIn Wiring** – `9-configure-checkin.ts`
+    - Requires Factory, Escrow, Staking, VenueToken, PromoterToken, and `deployments.tokens.longPriceFeed`.
     - Calls `setContracts` on BelongCheckIn to register the core contract references.
 
-13. **Token Configuration (optional)** – `10-configure-tokens.ts`
+14. **Token Configuration (optional)** – `10-configure-tokens.ts`
     - Intended for post-deployment token tweaks; currently mirrors `setContracts` behaviour. Safe to re-run when the wiring needs to be refreshed.
 
-14. **Sanity Deposit (optional)** – `11-test-venueDeposit.ts`
+15. **Sanity Deposit (optional)** – `11-test-venueDeposit.ts`
     - Exercises `venueDeposit` against the deployed BelongCheckIn contract using the configured `SIGNER_PK`.
 
-15. **Uniswap Pool Setup (optional)** – `12-create-lp.ts`
+16. **Uniswap Pool Setup (optional)** – `12-create-lp.ts`
     - Creates/initialises a LONG/USDC V3 pool using the provided price ratio.
 
-16. **Uniswap Liquidity Management (optional)** – `13-add-liqudity.ts`, `13-burn-liquidity.ts`, `list-positions.ts`
+17. **Uniswap Liquidity Management (optional)** – `13-add-liqudity.ts`, `13-burn-liquidity.ts`, `list-positions.ts`
     - Add, remove, or inspect positions once the pool exists. Refer to the in-script comments for the required env vars.
 
 All scripts write back to `deployments/chainId-<id>.json` after every successful action.
+
+---
+
+## Vesting wallets – shared rules (Factory & Direct)
+
+**How amounts work**
+
+- `totalAllocation` must be **>=** `tgeAmount + linearAllocation + Σ(tranches)`.
+- When `durationSeconds = 0`, `linearAllocation` **must** be `0` (pure TGE and/or tranches).
+- Deployment scripts only wire TGE + linear; step-based tranches can be added later on the vesting wallet by the owner via `addTranche` / `addTranches`, then locked with `finalizeTranchesConfiguration`.
+
+**Common schedules**
+
+- **TGE only**: `durationSeconds=0`, `cliffDurationSeconds=0`, `linearAllocation=0`, `tgeAmount = totalAllocation`.
+- **Cliffed linear**: `tgeAmount` (optional), `cliffDurationSeconds>0`, `durationSeconds>0`, `linearAllocation = totalAllocation - tgeAmount - Σ(tranches)` (Σ(tranches)=0 if you skip tranches).
+- **Pure step-based**: `durationSeconds=0`, `linearAllocation=0`, choose any `tgeAmount`, then add tranches on the deployed wallet until `tge + Σ(tranches) = totalAllocation`, finalize, then release.
+- **Mixed**: combine TGE + cliffed linear + future tranches; ensure totals balance before finalization.
+
+**Combinations cheat-sheet**
+
+- Instant TGE only: `tgeAmount = totalAllocation`, `linearAllocation = 0`, `durationSeconds = 0`.
+- TGE + cliffed linear: `tgeAmount > 0`, `cliffDurationSeconds > 0`, `durationSeconds > 0`, `linearAllocation = totalAllocation - tgeAmount`.
+- Linear with no TGE: `tgeAmount = 0`, `cliffDurationSeconds >= 0`, `durationSeconds > 0`, `linearAllocation = totalAllocation`.
+- Linear starting immediately: `cliffDurationSeconds = 0`, `durationSeconds > 0`, `tgeAmount` optional.
+- Step-only with optional TGE: `durationSeconds = 0`, `linearAllocation = 0`, pick `tgeAmount`, then add tranches so `tge + Σ(tranches) = totalAllocation`.
+- Mixed (TGE + linear + tranches): pick any `tgeAmount`, set `linearAllocation`, leave the rest for tranches; totals must equal `totalAllocation`.
+
+---
+
+### Vesting wallet scenarios & options
+
+- **Factory-signed vs direct**: Use script 14 for signer-validated factory deployments (transfers funds from caller to the proxy); use script 15 for a standalone proxy without signatures or Factory.
+- **Funded vs unfunded**: Factory path always funds from caller → wallet. Direct path can skip funding with `FUND=false` and let another party top up later.
+- **Multiple wallets per beneficiary**: Factory supports `keccak256(beneficiary, index)` salts—rerun with the same beneficiary to create indexed wallets; direct deployments are independent addresses.
+- **When to use tranches**: Start with TGE and/or linear, then add tranches on the deployed wallet (`addTranche` / `addTranches`) and lock with `finalizeTranchesConfiguration` once `tge + linear + Σ(tranches) = totalAllocation`.
+- **Release flow**: After finalization, beneficiary (or anyone) can call `releasable()` to preview and `release()` to pull vested tokens; nothing can be released before configuration is finalized.
+- **Cliff behavior**: Linear vesting begins at `start + cliffDurationSeconds`; TGE can still occur at `start` even with a non-zero cliff.
+
+---
+
+## Vesting Wallet Deployment (Factory)
+
+Use `scripts/mainnet-deployment/belong-checkin/14-deploy-vesting-wallet.ts` to mint ERC1967 vesting wallet proxies through the Factory. The script signs the payload with the backend signer, validates balances/allowance, and records the deployed wallet in `deployments/chainId-<id>.json` under `vestingWallets`.
+
+**What it does**
+
+- Hashes + signs the vesting payload with `SIGNER_PK`.
+- Checks sender balance, resets/sets allowance to Factory, and funds the wallet with `totalAllocation`.
+- Deploys via `Factory.deployVestingWallet` (deterministic salt per beneficiary/index) and saves the new entry.
+
+**Prerequisites**
+
+- Factory deployed and configured with `implementations.vestingWallet`.
+- Vesting token minted to the deployer (script sender) with at least `totalAllocation`.
+- Backend signer private key (`SIGNER_PK`) for `checkVestingWalletInfo`.
+
+**Env vars**
+
+```ini
+SIGNER_PK=<backend-signer-hex>          # required
+FACTORY_ADDRESS=0x...                   # optional, falls back to deployments.factory.proxy
+VESTING_TOKEN=0x...                     # optional, falls back to deployments.tokens.long
+VESTING_BENEFICIARY=0x...               # required recipient of releases
+VESTING_OWNER=0x...                     # optional owner (defaults to msg.sender)
+VESTING_DESCRIPTION="Team unlock"       # optional free text
+
+VESTING_START_TIMESTAMP=1718000000      # required; Unix seconds (TGE)
+VESTING_CLIFF_DURATION_SECONDS=0        # optional; seconds from start to cliff (default 0)
+VESTING_DURATION_SECONDS=0              # optional; linear duration after cliff (default 0)
+
+# Amounts (pick ONE per line: human-readable OR raw base units)
+VESTING_TOTAL_ALLOCATION=100000         # parsed with token decimals
+VESTING_TOTAL_RAW=100000000000000000000 # alt: raw base units
+VESTING_TGE_AMOUNT=10000                # optional; defaults to 0
+VESTING_TGE_RAW=10000000000000000000
+VESTING_LINEAR_AMOUNT=90000             # optional; defaults to 0
+VESTING_LINEAR_RAW=90000000000000000000
+
+DEPLOY=true                              # default when unset
+VERIFY=false                             # set true to verify
+```
+
+**Run**
+
+```bash
+yarn hardhat run scripts/mainnet-deployment/belong-checkin/14-deploy-vesting-wallet.ts --network <net>
+```
+
+Check `deployments/chainId-<id>.json` for the new entry (`vestingWallets[<index>]`) containing the vesting wallet address, token, beneficiary, and tx hash.
+
+## Vesting Wallet Deployment (Direct, no Factory)
+
+`scripts/mainnet-deployment/belong-checkin/15-deploy-vesting-wallet-direct.ts` deploys a UUPS proxy for `VestingWalletExtended` without the Factory. It initializes the schedule and can optionally fund the wallet with the full allocation.
+
+**What it does**
+
+- Deploys a standalone proxy (no signature/Factory salt).
+- Initializes with the provided vesting params.
+- Optionally transfers `totalAllocation` from sender to the new wallet when `FUND=true`.
+
+**Prerequisites**
+
+- Vesting token minted to the deployer (script sender) with at least `totalAllocation` if `FUND` is enabled.
+- No Factory needed; this is a standalone proxy.
+
+**Env vars**
+
+```ini
+VESTING_OWNER=0x...                   # optional owner (defaults to msg.sender)
+VESTING_BENEFICIARY=0x...             # required recipient
+VESTING_TOKEN=0x...                   # ERC20 address (defaults to deployments.tokens.long)
+VESTING_DESCRIPTION="Manual vesting"  # optional
+
+VESTING_START_TIMESTAMP=1718000000    # required; Unix seconds (TGE)
+VESTING_CLIFF_DURATION_SECONDS=0      # optional; defaults 0
+VESTING_DURATION_SECONDS=0            # optional; defaults 0
+
+# Amounts (pick ONE per line: human-readable OR raw base units)
+VESTING_TOTAL_ALLOCATION=100000
+VESTING_TOTAL_RAW=100000000000000000000
+VESTING_TGE_AMOUNT=10000              # optional; defaults 0
+VESTING_TGE_RAW=10000000000000000000
+VESTING_LINEAR_AMOUNT=90000           # optional; defaults 0
+VESTING_LINEAR_RAW=90000000000000000000
+
+DEPLOY=true                            # default when unset
+VERIFY=false                           # set true to verify
+FUND=true                              # transfer totalAllocation to the vesting wallet (set to false to skip)
+```
+
+**Notes**
+
+- Validations mirror the Factory script: `durationSeconds=0` requires `linearAllocation=0`, and `tge + linear <= totalAllocation`.
+- When `FUND=true`, the script checks sender balance and transfers `totalAllocation` to the new wallet; otherwise, fund it manually later.
+- Outputs are appended to `deployments/chainId-<id>.json` under `vestingWallets` with `factory: null`.
+
+**Run**
+
+```bash
+yarn hardhat run scripts/mainnet-deployment/belong-checkin/15-deploy-vesting-wallet-direct.ts --network <net>
+```
 
 ---
 

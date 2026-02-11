@@ -1,6 +1,7 @@
-import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
+import { ethers } from 'hardhat';
+
 import { deployEscrow } from '../../../helpers/deployFixtures';
 import { Escrow } from '../../../typechain-types';
 
@@ -44,19 +45,19 @@ describe('Escrow', () => {
       const tx = await escrow.venueDeposit(admin.address, 10, 20);
 
       await expect(tx).to.emit(escrow, 'VenueDepositsUpdated');
-      expect((await escrow.venueDeposits(admin.address)).usdcDeposits).to.eq(10);
+      expect((await escrow.venueDeposits(admin.address)).usdTokenDeposits).to.eq(10);
       expect((await escrow.venueDeposits(admin.address)).longDeposits).to.eq(20);
     });
 
-    it('distributeLONGDiscount()', async () => {
+    it('distributeLONGDeposit()', async () => {
       const { escrow, admin, user1 } = await loadFixture(fixture);
 
       await escrow.venueDeposit(admin.address, 10, 20);
 
       await expect(
-        escrow.connect(user1).distributeLONGDiscount(user1.address, user1.address, 10),
+        escrow.connect(user1).distributeLONGDeposit(user1.address, user1.address, 10),
       ).to.be.revertedWithCustomError(escrow, 'NotBelongCheckIn');
-      await expect(escrow.distributeLONGDiscount(admin.address, admin.address, 30))
+      await expect(escrow.distributeLONGDeposit(admin.address, admin.address, 30))
         .to.be.revertedWithCustomError(escrow, 'NotEnoughLONGs')
         .withArgs(20, 30);
     });
@@ -70,7 +71,7 @@ describe('Escrow', () => {
         escrow.connect(user1).distributeVenueDeposit(admin.address, user1.address, 10),
       ).to.be.revertedWithCustomError(escrow, 'NotBelongCheckIn');
       await expect(escrow.distributeVenueDeposit(admin.address, user1.address, 20))
-        .to.be.revertedWithCustomError(escrow, 'NotEnoughUSDCs')
+        .to.be.revertedWithCustomError(escrow, 'NotEnoughUSDTokens')
         .withArgs(10, 20);
     });
   });
