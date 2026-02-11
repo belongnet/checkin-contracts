@@ -337,6 +337,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// - Transfers `totalAllocation` from caller to the newly deployed vesting wallet.
     /// @param _owner Owner address for the vesting wallet proxy.
     /// @param vestingWalletInfo Full vesting configuration and description.
+    /// @param protection Signature payload with `nonce`, `deadline`, and signer signature.
     /// @return vestingWallet The deployed VestingWallet proxy address.
     function deployVestingWallet(
         address _owner,
@@ -353,6 +354,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// - Does not transfer vesting tokens on deployment.
     /// @param _owner Owner address for the vesting wallet proxy.
     /// @param vestingWalletInfo Full vesting configuration and description.
+    /// @param protection Signature payload with `nonce`, `deadline`, and signer signature.
     /// @return vestingWallet The deployed VestingWallet proxy address.
     function deployVestingWalletWithoutInitialFunding(
         address _owner,
@@ -370,6 +372,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// - If `initialFunding > 0`, transfers that amount from caller to the deployed vesting wallet.
     /// @param _owner Owner address for the vesting wallet proxy.
     /// @param vestingWalletInfo Full vesting configuration and description.
+    /// @param protection Signature payload with `nonce`, `deadline`, and signer signature.
     /// @param initialFunding Amount transferred to the wallet on deploy (must be `<= totalAllocation`).
     /// @return vestingWallet The deployed VestingWallet proxy address.
     function deployVestingWalletWithInitialFunding(
@@ -381,6 +384,16 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         vestingWallet = _deployVestingWallet(_owner, vestingWalletInfo, protection, initialFunding);
     }
 
+    /// @notice Internal deployment routine shared by all vesting wallet deployment entrypoints.
+    /// @dev
+    /// - Validates initial funding bounds and signature authorization.
+    /// - Allows partial or zero initial funding, with later top-ups handled externally.
+    /// - Deploys deterministic ERC1967 proxy and records instance metadata by beneficiary.
+    /// @param _owner Owner address for the vesting wallet proxy.
+    /// @param vestingWalletInfo Full vesting configuration and description.
+    /// @param protection Signature payload with `nonce`, `deadline`, and signer signature.
+    /// @param initialFunding Amount transferred to the wallet on deploy.
+    /// @return vestingWallet The deployed vesting wallet proxy address.
     function _deployVestingWallet(
         address _owner,
         VestingWalletInfo calldata vestingWalletInfo,

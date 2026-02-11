@@ -15,6 +15,7 @@ import {VestingWalletInfo} from "../Structures.sol";
 ///   and optional monotonic time-ordered tranches between `start` and `end`.
 /// - Tranche configuration must be finalized so that TGE + linear allocation + tranches
 ///   exactly equals `totalAllocation` before any release.
+/// - Upfront funding is optional; payouts are always capped by this wallet's current token balance.
 /// - Inherits UUPS upgradeability and Solady's `Ownable`/`Initializable`.
 contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     using SafeTransferLib for address;
@@ -105,8 +106,10 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     /// @notice Initializes the vesting wallet with the given owner and vesting parameters.
+    /// @dev Reverts if owner, token, or beneficiary is zero address.
     /// @param _owner Address that will become the contract owner.
     /// @param vestingParams Full vesting configuration (TGE, cliff, linear, tranches metadata).
+    /// @custom:reverts ZeroAddressPassed If `_owner`, `vestingParams.token`, or `vestingParams.beneficiary` is zero.
     function initialize(address _owner, VestingWalletInfo calldata vestingParams) external initializer {
         vestingStorage = vestingParams;
         _initializeOwner(_owner);
@@ -182,7 +185,9 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     /// @notice Finalizes tranche configuration; makes vesting schedule immutable.
-    /// @dev Ensures TGE + linear + tranches equals `totalAllocation` before finalization.
+    /// @dev
+    /// - Ensures TGE + linear + tranches equals `totalAllocation` before finalization.
+    /// - Does not require the wallet to already hold `totalAllocation` tokens.
     function finalizeTranchesConfiguration() external onlyOwner vestingNotFinalized {
         VestingWalletInfo storage _vestingStorage = vestingStorage;
 
