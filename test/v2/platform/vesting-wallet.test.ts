@@ -414,7 +414,7 @@ describe('VestingWalletExtended', () => {
       await expect(vestingWallet.release()).to.be.revertedWithCustomError(vestingWallet, 'NothingToRelease');
     });
 
-    it('release() should pay available funds when wallet is underfunded', async () => {
+    it('finalize() should not require upfront funding', async () => {
       const { admin, bob, signer, factory, LONG, info } = await loadFixture(fixture);
 
       const underfundedInfo: VestingWalletInfoStruct = {
@@ -436,23 +436,17 @@ describe('VestingWalletExtended', () => {
         timestamp: underfundedInfo.startTimestamp + 120,
         amount: E('30'),
       });
-      await underfundedWallet.connect(admin).finalizeTranchesConfiguration();
+
+      const finalizeTx = underfundedWallet.connect(admin).finalizeTranchesConfiguration();
+      await expect(finalizeTx).to.emit(underfundedWallet, 'Finalized');
+
+      await LONG.transfer(underfundedWallet.address, E('50'));
+      await LONG.transfer(underfundedWallet.address, E('50'));
 
       await increaseToStrict(underfundedInfo.startTimestamp + 1);
-
       expect(await underfundedWallet.vestedAmount(underfundedInfo.startTimestamp + 1)).to.eq(E('10'));
-      expect(await underfundedWallet.releasable()).to.eq(0);
+      expect(await underfundedWallet.releasable()).to.eq(E('10'));
 
-      await LONG.transfer(underfundedWallet.address, E('4'));
-      expect(await underfundedWallet.releasable()).to.eq(E('4'));
-
-      const beneficiaryBalanceBefore = await LONG.balanceOf(bob.address);
-      await underfundedWallet.release();
-      expect((await LONG.balanceOf(bob.address)).sub(beneficiaryBalanceBefore)).to.eq(E('4'));
-      expect(await underfundedWallet.released()).to.eq(E('4'));
-
-      await LONG.transfer(underfundedWallet.address, E('6'));
-      expect(await underfundedWallet.releasable()).to.eq(E('6'));
       await underfundedWallet.release();
       expect(await underfundedWallet.released()).to.eq(E('10'));
     });
@@ -524,12 +518,9 @@ describe('VestingWalletExtended', () => {
       await LONG.approve(factory.address, info.totalAllocation);
 
       await expect(
-        factory.connect(admin).deployVestingWalletWithInitialFunding(
-          admin.address,
-          info,
-          protection,
-          info.totalAllocation,
-        ),
+        factory
+          .connect(admin)
+          .deployVestingWalletWithInitialFunding(admin.address, info, protection, info.totalAllocation),
       )
         .to.be.revertedWithCustomError(factory, 'AllocationMismatch')
         .withArgs(info.totalAllocation);
