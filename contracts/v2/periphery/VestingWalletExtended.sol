@@ -167,9 +167,11 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
             amountsSum += tranchesArray[i].amount;
         }
 
+        VestingWalletInfo storage _vestingStorage = vestingStorage;
+
         uint256 _tranchesTotal = tranchesTotal + amountsSum;
-        uint256 _totalAllocation = vestingStorage.totalAllocation;
-        uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + _tranchesTotal;
+        uint256 _totalAllocation = _vestingStorage.totalAllocation;
+        uint256 _currentAllocation = _vestingStorage.tgeAmount + _vestingStorage.linearAllocation + _tranchesTotal;
         require(_currentAllocation <= _totalAllocation, OverAllocation(_currentAllocation, _totalAllocation));
 
         tranchesTotal = _tranchesTotal;
@@ -182,8 +184,10 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     /// @notice Finalizes tranche configuration; makes vesting schedule immutable.
     /// @dev Ensures TGE + linear + tranches equals `totalAllocation` before finalization.
     function finalizeTranchesConfiguration() external onlyOwner vestingNotFinalized {
-        uint256 _totalAllocation = vestingStorage.totalAllocation;
-        uint256 _currentAllocation = vestingStorage.tgeAmount + vestingStorage.linearAllocation + tranchesTotal;
+        VestingWalletInfo storage _vestingStorage = vestingStorage;
+
+        uint256 _totalAllocation = _vestingStorage.totalAllocation;
+        uint256 _currentAllocation = _vestingStorage.tgeAmount + _vestingStorage.linearAllocation + tranchesTotal;
         require(_currentAllocation == _totalAllocation, AllocationNotBalanced(_currentAllocation, _totalAllocation));
 
         tranchesConfigurationFinalized = true;
@@ -197,10 +201,13 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         uint256 _released = released;
         uint256 amount = vestedAmount(uint64(block.timestamp)) - _released;
         require(amount > 0, NothingToRelease());
-        address _token = vestingStorage.token;
+
+        VestingWalletInfo storage _vestingStorage = vestingStorage;
+
+        address _token = _vestingStorage.token;
 
         released = _released + amount;
-        _token.safeTransfer(vestingStorage.beneficiary, amount);
+        _token.safeTransfer(_vestingStorage.beneficiary, amount);
 
         emit Released(_token, amount);
     }
@@ -212,9 +219,10 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     /// @param timestamp The timestamp to evaluate vesting at (seconds since epoch).
     /// @return total The total amount vested by `timestamp`.
     function vestedAmount(uint64 timestamp) public view returns (uint256 total) {
+        VestingWalletInfo storage _vestingStorage = vestingStorage;
         // 1) TGE
         if (timestamp >= start()) {
-            total = vestingStorage.tgeAmount;
+            total = _vestingStorage.tgeAmount;
         }
 
         // 2) Step-based (early break)
@@ -232,14 +240,14 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         }
 
         // 3) Linear
-        uint64 _duration = vestingStorage.durationSeconds;
+        uint64 _duration = _vestingStorage.durationSeconds;
         uint64 _cliff = cliff();
         if (_duration > 0 && timestamp >= _cliff) {
             uint256 elapsed = uint256(timestamp - _cliff);
             if (elapsed > _duration) {
                 elapsed = _duration;
             }
-            total += (vestingStorage.linearAllocation * elapsed) / _duration;
+            total += (_vestingStorage.linearAllocation * elapsed) / _duration;
         }
     }
 
@@ -266,7 +274,8 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     /// @notice Vesting cliff timestamp (`start` + `cliffDurationSeconds`).
     /// @return The cliff timestamp.
     function cliff() public view returns (uint64) {
-        return vestingStorage.startTimestamp + vestingStorage.cliffDurationSeconds;
+        VestingWalletInfo storage _vestingStorage = vestingStorage;
+        return _vestingStorage.startTimestamp + _vestingStorage.cliffDurationSeconds;
     }
 
     /// @notice Linear vesting duration in seconds.

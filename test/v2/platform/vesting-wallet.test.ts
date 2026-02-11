@@ -1,19 +1,8 @@
-import { ethers } from 'hardhat';
 import { loadFixture, time } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
-import { BigNumber } from 'ethers';
 import EthCrypto from 'eth-crypto';
-
-import {
-  AccessToken,
-  CreditToken,
-  Factory,
-  LONG,
-  MockTransferValidatorV2,
-  RoyaltiesReceiverV2,
-  SignatureVerifier,
-  VestingWalletExtended,
-} from '../../../typechain-types';
+import { BigNumber } from 'ethers';
+import { ethers } from 'hardhat';
 
 import {
   deployAccessTokenImplementation,
@@ -24,11 +13,20 @@ import {
   deployVestingWallet,
   deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
-
-import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2 } from '../../../helpers/deployMockFixtures';
-import { hashVestingInfo } from '../../../helpers/math';
+import { signVestingWalletInfo } from '../../../helpers/signature';
+import {
+  AccessToken,
+  CreditToken,
+  Factory,
+  LONG,
+  MockTransferValidatorV2,
+  RoyaltiesReceiverV2,
+  SignatureVerifier,
+  VestingWalletExtended,
+} from '../../../typechain-types';
+import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
 
 describe('VestingWalletExtended', () => {
   const description = 'VestingWallet';
@@ -459,12 +457,11 @@ describe('VestingWalletExtended', () => {
         },
       );
 
-      const chainId = (await ethers.provider.getNetwork()).chainId;
       const start = (await time.latest()) + 1_000;
       const cliffDur = 60;
       const dur = 360;
 
-      let info: VestingWalletInfoStruct = {
+      const info: VestingWalletInfoStruct = {
         startTimestamp: start,
         cliffDurationSeconds: cliffDur,
         durationSeconds: dur,
@@ -476,14 +473,13 @@ describe('VestingWalletExtended', () => {
         description,
       };
 
-      let vestingWalletMessage = hashVestingInfo(admin.address, info, chainId);
-      let venueTokenSignature = EthCrypto.sign(signer.privateKey, vestingWalletMessage);
+      const protection = await signVestingWalletInfo(factory.address, signer.privateKey, admin.address, info);
 
       await LONG.approve(factory.address, info.totalAllocation);
 
-      await expect(factory.connect(admin).deployVestingWallet(admin.address, info, venueTokenSignature))
+      await expect(factory.connect(admin).deployVestingWallet(admin.address, info, protection))
         .to.be.revertedWithCustomError(factory, 'AllocationMismatch')
-        .withArgs(info.linearAllocation.add(info.tgeAmount), info.totalAllocation);
+        .withArgs(info.totalAllocation);
     });
   });
 });

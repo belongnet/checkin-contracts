@@ -25,12 +25,13 @@ abstract contract ReferralSystemV2 {
     error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
 
     error PercentageExceedsMax(uint16 percentage);
+    error MaxArrayLengthExceedsMax(uint16 maxArrayLength);
 
     // ========== Events ==========
 
     /// @notice Emitted when referral percentages are set.
     /// @param percentages The new referral percentages.
-    event ReferralParametersSet(uint16[5] percentages);
+    event ReferralParametersSet(uint16[5] percentages, uint16 maxArrayLength);
 
     /// @notice Emitted when a new referral code is created.
     /// @param createdBy The address that created the referral code.
@@ -58,6 +59,8 @@ abstract contract ReferralSystemV2 {
 
     // ========== State Variables ==========
 
+    uint16 private _maxArrayLength;
+
     /// @notice Maps the number of times a referral code was used to the corresponding percentage.
     uint16[5] public usedToPercentage;
 
@@ -75,11 +78,12 @@ abstract contract ReferralSystemV2 {
      * @return hashedCode The created referral code.
      */
     function createReferralCode() external returns (bytes32 hashedCode) {
-        hashedCode = keccak256(abi.encodePacked(msg.sender, address(this), block.chainid));
+        hashedCode = keccak256(abi.encode(msg.sender, address(this), block.chainid));
 
-        require(referrals[hashedCode].creator == address(0), ReferralCodeExists(msg.sender, hashedCode));
+        ReferralCode storage referral = referrals[hashedCode];
+        require(referral.creator == address(0), ReferralCodeExists(msg.sender, hashedCode));
 
-        referrals[hashedCode].creator = msg.sender;
+        referral.creator = msg.sender;
 
         emit ReferralCodeCreated(msg.sender, hashedCode);
     }
@@ -106,7 +110,7 @@ abstract contract ReferralSystemV2 {
     /// @param creator Creator address.
     /// @return The keccak256 hash used as a referral code.
     function getReferralCodeByCreator(address creator) public view returns (bytes32) {
-        return keccak256(abi.encodePacked(creator, address(this), block.chainid));
+        return keccak256(abi.encode(creator, address(this), block.chainid));
     }
 
     /**
@@ -135,16 +139,21 @@ abstract contract ReferralSystemV2 {
      */
     function _setReferralUser(bytes32 hashedCode, address referralUser) internal {
         if (hashedCode == bytes32(0)) return;
-        ReferralCode memory referral = referrals[hashedCode];
+        ReferralCode storage referral = referrals[hashedCode];
+        address creator = referral.creator;
 
-        require(referral.creator != address(0), ReferralCreatorNotExists());
-        require(referralUser != referral.creator, ReferralUserIsReferralCreator());
+        require(creator != address(0), ReferralCreatorNotExists());
+        require(referralUser != creator, ReferralUserIsReferralCreator());
 
         // Check if the user is already in the array
-        address[] storage users = referrals[hashedCode].referralUsers;
+        address[] storage users = referral.referralUsers;
+
+        uint256 len = users.length;
+        if (len + 1 >= _maxArrayLength) {
+            return;
+        }
 
         bool inArray;
-        uint256 len = users.length;
         for (uint256 i; i < len; ++i) {
             if (users[i] == referralUser) {
                 // User already added; no need to add again
@@ -164,13 +173,16 @@ abstract contract ReferralSystemV2 {
         emit ReferralCodeUsed(hashedCode, referralUser);
     }
 
-    function _setReferralParameters(uint16[5] calldata percentages) internal {
+    function _setReferralParameters(uint16[5] calldata percentages, uint16 maxArrayLength) internal {
         for (uint256 i; i < percentages.length; ++i) {
             require(percentages[i] <= SCALING_FACTOR, PercentageExceedsMax(percentages[i]));
             usedToPercentage[i] = percentages[i];
         }
 
-        emit ReferralParametersSet(percentages);
+        require(maxArrayLength <= SCALING_FACTOR, MaxArrayLengthExceedsMax(maxArrayLength));
+        _maxArrayLength = maxArrayLength;
+
+        emit ReferralParametersSet(percentages, maxArrayLength);
     }
 
     // ========== Reserved Storage Space ==========

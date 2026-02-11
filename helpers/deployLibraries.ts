@@ -1,5 +1,6 @@
-import { ethers } from 'hardhat';
 import { ContractFactory } from 'ethers';
+import { ethers } from 'hardhat';
+
 import { Helper, SignatureVerifier } from '../typechain-types';
 
 export async function deploySignatureVerifier(): Promise<SignatureVerifier> {

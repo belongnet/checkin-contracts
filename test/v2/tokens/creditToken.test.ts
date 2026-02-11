@@ -1,28 +1,29 @@
-import { ethers } from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import EthCrypto from 'eth-crypto';
-import {
-  Factory,
-  RoyaltiesReceiverV2,
-  AccessToken,
-  CreditToken,
-  SignatureVerifier,
-  MockTransferValidatorV2,
-  LONG,
-  VestingWalletExtended,
-} from '../../../typechain-types';
+import { ethers } from 'hardhat';
+
 import {
   deployAccessTokenImplementation,
   deployCreditTokenImplementation,
-  deployFactory,
-  deployRoyaltiesReceiverV2Implementation,
-  deployLONG,
   deployCreditTokens,
+  deployFactory,
+  deployLONG,
+  deployRoyaltiesReceiverV2Implementation,
   deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2 } from '../../../helpers/deployMockFixtures';
+import {
+  AccessToken,
+  CreditToken,
+  Factory,
+  LONG,
+  MockTransferValidatorV2,
+  RoyaltiesReceiverV2,
+  SignatureVerifier,
+  VestingWalletExtended,
+} from '../../../typechain-types';
 import { ERC1155InfoStruct } from '../../../typechain-types/contracts/v2/platform/Factory';
 
 describe('CreditToken', () => {
@@ -89,12 +90,12 @@ describe('CreditToken', () => {
 
       expect(await venueToken.name()).to.eq('VenueToken');
       expect(await venueToken.symbol()).to.eq('VET');
-      expect(await venueToken['uri()']()).to.eq('contractURI/VenueToken');
+      expect(await venueToken.uri(0)).to.eq('contractURI/VenueToken');
       expect(await venueToken.transferable()).to.be.true;
 
       expect(await promoterToken.name()).to.eq('PromoterToken');
       expect(await promoterToken.symbol()).to.eq('PMT');
-      expect(await promoterToken['uri()']()).to.eq('contractURI/PromoterToken');
+      expect(await promoterToken.uri(0)).to.eq('contractURI/PromoterToken');
       expect(await promoterToken.transferable()).to.be.false;
 
       expect(await venueToken.hasRole(admin.address, await venueToken.DEFAULT_ADMIN_ROLE())).to.be.true;
@@ -126,28 +127,26 @@ describe('CreditToken', () => {
     it('mint() only with MINTER_ROLE', async () => {
       const { venueToken, promoterToken, admin, minter } = await loadFixture(fixture);
 
-      await expect(venueToken.connect(admin).mint(admin.address, 1, 1000, '')).to.be.revertedWithCustomError(
+      await expect(venueToken.connect(admin).mint(admin.address, 1, 1000)).to.be.revertedWithCustomError(
         venueToken,
         'EnumerableRolesUnauthorized',
       );
-      await expect(promoterToken.connect(admin).mint(admin.address, 1, 1000, '')).to.be.revertedWithCustomError(
+      await expect(promoterToken.connect(admin).mint(admin.address, 1, 1000)).to.be.revertedWithCustomError(
         promoterToken,
         'EnumerableRolesUnauthorized',
       );
 
-      const venueTokenMint = await venueToken.connect(minter).mint(admin.address, 1, 1000, '');
-      const promoterTokenMint = await promoterToken.connect(minter).mint(admin.address, 1, 1000, '1');
+      const venueTokenMint = await venueToken.connect(minter).mint(admin.address, 1, 1000);
+      const promoterTokenMint = await promoterToken.connect(minter).mint(admin.address, 1, 1000);
 
-      expect(await venueToken['uri(uint256)'](1)).to.eq('');
-      expect(await promoterToken['uri(uint256)'](1)).to.eq('1');
+      expect(await venueToken.uri(1)).to.eq('contractURI/VenueToken');
+      expect(await promoterToken.uri(1)).to.eq('contractURI/PromoterToken');
       await expect(venueTokenMint)
         .to.emit(venueToken, 'TransferSingle')
         .withArgs(minter.address, ethers.constants.AddressZero, admin.address, 1, 1000);
       await expect(promoterTokenMint)
         .to.emit(promoterToken, 'TransferSingle')
         .withArgs(minter.address, ethers.constants.AddressZero, admin.address, 1, 1000);
-      await expect(venueTokenMint).to.emit(venueToken, 'TokenUriSet').withArgs(1, '');
-      await expect(promoterTokenMint).to.emit(promoterToken, 'TokenUriSet').withArgs(1, '1');
     });
 
     it('burn() only with BURNER_ROLE', async () => {
@@ -162,30 +161,27 @@ describe('CreditToken', () => {
         'EnumerableRolesUnauthorized',
       );
 
-      await venueToken.connect(minter).mint(admin.address, 1, 1000, '');
-      await promoterToken.connect(minter).mint(admin.address, 1, 1000, '');
+      await venueToken.connect(minter).mint(admin.address, 1, 1000);
+      await promoterToken.connect(minter).mint(admin.address, 1, 1000);
 
       const venueTokenBurn = await venueToken.connect(burner).burn(admin.address, 1, 1000);
       const promoterTokenBurn = await promoterToken.connect(burner).burn(admin.address, 1, 1000);
 
-      console.log((await venueTokenBurn.wait()).events[1].args);
-      expect(await venueToken['uri(uint256)'](1)).to.eq('');
-      expect(await promoterToken['uri(uint256)'](1)).to.eq('');
+      expect(await venueToken.uri(1)).to.eq('contractURI/VenueToken');
+      expect(await promoterToken.uri(1)).to.eq('contractURI/PromoterToken');
       await expect(venueTokenBurn)
         .to.emit(venueToken, 'TransferSingle')
         .withArgs(burner.address, admin.address, ethers.constants.AddressZero, 1, 1000);
       await expect(promoterTokenBurn)
         .to.emit(promoterToken, 'TransferSingle')
         .withArgs(burner.address, admin.address, ethers.constants.AddressZero, 1, 1000);
-      await expect(venueTokenBurn).to.emit(venueToken, 'TokenUriSet').withArgs(1, '');
-      await expect(promoterTokenBurn).to.emit(promoterToken, 'TokenUriSet').withArgs(1, '');
     });
 
     it('_beforeTokenTransfer() checks the transferrable state', async () => {
       const { venueToken, promoterToken, admin, minter, manager } = await loadFixture(fixture);
 
-      await venueToken.connect(minter).mint(admin.address, 1, 1000, '');
-      await promoterToken.connect(minter).mint(admin.address, 1, 1000, '');
+      await venueToken.connect(minter).mint(admin.address, 1, 1000);
+      await promoterToken.connect(minter).mint(admin.address, 1, 1000);
 
       await venueToken.connect(admin).safeTransferFrom(admin.address, minter.address, 1, 1000, '0x');
       await expect(
@@ -221,14 +217,28 @@ describe('CreditToken', () => {
   it('setURI() only with MANAGER_ROLE', async () => {
     const { venueToken, promoterToken, admin, manager } = await loadFixture(fixture);
 
-    await expect(venueToken.connect(admin).setURI('')).to.be.revertedWithCustomError(
+    await expect(venueToken.connect(admin).setURI('uri')).to.be.revertedWithCustomError(
       venueToken,
       'EnumerableRolesUnauthorized',
     );
 
-    const tx = await venueToken.connect(manager).setURI('setURI() only with MANAGER_ROLE');
+    const tx = await venueToken.connect(manager).setURI('uri');
 
-    expect(await venueToken['uri()']()).to.eq('setURI() only with MANAGER_ROLE');
-    await expect(tx).to.emit(venueToken, 'UriSet').withArgs('setURI() only with MANAGER_ROLE');
+    expect(await venueToken.uri(1)).to.eq('uri');
+    await expect(tx).to.emit(venueToken, 'UriSet').withArgs('uri');
+  });
+
+  it('setTokenUri() only with MANAGER_ROLE', async () => {
+    const { venueToken, promoterToken, admin, manager } = await loadFixture(fixture);
+
+    await expect(venueToken.connect(admin).setTokenUri(202, 'uri')).to.be.revertedWithCustomError(
+      venueToken,
+      'EnumerableRolesUnauthorized',
+    );
+
+    const tx = await venueToken.connect(manager).setTokenUri(202, 'uri');
+
+    expect(await venueToken.uri(202)).to.eq('contractURI/VenueToken' + 'uri');
+    await expect(tx).to.emit(venueToken, 'TokenUriSet').withArgs(202, 'uri');
   });
 });

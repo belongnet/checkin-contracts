@@ -1,10 +1,11 @@
-import { HardhatUserConfig } from 'hardhat/config';
+import '@nomicfoundation/hardhat-ledger';
 import '@nomicfoundation/hardhat-toolbox';
 import '@openzeppelin/hardhat-upgrades';
-import 'solidity-docgen';
-import 'hardhat-contract-sizer';
-import '@nomicfoundation/hardhat-ledger';
 import dotenv from 'dotenv';
+import 'hardhat-contract-sizer';
+import { HardhatUserConfig } from 'hardhat/config';
+
+import 'solidity-docgen';
 import { ChainIds } from './utils/chain-ids';
 import { blockscanConfig, createConnect } from './utils/config';
 
@@ -17,6 +18,10 @@ if (process.env.PK) {
 }
 
 const etherscanApiKey = process.env.ETHERSCAN_API_KEY || process.env.BSCSCAN_API_KEY || '';
+
+const defaultHardhatForkBlock = process.env.HARDHAT_MAINNET_FORK_BLOCK
+  ? Number(process.env.HARDHAT_MAINNET_FORK_BLOCK)
+  : undefined;
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -34,11 +39,13 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
+      hardfork: process.env.HARDHAT_HARDFORK || 'shanghai',
       forking: {
         url: process.env.INFURA_ID_PROJECT
           ? `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
           : `https://eth.llamarpc.com`,
-        blockNumber: 23490636,
+        blockNumber: defaultHardhatForkBlock,
+        enabled: false,
       },
       // throwOnCallFailures: false,
       accounts: { accountsBalance: '10000000000000000000000000' },
@@ -61,10 +68,10 @@ const config: HardhatUserConfig = {
     skale_nebula: createConnect(ChainIds.skale_nebula, accounts),
     skale_calypso: createConnect(ChainIds.skale_calypso, accounts),
     sepolia: createConnect(ChainIds.sepolia, accounts),
-    blast_sepolia: createConnect(ChainIds.blast_sepolia, accounts),
-    bsc_testnet: createConnect(ChainIds.bsc_testnet, accounts),
-    skale_calypso_testnet: createConnect(ChainIds.skale_calypso_testnet, accounts),
     amoy: createConnect(ChainIds.amoy, accounts),
+    bsc_testnet: createConnect(ChainIds.bsc_testnet, accounts),
+    blast_sepolia: createConnect(ChainIds.blast_sepolia, accounts),
+    skale_calypso_testnet: createConnect(ChainIds.skale_calypso_testnet, accounts),
   },
   etherscan: {
     apiKey: {
@@ -87,6 +94,15 @@ const config: HardhatUserConfig = {
       skale_calypso_testnet: 'skale_calypso_testnet', // Is not required by blockscout. Can be any non-empty string
     },
     customChains: [
+      // {
+      //   network: "ethereum",
+      //   chainId: 1,
+      //   urls: {
+      //     apiURL: "https://eth.blockscout.com/api",
+      //     browserURL: "https://eth.blockscout.com"
+      //   }
+      // },
+      blockscanConfig('bsc', ChainIds.bsc),
       blockscanConfig('blast', ChainIds.blast),
       blockscanConfig('bsc', ChainIds.bsc),
       blockscanConfig('bsc_testnet', ChainIds.bsc_testnet),
@@ -100,6 +116,7 @@ const config: HardhatUserConfig = {
       blockscanConfig('skale_calypso', ChainIds.skale_calypso),
       blockscanConfig('blast_sepolia', ChainIds.blast_sepolia),
       blockscanConfig('amoy', ChainIds.amoy),
+      blockscanConfig('bsc_testnet', ChainIds.bsc_testnet),
       blockscanConfig('skale_calypso_testnet', ChainIds.skale_calypso_testnet),
     ],
   },

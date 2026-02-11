@@ -16,21 +16,26 @@ export enum ChainIds {
   skale_nebula = 1482601649,
   skale_calypso = 1564830818,
   blast_sepolia = 168587773,
+  bsc_testnet = 97,
   skale_calypso_testnet = 974399131,
   amoy = 80002,
   bsc_testnet = 97,
 }
 
-export const chainRPCs = (chainid: ChainIds): string => {
+export const chainRPCs = (chainid: ChainIds, _apiKey?: string): string => {
   switch (chainid) {
     case ChainIds.mainnet:
       return process.env.INFURA_ID_PROJECT
         ? `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
         : `https://eth.llamarpc.com`;
     case ChainIds.bsc:
-      return process.env.INFURA_ID_PROJECT
-        ? `https://bsc-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
-        : 'https://binance.llamarpc.com';
+      if (process.env.BSC_RPC_URL && process.env.BSC_RPC_URL.trim().length > 0) {
+        return process.env.BSC_RPC_URL;
+      }
+      if (process.env.INFURA_ID_PROJECT) {
+        return `https://bsc-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
+      }
+      return 'https://bsc-dataseed.binance.org';
     case ChainIds.polygon:
       return `https://polygon.llamarpc.com`;
     case ChainIds.blast:

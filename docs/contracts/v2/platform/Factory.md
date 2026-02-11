@@ -39,13 +39,13 @@ error VestingWalletAlreadyExists()
 
 Thrown when a beneficiary already has a vesting wallet registered.
 
-### TotalRoyaltiesExceed100Pecents
+### TotalRoyaltiesNot100Percent
 
 ```solidity
-error TotalRoyaltiesExceed100Pecents()
+error TotalRoyaltiesNot100Percent()
 ```
 
-Thrown when `amountToCreator + amountToPlatform > 10000` (i.e., >100% in BPS).
+Thrown when `amountToCreator + amountToPlatform != 10000` (i.e., does not equal 100% in BPS).
 
 ### RoyaltiesReceiverAddressMismatch
 
@@ -307,7 +307,7 @@ function produce(struct AccessTokenInfo accessTokenInfo, bytes32 referralCode) e
 
 Produces a new AccessToken collection (upgradeable proxy) and optional RoyaltiesReceiver.
 @dev
-- Validates `accessTokenInfo` via platform signer (EIP-712/ECDSA inside `SignatureVerifier`).
+- Validates `accessTokenInfo` via platform signer (keccak256(abi.encode(...)) inside `SignatureVerifier`).
 - Deterministic salt is `keccak256(name, symbol)`. Creation fails if the salt already exists.
 - If `feeNumerator > 0`, deploys a RoyaltiesReceiver and wires creator/platform/referral receivers.
 - Uses `deployDeterministicERC1967` for AccessToken proxy and `cloneDeterministic` for royalties receiver.
@@ -522,4 +522,3 @@ Returns all vesting wallet records registered for `beneficiary`.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | struct Factory.VestingWalletInstanceInfo[] | Array of {VestingWalletInstanceInfo} records. |
-

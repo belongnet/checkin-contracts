@@ -16,6 +16,7 @@ struct NftMetadata {
 /// - `feeNumerator` is used for ERC-2981 royalty configuration.
 /// - `signature` is validated off-chain by a platform signer.
 struct AccessTokenInfo {
+    address creator;
     /// @notice ERC-20 used for payments, or NativeCurrency pseudo-address for native NativeCurrency.
     address paymentToken;
     /// @notice ERC-2981 royalty numerator (denominator defined by receiver).
@@ -28,27 +29,23 @@ struct AccessTokenInfo {
     uint256 mintPrice;
     /// @notice Whitelist mint price.
     uint256 whitelistMintPrice;
-    /// @notice Optional collection expiration timestamp (seconds since epoch).
-    uint256 collectionExpire;
     /// @notice Collection name and symbol stored as NftMetadata struct.
     NftMetadata metadata;
     /// @notice Contract-level metadata URI.
     string contractURI;
-    /// @notice Backend signature authorizing creation with the provided fields.
-    bytes signature;
 }
 
 /// @title ERC1155Info
 /// @notice Initialization/configuration data for a CreditToken (ERC-1155) collection.
 struct ERC1155Info {
-    string name;
-    string symbol;
     address defaultAdmin;
+    bool transferable;
     address manager;
     address minter;
     address burner;
+    string name;
+    string symbol;
     string uri;
-    bool transferable;
 }
 
 /// @title VestingWalletInfo
@@ -77,14 +74,12 @@ struct VestingWalletInfo {
 /// @title StaticPriceParameters
 /// @notice Mint payload for static-priced mints validated by a platform signer.
 struct StaticPriceParameters {
-    /// @notice Token id to mint.
-    uint256 tokenId;
     /// @notice Whether receiver is eligible for whitelist pricing.
     bool whitelisted;
+    /// @notice Token id to mint.
+    uint256 tokenId;
     /// @notice Token metadata URI.
     string tokenUri;
-    /// @notice Backend signature validating the payload.
-    bytes signature;
 }
 
 /// @title DynamicPriceParameters
@@ -96,8 +91,6 @@ struct DynamicPriceParameters {
     uint256 price;
     /// @notice Token metadata URI.
     string tokenUri;
-    /// @notice Backend signature validating the payload.
-    bytes signature;
 }
 
 /// @title StakingTiers
@@ -114,7 +107,7 @@ enum StakingTiers {
 /// @notice Venue-allowed payment currencies.
 enum PaymentTypes {
     NoType,
-    USDC,
+    USDtoken,
     LONG,
     Both
 }
@@ -125,6 +118,14 @@ enum BountyTypes {
     NoType,
     VisitBounty,
     SpendBounty,
+    Both
+}
+
+/// @title BountyAllocationTypes
+enum BountyAllocationTypes {
+    NoType,
+    ToPromoter,
+    ToCustomer,
     Both
 }
 
@@ -141,6 +142,7 @@ enum LongPaymentTypes {
 struct VenueRules {
     PaymentTypes paymentType;
     BountyTypes bountyType;
+    BountyAllocationTypes bountyAllocationType;
     LongPaymentTypes longPaymentType;
 }
 
@@ -150,33 +152,35 @@ struct VenueInfo {
     VenueRules rules;
     address venue;
     uint256 amount;
-    bytes32 referralCode;
+    bytes32 affiliateReferralCode;
     string uri;
-    bytes signature;
 }
 
 /// @title CustomerInfo
 /// @notice Signed payload authorizing a customer payment to a venue (and optional promoter attribution).
 struct CustomerInfo {
     // Backend configurable
-    bool paymentInUSDC;
-    uint128 visitBountyAmount;
-    uint24 spendBountyPercentage;
+    bool paymentInUSDtoken;
+    Bounties toCustomer;
+    Bounties toPromoter;
     // Actors
     address customer;
     address venueToPayFor;
-    address promoter;
+    bytes32 promoterReferralCode;
     // Amounts
     uint256 amount;
-    bytes signature;
+}
+
+struct Bounties {
+    uint24 spendBountyPercentage;
+    uint128 visitBountyAmount;
 }
 
 /// @title PromoterInfo
-/// @notice Signed payload authorizing distribution of promoter payouts in USDC or LONG.
+/// @notice Signed payload authorizing distribution of promoter payouts in USDtoken or LONG.
 struct PromoterInfo {
-    bool paymentInUSDC;
-    address promoter;
+    bool paymentInUSDtoken;
+    bytes32 promoterReferralCode;
     address venue;
     uint256 amountInUSD;
-    bytes signature;
 }

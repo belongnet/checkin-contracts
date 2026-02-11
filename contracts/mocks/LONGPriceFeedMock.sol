@@ -6,7 +6,7 @@ pragma solidity ^0.8.27;
 contract LONGPriceFeedMockV1 {
     /// @notice Returns a fixed price answer (8 decimals).
     function latestAnswer() external pure returns (int256) {
-        return 50000000;
+        return 100000000;
     }
 
     /// @notice Returns a fixed round id.
@@ -56,7 +56,7 @@ contract LONGPriceFeedMockV2 {
 /// @title LONGPriceFeedMockV3
 /// @notice Combined mock inheriting both v2 and v3 interfaces.
 contract LONGPriceFeedMockV3 is LONGPriceFeedMockV1, LONGPriceFeedMockV2 {
-    constructor() LONGPriceFeedMockV2(252525, block.timestamp, 50000000) {}
+    constructor() LONGPriceFeedMockV2(252525, block.timestamp, 100000000) {}
 
     /// @notice Returns 8 to emulate feed decimals.
     function decimals() external pure override(LONGPriceFeedMockV1, LONGPriceFeedMockV2) returns (uint8) {

@@ -1,9 +1,11 @@
-import { LONG } from '../../../typechain-types';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import { verifyContract } from '../../../helpers/verify';
 import { ethers } from 'hardhat';
+
 import { deployLONG } from '../../../helpers/deployFixtures';
+import { verifyContract } from '../../../helpers/verify';
+import { LONG } from '../../../typechain-types';
+
+import fs from 'fs';
 
 dotenv.config();
 

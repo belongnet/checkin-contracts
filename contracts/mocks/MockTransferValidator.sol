@@ -25,7 +25,10 @@ contract MockTransferValidator {
         address,
         /* to */
         uint256 /* tokenId */
-    ) external view {
+    )
+        external
+        view
+    {
         if (!switcher) {
             revert("MockTransferValidator: always reverts");
         }
@@ -59,7 +62,10 @@ contract MockTransferValidatorV2 {
         address,
         /* to */
         uint256 /* tokenId */
-    ) external view {
+    )
+        external
+        view
+    {
         if (!switcher) {
             revert("MockTransferValidator: always reverts");
         }

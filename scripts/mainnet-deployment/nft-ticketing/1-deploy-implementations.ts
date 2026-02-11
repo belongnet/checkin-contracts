@@ -1,13 +1,15 @@
 import dotenv from 'dotenv';
-import fs from 'fs';
-import { verifyContract } from '../../../helpers/verify';
+import { ethers } from 'hardhat';
+
 import {
   deployAccessTokenImplementation,
   deployCreditTokenImplementation,
   deployRoyaltiesReceiverV2Implementation,
   deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
-import { ethers } from 'hardhat';
+import { verifyContract } from '../../../helpers/verify';
+
+import fs from 'fs';
 
 dotenv.config();
 
@@ -39,19 +41,19 @@ async function deploy() {
   if (DEPLOY) {
     console.log('Deploy Implementations: ');
     // Validate environment variables
-    if (!deployments.libraries.sigantureVerifier) {
+    if (!deployments.libraries.signatureVerifier) {
       throw new Error('Missing required environment variables: SignatureVerifier');
     }
 
     // Validate addresses
-    for (const addr of [deployments.libraries.sigantureVerifier]) {
+    for (const addr of [deployments.libraries.signatureVerifier]) {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
 
     console.log('Deploying AccessTokenImplementation contract...');
-    const accessTokenImpl = await deployAccessTokenImplementation(deployments.libraries.sigantureVerifier);
+    const accessTokenImpl = await deployAccessTokenImplementation(deployments.libraries.signatureVerifier);
     // Update deployments object
     deployments.implementations.accessToken = accessTokenImpl.address;
     // Write to file

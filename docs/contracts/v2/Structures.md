@@ -13,23 +13,21 @@ struct NftMetadata {
 
 Initialization/configuration data for an AccessToken (ERC-721) collection.
 @dev
-- `paymentToken` can be a token address or the NativeCurrency pseudo-address
-  (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE).
+- `paymentToken` can be an ERC-20 address or the NativeCurrency pseudo-address
+  (`0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`).
 - `feeNumerator` is used for ERC-2981 royalty configuration.
-- `signature` is validated off-chain by a platform signer.
 
 ```solidity
 struct AccessTokenInfo {
+  address creator;
   address paymentToken;
   uint96 feeNumerator;
   bool transferable;
   uint256 maxTotalSupply;
   uint256 mintPrice;
   uint256 whitelistMintPrice;
-  uint256 collectionExpire;
   struct NftMetadata metadata;
   string contractURI;
-  bytes signature;
 }
 ```
 
@@ -39,14 +37,14 @@ Initialization/configuration data for a CreditToken (ERC-1155) collection.
 
 ```solidity
 struct ERC1155Info {
-  string name;
-  string symbol;
   address defaultAdmin;
+  bool transferable;
   address manager;
   address minter;
   address burner;
+  string name;
+  string symbol;
   string uri;
-  bool transferable;
 }
 ```
 
@@ -74,10 +72,9 @@ Mint payload for static-priced mints validated by a platform signer.
 
 ```solidity
 struct StaticPriceParameters {
-  uint256 tokenId;
   bool whitelisted;
+  uint256 tokenId;
   string tokenUri;
-  bytes signature;
 }
 ```
 
@@ -90,7 +87,6 @@ struct DynamicPriceParameters {
   uint256 tokenId;
   uint256 price;
   string tokenUri;
-  bytes signature;
 }
 ```
 
@@ -115,7 +111,7 @@ Venue-allowed payment currencies.
 ```solidity
 enum PaymentTypes {
   NoType,
-  USDC,
+  USDtoken,
   LONG,
   Both
 }
@@ -134,9 +130,20 @@ enum BountyTypes {
 }
 ```
 
+## BountyAllocationTypes
+
+```solidity
+enum BountyAllocationTypes {
+  NoType,
+  ToPromoter,
+  ToCustomer,
+  Both
+}
+```
+
 ## LongPaymentTypes
 
-Venue-allowed Long payment options.
+Venue-allowed LONG payment options.
 
 ```solidity
 enum LongPaymentTypes {
@@ -154,6 +161,7 @@ Venue-level configuration for payment and bounty types.
 struct VenueRules {
   enum PaymentTypes paymentType;
   enum BountyTypes bountyType;
+  enum BountyAllocationTypes bountyAllocationType;
   enum LongPaymentTypes longPaymentType;
 }
 ```
@@ -167,9 +175,8 @@ struct VenueInfo {
   struct VenueRules rules;
   address venue;
   uint256 amount;
-  bytes32 referralCode;
+  bytes32 affiliateReferralCode;
   string uri;
-  bytes signature;
 }
 ```
 
@@ -179,28 +186,34 @@ Signed payload authorizing a customer payment to a venue (and optional promoter 
 
 ```solidity
 struct CustomerInfo {
-  bool paymentInUSDC;
-  uint128 visitBountyAmount;
-  uint24 spendBountyPercentage;
+  bool paymentInUSDtoken;
+  struct Bounties toCustomer;
+  struct Bounties toPromoter;
   address customer;
   address venueToPayFor;
-  address promoter;
+  bytes32 promoterReferralCode;
   uint256 amount;
-  bytes signature;
+}
+```
+
+## Bounties
+
+```solidity
+struct Bounties {
+  uint24 spendBountyPercentage;
+  uint128 visitBountyAmount;
 }
 ```
 
 ## PromoterInfo
 
-Signed payload authorizing distribution of promoter payouts in USDC or LONG.
+Signed payload authorizing distribution of promoter payouts in USDtoken or LONG.
 
 ```solidity
 struct PromoterInfo {
-  bool paymentInUSDC;
-  address promoter;
+  bool paymentInUSDtoken;
+  bytes32 promoterReferralCode;
   address venue;
   uint256 amountInUSD;
-  bytes signature;
 }
 ```
-

@@ -3,10 +3,10 @@
 ## Staking
 
 ERC4626-compatible staking vault for the LONG token with time-locks,
-        proportional reward distribution via deposits (rebase effect),
-        and an emergency withdrawal path with a configurable penalty.
+        linearly streamed owner-funded rewards, and an emergency withdrawal path with a configurable penalty.
 @dev
-- Uses share-based locks to remain correct under reward top-ups that change the exchange rate.
+- Uses share-based locks while streaming rewards into the share price over time.
+- Share transfers keep stake bookkeeping in sync so locks and withdrawals remain valid.
 - Emergency flow burns shares and pays out `assets - penalty`, transferring penalty to `treasury`.
 - Owner can configure the minimum stake period and penalty percentage.
 - Underlying asset address is returned by {asset()} and is immutable after construction.
@@ -54,10 +54,10 @@ Reverts when a zero shares is attempted.
 ### RewardsDistributed
 
 ```solidity
-event RewardsDistributed(uint256 amount)
+event RewardsDistributed(uint256 amount, uint256 duration, uint256 rewardRate)
 ```
 
-Emitted when rewards are added to the vault (increasing share backing).
+Emitted when rewards are scheduled to vest linearly into the vault.
 
 #### Parameters
 
@@ -122,7 +122,7 @@ Emitted for emergency withdrawals that burn shares and apply penalty.
 | by | address | Caller that triggered the emergency operation. |
 | to | address | Recipient of the post-penalty payout. |
 | owner | address | Owner whose shares were burned. |
-| assets | uint256 | Amount of assets redeemed prior to penalty. |
+| assets | uint256 | Assets transferred to the recipient after penalty. |
 | shares | uint256 | Amount of shares burned. |
 
 ### Stake
@@ -248,13 +248,27 @@ Updates the treasury address.
 | ---- | ---- | ----------- |
 | _treasury | address | New treasury address. |
 
+### setRewardsDuration
+
+```solidity
+function setRewardsDuration(uint256 duration) external
+```
+
+Sets the duration (in seconds) over which rewards vest linearly.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| duration | uint256 | Reward vesting duration (must be > 0). |
+
 ### distributeRewards
 
 ```solidity
 function distributeRewards(uint256 amount) external
 ```
 
-Adds rewards to the vault, increasing the asset backing per share.
+Enqueues rewards that vest linearly over {rewardsDuration}, avoiding instantaneous rebases.
 
 _Caller must approve this contract to pull `amount` LONG beforehand._
 
@@ -262,18 +276,18 @@ _Caller must approve this contract to pull `amount` LONG beforehand._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| amount | uint256 | Amount of LONG to transfer in as rewards (must be > 0). |
+| amount | uint256 | Amount of LONG to stream as rewards (must be > 0). |
 
 ### emergencyWithdraw
 
 ```solidity
-function emergencyWithdraw(uint256 assets, address to, address _owner) external returns (uint256 shares)
+function emergencyWithdraw(uint256 assets, address to, address _owner) external returns (uint256 payout)
 ```
 
 Emergency path to withdraw a target `assets` amount for `_owner`, paying to `to`.
 @dev
-- Reverts if `assets > maxWithdraw(_owner)`.
-- Burns the corresponding `shares` and applies penalty to `assets`.
+- Reverts if required shares exceed `_owner` balance.
+- Burns the corresponding `shares`, applies penalty to locked portions, and returns the post-penalty payout.
 
 #### Parameters
 
@@ -287,18 +301,18 @@ Emergency path to withdraw a target `assets` amount for `_owner`, paying to `to`
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| shares | uint256 | Shares burned to facilitate the withdrawal. |
+| payout | uint256 | Assets actually transferred to `to` after penalties. |
 
 ### emergencyRedeem
 
 ```solidity
-function emergencyRedeem(uint256 shares, address to, address _owner) external returns (uint256 assets)
+function emergencyRedeem(uint256 shares, address to, address _owner) external returns (uint256 payout)
 ```
 
 Emergency path to redeem `shares` for `_owner`, paying to `to`.
 @dev
-- Reverts if `shares > maxRedeem(_owner)`.
-- Burns `shares`, applies penalty to the resulting assets.
+- Reverts if `shares > balanceOf(_owner)`.
+- Burns `shares`, applies penalty to the resulting assets, and returns the post-penalty payout.
 
 #### Parameters
 
@@ -312,12 +326,12 @@ Emergency path to redeem `shares` for `_owner`, paying to `to`.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| assets | uint256 | Assets calculated from `shares` before penalty. |
+| payout | uint256 | Assets actually transferred to `to` after penalties. |
 
 ### _emergencyWithdraw
 
 ```solidity
-function _emergencyWithdraw(address by, address to, address _owner, uint256 assets, uint256 shares) internal
+function _emergencyWithdraw(address by, address to, address _owner, uint256 assets, uint256 shares) internal returns (uint256 payout)
 ```
 
 Internal implementation for both emergency paths.
@@ -334,6 +348,7 @@ Internal implementation for both emergency paths.
 | _owner | address | Share owner whose `shares` are burned. |
 | assets | uint256 | Assets value derived from the operation (pre-penalty). |
 | shares | uint256 | Shares to burn. |
+| payout | uint256 | Assets actually transferred to `to` after penalties. |
 
 ### asset
 
@@ -420,4 +435,3 @@ Internal setter for the treasury address.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _treasury | address | New treasury address. |
-

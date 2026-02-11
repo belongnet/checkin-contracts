@@ -75,8 +75,6 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     struct AccessTokenParameters {
         /// @notice Factory that deployed the collection; provides global settings and signer.
         Factory factory;
-        /// @notice Creator (initial owner) of the collection.
-        address creator;
         /// @notice Receiver of ERC-2981 royalties (if any).
         address feeReceiver;
         /// @notice Referral code attached to this collection (optional).
@@ -136,7 +134,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         _setTransferValidator(transferValidator_);
 
-        _initializeOwner(_params.creator);
+        _initializeOwner(_params.info.creator);
     }
 
     // ============================== Admin ==============================
@@ -166,33 +164,30 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// - Validates each entry via factory signer (`checkStaticPriceParameters`).
     /// - Computes total due based on whitelist flags and charges payer in NativeCurrency or ERC-20.
     /// - Reverts if `paramsArray.length` exceeds factory’s `maxArraySize`.
-    /// @param receiver Address that will receive all minted tokens.
-    /// @param paramsArray Array of static price mint parameters (id, uri, whitelist flag).
-    /// @param expectedPayingToken Expected paying token for sanity check.
-    /// @param expectedMintPrice Expected total price (reverts if mismatched).
     function mintStaticPrice(
-        address receiver,
-        StaticPriceParameters[] calldata paramsArray,
         address expectedPayingToken,
-        uint256 expectedMintPrice
+        uint256 expectedMintPrice,
+        address[] calldata receivers,
+        StaticPriceParameters[] calldata staticPriceParameters,
+        SignatureVerifier.SignatureProtection[] calldata protections
     ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
-        Factory.FactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
+        require(
+            receivers.length == staticPriceParameters.length && staticPriceParameters.length == protections.length
+                && staticPriceParameters.length <= parameters.factory.nftFactoryParameters().maxArraySize,
+            WrongArraySize()
+        );
 
-        require(paramsArray.length <= factoryParameters.maxArraySize, WrongArraySize());
-
-        AccessTokenInfo memory info = parameters.info;
+        address signer = parameters.factory.nftFactoryParameters().signerAddress;
 
         uint256 amountToPay;
-        for (uint256 i; i < paramsArray.length; ++i) {
-            factoryParameters.signerAddress.checkStaticPriceParameters(receiver, paramsArray[i]);
-
-            uint256 price = paramsArray[i].whitelisted ? info.whitelistMintPrice : info.mintPrice;
+        for (uint256 i; i < staticPriceParameters.length; ++i) {
+            signer.checkStaticPriceParameters(address(this), protections[i], receivers[i], staticPriceParameters[i]);
 
             unchecked {
-                amountToPay += price;
+                amountToPay += staticMintPrice(staticPriceParameters[i].whitelisted);
             }
 
-            _baseMint(paramsArray[i].tokenId, receiver, paramsArray[i].tokenUri);
+            _baseMint(staticPriceParameters[i].tokenId, receivers[i], staticPriceParameters[i].tokenUri);
         }
 
         require(_pay(amountToPay, expectedPayingToken) == expectedMintPrice, PriceChanged(expectedMintPrice));
@@ -203,27 +198,30 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
     /// - Validates each entry via factory signer (`checkDynamicPriceParameters`).
     /// - Sums prices provided in the payload and charges payer accordingly.
     /// - Reverts if `paramsArray.length` exceeds factory’s `maxArraySize`.
-    /// @param receiver Address that will receive all minted tokens.
-    /// @param paramsArray Array of dynamic price mint parameters (id, uri, price).
-    /// @param expectedPayingToken Expected paying token for sanity check.
     function mintDynamicPrice(
-        address receiver,
-        DynamicPriceParameters[] calldata paramsArray,
-        address expectedPayingToken
+        address expectedPayingToken,
+        address[] calldata receivers,
+        DynamicPriceParameters[] calldata dynamicPriceParameters,
+        SignatureVerifier.SignatureProtection[] calldata protections
     ) external payable expectedTokenCheck(expectedPayingToken) nonReentrant {
         Factory.FactoryParameters memory factoryParameters = parameters.factory.nftFactoryParameters();
 
-        require(paramsArray.length <= factoryParameters.maxArraySize, WrongArraySize());
+        require(
+            receivers.length == dynamicPriceParameters.length && dynamicPriceParameters.length == protections.length
+                && dynamicPriceParameters.length <= factoryParameters.maxArraySize,
+            WrongArraySize()
+        );
 
         uint256 amountToPay;
-        for (uint256 i; i < paramsArray.length; ++i) {
-            factoryParameters.signerAddress.checkDynamicPriceParameters(receiver, paramsArray[i]);
+        for (uint256 i; i < dynamicPriceParameters.length; ++i) {
+            factoryParameters.signerAddress
+                .checkDynamicPriceParameters(address(this), protections[i], receivers[i], dynamicPriceParameters[i]);
 
             unchecked {
-                amountToPay += paramsArray[i].price;
+                amountToPay += dynamicPriceParameters[i].price;
             }
 
-            _baseMint(paramsArray[i].tokenId, receiver, paramsArray[i].tokenUri);
+            _baseMint(dynamicPriceParameters[i].tokenId, receivers[i], dynamicPriceParameters[i].tokenUri);
         }
 
         _pay(amountToPay, expectedPayingToken);
@@ -240,6 +238,11 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         }
 
         return metadataUri[_tokenId];
+    }
+
+    function staticMintPrice(bool isWhitelisted) public view returns (uint256) {
+        AccessTokenInfo storage info = parameters.info;
+        return isWhitelisted ? info.whitelistMintPrice : info.mintPrice;
     }
 
     /// @notice Collection name.
@@ -290,7 +293,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
             result := or(or(eq(s, 0xad0d7f6c), eq(s, 0xa07d229a)), eq(s, 0x49064906))
         }
 
-        return result || super.supportsInterface(interfaceId);
+        return result || ERC2981.supportsInterface(interfaceId) || ERC721.supportsInterface(interfaceId);
     }
 
     // ============================== Internals ==============================
@@ -325,7 +328,12 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         require(amount == price, IncorrectNativeCurrencyAmountSent(amount));
 
-        uint256 fees = (amount * factoryParameters.platformCommission) / PLATFORM_COMISSION_DENOMINATOR;
+        uint256 fees = amount * factoryParameters.platformCommission;
+        if (fees != 0) {
+            unchecked {
+                fees = (fees + PLATFORM_COMISSION_DENOMINATOR - 1) / PLATFORM_COMISSION_DENOMINATOR;
+            }
+        }
         uint256 amountToCreator;
         unchecked {
             amountToCreator = amount - fees;
@@ -335,7 +343,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
         uint256 referralFees;
         address refferalCreator;
         if (referralCode != bytes32(0)) {
-            referralFees = _parameters.factory.getReferralRate(_parameters.creator, referralCode, fees);
+            referralFees = _parameters.factory.getReferralRate(_parameters.info.creator, referralCode, fees);
             if (referralFees > 0) {
                 refferalCreator = _parameters.factory.getReferralCreator(referralCode);
                 unchecked {
@@ -346,13 +354,13 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
 
         if (expectedPayingToken == NATIVE_CURRENCY_ADDRESS) {
             if (fees > 0) {
-                factoryParameters.platformAddress.safeTransferETH(fees);
+                factoryParameters.platformAddress.forceSafeTransferETH(fees);
             }
             if (referralFees > 0) {
-                refferalCreator.safeTransferETH(referralFees);
+                refferalCreator.forceSafeTransferETH(referralFees);
             }
 
-            _parameters.creator.safeTransferETH(amountToCreator);
+            _parameters.info.creator.forceSafeTransferETH(amountToCreator);
         } else {
             expectedPayingToken.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -363,7 +371,7 @@ contract AccessToken is Initializable, UUPSUpgradeable, ERC721, ERC2981, Ownable
                 expectedPayingToken.safeTransfer(refferalCreator, referralFees);
             }
 
-            expectedPayingToken.safeTransfer(_parameters.creator, amountToCreator);
+            expectedPayingToken.safeTransfer(_parameters.info.creator, amountToCreator);
         }
 
         emit Paid(msg.sender, expectedPayingToken, amount);
