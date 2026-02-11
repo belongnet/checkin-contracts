@@ -191,12 +191,12 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     /// @notice Releases all currently vested, unreleased tokens to the beneficiary.
-    /// @dev Computes `vestedAmount(now) - released` and transfers that delta.
+    /// @dev Computes `min(vestedAmount(now) - released, tokenBalance)` and transfers that amount.
     /// @custom:reverts NothingToRelease If there is no amount to release.
     function release() external shouldBeFinalized {
-        uint256 _released = released;
-        uint256 amount = vestedAmount(uint64(block.timestamp)) - _released;
+        uint256 amount = releasable();
         require(amount > 0, NothingToRelease());
+        uint256 _released = released;
         address _token = vestingStorage.token;
 
         released = _released + amount;
@@ -243,10 +243,12 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         }
     }
 
-    /// @notice Returns the currently releasable amount (vested minus already released).
+    /// @notice Returns the currently releasable amount (capped by current wallet balance).
     /// @return The amount that can be released at the current block timestamp.
     function releasable() public view returns (uint256) {
-        return vestedAmount(uint64(block.timestamp)) - released;
+        uint256 bySchedule = vestedAmount(uint64(block.timestamp)) - released;
+        uint256 currentBalance = vestingStorage.token.balanceOf(address(this));
+        return bySchedule > currentBalance ? currentBalance : bySchedule;
     }
 
     // ========= Views =========

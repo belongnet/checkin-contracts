@@ -123,6 +123,7 @@ describe('VestingWalletExtended', () => {
       alice,
       bob,
       charlie,
+      signer,
       LONG,
       vestingWallet,
       vestingWalletStepBased,
@@ -413,6 +414,49 @@ describe('VestingWalletExtended', () => {
       expect(releasableEnd).to.be.gt(0);
 
       await expect(vestingWallet.release()).to.be.revertedWithCustomError(vestingWallet, 'NothingToRelease');
+    });
+
+    it('release() should pay available funds when wallet is underfunded', async () => {
+      const { admin, bob, signer, factory, LONG, info } = await loadFixture(fixture);
+
+      const underfundedInfo: VestingWalletInfoStruct = {
+        ...info,
+        beneficiary: bob.address,
+        description: 'Underfunded vesting',
+      };
+
+      const underfundedWallet: VestingWalletExtended = await deployVestingWallet(
+        underfundedInfo,
+        factory.address,
+        LONG.address,
+        signer.privateKey,
+        admin,
+        0,
+      );
+
+      await underfundedWallet.connect(admin).addTranche({
+        timestamp: underfundedInfo.startTimestamp + 120,
+        amount: E('30'),
+      });
+      await underfundedWallet.connect(admin).finalizeTranchesConfiguration();
+
+      await increaseToStrict(underfundedInfo.startTimestamp + 1);
+
+      expect(await underfundedWallet.vestedAmount(underfundedInfo.startTimestamp + 1)).to.eq(E('10'));
+      expect(await underfundedWallet.releasable()).to.eq(0);
+
+      await LONG.transfer(underfundedWallet.address, E('4'));
+      expect(await underfundedWallet.releasable()).to.eq(E('4'));
+
+      const beneficiaryBalanceBefore = await LONG.balanceOf(bob.address);
+      await underfundedWallet.release();
+      expect((await LONG.balanceOf(bob.address)).sub(beneficiaryBalanceBefore)).to.eq(E('4'));
+      expect(await underfundedWallet.released()).to.eq(E('4'));
+
+      await LONG.transfer(underfundedWallet.address, E('6'));
+      expect(await underfundedWallet.releasable()).to.eq(E('6'));
+      await underfundedWallet.release();
+      expect(await underfundedWallet.released()).to.eq(E('10'));
     });
   });
 
