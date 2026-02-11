@@ -234,14 +234,19 @@ export async function deployVestingWallet(
 
   const factory = await ethers.getContractAt('Factory', factoryAddress);
   const LONG = await ethers.getContractAt('LONG', long);
+  const initialFundingBN = BN.from(initialFunding);
 
-  if (BN.from(initialFunding).gt(0)) {
-    await LONG.approve(factory.address, initialFunding);
+  if (initialFundingBN.gt(0)) {
+    await LONG.approve(factory.address, initialFundingBN);
   }
 
-  const deployVestingWallet = await factory
-    .connect(owner)
-    .deployVestingWalletWithInitialFunding(owner.address, vestingWalletInfo, venueTokenSignature, initialFunding);
+  const deployVestingWallet = initialFundingBN.eq(0)
+    ? await factory
+        .connect(owner)
+        .deployVestingWalletWithoutInitialFunding(owner.address, vestingWalletInfo, venueTokenSignature)
+    : await factory
+        .connect(owner)
+        .deployVestingWalletWithInitialFunding(owner.address, vestingWalletInfo, venueTokenSignature, initialFundingBN);
   await deployVestingWallet.wait(1);
 
   const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(await vestingWalletInfo.beneficiary, 0);

@@ -349,10 +349,27 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         vestingWallet = _deployVestingWallet(_owner, vestingWalletInfo, signature, vestingWalletInfo.totalAllocation);
     }
 
-    /// @notice Deploys a VestingWallet proxy with optional initial funding.
+    /// @notice Deploys a VestingWallet proxy without upfront funding.
     /// @dev
     /// - Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
-    /// - Allows deferred funding by setting `initialFunding` to zero.
+    /// - Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
+    /// - Does not transfer vesting tokens on deployment.
+    /// @param _owner Owner address for the vesting wallet proxy.
+    /// @param vestingWalletInfo Full vesting configuration and description.
+    /// @param signature Signature from platform signer validating `_owner` and `vestingWalletInfo`.
+    /// @return vestingWallet The deployed VestingWallet proxy address.
+    function deployVestingWalletWithoutInitialFunding(
+        address _owner,
+        VestingWalletInfo calldata vestingWalletInfo,
+        bytes calldata signature
+    ) external returns (address vestingWallet) {
+        vestingWallet = _deployVestingWallet(_owner, vestingWalletInfo, signature, 0);
+    }
+
+    /// @notice Deploys a VestingWallet proxy with a custom initial funding amount.
+    /// @dev
+    /// - Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
+    /// - Supports partial or full upfront funding depending on `initialFunding`.
     /// - Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
     /// - If `initialFunding > 0`, transfers that amount from caller to the deployed vesting wallet.
     /// @param _owner Owner address for the vesting wallet proxy.

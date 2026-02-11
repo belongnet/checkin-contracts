@@ -399,10 +399,10 @@ Deploys and fully funds a VestingWallet proxy with a validated schedule.
 function deployVestingWalletWithInitialFunding(address _owner, struct VestingWalletInfo vestingWalletInfo, bytes signature, uint256 initialFunding) external returns (address vestingWallet)
 ```
 
-Deploys a VestingWallet proxy with optional initial funding.
+Deploys a VestingWallet proxy with a custom initial funding amount.
 @dev
 - Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
-- Allows deferred funding by setting `initialFunding` to zero.
+- Supports partial or full upfront funding depending on `initialFunding`.
 - Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
 - If `initialFunding > 0`, transfers that amount from caller to the deployed vesting wallet.
 
@@ -414,6 +414,32 @@ Deploys a VestingWallet proxy with optional initial funding.
 | vestingWalletInfo | struct VestingWalletInfo | Full vesting configuration and description. |
 | signature | bytes | Signature from platform signer validating `_owner` and `vestingWalletInfo`. |
 | initialFunding | uint256 | Amount transferred to the wallet on deploy (must be `<= totalAllocation`). |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| vestingWallet | address | The deployed VestingWallet proxy address. |
+
+### deployVestingWalletWithoutInitialFunding
+
+```solidity
+function deployVestingWalletWithoutInitialFunding(address _owner, struct VestingWalletInfo vestingWalletInfo, bytes signature) external returns (address vestingWallet)
+```
+
+Deploys a VestingWallet proxy without upfront funding.
+@dev
+- Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
+- Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
+- Does not transfer vesting tokens on deployment.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _owner | address | Owner address for the vesting wallet proxy. |
+| vestingWalletInfo | struct VestingWalletInfo | Full vesting configuration and description. |
+| signature | bytes | Signature from platform signer validating `_owner` and `vestingWalletInfo`. |
 
 #### Return Values
 

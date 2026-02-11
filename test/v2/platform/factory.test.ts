@@ -733,8 +733,8 @@ describe('Factory', () => {
       expect(await LONG.balanceOf(vestingWallet.address)).to.eq(vestingWalletInfo.totalAllocation);
     });
 
-    it('should deploy VestingWallet with optional initial funding', async () => {
-      const { LONG, factory, owner, alice, signer } = await loadFixture(fixture);
+    it('should deploy VestingWallet without or with custom initial funding', async () => {
+      const { LONG, factory, owner, alice, bob, signer } = await loadFixture(fixture);
 
       const description = 'VestingWallet optional funding';
 
@@ -769,7 +769,7 @@ describe('Factory', () => {
 
       const tx = await factory
         .connect(alice)
-        .deployVestingWalletWithInitialFunding(owner.address, vestingWalletInfo, signature, 0);
+        .deployVestingWalletWithoutInitialFunding(owner.address, vestingWalletInfo, signature);
 
       await expect(tx).to.emit(factory, 'VestingWalletCreated');
 
@@ -783,6 +783,25 @@ describe('Factory', () => {
 
       expect(await vestingWallet.owner()).to.be.equal(owner.address);
       expect(await LONG.balanceOf(vestingWallet.address)).to.eq(0);
+
+      const partialFundingInfo: VestingWalletInfoStruct = {
+        ...vestingWalletInfo,
+        beneficiary: bob.address,
+        description: 'VestingWallet partial funding',
+      };
+
+      const partialFundingMessage = hashVestingInfo(owner.address, partialFundingInfo, chainId);
+      const partialFundingSignature = EthCrypto.sign(signer.privateKey, partialFundingMessage);
+      const partialFundingAmount = ethers.utils.parseEther('25');
+
+      await LONG.approve(factory.address, partialFundingAmount);
+      await factory
+        .connect(owner)
+        .deployVestingWalletWithInitialFunding(owner.address, partialFundingInfo, partialFundingSignature, partialFundingAmount);
+
+      const partialFundingInstanceInfo = await factory.getVestingWalletInstanceInfo(partialFundingInfo.beneficiary, 0);
+      expect(partialFundingInstanceInfo.vestingWallet).to.not.be.equal(ZERO_ADDRESS);
+      expect(await LONG.balanceOf(partialFundingInstanceInfo.vestingWallet)).to.eq(partialFundingAmount);
     });
 
     it('should correctly deploy several VestingWallets', async () => {
