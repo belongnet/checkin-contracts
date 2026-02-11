@@ -85,7 +85,22 @@ Thrown when the deployed VestingWallet proxy address does not match the predicte
 error NotEnoughFundsToVest()
 ```
 
-Thrown when the caller does not hold enough tokens to fully fund the vesting wallet.
+Thrown when the caller does not hold enough tokens for the requested vesting wallet funding amount.
+
+### InitialFundingExceedsAllocation
+
+```solidity
+error InitialFundingExceedsAllocation(uint256 initialFunding, uint256 totalAllocation)
+```
+
+Initial funding amount exceeds vesting wallet allocation.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| initialFunding | uint256 | Requested upfront funding amount. |
+| totalAllocation | uint256 | Maximum vesting allocation configured for the wallet. |
 
 ### BadDurations
 
@@ -356,7 +371,7 @@ Produces a new CreditToken (ERC1155) collection as a minimal proxy clone.
 function deployVestingWallet(address _owner, struct VestingWalletInfo vestingWalletInfo, bytes signature) external returns (address vestingWallet)
 ```
 
-Deploys and funds a VestingWallet proxy with a validated schedule.
+Deploys and fully funds a VestingWallet proxy with a validated schedule.
 @dev
 - Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
 - Requires caller to hold at least `totalAllocation` of the vesting token.
@@ -371,6 +386,34 @@ Deploys and funds a VestingWallet proxy with a validated schedule.
 | _owner | address | Owner address for the vesting wallet proxy. |
 | vestingWalletInfo | struct VestingWalletInfo | Full vesting configuration and description. |
 | signature | bytes | Signature from platform signer validating `_owner` and `vestingWalletInfo`. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| vestingWallet | address | The deployed VestingWallet proxy address. |
+
+### deployVestingWalletWithInitialFunding
+
+```solidity
+function deployVestingWalletWithInitialFunding(address _owner, struct VestingWalletInfo vestingWalletInfo, bytes signature, uint256 initialFunding) external returns (address vestingWallet)
+```
+
+Deploys a VestingWallet proxy with optional initial funding.
+@dev
+- Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
+- Allows deferred funding by setting `initialFunding` to zero.
+- Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
+- If `initialFunding > 0`, transfers that amount from caller to the deployed vesting wallet.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _owner | address | Owner address for the vesting wallet proxy. |
+| vestingWalletInfo | struct VestingWalletInfo | Full vesting configuration and description. |
+| signature | bytes | Signature from platform signer validating `_owner` and `vestingWalletInfo`. |
+| initialFunding | uint256 | Amount transferred to the wallet on deploy (must be `<= totalAllocation`). |
 
 #### Return Values
 
@@ -522,4 +565,3 @@ Returns all vesting wallet records registered for `beneficiary`.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | struct Factory.VestingWalletInstanceInfo[] | Array of {VestingWalletInstanceInfo} records. |
-

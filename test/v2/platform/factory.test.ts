@@ -635,14 +635,22 @@ describe('Factory', () => {
       let message = hashVestingInfo(owner.address, info, chainId);
       let signature = EthCrypto.sign(signer.privateKey, message);
 
-      await expect(factory.connect(owner).deployVestingWallet(owner.address, info, signature))
+      await expect(
+        factory
+          .connect(owner)
+          .deployVestingWalletWithInitialFunding(owner.address, info, signature, info.totalAllocation),
+      )
         .to.be.revertedWithCustomError(factory, 'BadDurations')
         .withArgs(0, 0);
 
       info.durationSeconds = 1;
       message = hashVestingInfo(owner.address, info, chainId);
       signature = EthCrypto.sign(signer.privateKey, message);
-      await expect(factory.connect(owner).deployVestingWallet(owner.address, info, signature))
+      await expect(
+        factory
+          .connect(owner)
+          .deployVestingWalletWithInitialFunding(owner.address, info, signature, info.totalAllocation),
+      )
         .to.be.revertedWithCustomError(factory, 'AllocationMismatch')
         .withArgs(BigNumber.from(info.linearAllocation).add(await info.tgeAmount), info.totalAllocation);
 
@@ -665,17 +673,32 @@ describe('Factory', () => {
       const wrongSignature = EthCrypto.sign(signer.privateKey, wrongMessage);
 
       await expect(
-        factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo, wrongSignature),
+        factory.connect(owner).deployVestingWalletWithInitialFunding(
+          owner.address,
+          vestingWalletInfo,
+          wrongSignature,
+          vestingWalletInfo.totalAllocation,
+        ),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
       await expect(
-        factory.connect(alice).deployVestingWallet(owner.address, vestingWalletInfo, wrongSignature),
+        factory.connect(alice).deployVestingWalletWithInitialFunding(
+          owner.address,
+          vestingWalletInfo,
+          wrongSignature,
+          vestingWalletInfo.totalAllocation,
+        ),
       ).to.be.revertedWithCustomError(factory, 'NotEnoughFundsToVest');
 
       await LONG.approve(factory.address, vestingWalletInfo.totalAllocation);
 
       const tx = await factory
         .connect(owner)
-        .deployVestingWallet(owner.address, vestingWalletInfo, venueTokenSignature);
+        .deployVestingWalletWithInitialFunding(
+          owner.address,
+          vestingWalletInfo,
+          venueTokenSignature,
+          vestingWalletInfo.totalAllocation,
+        );
 
       await expect(tx).to.emit(factory, 'VestingWalletCreated');
       const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(vestingWalletInfo.beneficiary, 0);
@@ -710,6 +733,58 @@ describe('Factory', () => {
       expect(await LONG.balanceOf(vestingWallet.address)).to.eq(vestingWalletInfo.totalAllocation);
     });
 
+    it('should deploy VestingWallet with optional initial funding', async () => {
+      const { LONG, factory, owner, alice, signer } = await loadFixture(fixture);
+
+      const description = 'VestingWallet optional funding';
+
+      const now = await time.latest();
+      const startTimestamp = now + 5;
+      const cliffDurationSeconds = 60;
+      const durationSeconds = 360;
+
+      const vestingWalletInfo: VestingWalletInfoStruct = {
+        startTimestamp,
+        cliffDurationSeconds,
+        durationSeconds,
+        token: LONG.address,
+        beneficiary: alice.address,
+        totalAllocation: ethers.utils.parseEther('100'),
+        tgeAmount: ethers.utils.parseEther('10'),
+        linearAllocation: ethers.utils.parseEther('60'),
+        description,
+      };
+
+      const vestingWalletMessage = hashVestingInfo(owner.address, vestingWalletInfo, chainId);
+      const signature = EthCrypto.sign(signer.privateKey, vestingWalletMessage);
+
+      const invalidInitialFunding = vestingWalletInfo.totalAllocation.add(1);
+      await expect(
+        factory
+          .connect(owner)
+          .deployVestingWalletWithInitialFunding(owner.address, vestingWalletInfo, signature, invalidInitialFunding),
+      )
+        .to.be.revertedWithCustomError(factory, 'InitialFundingExceedsAllocation')
+        .withArgs(invalidInitialFunding, vestingWalletInfo.totalAllocation);
+
+      const tx = await factory
+        .connect(alice)
+        .deployVestingWalletWithInitialFunding(owner.address, vestingWalletInfo, signature, 0);
+
+      await expect(tx).to.emit(factory, 'VestingWalletCreated');
+
+      const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(vestingWalletInfo.beneficiary, 0);
+      expect(vestingWalletInstanceInfo.vestingWallet).to.not.be.equal(ZERO_ADDRESS);
+
+      const vestingWallet: VestingWalletExtended = await ethers.getContractAt(
+        'VestingWalletExtended',
+        vestingWalletInstanceInfo.vestingWallet,
+      );
+
+      expect(await vestingWallet.owner()).to.be.equal(owner.address);
+      expect(await LONG.balanceOf(vestingWallet.address)).to.eq(0);
+    });
+
     it('should correctly deploy several VestingWallets', async () => {
       const { LONG, factory, owner, alice, bob, charlie, signer } = await loadFixture(fixture);
 
@@ -739,7 +814,12 @@ describe('Factory', () => {
 
       await LONG.approve(factory.address, vestingWalletInfo1.totalAllocation);
 
-      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo1, venueTokenSignature1);
+      await factory.connect(owner).deployVestingWalletWithInitialFunding(
+        owner.address,
+        vestingWalletInfo1,
+        venueTokenSignature1,
+        vestingWalletInfo1.totalAllocation,
+      );
 
       const now2 = await time.latest();
       const startTimestamp2 = now2 + 5;
@@ -763,7 +843,12 @@ describe('Factory', () => {
 
       await LONG.approve(factory.address, vestingWalletInfo2.totalAllocation);
 
-      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo2, venueTokenSignature2);
+      await factory.connect(owner).deployVestingWalletWithInitialFunding(
+        owner.address,
+        vestingWalletInfo2,
+        venueTokenSignature2,
+        vestingWalletInfo2.totalAllocation,
+      );
 
       const now3 = await time.latest();
       const startTimestamp3 = now3 + 5;
@@ -787,7 +872,12 @@ describe('Factory', () => {
 
       await LONG.approve(factory.address, vestingWalletInfo3.totalAllocation);
 
-      await factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo3, venueTokenSignature3);
+      await factory.connect(owner).deployVestingWalletWithInitialFunding(
+        owner.address,
+        vestingWalletInfo3,
+        venueTokenSignature3,
+        vestingWalletInfo3.totalAllocation,
+      );
 
       const vestingWalletInstanceInfo1 = await factory.getVestingWalletInstanceInfo(vestingWalletInfo1.beneficiary, 0);
       const vestingWalletInstanceInfo2 = await factory.getVestingWalletInstanceInfo(vestingWalletInfo2.beneficiary, 0);

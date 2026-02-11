@@ -89,6 +89,7 @@ describe('VestingWalletExtended', () => {
       LONG.address,
       signer.privateKey,
       admin, // owner
+      info.totalAllocation,
     );
 
     const startStepBased = (await time.latest()) + 5;
@@ -113,6 +114,7 @@ describe('VestingWalletExtended', () => {
       LONG.address,
       signer.privateKey,
       admin, // owner
+      infoStepBased.totalAllocation,
     );
 
     return {
@@ -481,7 +483,11 @@ describe('VestingWalletExtended', () => {
 
       await LONG.approve(factory.address, info.totalAllocation);
 
-      await expect(factory.connect(admin).deployVestingWallet(admin.address, info, venueTokenSignature))
+      await expect(
+        factory
+          .connect(admin)
+          .deployVestingWalletWithInitialFunding(admin.address, info, venueTokenSignature, info.totalAllocation),
+      )
         .to.be.revertedWithCustomError(factory, 'AllocationMismatch')
         .withArgs(info.linearAllocation.add(info.tgeAmount), info.totalAllocation);
     });
