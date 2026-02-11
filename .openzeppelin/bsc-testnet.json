@@ -827,62 +827,32 @@
           },
           "t_enum(BountyAllocationTypes)15675": {
             "label": "enum BountyAllocationTypes",
-            "members": [
-              "NoType",
-              "ToPromoter",
-              "ToCustomer",
-              "Both"
-            ],
+            "members": ["NoType", "ToPromoter", "ToCustomer", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(BountyTypes)15669": {
             "label": "enum BountyTypes",
-            "members": [
-              "NoType",
-              "VisitBounty",
-              "SpendBounty",
-              "Both"
-            ],
+            "members": ["NoType", "VisitBounty", "SpendBounty", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(DexType)44238": {
             "label": "enum DualDexSwapV4Lib.DexType",
-            "members": [
-              "UniV4",
-              "PcsV4",
-              "PcsV3",
-              "UniV3"
-            ],
+            "members": ["UniV4", "PcsV4", "PcsV3", "UniV3"],
             "numberOfBytes": "1"
           },
           "t_enum(LongPaymentTypes)15680": {
             "label": "enum LongPaymentTypes",
-            "members": [
-              "NoType",
-              "AutoStake",
-              "AutoConvert"
-            ],
+            "members": ["NoType", "AutoStake", "AutoConvert"],
             "numberOfBytes": "1"
           },
           "t_enum(PaymentTypes)15663": {
             "label": "enum PaymentTypes",
-            "members": [
-              "NoType",
-              "USDtoken",
-              "LONG",
-              "Both"
-            ],
+            "members": ["NoType", "USDtoken", "LONG", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(StakingTiers)15657": {
             "label": "enum StakingTiers",
-            "members": [
-              "NoStakes",
-              "BronzeTier",
-              "SilverTier",
-              "GoldTier",
-              "PlatinumTier"
-            ],
+            "members": ["NoStakes", "BronzeTier", "SilverTier", "GoldTier", "PlatinumTier"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_struct(GeneralVenueInfo)41129_storage)": {
@@ -1313,62 +1283,32 @@
           },
           "t_enum(BountyAllocationTypes)10707": {
             "label": "enum BountyAllocationTypes",
-            "members": [
-              "NoType",
-              "ToPromoter",
-              "ToCustomer",
-              "Both"
-            ],
+            "members": ["NoType", "ToPromoter", "ToCustomer", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(BountyTypes)10701": {
             "label": "enum BountyTypes",
-            "members": [
-              "NoType",
-              "VisitBounty",
-              "SpendBounty",
-              "Both"
-            ],
+            "members": ["NoType", "VisitBounty", "SpendBounty", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(DexType)19493": {
             "label": "enum DualDexSwapV4Lib.DexType",
-            "members": [
-              "UniV4",
-              "PcsV4",
-              "PcsV3",
-              "UniV3"
-            ],
+            "members": ["UniV4", "PcsV4", "PcsV3", "UniV3"],
             "numberOfBytes": "1"
           },
           "t_enum(LongPaymentTypes)10712": {
             "label": "enum LongPaymentTypes",
-            "members": [
-              "NoType",
-              "AutoStake",
-              "AutoConvert"
-            ],
+            "members": ["NoType", "AutoStake", "AutoConvert"],
             "numberOfBytes": "1"
           },
           "t_enum(PaymentTypes)10695": {
             "label": "enum PaymentTypes",
-            "members": [
-              "NoType",
-              "USDtoken",
-              "LONG",
-              "Both"
-            ],
+            "members": ["NoType", "USDtoken", "LONG", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(StakingTiers)10689": {
             "label": "enum StakingTiers",
-            "members": [
-              "NoStakes",
-              "BronzeTier",
-              "SilverTier",
-              "GoldTier",
-              "PlatinumTier"
-            ],
+            "members": ["NoStakes", "BronzeTier", "SilverTier", "GoldTier", "PlatinumTier"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_struct(GeneralVenueInfo)16222_storage)": {
@@ -1737,62 +1677,32 @@
           },
           "t_enum(BountyAllocationTypes)10583": {
             "label": "enum BountyAllocationTypes",
-            "members": [
-              "NoType",
-              "ToPromoter",
-              "ToCustomer",
-              "Both"
-            ],
+            "members": ["NoType", "ToPromoter", "ToCustomer", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(BountyTypes)10577": {
             "label": "enum BountyTypes",
-            "members": [
-              "NoType",
-              "VisitBounty",
-              "SpendBounty",
-              "Both"
-            ],
+            "members": ["NoType", "VisitBounty", "SpendBounty", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(DexType)19601": {
             "label": "enum DualDexSwapV4Lib.DexType",
-            "members": [
-              "UniV4",
-              "PcsV4",
-              "PcsV3",
-              "UniV3"
-            ],
+            "members": ["UniV4", "PcsV4", "PcsV3", "UniV3"],
             "numberOfBytes": "1"
           },
           "t_enum(LongPaymentTypes)10588": {
             "label": "enum LongPaymentTypes",
-            "members": [
-              "NoType",
-              "AutoStake",
-              "AutoConvert"
-            ],
+            "members": ["NoType", "AutoStake", "AutoConvert"],
             "numberOfBytes": "1"
           },
           "t_enum(PaymentTypes)10571": {
             "label": "enum PaymentTypes",
-            "members": [
-              "NoType",
-              "USDtoken",
-              "LONG",
-              "Both"
-            ],
+            "members": ["NoType", "USDtoken", "LONG", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(StakingTiers)10565": {
             "label": "enum StakingTiers",
-            "members": [
-              "NoStakes",
-              "BronzeTier",
-              "SilverTier",
-              "GoldTier",
-              "PlatinumTier"
-            ],
+            "members": ["NoStakes", "BronzeTier", "SilverTier", "GoldTier", "PlatinumTier"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_struct(GeneralVenueInfo)16109_storage)": {
@@ -2155,62 +2065,32 @@
           },
           "t_enum(BountyAllocationTypes)15800": {
             "label": "enum BountyAllocationTypes",
-            "members": [
-              "NoType",
-              "ToPromoter",
-              "ToCustomer",
-              "Both"
-            ],
+            "members": ["NoType", "ToPromoter", "ToCustomer", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(BountyTypes)15794": {
             "label": "enum BountyTypes",
-            "members": [
-              "NoType",
-              "VisitBounty",
-              "SpendBounty",
-              "Both"
-            ],
+            "members": ["NoType", "VisitBounty", "SpendBounty", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(DexType)44732": {
             "label": "enum DualDexSwapV4Lib.DexType",
-            "members": [
-              "UniV4",
-              "PcsV4",
-              "PcsV3",
-              "UniV3"
-            ],
+            "members": ["UniV4", "PcsV4", "PcsV3", "UniV3"],
             "numberOfBytes": "1"
           },
           "t_enum(LongPaymentTypes)15805": {
             "label": "enum LongPaymentTypes",
-            "members": [
-              "NoType",
-              "AutoStake",
-              "AutoConvert"
-            ],
+            "members": ["NoType", "AutoStake", "AutoConvert"],
             "numberOfBytes": "1"
           },
           "t_enum(PaymentTypes)15788": {
             "label": "enum PaymentTypes",
-            "members": [
-              "NoType",
-              "USDtoken",
-              "LONG",
-              "Both"
-            ],
+            "members": ["NoType", "USDtoken", "LONG", "Both"],
             "numberOfBytes": "1"
           },
           "t_enum(StakingTiers)15782": {
             "label": "enum StakingTiers",
-            "members": [
-              "NoStakes",
-              "BronzeTier",
-              "SilverTier",
-              "GoldTier",
-              "PlatinumTier"
-            ],
+            "members": ["NoStakes", "BronzeTier", "SilverTier", "GoldTier", "PlatinumTier"],
             "numberOfBytes": "1"
           },
           "t_mapping(t_address,t_struct(GeneralVenueInfo)41240_storage)": {

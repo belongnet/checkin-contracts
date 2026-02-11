@@ -7,19 +7,17 @@ import { HardhatUserConfig } from 'hardhat/config';
 
 import 'solidity-docgen';
 import { ChainIds } from './utils/chain-ids';
-import { blockscanConfig, createConnect, createLedgerConnect } from './utils/config';
+import { blockscanConfig, createConnect } from './utils/config';
 
 dotenv.config();
 
-let accounts: string[] = [],
-  ledgerAccounts: string[] = [];
+let accounts: string[] = [];
 
 if (process.env.PK) {
   accounts = [process.env.PK];
 }
-if (process.env.LEDGER_ADDRESS) {
-  ledgerAccounts = [process.env.LEDGER_ADDRESS];
-}
+
+const etherscanApiKey = process.env.ETHERSCAN_API_KEY || process.env.BSCSCAN_API_KEY || '';
 
 const defaultHardhatForkBlock = process.env.HARDHAT_MAINNET_FORK_BLOCK
   ? Number(process.env.HARDHAT_MAINNET_FORK_BLOCK)
@@ -77,18 +75,18 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      mainnet: process.env.ETHERSCAN_API_KEY! || '',
-      bsc: process.env.ETHERSCAN_API_KEY! || process.env.BSCSCAN_API_KEY! || '',
-      // 'ethereum': 'empty',
-      blast: process.env.BLASTSCAN_API_KEY! || '',
-      polygon: process.env.POLYSCAN_API_KEY || '',
-      celo: process.env.CELOSCAN_API_KEY || '',
-      base: process.env.BASESCAN_API_KEY || '',
-      linea: process.env.LINEASCAN_API_KEY || '',
-      sepolia: process.env.ETHERSCAN_API_KEY! || '',
-      amoy: process.env.POLYSCAN_API_KEY || '',
-      blast_sepolia: process.env.BLASTSCAN_API_KEY! || '',
-      bsc_testnet: process.env.BSCSCAN_API_KEY! || '',
+      mainnet: etherscanApiKey,
+      sepolia: etherscanApiKey,
+      polygon: etherscanApiKey,
+      amoy: etherscanApiKey,
+      blast: etherscanApiKey,
+      blast_sepolia: etherscanApiKey,
+      bsc: etherscanApiKey,
+      bsc_testnet: etherscanApiKey,
+      celo: etherscanApiKey,
+      base: etherscanApiKey,
+      linea: etherscanApiKey,
+      arbitrum: etherscanApiKey,
       astar: 'astar', // Is not required by blockscout. Can be any non-empty string
       skale_europa: 'skale_europa', // Is not required by blockscout. Can be any non-empty string
       skale_nebula: 'skale_nebula', // Is not required by blockscout. Can be any non-empty string
@@ -106,6 +104,8 @@ const config: HardhatUserConfig = {
       // },
       blockscanConfig('bsc', ChainIds.bsc),
       blockscanConfig('blast', ChainIds.blast),
+      blockscanConfig('bsc', ChainIds.bsc),
+      blockscanConfig('bsc_testnet', ChainIds.bsc_testnet),
       blockscanConfig('blast_sepolia', ChainIds.blast_sepolia),
       blockscanConfig('celo', ChainIds.celo),
       blockscanConfig('base', ChainIds.base),
