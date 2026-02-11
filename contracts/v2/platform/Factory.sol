@@ -224,6 +224,12 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         _setReferralParameters(percentages, maxArrayLength);
     }
 
+    function upgradeToV3(address vestingWalletImplementation) external reinitializer(3) {
+        Implementations memory impls = _currentImplementations;
+        impls.vestingWallet = vestingWalletImplementation;
+        _setFactoryParameters(_nftFactoryParameters, _royaltiesParameters, impls);
+    }
+
     // ========== Creation Flows ==========
 
     /// @notice Produces a new AccessToken collection (upgradeable proxy) and optional RoyaltiesReceiver.
@@ -545,8 +551,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param _implementations New implementation addresses.
     function _setFactoryParameters(
         FactoryParameters memory factoryParameters_,
-        RoyaltiesParameters calldata _royalties,
-        Implementations calldata _implementations
+        RoyaltiesParameters memory _royalties,
+        Implementations memory _implementations
     ) private {
         require(_royalties.amountToCreator + _royalties.amountToPlatform == 10000, TotalRoyaltiesNot100Percent());
 
