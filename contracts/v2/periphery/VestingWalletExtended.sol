@@ -191,6 +191,7 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         require(_currentAllocation == _totalAllocation, AllocationNotBalanced(_currentAllocation, _totalAllocation));
 
         tranchesConfigurationFinalized = true;
+
         emit Finalized(block.timestamp);
     }
 
