@@ -1,4 +1,5 @@
 use starknet::{ContractAddress, ClassHash};
+use crate::snip12::interfaces::SignatureProtection;
 
 #[derive(Drop, Serde, Copy, starknet::Store)]
 pub struct FactoryParameters {
@@ -30,9 +31,7 @@ pub struct InstanceInfo {
     pub max_total_supply: u256, // The max total supply of a new collection
     pub mint_price: u256, // Mint price of a token from a new collection
     pub whitelisted_mint_price: u256, // Mint price for whitelisted users
-    pub collection_expires: u256, // Collection expiration period (timestamp)
     pub referral_code: felt252,
-    pub signature: Array<felt252>,
 }
 
 #[derive(Clone, Drop, Serde)]
@@ -51,7 +50,7 @@ pub trait INFTFactory<TState> {
         percentages: Span<u16>,
     );
 
-    fn produce(ref self: TState, instance_info: InstanceInfo) -> (ContractAddress, ContractAddress);
+    fn produce(ref self: TState, signature_protection: SignatureProtection, instance_info: InstanceInfo) -> (ContractAddress, ContractAddress);
 
     fn createReferralCode(ref self: TState) -> felt252;
 

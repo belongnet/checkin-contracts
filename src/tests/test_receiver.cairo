@@ -27,6 +27,7 @@ use crate::{
         StaticPriceParameters,
     },
     snip12::{
+        interfaces::SignatureProtection,
         produce_hash::{ProduceHash, MessageProduceHash},
         dynamic_price_hash::{DynamicPriceHash, MessageDynamicPriceHash},
         static_price_hash::{StaticPriceHash, MessageStaticPriceHash},
@@ -81,6 +82,9 @@ fn deploy_factory_nft_receiver_erc20(
     let royalty_fraction = constants::FRACTION();
 
     let produce_hash = ProduceHash {
+        verifying_contract: factory,
+        nonce: 0,
+        deadline: 0,
         creator_address: constants::CREATOR(),
         name_hash: constants::NAME().hash(),
         symbol_hash: constants::SYMBOL().hash(),
@@ -90,6 +94,12 @@ fn deploy_factory_nft_receiver_erc20(
     start_cheat_caller_address_global(signer);
 
     let signature = sign_message(produce_hash.get_message_hash(signer));
+
+    let signature_protection = SignatureProtection {
+        nonce: 0,
+        deadline: 0,
+        signature,
+    };
 
     let instance_info = InstanceInfo {
         creator_address: constants::CREATOR(),
@@ -102,15 +112,13 @@ fn deploy_factory_nft_receiver_erc20(
         max_total_supply: constants::MAX_TOTAL_SUPPLY(),
         mint_price: constants::MINT_PRICE(),
         whitelisted_mint_price: constants::WL_MINT_PRICE(),
-        collection_expires: constants::EXPIRES(),
-        referral_code,
-        signature,
+        referral_code
     };
 
     stop_cheat_caller_address_global();
     start_cheat_caller_address(factory, constants::CREATOR());
 
-    let (nft, receiver) = nft_factory.produce(instance_info.clone());
+    let (nft, receiver) = nft_factory.produce(signature_protection, instance_info.clone());
 
     start_cheat_caller_address(erc20mock, signer);
     IERC20MintableDispatcher { contract_address: erc20mock }.mint(signer, 100000000);
@@ -181,55 +189,6 @@ fn test_deploy_referral() {
     assert_eq!(receiver.shares(constants::CREATOR()), AMOUNT_TO_CREATOR);
     assert_eq!(receiver.shares(constants::PLATFORM()), AMOUNT_TO_PLATFORM);
     assert_eq!(receiver.shares(constants::REFERRAL()), AMOUNT_TO_REFERRAL);
-}
-
-#[test]
-#[should_panic(expected: 'Only payee call')]
-fn test_release() {
-    let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
-    IERC20MintableDispatcher { contract_address: erc20 }.mint(_receiver, 100000);
-
-    let receiver = IReceiverDispatcher { contract_address: _receiver };
-
-    let mut spy = spy_events();
-
-    receiver.release(erc20, constants::CREATOR());
-
-    spy
-        .assert_emitted(
-            @array![
-                (
-                    _receiver,
-                    Receiver::Event::PaymentReleasedEvent(
-                        Receiver::PaymentReleased {
-                            payment_token: erc20, payee: constants::CREATOR(), released: 80000,
-                        },
-                    ),
-                ),
-            ],
-        );
-
-    assert_eq!(receiver.released(constants::CREATOR()), 80000);
-    assert_eq!(receiver.totalReleased(), 80000);
-
-    // Throws: 'Only payee call'
-    receiver.release(erc20, erc20);
-}
-
-#[test]
-#[should_panic(expected: 'Account not due payment')]
-fn test_release_account_due_payment() {
-    let (_, _, _receiver, erc20) = deploy_factory_nft_receiver_erc20(true, true);
-    IERC20MintableDispatcher { contract_address: erc20 }.mint(_receiver, 100000);
-
-    let receiver = IReceiverDispatcher { contract_address: _receiver };
-
-    start_cheat_caller_address(_receiver, constants::CREATOR());
-
-    receiver.release(erc20, constants::CREATOR());
-
-    // Throws: 'Account not due payment'
-    receiver.release(erc20, constants::CREATOR());
 }
 
 #[test]

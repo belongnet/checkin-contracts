@@ -103,7 +103,6 @@ When using `starkli declare`, Starkli will do its best to identify the compiler 
    ```
 
 3. In case a different compiler version is required, switch to a different Scarb version using `asdf`:
-
    - Install the desired Scarb version:
 
      ```bash
@@ -197,3 +196,5 @@ Contract deployed: 0x014825acb37c36563d3b96c450afe363d2fdfa3cfbd618b323f95b68b55
 ```
 
 The smart contract has now been deployed to Starknet.
+
+Factory address: 0x0534e5e4993aecc22213d25a8f45169b32f12ad83013e2ed03607ec6594e929f

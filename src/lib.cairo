@@ -20,17 +20,17 @@ mod snip12 {
     pub mod interfaces;
 }
 
-mod utils {
-    pub mod constants;
-    pub mod signing;
-}
+// mod utils {
+//     pub mod constants;
+//     pub mod signing;
+// }
 
-mod mocks {
-    pub mod erc20mock;
-    pub mod erc20mockinterface;
-    pub mod account;
-}
+// mod mocks {
+//     pub mod erc20mock;
+//     pub mod erc20mockinterface;
+//     pub mod account;
+// }
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 

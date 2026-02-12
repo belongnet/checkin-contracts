@@ -76,22 +76,15 @@ pub mod Receiver {
         self.shares.entry(creator).write(AMOUNT_TO_CREATOR.into());
         self.shares.entry(platform).write(amount_to_platform.try_into().unwrap());
 
-        self.payees.append().write(creator);
-        self.payees.append().write(platform);
-        self.payees.append().write(referral);
+        self.payees.push(creator);
+        self.payees.push(platform);
+        self.payees.push(referral);
     }
 
     #[abi(embed_v0)]
     impl ReceiverImpl of IReceiver<ContractState> {
         fn releaseAll(ref self: ContractState, payment_token: ContractAddress) {
             self._release_all(payment_token);
-        }
-
-        fn release(ref self: ContractState, payment_token: ContractAddress, to: ContractAddress) {
-            assert(to.is_non_zero(), super::Errors::ZERO_ADDRESS);
-            self._only_to_payee(to);
-            let to_release = self._release(payment_token, to);
-            assert(to_release.is_non_zero(), super::Errors::ACCOUNT_NOT_DUE_PAYMENT);
         }
 
         fn released(self: @ContractState, account: ContractAddress) -> u256 {

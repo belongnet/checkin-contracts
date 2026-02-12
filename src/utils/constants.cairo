@@ -98,10 +98,6 @@ pub fn WL_MINT_PRICE() -> u256 {
     50000000
 }
 
-pub fn EXPIRES() -> u256 {
-    10000000000000
-}
-
 pub fn REFERRAL_CODE() -> felt252 {
     'REFERRAL CODE'
 }

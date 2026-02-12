@@ -6,11 +6,14 @@ use crate::snip12::{
 };
 
 pub const MESSAGE_TYPE_HASH: felt252 = selector!(
-    "\"StaticPriceHash\"(\"receiver\":\"ContractAddress\",\"token_id\":\"u256\",\"whitelisted\":\"bool\",\"token_uri\":\"felt\")\"u256\"(\"low\":\"u128\",\"high\":\"u128\")",
+    "\"StaticPriceHash\"(\"verifying_contract\":\"ContractAddress\",\"nonce\":\"u128\",\"deadline\":\"u128\",\"receiver\":\"ContractAddress\",\"token_id\":\"u256\",\"whitelisted\":\"bool\",\"token_uri\":\"felt\")\"u256\"(\"low\":\"u128\",\"high\":\"u128\")",
 );
 
 #[derive(Hash, Drop, Copy)]
 pub struct StaticPriceHash {
+    pub verifying_contract: ContractAddress,
+    pub nonce: u128,
+    pub deadline: u128,
     pub receiver: ContractAddress,
     pub token_id: u256,
     pub whitelisted: bool,
@@ -36,6 +39,9 @@ impl StructStaticPriceHash of IStructHash<StaticPriceHash> {
     fn get_struct_hash(self: @StaticPriceHash) -> felt252 {
         let mut state = PoseidonTrait::new();
         state = state.update_with(MESSAGE_TYPE_HASH);
+        state = state.update_with(*self.verifying_contract);
+        state = state.update_with(*self.nonce);
+        state = state.update_with(*self.deadline);
         state = state.update_with(*self.receiver);
         state = state.update_with(self.token_id.get_struct_hash());
         state = state.update_with(*self.whitelisted);
@@ -51,12 +57,15 @@ mod tests {
     #[test]
     fn test_valid_hash() {
         // This value was computed using StarknetJS
-        let message_hash = 0x1aacaf53a0c9f07a6961b45899f2e7b939268219a48406f5905d1981f73b793;
+        let message_hash = 0x34f17b0ba4f40e65993e29d80695f57093714f3e28cfd48b81607b9ec054802;
         let dynamic_price_hash = StaticPriceHash {
-            receiver: 123.try_into().unwrap(),
-            token_id: 456,
+            verifying_contract: 123.try_into().unwrap(),
+            nonce: 456,
+            deadline: 789,
+            receiver: 101112.try_into().unwrap(),
+            token_id: 131415,
             whitelisted: true,
-            token_uri_hash: 101112,
+            token_uri_hash: 161718,
         };
 
         start_cheat_caller_address_global(1337.try_into().unwrap());

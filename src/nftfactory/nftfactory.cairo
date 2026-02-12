@@ -4,8 +4,10 @@ mod Errors {
     pub const INITIALIZED: felt252 = 'Contract is already initialized';
     pub const ZERO_ADDRESS: felt252 = 'Zero address passed';
     pub const ZERO_AMOUNT: felt252 = 'Zero amount passed';
-    pub const EMPTY_NAME: felt252 = 'Name is empty';
-    pub const EMPTY_SYMBOL: felt252 = 'Symbol is empty';
+    pub const EMPTY_STRING: felt252 = 'Empty string';
+    pub const OOB_INDEX: felt252 = 'Index out of bounds';
+    pub const BAD_CHAR: felt252 = 'Bad char';
+    pub const NON_ASCII: felt252 = 'Non ASCII';
     pub const NFT_EXISTS: felt252 = 'NFT is already exists';
     pub const NFT_NOT_EXISTS: felt252 = 'NFT is not exists';
     pub const REFFERAL_CODE_EXISTS: felt252 = 'Referral code is already exists';
@@ -14,15 +16,17 @@ mod Errors {
     pub const REFFERAL_CODE_NOT_USED_BY_USER: felt252 = 'User code did not used';
     pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
     pub const WRONG_PERCENTAGES_LEN: felt252 = 'Wrong percentages length';
+    pub const WRONG_PLATFORM_COMMISSION: felt252 = 'Wrong platform commission set';
+    pub const WRONG_PERCENTAGE: felt252 = 'Wrong percentage value';
+    pub const DEADLINE_EXPIRED: felt252 = 'Signature deadline expired';
 }
 
 #[starknet::contract]
 pub mod NFTFactory {
     use core::{num::traits::Zero, traits::Into, poseidon::poseidon_hash_span};
     use starknet::{
-        ContractAddress, ClassHash, SyscallResultTrait, event::EventEmitter, contract_address_const,
-        get_caller_address, get_contract_address, get_tx_info, syscalls::deploy_syscall,
-        storage::{
+        ContractAddress, ClassHash, SyscallResultTrait, event::EventEmitter, get_block_timestamp,
+        get_caller_address, get_contract_address, get_tx_info, syscalls::deploy_syscall, storage::{
             StoragePointerReadAccess, StoragePointerWriteAccess, Map, StorageMapReadAccess,
             StorageMapWriteAccess, Vec, VecTrait, MutableVecTrait, StoragePathEntry,
         },
@@ -32,9 +36,13 @@ pub mod NFTFactory {
         access::ownable::OwnableComponent,
         upgrades::{UpgradeableComponent, interface::IUpgradeable},
         account::interface::{ISRC6Dispatcher, ISRC6DispatcherTrait},
+        token::common::erc2981::DefaultConfig,
     };
     use crate::{
-        snip12::produce_hash::{MessageProduceHash, ProduceHash},
+        snip12::{
+            produce_hash::{MessageProduceHash, ProduceHash},
+            interfaces::SignatureProtection
+        },
         nftfactory::interface::{INFTFactory, FactoryParameters, NftInfo, InstanceInfo},
         nft::interface::{INFTDispatcher, INFTDispatcherTrait, NftParameters},
     };
@@ -146,9 +154,9 @@ pub mod NFTFactory {
         }
 
         fn produce(
-            ref self: ContractState, instance_info: InstanceInfo,
+            ref self: ContractState, signature_protection: SignatureProtection, instance_info: InstanceInfo,
         ) -> (ContractAddress, ContractAddress) {
-            let (deployed_address, receiver_address) = self._produce(instance_info);
+            let (deployed_address, receiver_address) = self._produce(signature_protection, instance_info);
             (deployed_address, receiver_address)
         }
 
@@ -262,16 +270,18 @@ pub mod NFTFactory {
     #[generate_trait]
     impl InternalImpl of InternalTrait {
         fn _produce(
-            ref self: ContractState, instance_info: InstanceInfo,
+            ref self: ContractState, signature_protection: SignatureProtection, instance_info: InstanceInfo,
         ) -> (ContractAddress, ContractAddress) {
             let info = instance_info.clone();
-
-            assert(info.name.len().is_non_zero(), super::Errors::EMPTY_NAME);
-            assert(info.symbol.len().is_non_zero(), super::Errors::EMPTY_SYMBOL);
+            
+            self._assert_snip12_identifier(info.name.clone());
+            self._assert_snip12_identifier(info.symbol.clone());
 
             let metadata_name_hash: felt252 = info.name.hash();
             let metadata_symbol_hash: felt252 = info.symbol.hash();
             let contract_uri_hash: felt252 = info.contract_uri.hash();
+
+            self._assert_not_expired(signature_protection.deadline);
 
             assert(
                 self
@@ -287,6 +297,9 @@ pub mod NFTFactory {
             let signer = ISRC6Dispatcher { contract_address: signerAddress };
 
             let message = ProduceHash {
+                verifying_contract: get_contract_address(),
+                nonce: signature_protection.nonce,
+                deadline: signature_protection.deadline,
                 name_hash: metadata_name_hash,
                 symbol_hash: metadata_symbol_hash,
                 contract_uri_hash: contract_uri_hash,
@@ -295,7 +308,7 @@ pub mod NFTFactory {
             };
 
             let hash = message.get_message_hash(signerAddress);
-            let is_valid_signature_felt = signer.is_valid_signature(hash, info.signature);
+            let is_valid_signature_felt = signer.is_valid_signature(hash, signature_protection.signature);
             assert(
                 is_valid_signature_felt == starknet::VALIDATED || is_valid_signature_felt == 1,
                 super::Errors::VALIDATION_ERROR,
@@ -313,7 +326,6 @@ pub mod NFTFactory {
                 mint_price: info.mint_price,
                 whitelisted_mint_price: info.whitelisted_mint_price,
                 max_total_supply: info.max_total_supply,
-                collection_expires: info.collection_expires,
                 transferrable: info.transferrable,
                 referral_code: info.referral_code,
             };
@@ -323,20 +335,20 @@ pub mod NFTFactory {
                 array![
                     metadata_name_hash,
                     metadata_symbol_hash,
-                    get_caller_address().into(),
+                    info.creator_address.into(),
                     get_tx_info().unbox().nonce,
                 ]
                     .span(),
             );
 
             // Deploy receiver contract if royalty_fraction is non-zero
-            let mut receiver_address: ContractAddress = contract_address_const::<0>();
-            self._set_referral_user(info.referral_code, get_caller_address());
+            let mut receiver_address: ContractAddress = Zero::zero();
+            self._set_referral_user(info.referral_code, info.creator_address);
             if info.royalty_fraction.is_non_zero() {
                 let referral_creator = self._get_referral_creator(info.referral_code);
                 let receiver_constructor_calldata: Array<felt252> = array![
                     info.referral_code,
-                    get_caller_address().into(),
+                    info.creator_address.into(),
                     self.factory_parameters.platform_address.read().into(),
                     referral_creator.into(),
                 ];
@@ -352,7 +364,7 @@ pub mod NFTFactory {
             }
 
             let mut nft_constructor_calldata: Array<felt252> = array![];
-            nft_constructor_calldata.append_serde(get_caller_address());
+            nft_constructor_calldata.append_serde(info.creator_address);
             nft_constructor_calldata.append_serde(get_contract_address());
             nft_constructor_calldata.append_serde(info.name.clone());
             nft_constructor_calldata.append_serde(info.symbol.clone());
@@ -373,7 +385,7 @@ pub mod NFTFactory {
                     NftInfo {
                         name: info.name.clone(),
                         symbol: info.symbol.clone(),
-                        creator: get_caller_address(),
+                        creator: info.creator_address,
                         nft_address,
                         receiver_address,
                     },
@@ -384,7 +396,7 @@ pub mod NFTFactory {
                     Event::ProducedEvent(
                         Produced {
                             nft_address,
-                            creator: get_caller_address(),
+                            creator: info.creator_address,
                             receiver_address,
                             name: info.name,
                             symbol: info.symbol,
@@ -451,7 +463,7 @@ pub mod NFTFactory {
             };
 
             if (!inArray) {
-                self.referrals.entry(referral_code).referral_users.append().write(referral_user);
+                self.referrals.entry(referral_code).referral_users.push(referral_user);
             }
 
             let used_code = self.used_code.entry(referral_user).entry(referral_code).read();
@@ -469,7 +481,9 @@ pub mod NFTFactory {
             assert(factory_parameters.signer.is_non_zero(), super::Errors::ZERO_ADDRESS);
             assert(factory_parameters.platform_address.is_non_zero(), super::Errors::ZERO_ADDRESS);
             assert(
-                factory_parameters.platform_commission.is_non_zero(), super::Errors::ZERO_AMOUNT,
+                factory_parameters.platform_commission.is_non_zero() &&
+                factory_parameters.platform_commission <= DefaultConfig::FEE_DENOMINATOR.into(),
+                super::Errors::WRONG_PLATFORM_COMMISSION,
             );
             self.factory_parameters.write(factory_parameters);
         }
@@ -477,8 +491,21 @@ pub mod NFTFactory {
         fn _set_referral_percentages(ref self: ContractState, percentages: Span<u16>) {
             assert(percentages.len() == 5, super::Errors::WRONG_PERCENTAGES_LEN);
 
+            // Remove all existing entries by popping until empty (clear() is not available on storage Vec)
+            while self.used_to_percentage.len().is_non_zero() {
+                let _ = self.used_to_percentage.pop();
+            };
+
+            let scaling_factor: u16 = 10000;
             for i in 0..percentages.len() {
-                self.used_to_percentage.append().write(*percentages.at(i));
+                let percentage_val = *percentages.at(i);
+                assert(
+                    percentage_val <= scaling_factor &&
+                    (percentage_val.is_non_zero() || i == 0),
+                    super::Errors::WRONG_PERCENTAGE,
+                );
+
+                self.used_to_percentage.push(percentage_val);
             };
         }
 
@@ -514,5 +541,28 @@ pub mod NFTFactory {
 
             creator
         }
+
+        fn _assert_not_expired(self: @ContractState, deadline: u128) {
+            if deadline == 0 {
+                return;
+            }
+
+            let current_timestamp: u64 = get_block_timestamp();
+            assert(current_timestamp.into() <= deadline, super::Errors::DEADLINE_EXPIRED);
+        }
+
+        fn _assert_snip12_identifier(self: @ContractState, id: ByteArray) {
+            // allowed: ASCII letters/digits/space/-/_/./ (adjust to SNIP-12 set)
+            let len = id.len();
+            assert(len.is_non_zero(), super::Errors::EMPTY_STRING);
+
+            for i in 0..len {
+                // `at` returns an Option; range is bounded by len so unwrap is safe.
+                let b = id.at(i).expect(super::Errors::OOB_INDEX);
+                assert(b != '(' && b != ')' && b != ',', super::Errors::BAD_CHAR);
+                assert(b >= 0x20 && b <= 0x7E, super::Errors::NON_ASCII);
+            }
+        }
+
     }
 }

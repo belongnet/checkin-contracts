@@ -13,13 +13,15 @@ mod Errors {
     pub const INITIALIZE_ONLY_ONCE: felt252 = 'Initialize only once';
     pub const WRONG_ARRAY_SIZE: felt252 = 'Wrong array size';
     pub const VALIDATION_ERROR: felt252 = 'Invalid signature';
+    pub const DEADLINE_EXPIRED: felt252 = 'Signature deadline expired';
 }
 
 #[starknet::contract]
 pub mod NFT {
-    use core::num::traits::Zero;
+    use core::{num::traits::Zero, traits::Into};
     use starknet::{
-        ClassHash, ContractAddress, event::EventEmitter, get_caller_address,
+        ClassHash, ContractAddress, event::EventEmitter, get_block_timestamp, get_caller_address,
+        get_contract_address,
         storage::{
             StoragePointerReadAccess, StoragePointerWriteAccess, Map, StorageMapReadAccess,
             StorageMapWriteAccess,
@@ -39,6 +41,7 @@ pub mod NFT {
         snip12::{
             static_price_hash::{MessageStaticPriceHash, StaticPriceHash},
             dynamic_price_hash::{MessageDynamicPriceHash, DynamicPriceHash},
+            interfaces::SignatureProtection
         },
         nft::interface::{INFT, NftParameters, DynamicPriceParameters, StaticPriceParameters},
         nftfactory::interface::{INFTFactoryDispatcher, INFTFactoryDispatcherTrait},
@@ -184,19 +187,21 @@ pub mod NFT {
 
         fn mintDynamicPrice(
             ref self: ContractState,
+            signaturesProtection: Array<SignatureProtection>,
             dynamicParams: Array<DynamicPriceParameters>,
             expectedPayingToken: ContractAddress,
         ) {
-            self._mint_dynamic_price_batch(dynamicParams, expectedPayingToken);
+            self._mint_dynamic_price_batch(signaturesProtection, dynamicParams, expectedPayingToken);
         }
 
         fn mintStaticPrice(
             ref self: ContractState,
+            signaturesProtection: Array<SignatureProtection>,
             staticParams: Array<StaticPriceParameters>,
             expectedPayingToken: ContractAddress,
             expectedMintPrice: u256,
         ) {
-            self._mint_static_price_batch(staticParams, expectedPayingToken, expectedMintPrice);
+            self._mint_static_price_batch(signaturesProtection, staticParams, expectedPayingToken, expectedMintPrice);
         }
 
         fn nftParameters(self: @ContractState) -> NftParameters {
@@ -224,7 +229,7 @@ pub mod NFT {
         }
 
         fn isWhitelisted(self: @ContractState, whitelisted: ContractAddress) -> bool {
-            self.nft_node.whitelisted.read(whitelisted)
+            self.is_whitelisted(whitelisted)
         }
 
         fn tokenUriHash(self: @ContractState, token_uri: ByteArray) -> felt252 {
@@ -278,6 +283,7 @@ pub mod NFT {
 
         fn _mint_dynamic_price_batch(
             ref self: ContractState,
+            signatures_protection: Array<SignatureProtection>,
             dynamic_params: Array<DynamicPriceParameters>,
             expected_paying_token: ContractAddress,
         ) {
@@ -291,11 +297,17 @@ pub mod NFT {
 
             let mut amount_to_pay = 0;
             for i in 0..array_size {
+                let protection_ref = signatures_protection.at(i);
                 let params_ref = dynamic_params.at(i);
+
+                self._assert_not_expired(*protection_ref.deadline);
 
                 let token_uri_hash: felt252 = params_ref.token_uri.hash();
 
                 let message = DynamicPriceHash {
+                    verifying_contract: get_contract_address(),
+                    nonce: *protection_ref.nonce,
+                    deadline: *protection_ref.deadline,
                     receiver: *params_ref.receiver,
                     token_id: *params_ref.token_id,
                     price: *params_ref.price,
@@ -304,7 +316,7 @@ pub mod NFT {
 
                 let is_valid_signature_felt = signer
                     .is_valid_signature(
-                        message.get_message_hash(signerAddress), params_ref.signature.clone(),
+                        message.get_message_hash(signerAddress), protection_ref.signature.clone(),
                     );
 
                 assert(
@@ -327,6 +339,7 @@ pub mod NFT {
 
         fn _mint_static_price_batch(
             ref self: ContractState,
+            signatures_protection: Array<SignatureProtection>,
             static_params: Array<StaticPriceParameters>,
             expected_paying_token: ContractAddress,
             expected_mint_price: u256,
@@ -341,11 +354,17 @@ pub mod NFT {
 
             let mut amount_to_pay = 0;
             for i in 0..array_size {
+                let protection_ref = signatures_protection.at(i);
                 let params_ref = static_params.at(i);
+
+                self._assert_not_expired(*protection_ref.deadline);
 
                 let token_uri_hash: felt252 = params_ref.token_uri.hash();
 
                 let message = StaticPriceHash {
+                    verifying_contract: get_contract_address(),
+                    nonce: *protection_ref.nonce,
+                    deadline: *protection_ref.deadline,
                     receiver: *params_ref.receiver,
                     token_id: *params_ref.token_id,
                     whitelisted: *params_ref.whitelisted,
@@ -354,13 +373,14 @@ pub mod NFT {
 
                 let is_valid_signature_felt = signer
                     .is_valid_signature(
-                        message.get_message_hash(signerAddress), params_ref.signature.clone(),
+                        message.get_message_hash(signerAddress), protection_ref.signature.clone(),
                     );
 
                 assert(
                     is_valid_signature_felt == starknet::VALIDATED || is_valid_signature_felt == 1,
                     super::Errors::VALIDATION_ERROR,
                 );
+                assert(self.is_whitelisted(*params_ref.receiver) == *params_ref.whitelisted, super::Errors::VALIDATION_ERROR);
 
                 let mint_price = if *params_ref.whitelisted {
                     self.nft_parameters.whitelisted_mint_price.read()
@@ -390,7 +410,7 @@ pub mod NFT {
             token_uri: ByteArray,
         ) {
             assert(
-                token_id + 1 <= self.nft_parameters.max_total_supply.read(),
+                self.totalSupply() + 1 <= self.nft_parameters.max_total_supply.read(),
                 super::Errors::TOTAL_SUPPLY_LIMIT,
             );
 
@@ -477,6 +497,19 @@ pub mod NFT {
 
         fn _token_uri_hash(self: @ContractState, token_uri: ByteArray) -> felt252 {
             token_uri.hash()
+        }
+
+        fn is_whitelisted(self: @ContractState, whitelisted: ContractAddress) -> bool {
+            self.nft_node.whitelisted.read(whitelisted)
+        }
+
+        fn _assert_not_expired(self: @ContractState, deadline: u128) {
+            if deadline == 0 {
+                return;
+            }
+
+            let current_timestamp: u64 = get_block_timestamp();
+            assert(current_timestamp.into() <= deadline, super::Errors::DEADLINE_EXPIRED);
         }
     }
 }
