@@ -62,8 +62,13 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Thrown when the deployed VestingWallet proxy address does not match the predicted address.
     error VestingWalletAddressMismatch();
 
-    /// @notice Thrown when the caller does not hold enough tokens to fully fund the vesting wallet.
+    /// @notice Thrown when the caller does not hold enough tokens for the requested vesting wallet funding amount.
     error NotEnoughFundsToVest();
+
+    /// @notice Initial funding amount exceeds vesting wallet allocation.
+    /// @param initialFunding Requested upfront funding amount.
+    /// @param totalAllocation Maximum vesting allocation configured for the wallet.
+    error InitialFundingExceedsAllocation(uint256 initialFunding, uint256 totalAllocation);
 
     /// @notice Invalid combination of `durationSeconds` and `cliffDurationSeconds`.
     /// @param duration Provided linear duration in seconds.
@@ -219,6 +224,12 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         _setReferralParameters(percentages, maxArrayLength);
     }
 
+    function upgradeToV3(address vestingWalletImplementation) external reinitializer(3) {
+        Implementations memory impls = _currentImplementations;
+        impls.vestingWallet = vestingWalletImplementation;
+        _setFactoryParameters(_nftFactoryParameters, _royaltiesParameters, impls);
+    }
+
     // ========== Creation Flows ==========
 
     /// @notice Produces a new AccessToken collection (upgradeable proxy) and optional RoyaltiesReceiver.
@@ -323,7 +334,7 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         emit CreditTokenCreated(hashedSalt, ctInfo);
     }
 
-    /// @notice Deploys and funds a VestingWallet proxy with a validated schedule.
+    /// @notice Deploys and fully funds a VestingWallet proxy with a validated schedule.
     /// @dev
     /// - Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
     /// - Requires caller to hold at least `totalAllocation` of the vesting token.
@@ -332,15 +343,75 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// - Transfers `totalAllocation` from caller to the newly deployed vesting wallet.
     /// @param _owner Owner address for the vesting wallet proxy.
     /// @param vestingWalletInfo Full vesting configuration and description.
+    /// @param protection Signature payload with `nonce`, `deadline`, and signer signature.
     /// @return vestingWallet The deployed VestingWallet proxy address.
     function deployVestingWallet(
         address _owner,
         VestingWalletInfo calldata vestingWalletInfo,
         SignatureVerifier.SignatureProtection calldata protection
     ) external returns (address vestingWallet) {
+        vestingWallet = _deployVestingWallet(_owner, vestingWalletInfo, protection, vestingWalletInfo.totalAllocation);
+    }
+
+    /// @notice Deploys a VestingWallet proxy without upfront funding.
+    /// @dev
+    /// - Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
+    /// - Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
+    /// - Does not transfer vesting tokens on deployment.
+    /// @param _owner Owner address for the vesting wallet proxy.
+    /// @param vestingWalletInfo Full vesting configuration and description.
+    /// @param protection Signature payload with `nonce`, `deadline`, and signer signature.
+    /// @return vestingWallet The deployed VestingWallet proxy address.
+    function deployVestingWalletWithoutInitialFunding(
+        address _owner,
+        VestingWalletInfo calldata vestingWalletInfo,
+        SignatureVerifier.SignatureProtection calldata protection
+    ) external returns (address vestingWallet) {
+        vestingWallet = _deployVestingWallet(_owner, vestingWalletInfo, protection, 0);
+    }
+
+    /// @notice Deploys a VestingWallet proxy with a custom initial funding amount.
+    /// @dev
+    /// - Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
+    /// - Supports partial or full upfront funding depending on `initialFunding`.
+    /// - Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
+    /// - If `initialFunding > 0`, transfers that amount from caller to the deployed vesting wallet.
+    /// @param _owner Owner address for the vesting wallet proxy.
+    /// @param vestingWalletInfo Full vesting configuration and description.
+    /// @param protection Signature payload with `nonce`, `deadline`, and signer signature.
+    /// @param initialFunding Amount transferred to the wallet on deploy (must be `<= totalAllocation`).
+    /// @return vestingWallet The deployed VestingWallet proxy address.
+    function deployVestingWalletWithInitialFunding(
+        address _owner,
+        VestingWalletInfo calldata vestingWalletInfo,
+        SignatureVerifier.SignatureProtection calldata protection,
+        uint256 initialFunding
+    ) external returns (address vestingWallet) {
+        vestingWallet = _deployVestingWallet(_owner, vestingWalletInfo, protection, initialFunding);
+    }
+
+    /// @notice Internal deployment routine shared by all vesting wallet deployment entrypoints.
+    /// @dev
+    /// - Validates initial funding bounds and signature authorization.
+    /// - Allows partial or zero initial funding, with later top-ups handled externally.
+    /// - Deploys deterministic ERC1967 proxy and records instance metadata by beneficiary.
+    /// @param _owner Owner address for the vesting wallet proxy.
+    /// @param vestingWalletInfo Full vesting configuration and description.
+    /// @param protection Signature payload with `nonce`, `deadline`, and signer signature.
+    /// @param initialFunding Amount transferred to the wallet on deploy.
+    /// @return vestingWallet The deployed vesting wallet proxy address.
+    function _deployVestingWallet(
+        address _owner,
+        VestingWalletInfo calldata vestingWalletInfo,
+        SignatureVerifier.SignatureProtection calldata protection,
+        uint256 initialFunding
+    ) internal returns (address vestingWallet) {
         require(
-            vestingWalletInfo.token.balanceOf(msg.sender) >= vestingWalletInfo.totalAllocation, NotEnoughFundsToVest()
+            initialFunding <= vestingWalletInfo.totalAllocation,
+            InitialFundingExceedsAllocation(initialFunding, vestingWalletInfo.totalAllocation)
         );
+
+        require(vestingWalletInfo.token.balanceOf(msg.sender) >= initialFunding, NotEnoughFundsToVest());
 
         // allow pure step-based (duration=0), or valid cliff+duration
         if (vestingWalletInfo.durationSeconds == 0 && vestingWalletInfo.linearAllocation != 0) {
@@ -367,7 +438,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         require(predictedVestingWallet == vestingWallet, VestingWalletAddressMismatch());
         VestingWalletExtended(vestingWallet).initialize(_owner, vestingWalletInfo);
 
-        vestingWalletInfo.token.safeTransferFrom(msg.sender, vestingWallet, vestingWalletInfo.totalAllocation);
+        if (initialFunding > 0) {
+            vestingWalletInfo.token.safeTransferFrom(msg.sender, vestingWallet, initialFunding);
+        }
 
         VestingWalletInstanceInfo memory vestingWalletInstanceInfo = VestingWalletInstanceInfo({
             startTimestamp: vestingWalletInfo.startTimestamp,
@@ -478,8 +551,8 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @param _implementations New implementation addresses.
     function _setFactoryParameters(
         FactoryParameters memory factoryParameters_,
-        RoyaltiesParameters calldata _royalties,
-        Implementations calldata _implementations
+        RoyaltiesParameters memory _royalties,
+        Implementations memory _implementations
     ) private {
         require(_royalties.amountToCreator + _royalties.amountToPlatform == 10000, TotalRoyaltiesNot100Percent());
 

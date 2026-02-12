@@ -29,12 +29,18 @@ import {
 /// - Uses `abi.encode` for collision-safe hashing of multiple dynamic fields.
 /// - Mint digests are bound to the specific verifying contract, include `nonce` and `deadline`,
 ///   and hash dynamic strings with `keccak256(bytes(...))` to avoid ambiguity.
+/// - `nonce` is part of the signed digest, but this library does not store/consume nonces;
+///   replay protection must be enforced by the integrating contract and/or backend policy.
 library SignatureVerifier {
     using SignatureCheckerLib for address;
 
     struct SignatureProtection {
+        /// @notice Arbitrary nonce included into the signed digest.
+        /// @dev This value is not consumed or tracked by this library.
         uint256 nonce;
+        /// @notice Signature validity deadline (unix timestamp, seconds).
         uint256 deadline;
+        /// @notice ECDSA / ERC1271-compatible signature bytes.
         bytes signature;
     }
 
@@ -144,9 +150,13 @@ library SignatureVerifier {
 
     /// @notice Verifies VestingWallet deployment payload including owner and schedule parameters.
     /// @dev Hash covers: `owner`, `startTimestamp`, `cliffDurationSeconds`, `durationSeconds`,
-    ///      `token`, `beneficiary`, `totalAllocation`, `tgeAmount`, `linearAllocation`, `description`, and `chainId`.
+    ///      `token`, `beneficiary`, `totalAllocation`, `tgeAmount`, `linearAllocation`, and `chainId`.
     ///      Uses `abi.encode` (not packed).
+    ///      `vestingWalletInfo.description` is intentionally not part of the signed digest.
     /// @param signer Authorized signer address.
+    /// @param verifyingContract Address expected in the signed payload.
+    /// @param protection Signature payload with `nonce`, `deadline`, and signer signature.
+    /// @param owner Intended vesting wallet owner.
     /// @param vestingWalletInfo Full vesting schedule configuration and metadata.
     function checkVestingWalletInfo(
         address signer,

@@ -299,7 +299,7 @@ function release() external
 
 Releases all currently vested, unreleased tokens to the beneficiary.
 
-_Computes `vestedAmount(now) - released` and transfers that delta._
+_Computes `min(vestedAmount(now) - released, tokenBalance)` and transfers that amount._
 
 ### vestedAmount
 
@@ -329,7 +329,7 @@ _Sums TGE (if past start), all fully vested tranches by `timestamp`, and linear 
 function releasable() public view returns (uint256)
 ```
 
-Returns the currently releasable amount (vested minus already released).
+Returns the currently releasable amount (capped by current wallet balance).
 
 #### Return Values
 
@@ -434,4 +434,3 @@ Authorizes UUPS upgrades; restricted to owner.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 |  | address |  |
-

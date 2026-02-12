@@ -87,6 +87,7 @@ describe('VestingWalletExtended', () => {
       LONG.address,
       signer.privateKey,
       admin, // owner
+      info.totalAllocation,
     );
 
     const startStepBased = (await time.latest()) + 5;
@@ -111,6 +112,7 @@ describe('VestingWalletExtended', () => {
       LONG.address,
       signer.privateKey,
       admin, // owner
+      infoStepBased.totalAllocation,
     );
 
     return {
@@ -119,6 +121,7 @@ describe('VestingWalletExtended', () => {
       alice,
       bob,
       charlie,
+      signer,
       LONG,
       vestingWallet,
       vestingWalletStepBased,
@@ -179,6 +182,23 @@ describe('VestingWalletExtended', () => {
           description,
         } as VestingWalletInfoStruct),
       ).to.be.revertedWithCustomError(vestingWallet, 'InvalidInitialization');
+    });
+
+    it('factory deployment should revert when owner is zero address', async () => {
+      const { vestingWallet, factory, signer, info, admin } = await loadFixture(fixture);
+
+      const protection = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        ethers.constants.AddressZero,
+        info,
+      );
+
+      await expect(
+        factory
+          .connect(admin)
+          .deployVestingWalletWithoutInitialFunding(ethers.constants.AddressZero, info, protection),
+      ).to.be.revertedWithCustomError(vestingWallet, 'ZeroAddressPassed');
     });
   });
 
@@ -410,6 +430,86 @@ describe('VestingWalletExtended', () => {
 
       await expect(vestingWallet.release()).to.be.revertedWithCustomError(vestingWallet, 'NothingToRelease');
     });
+
+    it('finalize() should not require upfront funding', async () => {
+      const { admin, bob, signer, factory, LONG, info } = await loadFixture(fixture);
+
+      const underfundedInfo: VestingWalletInfoStruct = {
+        ...info,
+        beneficiary: bob.address,
+        description: 'Underfunded vesting',
+      };
+
+      const underfundedWallet: VestingWalletExtended = await deployVestingWallet(
+        underfundedInfo,
+        factory.address,
+        LONG.address,
+        signer.privateKey,
+        admin,
+        0,
+      );
+
+      await underfundedWallet.connect(admin).addTranche({
+        timestamp: underfundedInfo.startTimestamp + 120,
+        amount: E('30'),
+      });
+
+      const finalizeTx = underfundedWallet.connect(admin).finalizeTranchesConfiguration();
+      await expect(finalizeTx).to.emit(underfundedWallet, 'Finalized');
+
+      await LONG.transfer(underfundedWallet.address, E('50'));
+      await LONG.transfer(underfundedWallet.address, E('50'));
+
+      await increaseToStrict(underfundedInfo.startTimestamp + 1);
+      expect(await underfundedWallet.vestedAmount(underfundedInfo.startTimestamp + 1)).to.eq(E('10'));
+      expect(await underfundedWallet.releasable()).to.eq(E('10'));
+
+      await underfundedWallet.release();
+      expect(await underfundedWallet.released()).to.eq(E('10'));
+    });
+
+    it('release() should pay available funds when wallet is underfunded', async () => {
+      const { admin, bob, signer, factory, LONG, info } = await loadFixture(fixture);
+
+      const underfundedInfo: VestingWalletInfoStruct = {
+        ...info,
+        beneficiary: bob.address,
+        description: 'Underfunded vesting',
+      };
+
+      const underfundedWallet: VestingWalletExtended = await deployVestingWallet(
+        underfundedInfo,
+        factory.address,
+        LONG.address,
+        signer.privateKey,
+        admin,
+        0,
+      );
+
+      await underfundedWallet.connect(admin).addTranche({
+        timestamp: underfundedInfo.startTimestamp + 120,
+        amount: E('30'),
+      });
+      await underfundedWallet.connect(admin).finalizeTranchesConfiguration();
+
+      await increaseToStrict(underfundedInfo.startTimestamp + 1);
+
+      expect(await underfundedWallet.vestedAmount(underfundedInfo.startTimestamp + 1)).to.eq(E('10'));
+      expect(await underfundedWallet.releasable()).to.eq(0);
+
+      await LONG.transfer(underfundedWallet.address, E('4'));
+      expect(await underfundedWallet.releasable()).to.eq(E('4'));
+
+      const beneficiaryBalanceBefore = await LONG.balanceOf(bob.address);
+      await underfundedWallet.release();
+      expect((await LONG.balanceOf(bob.address)).sub(beneficiaryBalanceBefore)).to.eq(E('4'));
+      expect(await underfundedWallet.released()).to.eq(E('4'));
+
+      await LONG.transfer(underfundedWallet.address, E('6'));
+      expect(await underfundedWallet.releasable()).to.eq(E('6'));
+      await underfundedWallet.release();
+      expect(await underfundedWallet.released()).to.eq(E('10'));
+    });
   });
 
   describe('Step-based only (duration = 0, linear = 0)', () => {
@@ -477,7 +577,11 @@ describe('VestingWalletExtended', () => {
 
       await LONG.approve(factory.address, info.totalAllocation);
 
-      await expect(factory.connect(admin).deployVestingWallet(admin.address, info, protection))
+      await expect(
+        factory
+          .connect(admin)
+          .deployVestingWalletWithInitialFunding(admin.address, info, protection, info.totalAllocation),
+      )
         .to.be.revertedWithCustomError(factory, 'AllocationMismatch')
         .withArgs(info.totalAllocation);
     });

@@ -3,10 +3,16 @@ import { ethers, upgrades } from 'hardhat';
 import { waitForNextBlock } from '../../../helpers/wait';
 import { verifyContract } from '../../../helpers/verify';
 
-const ENV_UPGRADE = process.env.UPGRADE?.toLowerCase() === 'true';
-const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
-const UPGRADE = ENV_UPGRADE ?? true; // <-- ENV_UPGRADE is `false` (not nullish), so UPGRADE=false
-const VERIFY = ENV_VERIFY ?? true; // same
+function parseBoolEnv(value: string | undefined, defaultValue: boolean): boolean {
+  if (value === undefined) {
+    return defaultValue;
+  }
+  return value.toLowerCase() === 'true';
+}
+
+const UPGRADE = parseBoolEnv(process.env.UPGRADE, true);
+const VERIFY = parseBoolEnv(process.env.VERIFY, true);
+const REFERRAL_MAX_ARRAY_LENGTH = Number(process.env.REFERRAL_MAX_ARRAY_LENGTH ?? '20');
 
 async function main() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -40,16 +46,47 @@ async function main() {
       accessToken: deployments.AccessTokenImplementation.address,
       creditToken: deployments.CreditTokenImplementation.address,
       royaltiesReceiver: deployments.RoyaltiesReceiverV2Implementation.address,
+      vestingWallet: deployments.VestingWalletImplementation.address,
     };
+    const referralPercentages = [0, 0, 0, 0, 0] as [number, number, number, number, number];
+    const factoryBeforeUpgrade = await ethers.getContractAt('Factory', deployments.Factory.proxy);
+    for (let i = 0; i < referralPercentages.length; i += 1) {
+      referralPercentages[i] = Number((await factoryBeforeUpgrade.usedToPercentage(i)).toString());
+    }
 
     const upgraded = await upgrades.upgradeProxy(deployments.Factory.proxy, FactoryV2, {
       kind: 'transparent',
-      call: { fn: 'upgradeToV2', args: [royalties, implementations] },
       unsafeAllow: ['constructor'],
       unsafeAllowLinkedLibraries: true,
     });
 
     await waitForNextBlock();
+
+    // `upgradeToV2` is one-time (reinitializer(2)); skip if already initialized.
+    const upgradedFactory = await ethers.getContractAt('Factory', upgraded.address);
+    try {
+      await upgradedFactory.callStatic.upgradeToV2(
+        royalties,
+        implementations,
+        referralPercentages,
+        REFERRAL_MAX_ARRAY_LENGTH,
+      );
+      const upgradeToV2Tx = await upgradedFactory.upgradeToV2(
+        royalties,
+        implementations,
+        referralPercentages,
+        REFERRAL_MAX_ARRAY_LENGTH,
+      );
+      await upgradeToV2Tx.wait();
+      console.log('Factory upgradeToV2() executed.');
+    } catch (error: any) {
+      const message = error?.message ?? '';
+      if (message.includes('InvalidInitialization')) {
+        console.log('Factory already initialized to v2; skipping upgradeToV2().');
+      } else {
+        throw error;
+      }
+    }
 
     const newImpl = await upgrades.erc1967.getImplementationAddress(upgraded.address);
     console.log('Upgraded proxy still at:', upgraded.address);

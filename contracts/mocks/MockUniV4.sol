@@ -6,6 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IActionExecutor} from "../v2/interfaces/IActionExecutor.sol";
 import {IV4Router as IUniV4Router} from "@uniswap/v4-periphery/src/interfaces/IV4Router.sol";
 import {IV4Quoter} from "@uniswap/v4-periphery/src/interfaces/IV4Quoter.sol";
+import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 
 /// @notice Minimal Uniswap v4 router mock that swaps at a fixed rate.
 contract MockUniV4Router is IActionExecutor {
@@ -36,21 +37,33 @@ contract MockUniV4Router is IActionExecutor {
         IUniV4Router.ExactInputSingleParams memory swapParams =
             abi.decode(params[0], (IUniV4Router.ExactInputSingleParams));
 
-        address tokenIn = swapParams.zeroForOne ? address(usdToken) : address(longToken);
-        address tokenOut = swapParams.zeroForOne ? address(longToken) : address(usdToken);
+        address currency0 = Currency.unwrap(swapParams.poolKey.currency0);
+        address currency1 = Currency.unwrap(swapParams.poolKey.currency1);
+        address tokenIn = swapParams.zeroForOne ? currency0 : currency1;
+        address tokenOut = swapParams.zeroForOne ? currency1 : currency0;
 
         (, address recipient,) = abi.decode(params[params.length - 1], (address, address, uint256));
 
         uint256 amountIn = uint256(swapParams.amountIn);
         if (amountIn == 0) return;
 
-        uint256 amountOut = swapParams.zeroForOne ? (amountIn * rate) / 1e18 : (amountIn * 1e18) / rate;
+        uint256 amountOut = _quote(tokenIn, tokenOut, amountIn);
         if (amountOut < uint256(swapParams.amountOutMinimum)) revert("MockUniV4Router: slippage");
 
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
         IERC20(tokenOut).transfer(recipient, amountOut);
 
         emit MockSwap(msg.sender, recipient, amountIn, amountOut);
+    }
+
+    function _quote(address tokenIn, address tokenOut, uint256 amountIn) internal view returns (uint256) {
+        if (tokenIn == address(usdToken) && tokenOut == address(longToken)) {
+            return (amountIn * rate) / 1e18;
+        }
+        if (tokenIn == address(longToken) && tokenOut == address(usdToken)) {
+            return (amountIn * 1e18) / rate;
+        }
+        revert("MockUniV4Router: pair");
     }
 }
 

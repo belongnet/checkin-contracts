@@ -15,6 +15,7 @@ import {VestingWalletInfo} from "../Structures.sol";
 ///   and optional monotonic time-ordered tranches between `start` and `end`.
 /// - Tranche configuration must be finalized so that TGE + linear allocation + tranches
 ///   exactly equals `totalAllocation` before any release.
+/// - Upfront funding is optional; payouts are always capped by this wallet's current token balance.
 /// - Inherits UUPS upgradeability and Solady's `Ownable`/`Initializable`.
 contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     using SafeTransferLib for address;
@@ -105,9 +106,14 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     /// @notice Initializes the vesting wallet with the given owner and vesting parameters.
+    /// @dev Reverts if owner, token, or beneficiary is zero address.
     /// @param _owner Address that will become the contract owner.
     /// @param vestingParams Full vesting configuration (TGE, cliff, linear, tranches metadata).
+    /// @custom:reverts ZeroAddressPassed If `_owner`, `vestingParams.token`, or `vestingParams.beneficiary` is zero.
     function initialize(address _owner, VestingWalletInfo calldata vestingParams) external initializer {
+        if (_owner == address(0) || vestingParams.token == address(0) || vestingParams.beneficiary == address(0)) {
+            revert ZeroAddressPassed();
+        }
         vestingStorage = vestingParams;
         _initializeOwner(_owner);
     }
@@ -182,7 +188,9 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
     }
 
     /// @notice Finalizes tranche configuration; makes vesting schedule immutable.
-    /// @dev Ensures TGE + linear + tranches equals `totalAllocation` before finalization.
+    /// @dev
+    /// - Ensures TGE + linear + tranches equals `totalAllocation` before finalization.
+    /// - Does not require the wallet to already hold `totalAllocation` tokens.
     function finalizeTranchesConfiguration() external onlyOwner vestingNotFinalized {
         VestingWalletInfo storage _vestingStorage = vestingStorage;
 
@@ -191,19 +199,18 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         require(_currentAllocation == _totalAllocation, AllocationNotBalanced(_currentAllocation, _totalAllocation));
 
         tranchesConfigurationFinalized = true;
+
         emit Finalized(block.timestamp);
     }
 
     /// @notice Releases all currently vested, unreleased tokens to the beneficiary.
-    /// @dev Computes `vestedAmount(now) - released` and transfers that delta.
+    /// @dev Computes `min(vestedAmount(now) - released, tokenBalance)` and transfers that amount.
     /// @custom:reverts NothingToRelease If there is no amount to release.
     function release() external shouldBeFinalized {
-        uint256 _released = released;
-        uint256 amount = vestedAmount(uint64(block.timestamp)) - _released;
+        uint256 amount = releasable();
         require(amount > 0, NothingToRelease());
-
         VestingWalletInfo storage _vestingStorage = vestingStorage;
-
+        uint256 _released = released;
         address _token = _vestingStorage.token;
 
         released = _released + amount;
@@ -251,10 +258,12 @@ contract VestingWalletExtended is Initializable, UUPSUpgradeable, Ownable {
         }
     }
 
-    /// @notice Returns the currently releasable amount (vested minus already released).
+    /// @notice Returns the currently releasable amount (capped by current wallet balance).
     /// @return The amount that can be released at the current block timestamp.
     function releasable() public view returns (uint256) {
-        return vestedAmount(uint64(block.timestamp)) - released;
+        uint256 bySchedule = vestedAmount(uint64(block.timestamp)) - released;
+        uint256 currentBalance = vestingStorage.token.balanceOf(address(this));
+        return bySchedule > currentBalance ? currentBalance : bySchedule;
     }
 
     // ========= Views =========

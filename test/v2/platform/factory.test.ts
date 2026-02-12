@@ -763,6 +763,95 @@ describe('Factory', () => {
       expect(await LONG.balanceOf(vestingWallet.address)).to.eq(vestingWalletInfo.totalAllocation);
     });
 
+    it('should deploy VestingWallet without or with custom initial funding', async () => {
+      const { LONG, factory, owner, alice, bob, signer } = await loadFixture(fixture);
+
+      const description = 'VestingWallet optional funding';
+
+      const now = await time.latest();
+      const startTimestamp = now + 5;
+      const cliffDurationSeconds = 60;
+      const durationSeconds = 360;
+
+      const vestingWalletInfo: VestingWalletInfoStruct = {
+        startTimestamp,
+        cliffDurationSeconds,
+        durationSeconds,
+        token: LONG.address,
+        beneficiary: alice.address,
+        totalAllocation: ethers.utils.parseEther('100'),
+        tgeAmount: ethers.utils.parseEther('10'),
+        linearAllocation: ethers.utils.parseEther('60'),
+        description,
+      };
+
+      const vestingInfoProtection = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        owner.address,
+        vestingWalletInfo,
+      );
+
+      const invalidInitialFunding = vestingWalletInfo.totalAllocation.add(1);
+      await expect(
+        factory
+          .connect(owner)
+          .deployVestingWalletWithInitialFunding(
+            owner.address,
+            vestingWalletInfo,
+            vestingInfoProtection,
+            invalidInitialFunding,
+          ),
+      )
+        .to.be.revertedWithCustomError(factory, 'InitialFundingExceedsAllocation')
+        .withArgs(invalidInitialFunding, vestingWalletInfo.totalAllocation);
+
+      const tx = await factory
+        .connect(alice)
+        .deployVestingWalletWithoutInitialFunding(owner.address, vestingWalletInfo, vestingInfoProtection);
+
+      await expect(tx).to.emit(factory, 'VestingWalletCreated');
+
+      const vestingWalletInstanceInfo = await factory.getVestingWalletInstanceInfo(vestingWalletInfo.beneficiary, 0);
+      expect(vestingWalletInstanceInfo.vestingWallet).to.not.be.equal(ZERO_ADDRESS);
+
+      const vestingWallet: VestingWalletExtended = await ethers.getContractAt(
+        'VestingWalletExtended',
+        vestingWalletInstanceInfo.vestingWallet,
+      );
+
+      expect(await vestingWallet.owner()).to.be.equal(owner.address);
+      expect(await LONG.balanceOf(vestingWallet.address)).to.eq(0);
+
+      const partialFundingInfo: VestingWalletInfoStruct = {
+        ...vestingWalletInfo,
+        beneficiary: bob.address,
+        description: 'VestingWallet partial funding',
+      };
+
+      const partialFundingProtection = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        owner.address,
+        partialFundingInfo,
+      );
+      const partialFundingAmount = ethers.utils.parseEther('25');
+
+      await LONG.approve(factory.address, partialFundingAmount);
+      await factory
+        .connect(owner)
+        .deployVestingWalletWithInitialFunding(
+          owner.address,
+          partialFundingInfo,
+          partialFundingProtection,
+          partialFundingAmount,
+        );
+
+      const partialFundingInstanceInfo = await factory.getVestingWalletInstanceInfo(partialFundingInfo.beneficiary, 0);
+      expect(partialFundingInstanceInfo.vestingWallet).to.not.be.equal(ZERO_ADDRESS);
+      expect(await LONG.balanceOf(partialFundingInstanceInfo.vestingWallet)).to.eq(partialFundingAmount);
+    });
+
     it('should correctly deploy several VestingWallets', async () => {
       const { LONG, factory, owner, alice, bob, charlie, signer } = await loadFixture(fixture);
 
