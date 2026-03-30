@@ -19,6 +19,30 @@ enum DexType {
   UniV3,
 }
 
+const BPS_27 = ethers.utils.parseUnits('1', 27);
+const DEFAULT_CHECKIN_SLIPPAGE_BPS = 100;
+const DEFAULT_MAX_PRICE_FEED_DELAY = 3600;
+
+function parseCheckInSlippageBps(rawValue: string | undefined): BigNumber {
+  const slippageBps = Number(rawValue ?? DEFAULT_CHECKIN_SLIPPAGE_BPS);
+  if (!Number.isInteger(slippageBps) || slippageBps < 0 || slippageBps > 10_000) {
+    throw new Error(`Invalid CHECKIN_SLIPPAGE_BPS: ${String(rawValue ?? DEFAULT_CHECKIN_SLIPPAGE_BPS)}`);
+  }
+
+  return BPS_27.mul(slippageBps).div(10_000);
+}
+
+function parseMaxPriceFeedDelay(rawValue: string | undefined): number {
+  const maxPriceFeedDelay = Number(rawValue ?? DEFAULT_MAX_PRICE_FEED_DELAY);
+  if (!Number.isInteger(maxPriceFeedDelay) || maxPriceFeedDelay <= 0) {
+    throw new Error(
+      `Invalid CHECKIN_MAX_PRICE_FEED_DELAY: ${String(rawValue ?? DEFAULT_MAX_PRICE_FEED_DELAY)}`,
+    );
+  }
+
+  return maxPriceFeedDelay;
+}
+
 const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
 const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
 const DEPLOY = ENV_DEPLOY ?? true; // <-- ENV_UPGRADE is `false` (not nullish), so UPGRADE=false
@@ -107,11 +131,11 @@ async function deploy() {
     // Construct paymentsInfo struct
     const paymentsInfo: DualDexSwapV4Lib.PaymentsInfoStruct = {
       dexType: DexType.PcsV4,
-      slippageBps: BigNumber.from(10).pow(27).sub(1),
+      slippageBps: parseCheckInSlippageBps(process.env.CHECKIN_SLIPPAGE_BPS),
       router,
       usdToken: usdc,
       long: deployments.tokens.long,
-      maxPriceFeedDelay: 86_400,
+      maxPriceFeedDelay: parseMaxPriceFeedDelay(process.env.CHECKIN_MAX_PRICE_FEED_DELAY),
       poolKey: encodePcsPoolKey(usdc, deployments.tokens.long, poolManager, fee, tickSpacing, hooks),
       hookData: hookDataEnv,
     } as DualDexSwapV4Lib.PaymentsInfoStruct;

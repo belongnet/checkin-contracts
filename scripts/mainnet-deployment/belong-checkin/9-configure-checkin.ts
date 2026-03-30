@@ -22,6 +22,9 @@ async function deploy() {
   if (fs.existsSync(deploymentFile)) {
     deployments = JSON.parse(fs.readFileSync(deploymentFile, 'utf-8'));
   }
+  deployments.factory = deployments.factory || {};
+  deployments.checkIn = deployments.checkIn || {};
+  deployments.tokens = deployments.tokens || {};
 
   console.log('Set BelongCheckIn up: ');
 
@@ -145,20 +148,37 @@ async function deploy() {
     console.log('Factory parameters already match env; skipping update.');
   }
 
-  // const belongCheckIn: BelongCheckIn = (await ethers.getContractAt(
-  //   'BelongCheckIn',
-  //   deployments.checkIn.address,
-  // )) as BelongCheckIn;
+  const belongCheckIn: BelongCheckIn = (await ethers.getContractAt(
+    'BelongCheckIn',
+    deployments.checkIn.address,
+  )) as BelongCheckIn;
 
-  // console.log('Setting BelongCheckIn up...');
-  // // await belongCheckIn.setContracts({
-  // //   factory: deployments.factory.proxy,
-  // //   escrow: deployments.checkIn.escrow,
-  // //   staking: deployments.tokens.staking,
-  // //   venueToken: deployments.tokens.venueToken.address,
-  // //   promoterToken: deployments.tokens.promoterToken.address,
-  // //   longPF: deployments.tokens.longPriceFeed,
-  // // } as BelongCheckIn.ContractsStruct);
+  const contractsConfig: BelongCheckIn.ContractsStruct = {
+    factory: deployments.factory.proxy,
+    escrow: deployments.checkIn.escrow,
+    staking: deployments.tokens.staking,
+    venueToken: deployments.tokens.venueToken.address,
+    promoterToken: deployments.tokens.promoterToken.address,
+    longPF: deployments.tokens.longPriceFeed,
+  };
+
+  const currentContracts = (await belongCheckIn.belongCheckInStorage()).contracts;
+  const contractsMatch =
+    currentContracts.factory.toLowerCase() === contractsConfig.factory.toLowerCase() &&
+    currentContracts.escrow.toLowerCase() === contractsConfig.escrow.toLowerCase() &&
+    currentContracts.staking.toLowerCase() === contractsConfig.staking.toLowerCase() &&
+    currentContracts.venueToken.toLowerCase() === contractsConfig.venueToken.toLowerCase() &&
+    currentContracts.promoterToken.toLowerCase() === contractsConfig.promoterToken.toLowerCase() &&
+    currentContracts.longPF.toLowerCase() === contractsConfig.longPF.toLowerCase();
+
+  if (!contractsMatch) {
+    console.log('Updating BelongCheckIn contract references...');
+    const tx = await belongCheckIn.setContracts(contractsConfig);
+    await tx.wait();
+    console.log('BelongCheckIn contract references updated.');
+  } else {
+    console.log('BelongCheckIn contract references already match deployments; skipping update.');
+  }
 
   console.log('Done.');
 }
