@@ -39,7 +39,12 @@
         }
       ]
     },
-    "longPriceFeed": "0x150E23CEae62936C1bA45Ee9d1E009A78f1e364A"
+    "longPriceFeed": "0x540CE45E132893a1e14451ea82Ec2D63e3acaa51",
+    "longPriceFeedMeta": {
+      "decimals": 8,
+      "description": "LONG / USD",
+      "initialAnswer": "100000000"
+    }
   },
   "mocks": {
     "mockUsdc": "0x325EF5CAECbaA15a72419310aDf573bE76759Abc",
