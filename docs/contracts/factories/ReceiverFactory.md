@@ -1,54 +1,22 @@
-# Solidity API
+# ReceiverFactory
 
-## ReceiverFactory
+The current Cairo implementation does not include a standalone `ReceiverFactory` contract.
 
-A factory contract for creating instances of the RoyaltiesReceiver contract
+This file is kept only so older links do not break.
 
-_This contract deploys new instances of RoyaltiesReceiver and assigns payees and shares_
+## Current Behavior
 
-### ReceiverCreated
+Royalty receivers are deployed directly inside `NFTFactory.produce(...)`.
 
-```solidity
-event ReceiverCreated(address creator, contract RoyaltiesReceiver royaltiesReceiver, address[2] payees, uint256[2] shares)
-```
+When `InstanceInfo.royalty_fraction > 0`, the factory:
 
-Emitted when a new RoyaltiesReceiver contract is created
+1. Computes referral information.
+2. Deploys a `Receiver`.
+3. Passes the new receiver address into the `NFT` constructor as the royalty fee receiver.
 
-#### Parameters
+If royalties are disabled, no receiver contract is deployed for that collection.
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| creator | address | The address that deployed the new receiver |
-| royaltiesReceiver | contract RoyaltiesReceiver | The address of the newly created RoyaltiesReceiver contract |
-| payees | address[2] | The list of payees in the RoyaltiesReceiver |
-| shares | uint256[2] | The list of shares corresponding to each payee |
+## See Instead
 
-### deployReceiver
-
-```solidity
-function deployReceiver(address[2] payees, uint256[2] shares) external returns (contract RoyaltiesReceiver royaltiesReceiver)
-```
-
-Deploys a new RoyaltiesReceiver contract
-
-_Creates an instance of `RoyaltiesReceiver` where each account in `payees` is assigned the number of shares
-at the corresponding position in the `shares` array.
-
-Requirements:
-- All addresses in `payees` must be non-zero.
-- Both arrays (`payees` and `shares`) must have the same non-zero length.
-- There must be no duplicate addresses in `payees`._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| payees | address[2] | The array of addresses to receive royalties |
-| shares | uint256[2] | The array of shares corresponding to each payee |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| royaltiesReceiver | contract RoyaltiesReceiver | The address of the newly deployed RoyaltiesReceiver contract |
-
+- [NFTFactory](./NFTFactory.md)
+- [Royalties Receiver](../RoyaltiesReceiver.md)

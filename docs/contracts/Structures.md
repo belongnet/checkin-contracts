@@ -1,143 +1,119 @@
-# Solidity API
+# Core Cairo Structures
 
-## InvalidSignature
+This page summarizes the main Cairo structs used by the active contracts in this repository.
 
-```solidity
-error InvalidSignature()
-```
+## `FactoryParameters`
 
-Error thrown when the signature provided is invalid.
+Defined in `src/nftfactory/interface.cairo`.
 
-## ReferralCode
-
-Struct for managing a referral code and its users.
-
-```solidity
-struct ReferralCode {
-  address creator;
-  address[] referralUsers;
+```cairo
+pub struct FactoryParameters {
+    pub signer: ContractAddress,
+    pub default_payment_currency: ContractAddress,
+    pub platform_address: ContractAddress,
+    pub platform_commission: u256,
+    pub max_array_size: u256,
 }
 ```
 
-## NftFactoryParameters
+Global settings stored by `NFTFactory`.
 
-A struct that contains parameters related to the NFT factory, such as platform and commission details.
+## `InstanceInfo`
 
-_This struct is used to store key configuration information for the NFT factory._
+Defined in `src/nftfactory/interface.cairo`.
 
-```solidity
-struct NftFactoryParameters {
-  address platformAddress;
-  address signerAddress;
-  address defaultPaymentCurrency;
-  uint256 platformCommission;
-  uint256 maxArraySize;
-  address transferValidator;
+```cairo
+pub struct InstanceInfo {
+    pub creator_address: ContractAddress,
+    pub name: ByteArray,
+    pub symbol: ByteArray,
+    pub contract_uri: ByteArray,
+    pub payment_token: ContractAddress,
+    pub royalty_fraction: u128,
+    pub transferrable: bool,
+    pub max_total_supply: u256,
+    pub mint_price: u256,
+    pub whitelisted_mint_price: u256,
+    pub referral_code: felt252,
 }
 ```
 
-## NftParameters
+Payload used by `NFTFactory.produce(...)` to deploy a collection.
 
-A struct that contains all necessary parameters for creating an NFT collection.
+## `NftInfo`
 
-_This struct is used to pass parameters between contracts during the creation of a new NFT collection._
+Defined in `src/nftfactory/interface.cairo`.
 
-```solidity
-struct NftParameters {
-  address transferValidator;
-  address factory;
-  address creator;
-  address feeReceiver;
-  bytes32 referralCode;
-  struct InstanceInfo info;
+```cairo
+pub struct NftInfo {
+    pub name: ByteArray,
+    pub symbol: ByteArray,
+    pub creator: ContractAddress,
+    pub nft_address: ContractAddress,
+    pub receiver_address: ContractAddress,
 }
 ```
 
-## InstanceInfo
+Stored collection registry entry keyed by the hash of `(name, symbol)`.
 
-A struct that holds detailed information about an individual NFT collection, such as name, symbol, and pricing.
+## `NftParameters`
 
-_This struct is used to store key metadata and configuration information for each NFT collection._
+Defined in `src/nft/interface.cairo`.
 
-```solidity
-struct InstanceInfo {
-  address payingToken;
-  uint96 feeNumerator;
-  bool transferable;
-  uint256 maxTotalSupply;
-  uint256 mintPrice;
-  uint256 whitelistMintPrice;
-  uint256 collectionExpire;
-  struct NftMetadata metadata;
-  string contractURI;
-  bytes signature;
+```cairo
+pub struct NftParameters {
+    pub payment_token: ContractAddress,
+    pub contract_uri: felt252,
+    pub mint_price: u256,
+    pub whitelisted_mint_price: u256,
+    pub max_total_supply: u256,
+    pub transferrable: bool,
+    pub referral_code: felt252,
 }
 ```
 
-## NftMetadata
+Configuration written once during `NFT.initialize(...)`.
 
-```solidity
-struct NftMetadata {
-  string name;
-  string symbol;
+## `StaticPriceParameters`
+
+Defined in `src/nft/interface.cairo`.
+
+```cairo
+pub struct StaticPriceParameters {
+    pub receiver: ContractAddress,
+    pub token_id: u256,
+    pub whitelisted: bool,
+    pub token_uri: ByteArray,
 }
 ```
 
-## NftInstanceInfo
+One mint item for `mintStaticPrice(...)`.
 
-A simplified struct that holds only the basic information of the NFT collection, such as name, symbol, and creator.
+## `DynamicPriceParameters`
 
-_This struct is used for lightweight storage of NFT collection metadata._
+Defined in `src/nft/interface.cairo`.
 
-```solidity
-struct NftInstanceInfo {
-  address creator;
-  address nftAddress;
-  address royaltiesReceiver;
-  struct NftMetadata metadata;
+```cairo
+pub struct DynamicPriceParameters {
+    pub receiver: ContractAddress,
+    pub token_id: u256,
+    pub price: u256,
+    pub token_uri: ByteArray,
 }
 ```
 
-## StaticPriceParameters
+One mint item for `mintDynamicPrice(...)`.
 
-A struct for holding parameters related to minting NFTs with a static price.
+## `SignatureProtection`
 
-_This struct is used for static price minting operations._
+Defined in `src/snip12/interfaces.cairo`.
 
-```solidity
-struct StaticPriceParameters {
-  address receiver;
-  uint256 tokenId;
-  bool whitelisted;
-  string tokenUri;
-  bytes signature;
+```cairo
+pub struct SignatureProtection {
+    pub nonce: u128,
+    pub deadline: u128,
+    pub signature: Array<felt252>,
 }
 ```
 
-## DynamicPriceParameters
-
-A struct for holding parameters related to minting NFTs with a dynamic price.
-
-_This struct is used for dynamic price minting operations._
-
-```solidity
-struct DynamicPriceParameters {
-  address receiver;
-  uint256 tokenId;
-  uint256 price;
-  string tokenUri;
-  bytes signature;
-}
-```
-
-## Releases
-
-Struct for tracking total released amounts and account-specific released amounts.
-
-```solidity
-struct Releases {
-  uint256 totalReleased;
-  mapping(address => uint256) released;
-}
-```
-
+Common wrapper used by the signed minting and collection deployment flows.

@@ -1,200 +1,156 @@
-# Declaring a smart contract
+# Deploying Belong Contracts
 
-## Overview
+This guide covers the actual deployment flow for the current Cairo/Starknet codebase in this repository.
 
-Before a contract is deployed on Starknet, it first needs to be _declared_. Declaration is the process of submitting a contract's code to Starknet and making it available for future deployments, analogous to registering its blueprint.
+## What Gets Deployed
+
+The normal deployment sequence is:
+
+1. Declare `NFT`, `Receiver`, and `NFTFactory`.
+2. Deploy a single `NFTFactory` instance.
+3. Initialize `NFTFactory` with class hashes and platform settings.
+4. Use `NFTFactory.produce(...)` to deploy collection-specific `NFT` contracts.
+5. Let `NFTFactory` deploy a `Receiver` automatically when royalties are enabled for a collection.
+
+There is no standalone `ReceiverFactory` contract in the current implementation.
 
 ## Prerequisites
 
-Ensure that the following commands are working properly on your system:
+- Follow [Environment Setup](./EnvSetUp.md).
+- Follow [Account Setup](./AccountSetUp.md).
+- Declare the classes first as described in [Declaring Belong Contracts](./DeclaringSC.md).
+
+Recommended environment variables:
 
 ```bash
-starkli --version
-scarb --version
-snforge --version
-sncast --version
-asdf --version
+export STARKNET_ACCOUNT=~/.starkli-wallets/deployer/account.json
+export STARKNET_KEYSTORE=~/.starkli-wallets/deployer/keystore.json
+export STARKNET_RPC=<YOUR_RPC_URL>
 ```
 
-If either of the above commands fails, see [Setting up your environment](./EnvSetUp.md).
+Project-specific values you will need:
 
-## Compiling a smart contract
+```bash
+export FACTORY_CLASS_HASH=0x...
+export NFT_CLASS_HASH=0x...
+export RECEIVER_CLASS_HASH=0x...
 
-Before a smart contract can be declared, it first needs to be compiled. To compile an existing smart contract project, simply navigate into the project's directory and run:
+export OWNER_ADDRESS=0x...
+export SIGNER_ADDRESS=0x...
+export DEFAULT_PAYMENT_CURRENCY=0x...
+export PLATFORM_ADDRESS=0x...
+```
+
+## Build
+
+Always build before deploying:
 
 ```bash
 scarb build
 ```
 
-The compiled contract should be saved in the `target/dev/` directory.
+## Deploy `NFTFactory`
 
-If you require a new smart contract project, run either:
-
-```bash
-scarb init --name <PROJECT_NAME>
-```
-
-in an empty folder with the same name as the project or:
+`NFTFactory` has a single constructor argument: the owner address.
 
 ```bash
-scarb new <PROJECT_NAME>
+starkli deploy $FACTORY_CLASS_HASH $OWNER_ADDRESS --network sepolia
 ```
 
-anywhere, and select the default Starknet Foundry as a test runner.
-
-> **NOTE**
-> Building a Starknet Foundry project with Scarb requires [Rust](https://www.rust-lang.org/) to be installed. You can verify that Rust is installed and up-to-date by running:
->
-> ```bash
-> rustc --version
-> ```
->
-> or install the latest Rust version by following the instructions in the [Rust documentation](https://doc.rust-lang.org/beta/book/ch01-01-installation.html).
->
-> Moreover, the first time a project is built, some components of Scarb are compiled locally with the Rust toolchain. This process may take a few minutes, but will not happen in subsequent builds.
-
-In any case, the `Scarb.toml` file in the project's directory should resemble the following (up to version numbers):
-
-```toml
-[package]
-name = <PROJECT_NAME>
-version = "0.1.0"
-edition = "2023_11"
-
-[dependencies]
-starknet = "2.8.4"
-
-[dev-dependencies]
-snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.32.0" }
-assert_macros = "2.8.4"
-
-[[target.starknet-contract]]
-sierra = true
-```
-
-## Setting an RPC provider
-
-In order to interact with Starknet, Starkli requires an RPC endpoint to be configured. For interactions with Starknet Sepolia and Starknet mainnet, Starkli supports default (and limited) RPC endpoints when using the `--network` flag. Configuring a custom RPC endpoint can be done by either using Starkli's `--rpc` flag or setting up Starkli's `STARKNET_RPC` environment variable (see more details in the [Starkli documentation](https://book.starkli.rs/providers#using-an-rpc-url-directly)).
-
-For demonstration purposes, this tutorial uses Starkli's default Starknet Sepolia RPC endpoint by setting `--network=sepolia`.
-
-## Declaring a smart contract
-
-A contract can be declared on Starknet using Starkli by running the following command:
+Save the deployed address from the command output as:
 
 ```bash
-starkli declare target/dev/<CONTRACT_NAME>.sierra.json --network=sepolia
+export FACTORY_ADDRESS=0x...
 ```
 
-When using `starkli declare`, Starkli will do its best to identify the compiler version of the declared class. In case it fails, the `--compiler-version` flag can be used to specify the version of the compiler as follows:
+## Initialize `NFTFactory`
 
-1. Find the compiler versions supported by Starkli by running:
+After deployment, call `initialize(...)` once as the factory owner.
 
-   ```bash
-   starkli declare --help
-   ```
+The factory expects:
 
-   and looking for the possible values of the `--compiler-version` flag.
+- `nft_class_hash`
+- `receiver_class_hash`
+- `FactoryParameters`
+  - `signer`
+  - `default_payment_currency`
+  - `platform_address`
+  - `platform_commission` as `u256`
+  - `max_array_size` as `u256`
+- `percentages` as a 5-element array
 
-2. Find the current Scarb version in use:
+### Notes About Calldata Encoding
 
-   ```bash
-   scarb --version
-   ```
+- Starkli passes Cairo structs as flattened calldata.
+- Each `u256` must be passed as two felts: `low high`.
+- The `percentages` span is passed as `len item0 item1 item2 item3 item4`.
 
-3. In case a different compiler version is required, switch to a different Scarb version using `asdf`:
-   - Install the desired Scarb version:
-
-     ```bash
-     asdf install scarb <VERSION>
-     ```
-
-   - Select the desired Scarb version as the local version for the project:
-
-     ```bash
-     asdf local scarb <VERSION>
-     ```
-
-> **TIP**
-> The following is an example of declaring a contract with both a custom RPC endpoint (provided by [Infura](https://www.infura.io/)) and a specific compiler version:
->
-> ```bash
-> starkli declare target/dev/<CONTRACT_NAME>.sierra.json \
->     --rpc=https://starknet-sepolia.infura.io/v3/<API_KEY> \
->     --compiler-version=2.6.0 \
-> ```
-
-## Expected result
-
-The output of a successful contract declaration using Starkli should resemble the following:
+Example initialization:
 
 ```bash
-Class hash declared: <CLASS_HASH>
+starkli invoke $FACTORY_ADDRESS initialize \
+  $NFT_CLASS_HASH \
+  $RECEIVER_CLASS_HASH \
+  $SIGNER_ADDRESS \
+  $DEFAULT_PAYMENT_CURRENCY \
+  $PLATFORM_ADDRESS \
+  100 0 \
+  10 0 \
+  5 0 5000 3000 1500 500 \
+  --network sepolia
 ```
 
-On the other hand, if the contract you are declaring has previously been declared, the output should resemble the following:
+In this example:
+
+- `platform_commission = 100` means `1%` when the fee denominator is `10000`.
+- `max_array_size = 10`
+- referral percentages are `[0, 5000, 3000, 1500, 500]`
+
+The first percentage slot is effectively reserved because referral usage starts from index `1` after the first successful use.
+
+## Sanity Checks
+
+You can verify the deployed configuration with read calls such as:
 
 ```bash
-Not declaring class as its already declared. Class hash: <CLASS_HASH>
+starkli call $FACTORY_ADDRESS signer --network sepolia
+starkli call $FACTORY_ADDRESS maxArraySize --network sepolia
+starkli call $FACTORY_ADDRESS platformParams --network sepolia
 ```
 
-In both cases, however, you should be able to see the declared contract on a block explorer like [StarkScan](https://sepolia.starkscan.co/) or [Voyager](https://sepolia.voyager.online/) by searching for its class hash.
+## Deploying A Collection
 
-# Deploying a smart contract
+Collections are not deployed by calling `starkli deploy` directly. They are created through `NFTFactory.produce(...)`.
 
-## Prerequisites
+High-level flow:
 
-### Ensure Starkli and Scarb are installed correctly
+1. Backend builds the SNIP-12 `ProduceHash` payload.
+2. Backend signs that payload with the configured signer account.
+3. Creator submits `produce(signature_protection, instance_info)` to `NFTFactory`.
+4. `NFTFactory` deploys:
+   - an `NFT` contract
+   - a `Receiver` contract only if `royalty_fraction > 0`
+5. `NFTFactory` initializes the new `NFT` with payment settings and metadata hashes.
 
-Ensure that the below commands are working properly on your system.
+Useful helper scripts:
 
-```bash
-starkli --version
-scarb --version
-```
+- `scarb run produce-message`
+- `npx tsx scripts/produce-signature.ts`
 
-If either of the above commands fail, please visit [Setting up your environment](./EnvSetUp.md).
+These scripts are examples for message construction and signing. They are not a complete production deployment pipeline by themselves.
 
-## Introduction
+## Collection Configuration Notes
 
-Deploying a smart contract in Starknet requires two steps:
+- If `InstanceInfo.payment_token` is zero, the factory uses `FactoryParameters.default_payment_currency`.
+- `name` and `symbol` are uniqueness keys; the same pair cannot be produced twice.
+- `transferrable` is enforced inside the collection contract and affects all token transfers.
+- `contract_uri` is stored onchain as a hash.
 
-- [Declaring](./DeclaringSC.md) the class of your contract, i.e., sending your contract’s code to the network.
-- Deploying a contract, i.e., creating an instance of the code you previously declared.
+## Minting Notes
 
-## Deploying a smart contract
+After a collection exists:
 
-Deploying a smart contract involves instantiating it on Starknet. The deployment command requires the class hash of the smart contract and any arguments expected by the constructor.
+- use `mintStaticPrice(...)` when the price is derived from collection-level pricing and whitelist state
+- use `mintDynamicPrice(...)` when each token mint has its own signed price
 
-For our example, the constructor expects an address to assign as the owner:
-
-```bash
-starkli deploy \
-    <CLASS_HASH> \
-    <CONSTRUCTOR_INPUTS> \
-    --network=sepolia
-```
-
-With the class hash and constructor inputs, the command looks like this:
-
-```bash
-starkli deploy \
-    0x00e68b4b07aeecc72f768b1c086d9b0aadce131a40a1067ffb92d0b480cf325d \
-    0x02cdAb749380950e7a7c0deFf5ea8eDD716fEb3a2952aDd4E5659655077B8510 \
-    --network=sepolia
-```
-
-## Expected result
-
-After running the command and adding your password, you will see an output similar to this:
-
-```bash
-Deploying class 0x00e68b4b07aeecc72f768b1c086d9b0aadce131a40a1067ffb92d0b480cf325d with salt 0x04bc3fc2284c8e41fb3d2a37bb0354fd0506131cc77a8c91e4e67ce3aed1d19e...
-The contract will be deployed at address 0x014825acb37c36563d3b96c450afe363d2fdfa3cfbd618b323f95b68b55ebf7e
-Contract deployment transaction: 0x0086972e7463d5673d8b553ae521ec2df974a97c2ce6aafc1d1c20d22c6b96c6
-Contract deployed: 0x014825acb37c36563d3b96c450afe363d2fdfa3cfbd618b323f95b68b55ebf7e
-```
-
-The smart contract has now been deployed to Starknet.
-
-Factory address: 0x0534e5e4993aecc22213d25a8f45169b32f12ad83013e2ed03607ec6594e929f
+Both mint flows require backend signatures validated against the signer configured in `NFTFactory`.

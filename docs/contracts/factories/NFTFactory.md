@@ -1,129 +1,98 @@
-# Solidity API
+# NFTFactory
 
-## NFTAlreadyExists
+Source: `src/nftfactory/nftfactory.cairo`
 
-```solidity
-error NFTAlreadyExists()
-```
+## Overview
 
-Error thrown when an NFT with the same name and symbol already exists.
+`NFTFactory` is the top-level deployment and configuration contract for the Belong Starknet flow.
 
-## NFTFactory
+It is responsible for:
 
-A factory contract to create new NFT instances with specific parameters.
+- storing global platform parameters
+- storing the class hashes used for collection deployment
+- verifying backend-signed `ProduceHash` payloads
+- deploying `NFT` contracts
+- deploying `Receiver` contracts when royalties are enabled
+- managing referral codes and referral usage accounting
 
-_This contract allows producing NFTs, managing platform settings, and verifying signatures._
+## Deployment Model
 
-### NFTCreated
+`NFTFactory` is deployed once with an owner address in the constructor.
 
-```solidity
-event NFTCreated(bytes32 _hash, struct NftInstanceInfo info)
-```
+After deployment, the owner must call `initialize(...)` with:
 
-Event emitted when a new NFT is created.
+- `NFT` class hash
+- `Receiver` class hash
+- `FactoryParameters`
+- referral percentages array
 
-#### Parameters
+Without initialization, collection production cannot work correctly.
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _hash | bytes32 | The keccak256 hash of the NFT's name and symbol. |
-| info | struct NftInstanceInfo | The information about the created NFT instance. |
+## Main External Methods
 
-### FactoryParametersSet
+### `initialize(nft_class_hash, receiver_class_hash, factory_parameters, percentages)`
 
-```solidity
-event FactoryParametersSet(struct NftFactoryParameters nftFactoryParameters, uint16[5] percentages)
-```
+- Callable only by the owner.
+- Callable only once.
+- Stores the class hashes used for deploying future collections.
+- Stores signer, payment, platform, and referral configuration.
 
-Event emitted when the new factory parameters set.
+### `produce(signature_protection, instance_info)`
 
-#### Parameters
+- Verifies a SNIP-12 signed `ProduceHash`.
+- Ensures `(name, symbol)` has not already been used.
+- Uses `default_payment_currency` when `instance_info.payment_token` is zero.
+- Optionally deploys a `Receiver` when `royalty_fraction > 0`.
+- Deploys a new `NFT`.
+- Initializes the new collection with `NftParameters`.
+- Stores `NftInfo` keyed by the hash of `(name, symbol)`.
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| nftFactoryParameters | struct NftFactoryParameters | The NFT factory parameters to be set. |
-| percentages | uint16[5] | The referral percentages for the system. |
+### `createReferralCode()`
 
-### getNftInstanceInfo
+Creates a deterministic referral code for the caller and stores the caller as the referral creator.
 
-```solidity
-mapping(bytes32 => struct NftInstanceInfo) getNftInstanceInfo
-```
+### `updateNftClassHash(class_hash)`
 
-A mapping from keccak256(name, symbol) to the NFT instance address.
+Owner-only update for the `NFT` class hash used in future deployments.
 
-### constructor
+### `updateReceiverClassHash(class_hash)`
 
-```solidity
-constructor() public
-```
+Owner-only update for the `Receiver` class hash used in future deployments.
 
-### initialize
+### `setFactoryParameters(factory_parameters)`
 
-```solidity
-function initialize(struct NftFactoryParameters nftFactoryParameters_, uint16[5] percentages) external
-```
+Owner-only update for signer, default payment token, platform address, platform commission, and max batch size.
 
-Initializes the contract with NFT factory parameters and referral percentages.
+### `setReferralPercentages(percentages)`
 
-#### Parameters
+Owner-only update for the 5-entry referral percentage table.
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| nftFactoryParameters_ | struct NftFactoryParameters | The NFT factory parameters to be set. |
-| percentages | uint16[5] | The referral percentages for the system. |
+## Views
 
-### produce
+- `nftInfo(name, symbol)`
+- `nftFactoryParameters()`
+- `maxArraySize()`
+- `signer()`
+- `platformParams()`
+- `usedToPercentage(timesUsed)`
+- `referralCode(account)`
+- `getReferralRate(referral_user, referral_code, amount)`
+- `getReferralCreator(referral_code)`
+- `getReferralUsers(referral_code)`
+- `produceHash(name, symbol, contract_uri)`
 
-```solidity
-function produce(struct InstanceInfo _info, bytes32 referralCode) external returns (address nftAddress)
-```
+## Referral Logic
 
-Produces a new NFT i nstance.
+Referral usage is tracked per user and per referral code.
 
-_Creates a new instance of the NFT and adds the information to the storage contract._
+- The percentage table must contain exactly 5 entries.
+- The first slot is effectively reserved for zero usage.
+- After each successful use, the tracked usage count increases up to a capped value.
+- Referral share is taken out of the platform fee, not out of the creator proceeds.
 
-#### Parameters
+## Important Notes
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _info | struct InstanceInfo | Struct containing the details of the new NFT instance. |
-| referralCode | bytes32 | The referral code associated with this NFT instance. |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| nftAddress | address | The address of the created NFT instance. |
-
-### setFactoryParameters
-
-```solidity
-function setFactoryParameters(struct NftFactoryParameters nftFactoryParameters_, uint16[5] percentages) external
-```
-
-Sets new factory parameters.
-
-_Can only be called by the owner (BE)._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| nftFactoryParameters_ | struct NftFactoryParameters | The NFT factory parameters to be set. |
-| percentages | uint16[5] | An array containing the referral percentages for initial, second, third, and default use. |
-
-### nftFactoryParameters
-
-```solidity
-function nftFactoryParameters() external view returns (struct NftFactoryParameters)
-```
-
-Returns the current NFT factory parameters.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | struct NftFactoryParameters | The NFT factory parameters. |
-
+- There is no standalone `ReceiverFactory` in the current Cairo codebase.
+- Collection uniqueness is based on the hash of `name` and `symbol`.
+- `NFTFactory` validates SNIP-12 identifiers and rejects empty strings, non-ASCII values, and certain punctuation.
+- `NFTFactory` includes OpenZeppelin Cairo `UpgradeableComponent`, so the owner can call `upgrade(new_class_hash)`.

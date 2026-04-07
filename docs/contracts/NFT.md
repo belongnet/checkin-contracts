@@ -1,346 +1,103 @@
-# Solidity API
+# NFT
 
-## IncorrectETHAmountSent
+Source: `src/nft/nft.cairo`
 
-```solidity
-error IncorrectETHAmountSent(uint256 ETHsent)
-```
+## Overview
 
-Error thrown when insufficient ETH is sent for a minting transaction.
+`NFT` is the per-collection contract deployed by `NFTFactory`. It combines:
 
-### Parameters
+- ERC721 minting
+- collection-level payment settings
+- ERC2981 royalties metadata
+- optional transfer blocking
+- SNIP-12 signature-verified minting
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| ETHsent | uint256 | The amount of ETH sent. |
+The contract is deployed by the factory and initialized once with `NftParameters`.
 
-## PriceChanged
+## Constructor
 
-```solidity
-error PriceChanged(uint256 currentPrice)
-```
+Constructor arguments:
 
-Error thrown when the mint price changes unexpectedly.
+- `creator`
+- `factory`
+- `name`
+- `symbol`
+- `fee_receiver`
+- `royalty_fraction`
 
-### Parameters
+The constructor sets the collection owner to `creator`, stores the factory address, initializes ERC721 metadata, and enables ERC2981 royalties when both `fee_receiver` and `royalty_fraction` are non-zero.
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| currentPrice | uint256 | The actual current mint price. |
+## Main External Methods
 
-## TokenChanged
+### `initialize(nftParameters)`
 
-```solidity
-error TokenChanged(address currentPayingToken)
-```
+- Callable only by the factory.
+- Callable only once.
+- Stores payment token, mint prices, max supply, transferability, contract URI hash, and referral code.
 
-Error thrown when the paying token changes unexpectedly.
+### `setPaymentInfo(paymentToken, mintPrice, whitelistedMintPrice)`
 
-### Parameters
+- Callable only by the collection owner.
+- Updates the ERC20 payment token and collection pricing.
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| currentPayingToken | address | The actual current paying token. |
+### `addWhitelisted(address)`
 
-## WrongArraySize
+- Callable only by the collection owner.
+- Marks an address as whitelisted for static-price minting.
 
-```solidity
-error WrongArraySize()
-```
+### `mintStaticPrice(signaturesProtection, staticParams, expectedPayingToken, expectedMintPrice)`
 
-Error thrown when an array exceeds the maximum allowed size.
+- Verifies SNIP-12 signed mint payloads through the signer configured in `NFTFactory`.
+- Validates whitelist state against the signed payload.
+- Uses collection-level mint price or whitelisted mint price.
+- Pulls ERC20 funds from the caller and splits them between creator, platform, and optional referral beneficiary.
 
-## NotTransferable
+### `mintDynamicPrice(signaturesProtection, dynamicParams, expectedPayingToken)`
 
-```solidity
-error NotTransferable()
-```
+- Verifies SNIP-12 signed mint payloads through the signer configured in `NFTFactory`.
+- Uses the signed per-item price from each payload.
+- Pulls ERC20 funds from the caller and splits them between creator, platform, and optional referral beneficiary.
 
-Thrown when an unauthorized transfer attempt is made.
+## Views
 
-## TotalSupplyLimitReached
+- `nftParameters()`
+- `metadataUri(tokenId)`
+- `contractUri()`
+- `creator()`
+- `factory()`
+- `totalSupply()`
+- `isWhitelisted(address)`
+- `tokenUriHash(token_uri)`
 
-```solidity
-error TotalSupplyLimitReached()
-```
+## Payment Model
 
-Error thrown when the total supply limit is reached.
+The current Cairo implementation is ERC20-only.
 
-## TokenIdDoesNotExist
+For each mint, the contract:
 
-```solidity
-error TokenIdDoesNotExist()
-```
+1. Checks that `expectedPayingToken` matches the configured payment token.
+2. Reads `platform_commission` from `NFTFactory`.
+3. Computes platform fees and creator proceeds.
+4. Sends fees to the platform.
+5. Sends optional referral fees when a referral code is active.
+6. Sends the remaining amount to the creator.
 
-Error thrown when the token id is not exist.
+## Transferability
 
-## NFT
+`transferrable` is enforced in the ERC721 transfer hook:
 
-Implements the minting and transfer functionality for NFTs, including transfer validation and royalty management.
+- mints are still allowed
+- burns are unaffected
+- regular transfers revert when `transferrable` is `false`
 
-_This contract inherits from BaseERC721 and implements additional minting logic, including whitelist support and fee handling._
+## Events
 
-### Paid
+- `PaymentInfoChanged`
+- `Paid`
 
-```solidity
-event Paid(address sender, address paymentCurrency, uint256 value)
-```
+## Important Notes
 
-Event emitted when a payment is made to the PricePoint.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| sender | address | The address that made the payment. |
-| paymentCurrency | address | The currency used for the payment. |
-| value | uint256 | The amount of the payment. |
-
-### NftParametersChanged
-
-```solidity
-event NftParametersChanged(address newToken, uint256 newPrice, uint256 newWLPrice, bool autoApproved)
-```
-
-Emitted when the paying token and prices are updated.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| newToken | address | The address of the new paying token. |
-| newPrice | uint256 | The new mint price. |
-| newWLPrice | uint256 | The new whitelist mint price. |
-| autoApproved | bool | The new value of the automatic approval flag. |
-
-### ETH_ADDRESS
-
-```solidity
-address ETH_ADDRESS
-```
-
-The constant address representing ETH.
-
-### totalSupply
-
-```solidity
-uint256 totalSupply
-```
-
-The current total supply of tokens.
-
-### metadataUri
-
-```solidity
-mapping(uint256 => string) metadataUri
-```
-
-Mapping of token ID to its metadata URI.
-
-### parameters
-
-```solidity
-struct NftParameters parameters
-```
-
-The struct containing all NFT parameters for the collection.
-
-### constructor
-
-```solidity
-constructor(struct NftParameters _params) public
-```
-
-Deploys the contract with the given collection parameters and transfer validator.
-
-_Called by the factory when a new instance is deployed._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _params | struct NftParameters | Collection parameters containing information like name, symbol, fees, and more. |
-
-### setNftParameters
-
-```solidity
-function setNftParameters(address _payingToken, uint128 _mintPrice, uint128 _whitelistMintPrice, bool autoApprove) external
-```
-
-Sets a new paying token and mint prices for the collection.
-
-_Can only be called by the contract owner._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _payingToken | address | The new paying token address. |
-| _mintPrice | uint128 | The new mint price. |
-| _whitelistMintPrice | uint128 | The new whitelist mint price. |
-| autoApprove | bool | If true, the transfer validator will be automatically approved for all token holders. |
-
-### mintStaticPrice
-
-```solidity
-function mintStaticPrice(struct StaticPriceParameters[] paramsArray, address expectedPayingToken, uint256 expectedMintPrice) external payable
-```
-
-Mints new NFTs with static prices to specified addresses.
-
-_Requires signatures from trusted addresses and validates against whitelist status._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| paramsArray | struct StaticPriceParameters[] | An array of parameters for each mint (receiver, tokenId, tokenUri, whitelisted). |
-| expectedPayingToken | address | The expected token used for payments. |
-| expectedMintPrice | uint256 | The expected price for the minting operation. |
-
-### mintDynamicPrice
-
-```solidity
-function mintDynamicPrice(struct DynamicPriceParameters[] paramsArray, address expectedPayingToken) external payable
-```
-
-Mints new NFTs with dynamic prices to specified addresses.
-
-_Requires signatures from trusted addresses and validates against whitelist status._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| paramsArray | struct DynamicPriceParameters[] | An array of parameters for each mint (receiver, tokenId, tokenUri, price). |
-| expectedPayingToken | address | The expected token used for payments. |
-
-### tokenURI
-
-```solidity
-function tokenURI(uint256 _tokenId) public view returns (string)
-```
-
-Returns the metadata URI for a specific token ID.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _tokenId | uint256 | The ID of the token. |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | string | The metadata URI associated with the given token ID. |
-
-### name
-
-```solidity
-function name() public view returns (string)
-```
-
-Returns the name of the token collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | string | The name of the token. |
-
-### symbol
-
-```solidity
-function symbol() public view returns (string)
-```
-
-Returns the symbol of the token collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | string | The symbol of the token. |
-
-### contractURI
-
-```solidity
-function contractURI() external view returns (string)
-```
-
-Returns the contract URI for the collection.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | string | The contract URI. |
-
-### isApprovedForAll
-
-```solidity
-function isApprovedForAll(address _owner, address operator) public view returns (bool isApproved)
-```
-
-Checks if an operator is approved to manage all tokens of a given owner.
-
-_Overrides the default behavior to automatically approve the transfer validator if enabled._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _owner | address | The owner of the tokens. |
-| operator | address | The operator trying to manage the tokens. |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| isApproved | bool | Whether the operator is approved for all tokens of the owner. |
-
-### supportsInterface
-
-```solidity
-function supportsInterface(bytes4 interfaceId) public view returns (bool)
-```
-
-_Returns true if this contract implements the interface defined by `interfaceId`.
-See: https://eips.ethereum.org/EIPS/eip-165
-This function call must use less than 30000 gas._
-
-### _baseMint
-
-```solidity
-function _baseMint(uint256 tokenId, address to, string tokenUri) internal
-```
-
-Mints a new token and assigns it to a specified address.
-
-_Increases totalSupply, stores metadata URI, and creation timestamp._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| tokenId | uint256 | The ID of the token to be minted. |
-| to | address | The address that will receive the newly minted token. |
-| tokenUri | string | The metadata URI associated with the token. |
-
-### _beforeTokenTransfer
-
-```solidity
-function _beforeTokenTransfer(address from, address to, uint256 id) internal
-```
-
-_Hook that is called before any token transfers, including minting and burning._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| from | address | The address tokens are being transferred from. |
-| to | address | The address tokens are being transferred to. |
-| id | uint256 | The token ID being transferred. |
-
+- `contractUri()` returns the stored contract URI hash, not the original string.
+- The collection can only be initialized once.
+- Total supply is enforced by `max_total_supply`.
+- `NFT` includes OpenZeppelin Cairo `UpgradeableComponent`, so the collection owner can call `upgrade(new_class_hash)`.

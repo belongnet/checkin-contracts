@@ -1,254 +1,66 @@
-# Solidity API
+# Royalties Receiver
 
-## AccountNotDuePayment
+Source: `src/receiver/receiver.cairo`
 
-```solidity
-error AccountNotDuePayment(address account)
-```
+This file keeps the historical "RoyaltiesReceiver" naming used in earlier documentation. The current Cairo contract is named `Receiver`.
 
-Thrown when an account is not due for payment.
+## Overview
 
-## OnlyToPayee
+`Receiver` is the royalty distribution contract deployed by `NFTFactory` for a collection when `royalty_fraction > 0`.
 
-```solidity
-error OnlyToPayee()
-```
+It distributes ERC20 proceeds between:
 
-Thrown when transfer is not to a payee.
+- the collection creator
+- the platform
+- an optional referral beneficiary
 
-## RoyaltiesReceiver
+## Constructor
 
-A contract for managing and releasing royalty payments in both native Ether and ERC20 tokens.
+Constructor arguments:
 
-_Handles payment distribution based on shares assigned to payees. Fork of OZ's PaymentSplitter with some changes.
-The only change is that common `release()` functions are replaced with `releaseAll()` functions,
-which allow the caller to transfer funds for both the creator and the platform._
+- `referral_code`
+- `creator`
+- `platform`
+- `referral`
 
-### PayeeAdded
+The constructor assigns shares as follows:
 
-```solidity
-event PayeeAdded(address account, uint256 shares)
-```
+- creator: `8000` bps
+- platform: `2000` bps minus any referral share
+- referral: calculated by `NFTFactory.getReferralRate(...)` when a valid referral applies
 
-Emitted when a new payee is added to the contract.
+Total shares are normalized against `10000`.
 
-#### Parameters
+## Main External Methods
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| account | address | The address of the new payee. |
-| shares | uint256 | The number of shares assigned to the payee. |
+### `releaseAll(payment_token)`
 
-### PaymentReleased
+Releases all currently claimable ERC20 funds for every configured payee.
 
-```solidity
-event PaymentReleased(address token, address to, uint256 amount)
-```
+### `released(account)`
 
-Emitted when a payment in native Ether is released.
+Returns how much has already been released to a specific account.
 
-#### Parameters
+### `totalReleased()`
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| token | address | The address of the ERC20 token if address(0) then native currency. |
-| to | address | The address receiving the payment. |
-| amount | uint256 | The amount of Ether released. |
+Returns the total amount released by the receiver.
 
-### PaymentReceived
+### `payees()`
 
-```solidity
-event PaymentReceived(address from, uint256 amount)
-```
+Returns the payee list.
 
-Emitted when the contract receives native Ether.
+### `shares(account)`
 
-#### Parameters
+Returns the configured share for a payee.
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| from | address | The address sending the Ether. |
-| amount | uint256 | The amount of Ether received. |
+## Behavior
 
-### TOTAL_SHARES
+- Funds are split proportionally based on shares.
+- If a payee has nothing pending, release for that payee is skipped.
+- The contract does not hold platform configuration itself; it relies on the constructor inputs supplied by `NFTFactory`.
 
-```solidity
-uint256 TOTAL_SHARES
-```
+## Important Notes
 
-Total shares amount.
-
-### payees
-
-```solidity
-address[3] payees
-```
-
-List of payee addresses. Returns the address of the payee at the given index.
-
-### shares
-
-```solidity
-mapping(address => uint256) shares
-```
-
-Returns the number of shares held by a specific payee.
-
-### constructor
-
-```solidity
-constructor(bytes32 referralCode, address[3] payees_) public
-```
-
-Initializes the contract with a list of payees and their respective shares.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| referralCode | bytes32 | The referral code associated with this NFT instance. |
-| payees_ | address[3] | The list of payee addresses. |
-
-### receive
-
-```solidity
-receive() external payable
-```
-
-Logs the receipt of Ether. Called when the contract receives Ether.
-
-### releaseAll
-
-```solidity
-function releaseAll() external
-```
-
-Releases all pending native Ether payments to the payees.
-
-### releaseAll
-
-```solidity
-function releaseAll(address token) external
-```
-
-Releases all pending ERC20 token payments for a given token to the payees.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| token | address | The address of the ERC20 token to be released. |
-
-### release
-
-```solidity
-function release(address to) external
-```
-
-Releases pending native Ether payments to the payee.
-
-### release
-
-```solidity
-function release(address token, address to) external
-```
-
-Releases pending ERC20 token payments for a given token to the payee.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| token | address | The address of the ERC20 token to be released. |
-| to | address |  |
-
-### totalReleased
-
-```solidity
-function totalReleased() external view returns (uint256)
-```
-
-Returns the total amount of native Ether already released to payees.
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The total amount of Ether released. |
-
-### totalReleased
-
-```solidity
-function totalReleased(address token) external view returns (uint256)
-```
-
-Returns the total amount of a specific ERC20 token already released to payees.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| token | address | The address of the ERC20 token. |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The total amount of tokens released. |
-
-### released
-
-```solidity
-function released(address account) external view returns (uint256)
-```
-
-Returns the amount of native Ether already released to a specific payee.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| account | address | The address of the payee. |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The amount of Ether released to the payee. |
-
-### released
-
-```solidity
-function released(address token, address account) external view returns (uint256)
-```
-
-Returns the amount of a specific ERC20 token already released to a specific payee.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| token | address | The address of the ERC20 token. |
-| account | address | The address of the payee. |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | The amount of tokens released to the payee. |
-
-### _release
-
-```solidity
-function _release(address token, address account) internal
-```
-
-_Internal function to release the pending payment for a payee._
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| token | address | The ERC20 token address, or address(0) for native Ether. |
-| account | address | The payee's address receiving the payment. |
-
+- The current implementation handles ERC20 tokens only.
+- There is no separate `ReceiverFactory` contract in this codebase.
+- `Receiver` is created automatically by `NFTFactory.produce(...)` when royalties are enabled.
