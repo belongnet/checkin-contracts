@@ -2,6 +2,7 @@
 pragma solidity 0.8.27;
 
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {SafeCastLib} from "solady/src/utils/SafeCastLib.sol";
 
 // --- Uniswap v4 deps
 import {Currency as UniCurrency} from "@uniswap/v4-core/src/types/Currency.sol";
@@ -19,8 +20,6 @@ import {
     Plan as PcsPlan,
     Planner as PcsPlanner
 } from "../../external/@pancakeswap/infinity-periphery/src/libraries/Planner.sol";
-
-import {IActionExecutor} from "../../interfaces/IActionExecutor.sol";
 
 interface IV3RouterLike {
     struct ExactInputSingleParams {
@@ -47,9 +46,22 @@ interface IV3RouterLike {
     function exactInput(ExactInputParams calldata params) external payable returns (uint256 amountOut);
 }
 
+interface IUniversalRouterLike {
+    function execute(bytes calldata commands, bytes[] calldata inputs) external payable;
+
+    function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
+}
+
+interface IAllowanceTransferLike {
+    function approve(address token, address spender, uint160 amount, uint48 expiration) external;
+}
+
 /// @notice Stateless helper for routing swaps across Uniswap v4 and Pancake Infinity.
 library DualDexSwapV4Lib {
     using SafeTransferLib for address;
+
+    address private constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    bytes1 private constant UNIVERSAL_ROUTER_V4_SWAP = 0x10;
 
     // ========== Shared Errors ==========
 
@@ -131,9 +143,9 @@ library DualDexSwapV4Lib {
         require(params.tokens.length >= 2 || params.poolKeys.length == params.tokens.length - 1, PoolKeyMissing());
         require(info.router != address(0), RouterNotConfigured(info.dexType));
 
-        uint256 beforeBal = _balanceOf(params.tokens[params.tokens.length - 1], params.recipient);
+        uint256 beforeBal = params.tokens[params.tokens.length - 1].balanceOf(params.recipient);
 
-        params.tokens[0].safeApproveWithRetry(info.router, params.amountIn);
+        _approveForSwap(info, params.tokens[0], params.amountIn);
 
         if (info.dexType == DexType.UniV4) {
             _executeUniV4Path(info, params);
@@ -145,9 +157,9 @@ library DualDexSwapV4Lib {
             revert RouterNotConfigured(info.dexType);
         }
 
-        params.tokens[0].safeApprove(info.router, 0);
+        _clearApprovalForSwap(info, params.tokens[0]);
 
-        received = _balanceOf(params.tokens[params.tokens.length - 1], params.recipient) - beforeBal;
+        received = params.tokens[params.tokens.length - 1].balanceOf(params.recipient) - beforeBal;
         require(received >= params.amountOutMinimum, QuoteFailed());
     }
 
@@ -226,9 +238,9 @@ library DualDexSwapV4Lib {
         require(params.tokenIn != address(0), NativeInputUnsupported());
         require(info.router != address(0), RouterNotConfigured(info.dexType));
 
-        uint256 balanceBefore = _balanceOf(params.tokenOut, params.recipient);
+        uint256 balanceBefore = params.tokenOut.balanceOf(params.recipient);
 
-        params.tokenIn.safeApproveWithRetry(info.router, params.amountIn);
+        _approveForSwap(info, params.tokenIn, params.amountIn);
 
         require(params.poolKey.length > 0, PoolKeyMissing());
         if (info.dexType == DexType.UniV4) {
@@ -241,9 +253,9 @@ library DualDexSwapV4Lib {
             revert RouterNotConfigured(info.dexType);
         }
 
-        params.tokenIn.safeApprove(info.router, 0);
+        _clearApprovalForSwap(info, params.tokenIn);
 
-        received = _balanceOf(params.tokenOut, params.recipient) - balanceBefore;
+        received = params.tokenOut.balanceOf(params.recipient) - balanceBefore;
         require(received >= params.amountOutMinimum, QuoteFailed());
     }
 
@@ -255,8 +267,8 @@ library DualDexSwapV4Lib {
         IUniV4Router.ExactInputSingleParams memory swapParams = IUniV4Router.ExactInputSingleParams({
             poolKey: poolKey,
             zeroForOne: zeroForOne,
-            amountIn: _toUint128(params.amountIn),
-            amountOutMinimum: _toUint128(params.amountOutMinimum),
+            amountIn: SafeCastLib.toUint128(params.amountIn),
+            amountOutMinimum: SafeCastLib.toUint128(params.amountOutMinimum),
             hookData: params.hookData
         });
 
@@ -270,7 +282,7 @@ library DualDexSwapV4Lib {
         actions[1] = bytes1(uint8(UniActions.SETTLE));
         actions[2] = bytes1(uint8(UniActions.TAKE));
 
-        IActionExecutor(info.router).executeActions(abi.encode(actions, actionParams));
+        _executeV4UniversalRouter(info.router, abi.encode(actions, actionParams), params.deadline);
     }
 
     function _executeOnPancakeV4(PaymentsInfo memory info, ExactInputSingleParams memory params) private {
@@ -281,8 +293,8 @@ library DualDexSwapV4Lib {
         ICLRouterBase.CLSwapExactInputSingleParams memory swapParams = ICLRouterBase.CLSwapExactInputSingleParams({
             poolKey: poolKey,
             zeroForOne: zeroForOne,
-            amountIn: _toUint128(params.amountIn),
-            amountOutMinimum: _toUint128(params.amountOutMinimum),
+            amountIn: SafeCastLib.toUint128(params.amountIn),
+            amountOutMinimum: SafeCastLib.toUint128(params.amountOutMinimum),
             hookData: params.hookData
         });
 
@@ -290,7 +302,7 @@ library DualDexSwapV4Lib {
         plan = PcsPlanner.add(plan, PcsActions.CL_SWAP_EXACT_IN_SINGLE, abi.encode(swapParams));
         bytes memory payload = PcsPlanner.finalizeSwap(plan, inputCurrency, outputCurrency, params.recipient);
 
-        IActionExecutor(info.router).executeActions(payload);
+        _executeV4UniversalRouter(info.router, payload, params.deadline);
     }
 
     function _executeOnV3(PaymentsInfo memory info, ExactInputSingleParams memory params) private {
@@ -333,8 +345,8 @@ library DualDexSwapV4Lib {
             IUniV4Router.ExactInputSingleParams memory hop = IUniV4Router.ExactInputSingleParams({
                 poolKey: key,
                 zeroForOne: zeroForOne,
-                amountIn: _toUint128(i == 0 ? params.amountIn : 0),
-                amountOutMinimum: _toUint128(i == params.poolKeys.length - 1 ? params.amountOutMinimum : 0),
+                amountIn: SafeCastLib.toUint128(i == 0 ? params.amountIn : 0),
+                amountOutMinimum: SafeCastLib.toUint128(i == params.poolKeys.length - 1 ? params.amountOutMinimum : 0),
                 hookData: params.hookData
             });
 
@@ -351,7 +363,7 @@ library DualDexSwapV4Lib {
         actionParams[params.poolKeys.length + 1] =
             abi.encode(outputC, params.recipient, uint256(UniActionConstants.OPEN_DELTA));
 
-        IActionExecutor(info.router).executeActions(abi.encode(actions, actionParams));
+        _executeV4UniversalRouter(info.router, abi.encode(actions, actionParams), params.deadline);
     }
 
     function _executePcsV4Path(PaymentsInfo memory info, ExactInputMultiParams memory params) private {
@@ -377,8 +389,8 @@ library DualDexSwapV4Lib {
             ICLRouterBase.CLSwapExactInputSingleParams memory hop = ICLRouterBase.CLSwapExactInputSingleParams({
                 poolKey: key,
                 zeroForOne: zeroForOne,
-                amountIn: _toUint128(i == 0 ? params.amountIn : 0),
-                amountOutMinimum: _toUint128(i == params.poolKeys.length - 1 ? params.amountOutMinimum : 0),
+                amountIn: SafeCastLib.toUint128(i == 0 ? params.amountIn : 0),
+                amountOutMinimum: SafeCastLib.toUint128(i == params.poolKeys.length - 1 ? params.amountOutMinimum : 0),
                 hookData: params.hookData
             });
 
@@ -386,7 +398,7 @@ library DualDexSwapV4Lib {
         }
 
         bytes memory payload = PcsPlanner.finalizeSwap(plan, inputC, outputC, params.recipient);
-        IActionExecutor(info.router).executeActions(payload);
+        _executeV4UniversalRouter(info.router, payload, params.deadline);
     }
 
     function _executeV3Path(PaymentsInfo memory info, ExactInputMultiParams memory params) private {
@@ -407,9 +419,40 @@ library DualDexSwapV4Lib {
 
     // ========== Validation & Utils ==========
 
-    function _toUint128(uint256 amount) private pure returns (uint128 casted) {
-        require(amount <= type(uint128).max, AmountTooLarge(amount));
-        casted = uint128(amount);
+    function _usesUniversalRouter(DexType dexType) private pure returns (bool) {
+        return dexType == DexType.UniV4 || dexType == DexType.PcsV4;
+    }
+
+    function _approveForSwap(PaymentsInfo memory info, address token, uint256 amount) private {
+        token.safeApproveWithRetry(info.router, amount);
+
+        if (_usesUniversalRouter(info.dexType) && PERMIT2.code.length != 0) {
+            token.safeApproveWithRetry(PERMIT2, amount);
+            IAllowanceTransferLike(PERMIT2).approve(token, info.router, SafeCastLib.toUint160(amount), type(uint48).max);
+        }
+    }
+
+    function _clearApprovalForSwap(PaymentsInfo memory info, address token) private {
+        token.safeApprove(info.router, 0);
+
+        if (_usesUniversalRouter(info.dexType) && PERMIT2.code.length != 0) {
+            IAllowanceTransferLike(PERMIT2).approve(token, info.router, 0, 0);
+            token.safeApprove(PERMIT2, 0);
+        }
+    }
+
+    function _executeV4UniversalRouter(address router, bytes memory payload, uint256 deadline) private {
+        bytes memory commands = new bytes(1);
+        commands[0] = UNIVERSAL_ROUTER_V4_SWAP;
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = payload;
+
+        if (deadline == 0) {
+            IUniversalRouterLike(router).execute(commands, inputs);
+        } else {
+            IUniversalRouterLike(router).execute(commands, inputs, deadline);
+        }
     }
 
     function _validateUniPoolKey(UniPoolKey memory poolKey, address tokenIn, address tokenOut)
@@ -464,12 +507,5 @@ library DualDexSwapV4Lib {
             require(tokens[i + 1] != address(0), PoolKeyMissing());
             path = bytes.concat(path, abi.encodePacked(fee, tokens[i + 1]));
         }
-    }
-
-    function _balanceOf(address token, address owner) private view returns (uint256) {
-        if (token == address(0)) {
-            return owner.balance;
-        }
-        return token.balanceOf(owner);
     }
 }

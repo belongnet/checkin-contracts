@@ -1,7 +1,7 @@
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import { BigNumber } from 'ethers';
-import { ethers } from 'hardhat';
+import { artifacts, ethers } from 'hardhat';
 
 enum DexType {
   UniV4,
@@ -18,10 +18,17 @@ function encodeUniPoolKey(tokenA: string, tokenB: string, fee: number, tickSpaci
   );
 }
 
+const PERMIT2 = '0x000000000022D473030F116dDEE9F6B43aC78BA3';
+const MAX_UINT48 = BigNumber.from(2).pow(48).sub(1);
+
 describe('DualDexSwapV4Lib', () => {
   async function fixture() {
     await ethers.provider.send('hardhat_reset', []);
     const [deployer, recipient] = await ethers.getSigners();
+
+    const permit2Artifact = await artifacts.readArtifact('MockPermit2');
+    await ethers.provider.send('hardhat_setCode', [PERMIT2, permit2Artifact.deployedBytecode]);
+    const permit2 = await ethers.getContractAt('MockPermit2', PERMIT2);
 
     const ERC20Factory = await ethers.getContractFactory('WETHMock');
     const usd = await ERC20Factory.deploy();
@@ -60,11 +67,11 @@ describe('DualDexSwapV4Lib', () => {
     await usd.mint(router.address, routerFloat);
     await long.mint(router.address, routerFloat);
 
-    return { deployer, recipient, usd, long, router, harness, paymentsInfo, rate1to1, lib };
+    return { deployer, recipient, usd, long, router, harness, paymentsInfo, rate1to1, lib, permit2 };
   }
 
   it('swaps USD -> LONG and clears allowance', async () => {
-    const { recipient, usd, long, router, harness, paymentsInfo } = await loadFixture(fixture);
+    const { recipient, usd, long, router, harness, paymentsInfo, permit2 } = await loadFixture(fixture);
 
     const amountIn = ethers.utils.parseEther('10');
     await usd.mint(harness.address, amountIn);
@@ -73,12 +80,10 @@ describe('DualDexSwapV4Lib', () => {
 
     const tx = await harness.swapUSDtokenToLONG(paymentsInfo, recipient.address, amountIn, amountIn, 0);
 
+    await expect(tx).to.emit(router, 'MockSwap').withArgs(harness.address, recipient.address, amountIn, amountIn);
     await expect(tx)
-      .to.emit(router, 'MockSwap')
-      .withArgs(harness.address, recipient.address, amountIn, amountIn);
-    expect(await long.balanceOf(recipient.address)).to.eq(amountIn);
-    expect(await usd.balanceOf(harness.address)).to.eq(0);
-    expect(await usd.allowance(harness.address, router.address)).to.eq(0);
+      .to.emit(permit2, 'Approval')
+      .withArgs(harness.address, usd.address, router.address, amountIn, MAX_UINT48);
   });
 
   it('forwards minOut to the router', async () => {

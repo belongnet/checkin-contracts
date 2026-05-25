@@ -13,6 +13,8 @@ contract MockUniV4Router is IActionExecutor {
     IERC20 public immutable usdToken;
     IERC20 public immutable longToken;
 
+    bytes1 private constant V4_SWAP_COMMAND = 0x10;
+
     /// @dev LONG per USD scaled by 1e18 (1e18 == 1:1).
     uint256 public rate;
 
@@ -31,6 +33,23 @@ contract MockUniV4Router is IActionExecutor {
     }
 
     function executeActions(bytes calldata payload) external payable override {
+        _executeActions(payload);
+    }
+
+    function execute(bytes calldata commands, bytes[] calldata inputs) external payable {
+        require(commands.length == 1 && inputs.length == 1, "MockUniV4Router: invalid input");
+        require(commands[0] == V4_SWAP_COMMAND, "MockUniV4Router: invalid command");
+        _executeActions(inputs[0]);
+    }
+
+    function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable {
+        require(deadline >= block.timestamp, "MockUniV4Router: expired");
+        require(commands.length == 1 && inputs.length == 1, "MockUniV4Router: invalid input");
+        require(commands[0] == V4_SWAP_COMMAND, "MockUniV4Router: invalid command");
+        _executeActions(inputs[0]);
+    }
+
+    function _executeActions(bytes calldata payload) private {
         (bytes memory actions, bytes[] memory params) = abi.decode(payload, (bytes, bytes[]));
         require(actions.length > 0 && params.length > 0, "MockUniV4Router: empty plan");
 
