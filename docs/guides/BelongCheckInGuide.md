@@ -176,7 +176,7 @@ Scripts persist data to `deployments/chainId-<id>.json`. Keep key names exactly 
 
 ## Run Flags
 
-Scripts honour the following environment toggles (default `true` when unset):
+Scripts honour the following environment toggles. Pass them explicitly in production runs; do not rely on implicit defaults.
 
 ```bash
 DEPLOY=true   # perform the deployment logic
@@ -185,6 +185,153 @@ UPGRADE=true  # (only in upgrade scripts) execute the upgrade
 ```
 
 Call each script with `yarn hardhat run <script> --network <network>`.
+
+---
+
+## Upgrading BelongCheckIn When a Linked Library Changes
+
+Use this procedure when a linked library used by `BelongCheckIn` changes, for example the `DualDexSwapV4Lib`
+Universal Router / Permit2 fix.
+
+### Key rule
+
+`DualDexSwapV4Lib` is linked into the `BelongCheckIn` implementation bytecode. Deploying a new library contract does
+not change the already deployed proxy by itself. The proxy must be upgraded to a new `BelongCheckIn` implementation
+that is linked against the new library address.
+
+`setPaymentsInfo` can update stored router/pool configuration, but it cannot fix library bytecode bugs such as calling
+the wrong router selector.
+
+### Preconditions
+
+- You control the Transparent Proxy admin used by OpenZeppelin Upgrades. This may be different from
+  `BelongCheckIn.owner()`.
+- `deployments/chainId-<id>.json` contains:
+  - `checkIn.address`
+  - `libraries.signatureVerifier`
+  - `libraries.helper`
+  - `libraries.dualDexSwapV4Lib`
+- The storage layout is unchanged. Do not reorder or extend stored structs such as `PaymentsInfo` for a library-only
+  routing fix.
+- Rehearse the exact upgrade on a fork before mainnet.
+
+### 1. Run the focused test set
+
+```bash
+npx hardhat compile
+npx hardhat test test/v2/platform/dual-dex-swap-v4-lib.test.ts \
+  test/v2/platform/belong-check-in-univ4.test.ts \
+  test/v2/platform/belong-check-in-pcsv4-fork.test.ts
+```
+
+Expected result for the Universal Router / Permit2 fix:
+
+```text
+83 passing
+10 pending
+```
+
+### 2. Snapshot the current deployment
+
+Before changing the deployment JSON, copy it:
+
+```bash
+cp deployments/chainId-56.json deployments/chainId-56.pre-checkin-upgrade.json
+```
+
+Record the current proxy implementation and runtime config:
+
+```bash
+yarn hardhat console --network bsc
+```
+
+```ts
+const checkIn = "0x..."; // deployments.checkIn.address
+await upgrades.erc1967.getImplementationAddress(checkIn);
+const c = await ethers.getContractAt("BelongCheckIn", checkIn);
+await c.paymentsInfo();
+await c.contracts();
+await c.fees();
+```
+
+### 3. Deploy the new library
+
+Preferred production approach: deploy only the changed `DualDexSwapV4Lib`, then update only
+`deployments.libraries.dualDexSwapV4Lib` in `deployments/chainId-<id>.json`.
+
+If you use the existing `0-deploy-libraries.ts` helper, be aware it deploys all three libraries
+(`SignatureVerifier`, `Helper`, and `DualDexSwapV4Lib`) and overwrites all three addresses in the deployments file:
+
+```bash
+DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/belong-checkin/0-deploy-libraries.ts --network bsc
+```
+
+If only `DualDexSwapV4Lib` changed, either:
+
+- keep the newly deployed `SignatureVerifier` and `Helper` addresses intentionally, or
+- restore the previous `signatureVerifier` and `helper` values from the snapshot JSON before upgrading.
+
+The final deployment JSON used for the upgrade must point to the library addresses you intentionally want linked into
+the new implementation.
+
+### 4. Upgrade the BelongCheckIn proxy
+
+Run the upgrade script with explicit flags:
+
+```bash
+UPGRADE=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/belong-checkin/6-upgrade-checkin.ts --network bsc
+```
+
+The script:
+
+- builds `BelongCheckIn` with library addresses from `deployments/chainId-<id>.json`
+- calls `upgrades.validateUpgrade`
+- upgrades the Transparent Proxy implementation
+- prints the new implementation address
+- keeps the proxy address unchanged
+
+If the script reports a storage layout error, stop. Do not bypass storage validation for a production proxy.
+
+### 5. Post-upgrade checks
+
+After the upgrade:
+
+```bash
+yarn hardhat console --network bsc
+```
+
+```ts
+const checkIn = "0x..."; // deployments.checkIn.address
+await upgrades.erc1967.getImplementationAddress(checkIn); // should equal the newly printed implementation
+const c = await ethers.getContractAt("BelongCheckIn", checkIn);
+await c.paymentsInfo(); // should still contain the intended router, tokens, poolKey, slippage, and feed delay
+```
+
+For the v4 Universal Router fix, confirm:
+
+- `paymentsInfo.router` is the intended Universal Router, e.g. Pancake Infinity on BSC.
+- `paymentsInfo.dexType` is still the intended v4 dex.
+- The canonical Permit2 address exists on the target chain:
+
+```text
+0x000000000022D473030F116dDEE9F6B43aC78BA3
+```
+
+Then run one low-value operational transaction, such as a small `venueDepositWithDeadline`, and verify:
+
+- the transaction no longer reverts at the v4 router call
+- `Swapped` is emitted
+- output LONG/USDtoken arrives at the expected recipient
+- no unexpected token allowance remains from `BelongCheckIn` to the router or Permit2
+
+### Common mistakes
+
+- Deploying a new `DualDexSwapV4Lib` but not upgrading the `BelongCheckIn` proxy.
+- Running `setPaymentsInfo` and expecting it to patch linked library bytecode.
+- Accidentally linking the new implementation against old library addresses because the deployments JSON was not
+  updated before running `6-upgrade-checkin.ts`.
+- Reinitializing `BelongCheckIn`. Upgrades must not call `initialize` again.
+- Changing `PaymentsInfo` storage layout as part of a library-only fix.
 
 ---
 
