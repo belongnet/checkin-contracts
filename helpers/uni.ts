@@ -4,13 +4,12 @@ import { ethers } from 'hardhat';
 // ---------- Addresses (Ethereum mainnet)
 export const UNI_V4_POOL_MANAGER = '0x000000000004444c5dc75cB358380D2e3dE08A90';
 export const UNI_V4_ROUTER = '0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af';
-export const UNI_V4_QUOTER = '0x52f0E24D1c21C8A0cB1e5a5dD6198556BD9E1203';
+export const UNI_V4_QUOTER = '0x52F0E24D1c21C8A0cB1e5a5dD6198556BD9E1203';
 
 export const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 export const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 export const USDT_MAINNET_ADDRESS = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
 export const DAI_ADDRESS = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
-export const WETH_USDC_HOOK = '0xa44ff524f78858e015fcca322cb7d16aeb89a088';
 
 const IV4QuoterAbi = [
   'function quoteExactInputSingle(((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,bool zeroForOne,uint128 exactAmount,bytes hookData) params) external returns (uint256 amountOut,uint256 gasEstimate)',
@@ -61,9 +60,10 @@ export async function discoverUniPoolKeyOnFork(opts?: {
 
   const fees = opts?.fees ?? [100, 500, 3000, 10000];
   const tickSpacings = opts?.tickSpacings ?? [1, 10, 60, 200];
-  const hooksList = opts?.hooks ?? [ethers.constants.AddressZero, WETH_USDC_HOOK];
+  const hooksList = opts?.hooks ?? [ethers.constants.AddressZero];
 
   const quoterC = new ethers.Contract(quoter, IV4QuoterAbi, (await ethers.getSigners())[0]);
+  let lastError = '';
 
   for (const zeroForOne of [true, false]) {
     for (const hook of hooksList) {
@@ -77,7 +77,7 @@ export async function discoverUniPoolKeyOnFork(opts?: {
 
           const poolKey = { currency0, currency1, fee, tickSpacing, hooks: hook };
           try {
-            const [amountOut] = await quoterC.quoteExactInputSingle({
+            const [amountOut] = await quoterC.callStatic.quoteExactInputSingle({
               poolKey,
               zeroForOne,
               exactAmount: probeAmount,
@@ -93,11 +93,15 @@ export async function discoverUniPoolKeyOnFork(opts?: {
                 amountOut: BigNumber.from(amountOut),
               };
             }
-          } catch (_) {}
+          } catch (e: any) {
+            lastError = e?.reason ?? e?.error?.message ?? e?.message ?? String(e);
+          }
         }
       }
     }
   }
 
-  throw new Error('No live Uniswap v4 pool found for the tested token pair and candidate fee/tick spacing values.');
+  throw new Error(
+    `No live Uniswap v4 pool found for the tested token pair and candidate fee/tick spacing values. Last quote error: ${lastError}`,
+  );
 }

@@ -79,7 +79,7 @@ export async function discoverPcsPoolKeyOnFork(opts?: {
 
           const key = encodePcsPoolKey(tokenIn, tokenOut, poolMgr, fee, ts, hook);
           try {
-            const [amountOut] = await quoterC.quoteExactInputSingle({
+            const [amountOut] = await quoterC.callStatic.quoteExactInputSingle({
               poolKey: {
                 currency0,
                 currency1,
