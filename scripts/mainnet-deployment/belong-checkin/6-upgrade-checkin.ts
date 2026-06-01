@@ -56,10 +56,11 @@ async function main() {
 
     // Update deployments object
     deployments.checkIn.address = checkIn.address;
+    deployments.checkIn.implementation = newImplementation;
     // Write to file
     fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
     console.log('Upgraded CheckIn proxy still at: ', checkIn.address);
-    console.log('New Factory implementation at: ', newImplementation);
+    console.log('New CheckIn implementation at: ', newImplementation);
 
     console.log('Done.');
   }
@@ -68,12 +69,15 @@ async function main() {
     console.log('Verification: ');
     try {
       if (!deployments.checkIn?.address) {
-        throw new Error('No Factory deployment data found for verification.');
+        throw new Error('No CheckIn deployment data found for verification.');
       }
-      await verifyContract(deployments.checkIn.address);
-      console.log('Factory verification successful.');
+      const implementation = await upgrades.erc1967.getImplementationAddress(deployments.checkIn.address);
+      deployments.checkIn.implementation = implementation;
+      fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
+      await verifyContract(implementation);
+      console.log('CheckIn implementation verification successful.');
     } catch (error) {
-      console.error('Factory verification failed: ', error);
+      console.error('CheckIn implementation verification failed: ', error);
     }
     console.log('Done.');
   }
