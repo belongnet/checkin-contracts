@@ -93,7 +93,14 @@ export async function discoverPcsPoolKeyOnFork(opts?: {
               hookData,
             });
             if (amountOut && BigNumber.from(amountOut).gt(0)) {
-              return { fee, tickSpacing: ts, hooks: hook, poolKey: key, zeroForOne, amountOut: BigNumber.from(amountOut) };
+              return {
+                fee,
+                tickSpacing: ts,
+                hooks: hook,
+                poolKey: key,
+                zeroForOne,
+                amountOut: BigNumber.from(amountOut),
+              };
             }
           } catch (_) {}
         }
@@ -101,7 +108,5 @@ export async function discoverPcsPoolKeyOnFork(opts?: {
     }
   }
 
-  throw new Error(
-    'No live PCS Infinity pool found for the tested token pair and candidate fee/tick spacing values.',
-  );
+  throw new Error('No live PCS Infinity pool found for the tested token pair and candidate fee/tick spacing values.');
 }

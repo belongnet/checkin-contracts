@@ -36,15 +36,14 @@ export const chainRPCs = (chainid: ChainIds, _apiKey?: string): string => {
       }
       return process.env.INFURA_ID_PROJECT
         ? `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
-        : `https://eth.llamarpc.com`;
+        : `https://ethereum-rpc.publicnode.com`;
     case ChainIds.bsc:
       if (process.env.BSC_RPC_URL && process.env.BSC_RPC_URL.trim().length > 0) {
         return process.env.BSC_RPC_URL;
       }
-      if (process.env.INFURA_ID_PROJECT) {
-        return `https://bsc-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`;
-      }
-      return 'https://bsc-dataseed.binance.org';
+      return process.env.INFURA_ID_PROJECT
+        ? `https://bsc-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
+        : `https://public-bsc-mainnet.fastnode.io`;
     case ChainIds.polygon:
       return `https://polygon.llamarpc.com`;
     case ChainIds.blast:
