@@ -20,15 +20,25 @@ export async function getToken(tokenAddress: string): Promise<IERC20Metadata> {
 }
 
 export async function startSimulateMainnet() {
+  const blockFromEnv = Number(process.env.MAINNET_FORK_BLOCK ?? process.env.ETH_FORK_BLOCK ?? '');
+  const forkingConfig: {
+    jsonRpcUrl: string;
+    blockNumber?: number;
+    enable: boolean;
+  } = {
+    jsonRpcUrl: chainRPCs(ChainIds.mainnet),
+    enable: true,
+  };
+
+  if (!Number.isNaN(blockFromEnv) && blockFromEnv > 0) {
+    forkingConfig.blockNumber = blockFromEnv;
+  }
+
   await network.provider.request({
     method: 'hardhat_reset',
     params: [
       {
-        forking: {
-          jsonRpcUrl: chainRPCs(ChainIds.mainnet),
-          blockNumber: 23490636,
-          enable: true,
-        },
+        forking: forkingConfig,
       },
     ],
   });

@@ -25,6 +25,15 @@ export enum ChainIds {
 export const chainRPCs = (chainid: ChainIds, _apiKey?: string): string => {
   switch (chainid) {
     case ChainIds.mainnet:
+      if (process.env.MAINNET_RPC_URL && process.env.MAINNET_RPC_URL.trim().length > 0) {
+        return process.env.MAINNET_RPC_URL;
+      }
+      if (process.env.ETH_RPC_URL && process.env.ETH_RPC_URL.trim().length > 0) {
+        return process.env.ETH_RPC_URL;
+      }
+      if (process.env.ETHEREUM_RPC_URL && process.env.ETHEREUM_RPC_URL.trim().length > 0) {
+        return process.env.ETHEREUM_RPC_URL;
+      }
       return process.env.INFURA_ID_PROJECT
         ? `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
         : `https://eth.llamarpc.com`;
