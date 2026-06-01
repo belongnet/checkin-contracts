@@ -27,9 +27,7 @@ contract MockPermit2 {
 
     function approve(address token, address spender, uint160 amount, uint48 expiration) external {
         _allowances[msg.sender][token][spender] = PackedAllowance({
-            amount: amount,
-            expiration: expiration,
-            nonce: _allowances[msg.sender][token][spender].nonce
+            amount: amount, expiration: expiration, nonce: _allowances[msg.sender][token][spender].nonce
         });
         emit Approval(msg.sender, token, spender, amount, expiration);
     }

@@ -106,8 +106,7 @@ contract MockPcsV4Permit2Router is IActionExecutor {
 
     constructor(address permit2_, address usdToken_, address longToken_, uint256 rate_) {
         require(
-            permit2_ != address(0) && usdToken_ != address(0) && longToken_ != address(0),
-            "MockPcsV4Router: zero addr"
+            permit2_ != address(0) && usdToken_ != address(0) && longToken_ != address(0), "MockPcsV4Router: zero addr"
         );
         permit2 = IMockPermit2Transfer(permit2_);
         usdToken = IERC20(usdToken_);
