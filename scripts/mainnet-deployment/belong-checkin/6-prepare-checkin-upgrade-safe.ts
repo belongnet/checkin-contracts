@@ -49,11 +49,9 @@ async function main() {
 
   if (DEPLOY && !process.env.CHECKIN_IMPLEMENTATION_ADDRESS) {
     console.log('Deploying new BelongCheckIn implementation...');
-    implementation = (await upgrades.prepareUpgrade(proxy, BelongCheckIn, {
-      kind: 'transparent',
-      unsafeAllow: ['constructor'],
-      unsafeAllowLinkedLibraries: true,
-    })) as string;
+    const implementationContract = await BelongCheckIn.deploy();
+    await implementationContract.deployed();
+    implementation = implementationContract.address;
   }
 
   if (!implementation || !ethers.utils.isAddress(implementation)) {
@@ -61,7 +59,11 @@ async function main() {
   }
 
   const proxyAdmin = await upgrades.erc1967.getAdminAddress(proxy);
-  const proxyAdminContract = new ethers.Contract(proxyAdmin, ['function owner() view returns (address)'], ethers.provider);
+  const proxyAdminContract = new ethers.Contract(
+    proxyAdmin,
+    ['function owner() view returns (address)'],
+    ethers.provider,
+  );
   const proxyAdminOwner = await proxyAdminContract.owner();
   const proxyAdminInterface = new ethers.utils.Interface(['function upgrade(address proxy, address implementation)']);
   const data = proxyAdminInterface.encodeFunctionData('upgrade', [proxy, implementation]);
