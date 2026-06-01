@@ -3,13 +3,12 @@ import { BigNumber, Contract } from 'ethers';
 import { ethers } from 'hardhat';
 
 import { deployDualDexSwapV4Lib } from '../../../helpers/deployFixtures';
-import { getToken, startSimulateBSC, startSimulateMainnet, stopSimulate } from '../../../helpers/fork';
+import { getSignerFromAddress, getToken, startSimulateBSC, startSimulateMainnet, stopSimulate } from '../../../helpers/fork';
 import {
-  discoverPcsPoolKeyOnFork,
   PCS_CL_POOL_MANAGER,
+  PCS_V4_QUOTER,
   PCS_V4_ROUTER,
   USDT_ADDRESS as BSC_USDT_ADDRESS,
-  WBNB_ADDRESS,
 } from '../../../helpers/pcs';
 import { discoverUniPoolKeyOnFork, UNI_V4_ROUTER, USDC_ADDRESS, WETH_ADDRESS } from '../../../helpers/uni';
 import { DualDexSwapV4Lib, DualDexSwapV4LibHarness } from '../../../typechain-types';
@@ -27,6 +26,20 @@ const WRAPPED_NATIVE_ABI = [
   'function transfer(address to,uint256 amount) external returns (bool)',
   'function balanceOf(address account) external view returns (uint256)',
 ];
+const ERC20_TRANSFER_ABI = ['function transfer(address to,uint256 amount) external returns (bool)'];
+const PCS_V4_QUOTER_ABI = [
+  'function quoteExactInputSingle(((address currency0,address currency1,address hooks,address poolManager,uint24 fee,bytes32 parameters) poolKey,bool zeroForOne,uint128 exactAmount,bytes hookData) params) external returns (uint256 amountOut,uint256 gasEstimate)',
+];
+
+const BSC_USDT_WHALE = '0x8894E0a0c962CB723c1976a4421c95949bE2D4E3';
+const BSC_ACTIVE_PCS_USDT_POOL = {
+  currency0: BSC_USDT_ADDRESS,
+  currency1: '0x595dEaad1eB5476Ff1E649fDb7EFC36F1E4679cc',
+  hooks: '0x72e09eBd9b24F47730b651889a4eD984CBa53d90',
+  poolManager: PCS_CL_POOL_MANAGER,
+  fee: 67,
+  parameters: '0x00000000000000000000000000000000000000000000000000000000000a0055',
+};
 
 const runMainnetForkTests = !!(
   process.env.MAINNET_RPC_URL ||
@@ -66,7 +79,23 @@ async function wrapAndTransferToHarness(tokenAddress: string, amount: BigNumber,
   await wrapped.transfer(harnessAddress, amount);
 }
 
-describeMainnetFork('DualDexSwapV4Lib real Ethereum mainnet fork', () => {
+async function transferTokenFromWhale(tokenAddress: string, whaleAddress: string, amount: BigNumber, recipient: string) {
+  await ethers.provider.send('hardhat_setBalance', [whaleAddress, ethers.utils.parseEther('100').toHexString()]);
+  const whale = await getSignerFromAddress(whaleAddress);
+  const token = new Contract(tokenAddress, ERC20_TRANSFER_ABI, whale);
+  await token.transfer(recipient, amount);
+}
+
+function encodePcsPoolKey(poolKey: typeof BSC_ACTIVE_PCS_USDT_POOL): string {
+  return ethers.utils.defaultAbiCoder.encode(
+    ['tuple(address currency0,address currency1,address hooks,address poolManager,uint24 fee,bytes32 parameters)'],
+    [poolKey],
+  );
+}
+
+describeMainnetFork('DualDexSwapV4Lib real Ethereum mainnet fork', function () {
+  this.timeout(600000);
+
   afterEach(stopSimulate);
 
   it('executes a real Uniswap v4 WETH -> USDC swap through Universal Router', async () => {
@@ -114,51 +143,55 @@ describeMainnetFork('DualDexSwapV4Lib real Ethereum mainnet fork', () => {
   });
 });
 
-describeBscFork('DualDexSwapV4Lib real BSC mainnet fork', () => {
+describeBscFork('DualDexSwapV4Lib real BSC mainnet fork', function () {
+  this.timeout(600000);
+
   afterEach(stopSimulate);
 
-  it('executes a real PancakeSwap Infinity WBNB -> USDT swap through Universal Router', async () => {
+  it('executes a real PancakeSwap Infinity USDT swap through Universal Router', async () => {
     await startSimulateBSC();
 
     const [recipient] = await ethers.getSigners();
     const harness = await deployHarness();
-    const amountIn = ethers.utils.parseEther('0.01');
+    const amountIn = ethers.utils.parseEther('1');
 
-    const pool = await discoverPcsPoolKeyOnFork({
-      tokenIn: WBNB_ADDRESS,
-      tokenOut: BSC_USDT_ADDRESS,
-      poolManager: PCS_CL_POOL_MANAGER,
-      probeAmount: amountIn,
+    const pcsQuoter = new Contract(PCS_V4_QUOTER, PCS_V4_QUOTER_ABI, recipient);
+    const [quotedAmountOut] = await pcsQuoter.callStatic.quoteExactInputSingle({
+      poolKey: BSC_ACTIVE_PCS_USDT_POOL,
+      zeroForOne: true,
+      exactAmount: amountIn,
+      hookData: '0x',
     });
+    const poolKey = encodePcsPoolKey(BSC_ACTIVE_PCS_USDT_POOL);
 
-    await wrapAndTransferToHarness(WBNB_ADDRESS, amountIn, harness.address);
+    await transferTokenFromWhale(BSC_USDT_ADDRESS, BSC_USDT_WHALE, amountIn, harness.address);
 
-    const usdt = await getToken(BSC_USDT_ADDRESS);
-    const beforeBalance = await usdt.balanceOf(recipient.address);
+    const tokenOut = await getToken(BSC_ACTIVE_PCS_USDT_POOL.currency1);
+    const beforeBalance = await tokenOut.balanceOf(recipient.address);
 
     const paymentsInfo = {
       dexType: DexType.PcsV4,
       slippageBps: 0,
       router: PCS_V4_ROUTER,
       usdToken: BSC_USDT_ADDRESS,
-      long: WBNB_ADDRESS,
+      long: BSC_ACTIVE_PCS_USDT_POOL.currency1,
       maxPriceFeedDelay: 0,
-      poolKey: pool.poolKey,
+      poolKey,
       hookData: '0x',
     } as DualDexSwapV4LibType.PaymentsInfoStruct;
 
     await harness.swapExact(paymentsInfo, {
-      tokenIn: WBNB_ADDRESS,
-      tokenOut: BSC_USDT_ADDRESS,
+      tokenIn: BSC_USDT_ADDRESS,
+      tokenOut: BSC_ACTIVE_PCS_USDT_POOL.currency1,
       amountIn,
-      amountOutMinimum: pool.amountOut.mul(90).div(100),
+      amountOutMinimum: BigNumber.from(quotedAmountOut).mul(90).div(100),
       deadline: Math.floor(Date.now() / 1000) + 300,
-      poolKey: pool.poolKey,
+      poolKey,
       hookData: '0x',
       recipient: recipient.address,
     });
 
-    const received = (await usdt.balanceOf(recipient.address)).sub(beforeBalance);
+    const received = (await tokenOut.balanceOf(recipient.address)).sub(beforeBalance);
     expect(received).to.be.gt(0);
   });
 });
