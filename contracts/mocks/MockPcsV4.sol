@@ -9,6 +9,10 @@ import {ICLQuoter} from "../v2/external/@pancakeswap/infinity-periphery/src/pool
 import {IQuoter} from "../v2/external/@pancakeswap/infinity-periphery/src/interfaces/IQuoter.sol";
 import {Currency} from "../v2/external/@pancakeswap/infinity-core/src/types/Currency.sol";
 
+interface IMockPermit2Transfer {
+    function transferFrom(address from, address to, uint160 amount, address token) external;
+}
+
 /// @notice Minimal PancakeSwap v4 router mock that consumes USDtoken and releases LONG at a fixed rate.
 contract MockPcsV4Router is IActionExecutor {
     IERC20 public immutable usdToken;
@@ -71,6 +75,89 @@ contract MockPcsV4Router is IActionExecutor {
         require(amountOut >= uint256(swapParams.amountOutMinimum), "MockPcsV4Router: slippage");
 
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
+        IERC20(tokenOut).transfer(recipient, amountOut);
+
+        emit MockSwap(msg.sender, recipient, amountIn, amountOut);
+    }
+
+    function _quote(address tokenIn, address tokenOut, uint256 amountIn) internal view returns (uint256) {
+        if (tokenIn == address(usdToken) && tokenOut == address(longToken)) {
+            return (amountIn * rate) / 1e18;
+        }
+        if (tokenIn == address(longToken) && tokenOut == address(usdToken)) {
+            return (amountIn * 1e18) / rate;
+        }
+        revert("MockPcsV4Router: pair");
+    }
+}
+
+/// @notice PancakeSwap v4 router mock that pulls input through a configured Permit2 contract.
+contract MockPcsV4Permit2Router is IActionExecutor {
+    IERC20 public immutable usdToken;
+    IERC20 public immutable longToken;
+    IMockPermit2Transfer public immutable permit2;
+
+    bytes1 private constant INFI_SWAP_COMMAND = 0x10;
+
+    /// @dev LONG per USD scaled by 1e18 (1e18 == 1:1).
+    uint256 public rate;
+
+    event MockSwap(address indexed caller, address indexed recipient, uint256 amountIn, uint256 amountOut);
+
+    constructor(address permit2_, address usdToken_, address longToken_, uint256 rate_) {
+        require(
+            permit2_ != address(0) && usdToken_ != address(0) && longToken_ != address(0),
+            "MockPcsV4Router: zero addr"
+        );
+        permit2 = IMockPermit2Transfer(permit2_);
+        usdToken = IERC20(usdToken_);
+        longToken = IERC20(longToken_);
+        rate = rate_;
+    }
+
+    function setRate(uint256 newRate) external {
+        require(newRate != 0, "MockPcsV4Router: zero rate");
+        rate = newRate;
+    }
+
+    function executeActions(bytes calldata payload) external payable override {
+        _executeActions(payload);
+    }
+
+    function execute(bytes calldata commands, bytes[] calldata inputs) external payable {
+        require(commands.length == 1 && inputs.length == 1, "MockPcsV4Router: invalid input");
+        require(commands[0] == INFI_SWAP_COMMAND, "MockPcsV4Router: invalid command");
+        _executeActions(inputs[0]);
+    }
+
+    function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable {
+        require(deadline >= block.timestamp, "MockPcsV4Router: expired");
+        require(commands.length == 1 && inputs.length == 1, "MockPcsV4Router: invalid input");
+        require(commands[0] == INFI_SWAP_COMMAND, "MockPcsV4Router: invalid command");
+        _executeActions(inputs[0]);
+    }
+
+    function _executeActions(bytes calldata payload) private {
+        (bytes memory actions, bytes[] memory params) = abi.decode(payload, (bytes, bytes[]));
+        require(actions.length > 0 && params.length > 0, "MockPcsV4Router: empty plan");
+
+        ICLRouterBase.CLSwapExactInputSingleParams memory swapParams =
+            abi.decode(params[0], (ICLRouterBase.CLSwapExactInputSingleParams));
+
+        address currency0 = Currency.unwrap(swapParams.poolKey.currency0);
+        address currency1 = Currency.unwrap(swapParams.poolKey.currency1);
+        address tokenIn = swapParams.zeroForOne ? currency0 : currency1;
+        address tokenOut = swapParams.zeroForOne ? currency1 : currency0;
+
+        (, address recipient,) = abi.decode(params[params.length - 1], (address, address, uint256));
+
+        uint256 amountIn = uint256(swapParams.amountIn);
+        require(amountIn > 0, "MockPcsV4Router: zero in");
+
+        uint256 amountOut = _quote(tokenIn, tokenOut, amountIn);
+        require(amountOut >= uint256(swapParams.amountOutMinimum), "MockPcsV4Router: slippage");
+
+        permit2.transferFrom(msg.sender, address(this), uint160(amountIn), tokenIn);
         IERC20(tokenOut).transfer(recipient, amountOut);
 
         emit MockSwap(msg.sender, recipient, amountIn, amountOut);
