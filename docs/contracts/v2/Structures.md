@@ -13,9 +13,10 @@ struct NftMetadata {
 
 Initialization/configuration data for an AccessToken (ERC-721) collection.
 @dev
-- `paymentToken` can be an ERC-20 address or the NativeCurrency pseudo-address
-  (`0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`).
+- `paymentToken` can be a token address or the NativeCurrency pseudo-address
+  (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE).
 - `feeNumerator` is used for ERC-2981 royalty configuration.
+- `signature` is validated off-chain by a platform signer.
 
 ```solidity
 struct AccessTokenInfo {
@@ -143,7 +144,7 @@ enum BountyAllocationTypes {
 
 ## LongPaymentTypes
 
-Venue-allowed LONG payment options.
+Venue-allowed Long payment options.
 
 ```solidity
 enum LongPaymentTypes {
@@ -217,3 +218,4 @@ struct PromoterInfo {
   uint256 amountInUSD;
 }
 ```
+

@@ -57,10 +57,16 @@ Error thrown when a user attempts to get a referral rate for a code they haven't
 error PercentageExceedsMax(uint16 percentage)
 ```
 
+### MaxArrayLengthExceedsMax
+
+```solidity
+error MaxArrayLengthExceedsMax(uint16 maxArrayLength)
+```
+
 ### ReferralParametersSet
 
 ```solidity
-event ReferralParametersSet(uint16[5] percentages)
+event ReferralParametersSet(uint16[5] percentages, uint16 maxArrayLength)
 ```
 
 Emitted when referral percentages are set.
@@ -70,6 +76,7 @@ Emitted when referral percentages are set.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | percentages | uint16[5] | The new referral percentages. |
+| maxArrayLength | uint16 |  |
 
 ### ReferralCodeCreated
 
@@ -275,6 +282,6 @@ _Internal function that tracks how many times the user has used the code._
 ### _setReferralParameters
 
 ```solidity
-function _setReferralParameters(uint16[5] percentages) internal
+function _setReferralParameters(uint16[5] percentages, uint16 maxArrayLength) internal
 ```
 

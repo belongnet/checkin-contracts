@@ -8,6 +8,7 @@ Token vesting wallet supporting TGE, linear vesting after cliff, and step-based 
   and optional monotonic time-ordered tranches between `start` and `end`.
 - Tranche configuration must be finalized so that TGE + linear allocation + tranches
   exactly equals `totalAllocation` before any release.
+- Upfront funding is optional; payouts are always capped by this wallet's current token balance.
 - Inherits UUPS upgradeability and Solady's `Ownable`/`Initializable`.
 
 ### ZeroAddressPassed
@@ -238,6 +239,8 @@ function initialize(address _owner, struct VestingWalletInfo vestingParams) exte
 
 Initializes the vesting wallet with the given owner and vesting parameters.
 
+_Reverts if owner, token, or beneficiary is zero address._
+
 #### Parameters
 
 | Name | Type | Description |
@@ -288,8 +291,9 @@ function finalizeTranchesConfiguration() external
 ```
 
 Finalizes tranche configuration; makes vesting schedule immutable.
-
-_Ensures TGE + linear + tranches equals `totalAllocation` before finalization._
+@dev
+- Ensures TGE + linear + tranches equals `totalAllocation` before finalization.
+- Does not require the wallet to already hold `totalAllocation` tokens.
 
 ### release
 
@@ -434,3 +438,4 @@ Authorizes UUPS upgrades; restricted to owner.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 |  | address |  |
+

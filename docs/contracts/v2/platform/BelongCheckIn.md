@@ -6,31 +6,10 @@ Coordinates venue deposits, customer check-ins, and promoter settlements for the
 @dev
 - Maintains venue and promoter balances as denominated ERC1155 credits (1 credit == 1 USD unit).
 - Delegates token custody to {Escrow} while enforcing platform fees, referral incentives, and staking perks.
-- Prices and swaps LONG through a configured DEX router while deriving swap limits from a Chainlink price feed.
+- Prices and swaps LONG through a dual DEX (Uniswap v4 / Pancake Infinity) router while deriving slippage bounds from a Chainlink price feed.
 - Applies staking-tier-dependent deposit fees, customer discounts, and promoter fee splits.
 - Streams platform revenue through a buyback-and-burn routine before forwarding the remainder to Factory.platformAddress.
-- All externally triggered flows require backend signatures verified via {SignatureVerifier}
-  (keccak256(abi.encode(...)) with nonce/deadline and chainId).
-
-### Deployment and Wiring
-
-- Deploy behind a proxy and call `initialize(owner, paymentsInfo)`.
-- Deploy `Escrow` and call `Escrow.initialize(belongCheckIn)`.
-- Call `setContracts` with `Factory`, `Escrow`, `Staking`, venue/promoter `CreditToken`,
-  and the LONG price feed address.
-- The LONG price feed can be a Chainlink aggregator or the `LONGPriceFeed` helper
-  deployed via `scripts/mainnet-deployment/belong-checkin/16-deploy-long-price-feed.ts`.
-- Ensure `Factory.nftFactoryParameters().signerAddress` is set; this signer is required
-  for venue deposits, customer payments, and promoter settlements.
-- Note: `venueDeposit`, `payToVenue`, and `distributePromoterPayments` are EOA-only.
-
-### Core Flows (Brief)
-
-- `venueDeposit`: collects USDtoken + fees, mints venue credits, records escrow balances.
-- `payToVenue`: burns venue credits to mint promoter credits, collects USDtoken or LONG
-  payments, and routes LONG per venue rules.
-- `distributePromoterPayments`: burns promoter credits, pays out in USDtoken or LONG,
-  and routes platform fees through buyback/burn.
+- All externally triggered flows require EIP-712 signatures produced by the platform signer held in {Factory}.
 
 ### WrongReferralCode
 
@@ -84,6 +63,20 @@ Thrown when an action requires more balance than available.
 | requiredAmount | uint256 | The amount required to proceed. |
 | availableBalance | uint256 | The currently available balance. |
 
+### NotEnoughPromoterBalance
+
+```solidity
+error NotEnoughPromoterBalance(uint256 requiredAmount)
+```
+
+Thrown when a promoter lacks sufficient credits to distribute a payout.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| requiredAmount | uint256 | The amount requested for distribution. |
+
 ### WrongPaymentTypeProvided
 
 ```solidity
@@ -92,21 +85,13 @@ error WrongPaymentTypeProvided()
 
 Thrown when a venue provides an invalid or disabled payment type.
 
-### BPSTooHigh
+### ProcessingFeeExceedsSubsidy
 
 ```solidity
-error BPSTooHigh()
+error ProcessingFeeExceedsSubsidy()
 ```
 
-Reverts when a provided bps value exceeds the configured scaling domain.
-
-### NoValidSwapPath
-
-```solidity
-error NoValidSwapPath()
-```
-
-Thrown when no valid swap path is found for a USDC→LONG OR LONG→USDC swap.
+Reverts when the processing fee percentage is configured above the subsidy percentage.
 
 ### TokensCanNotBeBurned
 
@@ -116,37 +101,49 @@ error TokensCanNotBeBurned()
 
 Thrown when LONG cannot be burned or transferred to the burn address.
 
-### SwapFailed
+### OnlyEOA
 
 ```solidity
-error SwapFailed(address tokenIn, address tokenOut, uint256 amount)
+error OnlyEOA()
 ```
 
-Thrown when a Uniswap V3 swap fails for the provided tokens/amount.
+Thrown when a contract (non-EOA) calls a restricted function.
+
+### ZeroAmountProvided
+
+```solidity
+error ZeroAmountProvided()
+```
+
+Thrown when a zero amount is supplied where a positive value is required.
+
+### FeesSet
+
+```solidity
+event FeesSet(struct BelongCheckIn.Fees fees)
+```
+
+Emitted when platform fee settings are updated.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| tokenIn | address | Asset that was being swapped from. |
-| tokenOut | address | Asset that was being swapped to. |
-| amount | uint256 | Exact input amount that failed to execute. |
+| fees | struct BelongCheckIn.Fees | The new fee configuration. |
 
-### ParametersSet
+### RewardsSet
 
 ```solidity
-event ParametersSet(struct BelongCheckIn.PaymentsInfo paymentsInfo, struct BelongCheckIn.Fees fees, struct BelongCheckIn.RewardsInfo[5] rewards)
+event RewardsSet(struct BelongCheckIn.RewardsInfo[5] rewards)
 ```
 
-Emitted when global parameters are updated.
+Emitted when staking reward tiers are updated.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| paymentsInfo | struct BelongCheckIn.PaymentsInfo | Uniswap/asset addresses and pool fee configuration. |
-| fees | struct BelongCheckIn.Fees | Platform-level fee settings. |
-| rewards | struct BelongCheckIn.RewardsInfo[5] | Array of tiered staking rewards (index by `StakingTiers`). |
+| rewards | struct BelongCheckIn.RewardsInfo[5] | The new rewards configuration for all tiers. |
 
 ### VenueRulesSet
 
@@ -183,7 +180,7 @@ Emitted when contract references are configured.
 event VenuePaidDeposit(address venue, bytes32 referralCode, struct VenueRules rules, uint256 amount)
 ```
 
-Emitted when a venue deposits USDC to the program.
+Emitted when a venue deposits USDtoken to the program.
 
 #### Parameters
 
@@ -192,15 +189,15 @@ Emitted when a venue deposits USDC to the program.
 | venue | address | The venue that made the deposit. |
 | referralCode | bytes32 | The referral code used (if any). |
 | rules | struct VenueRules | The rules applied to the venue at time of deposit. |
-| amount | uint256 | The deposited USDC amount (in USDC native decimals). |
+| amount | uint256 | The deposited USDtoken amount (in USDtoken native decimals). |
 
 ### CustomerPaid
 
 ```solidity
-event CustomerPaid(address customer, address venueToPayFor, address promoter, uint256 amount, uint128 visitBountyAmount, uint24 spendBountyPercentage)
+event CustomerPaid(address customer, address venueToPayFor, address promoter, uint256 amount, struct Bounties toCustomer, struct Bounties toPromoter)
 ```
 
-Emitted when a customer pays a venue (in USDC or LONG).
+Emitted when a customer pays a venue (in USDtoken or LONG).
 
 #### Parameters
 
@@ -209,14 +206,14 @@ Emitted when a customer pays a venue (in USDC or LONG).
 | customer | address | The paying customer. |
 | venueToPayFor | address | The venue receiving the payment. |
 | promoter | address | The promoter credited, if any. |
-| amount | uint256 | The payment amount (USDC native decimals for USDC; LONG wei for LONG). |
-| visitBountyAmount | uint128 | Flat bounty component (USDC native decimals) if paying in USDC; standardized in logic for LONG. |
-| spendBountyPercentage | uint24 | Percentage bounty on spend (scaled by 1e4 where 10000 == 100%). |
+| amount | uint256 | The payment amount (USDtoken native decimals for USDtoken; LONG wei for LONG). |
+| toCustomer | struct Bounties |  |
+| toPromoter | struct Bounties |  |
 
 ### PromoterPaymentsDistributed
 
 ```solidity
-event PromoterPaymentsDistributed(address promoter, address venue, uint256 amountInUSD, bool paymentInUSDC)
+event PromoterPaymentsDistributed(address promoter, address venue, uint256 amountInUSD, bool paymentInUSDtoken)
 ```
 
 Emitted when promoter payments are distributed.
@@ -228,7 +225,7 @@ Emitted when promoter payments are distributed.
 | promoter | address | The promoter receiving a payout. |
 | venue | address | The venue to which the promoter's balance is linked. |
 | amountInUSD | uint256 | The USD-denominated amount settled from promoter credits. |
-| paymentInUSDC | bool | True if payout in USDC; false if swapped to LONG. |
+| paymentInUSDtoken | bool | True if payout in USDtoken; false if swapped to LONG. |
 
 ### PromoterPaymentCancelled
 
@@ -252,14 +249,14 @@ Emitted when the owner cancels a promoter payment and restores venue credits.
 event Swapped(address recipient, uint256 amountIn, uint256 amountOut)
 ```
 
-Emitted after a USDC→LONG swap via Uniswap V3.
+Emitted after a swap routed through the configured DEX.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | recipient | address | The address receiving LONG. |
-| amountIn | uint256 | The USDC input amount. |
+| amountIn | uint256 | The USDtoken input amount. |
 | amountOut | uint256 | The LONG output amount. |
 
 ### RevenueBuybackBurn
@@ -274,9 +271,9 @@ Emitted when revenue is processed for buyback/burn.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| token | address | Revenue token address (USDC or LONG). |
+| token | address | Revenue token address (USDtoken or LONG). |
 | gross | uint256 | Total revenue processed. |
-| buyback | uint256 | Amount allocated to buyback/burn (in revenue token units for USDC, LONG units for LONG). |
+| buyback | uint256 | Amount allocated to buyback/burn (in revenue token units for USDtoken, LONG units for LONG). |
 | burnedLONG | uint256 | Amount of LONG burned (or 0 if burn failed and was handled differently). |
 | fees | uint256 | Amount forwarded to fee collector address. |
 
@@ -295,6 +292,21 @@ Emitted when LONG is burned or sent to a burn address as a fallback.
 | burnedTo | address | Address to which LONG was sent (zero address if direct burn, `DEAD` if transferred). |
 | amountBurned | uint256 | Amount of LONG burned or transferred to the burn address. |
 
+### VenueUsdWithdrawn
+
+```solidity
+event VenueUsdWithdrawn(address venue, uint256 amount)
+```
+
+Emitted when a venue withdraws unused USDtoken deposits from escrow.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| venue | address | The withdrawing venue. |
+| amount | uint256 | Amount of USDtoken transferred back to the venue. |
+
 ### BelongCheckInStorage
 
 Top-level storage bundle for program configuration.
@@ -302,7 +314,6 @@ Top-level storage bundle for program configuration.
 ```solidity
 struct BelongCheckInStorage {
   struct BelongCheckIn.Contracts contracts;
-  struct BelongCheckIn.PaymentsInfo paymentsInfo;
   struct BelongCheckIn.Fees fees;
 }
 ```
@@ -346,30 +357,6 @@ struct Fees {
 }
 ```
 
-### PaymentsInfo
-
-Uniswap routing and token addresses.
-Slippage tolerance scaled to 27 decimals where 1e27 == 100%.
-
-_Used by Helper.amountOutMin via BelongCheckIn._swapUSDCtoLONG; valid range [0, 1e27].
-@dev
-- `swapPoolFees` is the 3-byte fee tier used for both USDC↔W_NATIVE_CURRENCY and W_NATIVE_CURRENCY↔LONG hops.
-- `wNativeCurrency`, `usdc`, `long` are token addresses; `swapV3Router` and `swapV3Quoter` are periphery contracts._
-
-```solidity
-struct PaymentsInfo {
-  uint96 slippageBps;
-  uint24 swapPoolFees;
-  address swapV3Factory;
-  address swapV3Router;
-  address swapV3Quoter;
-  address wNativeCurrency;
-  address usdc;
-  address long;
-  uint256 maxPriceFeedDelay;
-}
-```
-
 ### GeneralVenueInfo
 
 Venue-specific configuration and remaining “free” deposit credits.
@@ -381,11 +368,26 @@ struct GeneralVenueInfo {
 }
 ```
 
+### VenueDepositFeesInfo
+
+Computed fee breakdown for venue deposits.
+
+```solidity
+struct VenueDepositFeesInfo {
+  uint256 feeAmount;
+  uint256 platformFee;
+  uint256 convenienceFeeAmount;
+  address affiliate;
+  uint256 affiliateFee;
+  bool useFreeCredit;
+}
+```
+
 ### VenueStakingRewardInfo
 
 Per-tier venue-side fee settings.
 
-_`depositFeePercentage` scaled by 1e4; `convenienceFeeAmount` is a flat USDC amount (native decimals)._
+_`depositFeePercentage` scaled by 1e4; `convenienceFeeAmount` is a flat USDtoken amount (native decimals)._
 
 ```solidity
 struct VenueStakingRewardInfo {
@@ -398,11 +400,11 @@ struct VenueStakingRewardInfo {
 
 Per-tier promoter payout configuration.
 
-_Percentages scaled by 1e4; separate values for USDC or LONG payouts._
+_Percentages scaled by 1e4; separate values for USDtoken or LONG payouts._
 
 ```solidity
 struct PromoterStakingRewardInfo {
-  uint24 usdcPercentage;
+  uint24 usdTokenPercentage;
   uint24 longPercentage;
 }
 ```
@@ -446,6 +448,12 @@ Staking-tier-indexed rewards configuration.
 
 _Indexed by `StakingTiers` enum value [0..4]._
 
+### onlyEOA
+
+```solidity
+modifier onlyEOA()
+```
+
 ### constructor
 
 ```solidity
@@ -457,12 +465,12 @@ Disables initializers for the implementation contract.
 ### initialize
 
 ```solidity
-function initialize(address _owner, struct BelongCheckIn.PaymentsInfo _paymentsInfo) external
+function initialize(address _owner, struct DualDexSwapV4Lib.PaymentsInfo paymentsInfo_) external
 ```
 
 Initializes core parameters, default tier tables, and transfers ownership.
 @dev
-- Derives a $5 convenience charge in native USDC decimals through `MetadataReaderLib.readDecimals`.
+- Derives a $5 convenience charge in native USDtoken decimals through `MetadataReaderLib.readDecimals`.
 - Seeds default {Fees} and full 5-tier {RewardsInfo} tables used until `setParameters` is invoked.
 - Callable exactly once; subsequent calls revert via {Initializable}.
 
@@ -471,12 +479,12 @@ Initializes core parameters, default tier tables, and transfers ownership.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _owner | address | Address that will gain `onlyOwner` privileges. |
-| _paymentsInfo | struct BelongCheckIn.PaymentsInfo | Initial swap + asset configuration to persist. |
+| paymentsInfo_ | struct DualDexSwapV4Lib.PaymentsInfo | Initial swap + asset configuration to persist. |
 
 ### setParameters
 
 ```solidity
-function setParameters(struct BelongCheckIn.PaymentsInfo _paymentsInfo, struct BelongCheckIn.Fees _fees, struct BelongCheckIn.RewardsInfo[5] _stakingRewards) external
+function setParameters(struct DualDexSwapV4Lib.PaymentsInfo paymentsInfo_, struct BelongCheckIn.Fees _fees, struct BelongCheckIn.RewardsInfo[5] _stakingRewards) external
 ```
 
 Owner-only convenience wrapper to replace swap configuration, fee knobs, and tier tables atomically.
@@ -485,9 +493,51 @@ Owner-only convenience wrapper to replace swap configuration, fee knobs, and tie
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _paymentsInfo | struct BelongCheckIn.PaymentsInfo | Fresh Uniswap + asset configuration to persist. |
+| paymentsInfo_ | struct DualDexSwapV4Lib.PaymentsInfo | Fresh DEX + asset configuration to persist. |
 | _fees | struct BelongCheckIn.Fees | Revised fee settings scaled by 1e4 (basis points domain). |
 | _stakingRewards | struct BelongCheckIn.RewardsInfo[5] | Replacement 5-element rewards array (index matches {StakingTiers}). |
+
+### setPaymentsInfo
+
+```solidity
+function setPaymentsInfo(struct DualDexSwapV4Lib.PaymentsInfo paymentsInfo_) external
+```
+
+Owner-only method to update swap routing and asset configuration.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| paymentsInfo_ | struct DualDexSwapV4Lib.PaymentsInfo | New DEX + asset configuration to persist. |
+
+### setFees
+
+```solidity
+function setFees(struct BelongCheckIn.Fees _fees) external
+```
+
+Owner-only method to update platform fee configuration.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _fees | struct BelongCheckIn.Fees | New fee settings (basis points scaled by 1e4). |
+
+### setRewards
+
+```solidity
+function setRewards(struct BelongCheckIn.RewardsInfo[5] _stakingRewards) external
+```
+
+Owner-only method to update staking rewards tiers.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _stakingRewards | struct BelongCheckIn.RewardsInfo[5] | New rewards configuration for all tiers. |
 
 ### setContracts
 
@@ -519,17 +569,31 @@ _Reverts with `NotAVenue()` when the caller has no outstanding credits (i.e. has
 | ---- | ---- | ----------- |
 | rules | struct VenueRules | The updated `VenueRules` payload for the caller. |
 
+### withdrawUnusedUSD
+
+```solidity
+function withdrawUnusedUSD(uint256 amount) external
+```
+
+Allows a venue to withdraw unused USDtoken deposits when no promoter payouts occur.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | Amount of USDtoken to withdraw. |
+
 ### venueDeposit
 
 ```solidity
-function venueDeposit(struct VenueInfo venueInfo) external
+function venueDeposit(struct VenueInfo venueInfo, struct SignatureVerifier.SignatureProtection protection) external
 ```
 
-Handles a venue USDC deposit, accounting for fee exemptions, affiliate rewards, and escrow funding.
+Handles a venue USDtoken deposit, accounting for fee exemptions, affiliate rewards, and escrow funding.
 @dev
 - Signature-validated via platform signer from `Factory`.
 - Tracks “free deposit” credits; the platform fee is skipped until the configured allowance is exhausted.
-- Charges convenience plus affiliate fees in USDC, swaps them to LONG where applicable, and records the resulting LONG in escrow.
+- Charges convenience plus affiliate fees in USDtoken, swaps them to LONG where applicable, and records the resulting LONG in escrow.
 - Applies the buyback/burn split to the platform fee portion before forwarding the remainder to the fee collector.
 - Forwards the full venue deposit to {Escrow} and mints venue credits to mirror the USD balance.
 
@@ -538,18 +602,43 @@ Handles a venue USDC deposit, accounting for fee exemptions, affiliate rewards, 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | venueInfo | struct VenueInfo | Signed venue deposit parameters (venue, amount, referral code, venue rules, metadata URI). |
+| protection | struct SignatureVerifier.SignatureProtection |  |
+
+### venueDepositWithDeadline
+
+```solidity
+function venueDepositWithDeadline(struct VenueInfo venueInfo, struct SignatureVerifier.SignatureProtection protection, uint256 swapDeadline) external
+```
+
+### venueDepositFees
+
+```solidity
+function venueDepositFees(address venue, uint256 amount, bytes32 affiliateReferralCode) public view returns (uint256 feeAmount, uint256 platformFee, uint256 convenienceFeeAmount, address affiliate, uint256 affiliateFee)
+```
+
+### _venueDepositFees
+
+```solidity
+function _venueDepositFees(address venue, uint256 amount, bytes32 affiliateReferralCode) internal view returns (struct BelongCheckIn.VenueDepositFeesInfo feesInfo)
+```
+
+### _venueDeposit
+
+```solidity
+function _venueDeposit(struct VenueInfo venueInfo, struct SignatureVerifier.SignatureProtection protection, uint256 swapDeadline) internal
+```
 
 ### payToVenue
 
 ```solidity
-function payToVenue(struct CustomerInfo customerInfo) external
+function payToVenue(struct CustomerInfo customerInfo, struct SignatureVerifier.SignatureProtection protection) external
 ```
 
 Processes a customer payment to a venue, optionally attributing promoter rewards.
 @dev
 - Signature-validated via platform signer from `Factory`.
 - Burns venue credits / mints promoter credits when a promoter participates in the visit.
-- USDC payments move USDC directly from customer to venue.
+- USDtoken payments move USDtoken directly from customer to venue.
 - LONG payments pull the platform subsidy from escrow, collect the customer’s discounted LONG, then deliver/route LONG per venue rules.
 
 #### Parameters
@@ -557,19 +646,32 @@ Processes a customer payment to a venue, optionally attributing promoter rewards
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | customerInfo | struct CustomerInfo | Signed customer payment parameters (customer, venue, promoter, amount, payment flags, bounty data). |
+| protection | struct SignatureVerifier.SignatureProtection |  |
+
+### payToVenueWithDeadline
+
+```solidity
+function payToVenueWithDeadline(struct CustomerInfo customerInfo, struct SignatureVerifier.SignatureProtection protection, uint256 swapDeadline) external
+```
+
+### _payToVenue
+
+```solidity
+function _payToVenue(struct CustomerInfo customerInfo, struct SignatureVerifier.SignatureProtection protection, uint256 swapDeadline) internal
+```
 
 ### distributePromoterPayments
 
 ```solidity
-function distributePromoterPayments(struct PromoterInfo promoterInfo) external
+function distributePromoterPayments(struct PromoterInfo promoterInfo, struct SignatureVerifier.SignatureProtection protection) external
 ```
 
-Settles promoter credits into an on-chain payout in either USDC or LONG.
+Settles promoter credits into an on-chain payout in either USDtoken or LONG.
 @dev
 - Signature-validated via platform signer from `Factory`.
 - Applies tiered platform fees based on the promoter’s staked LONG in {Staking}.
-- USDC payouts draw both fee and promoter portions from escrow; fees are streamed through `_handleRevenue`.
-- LONG payouts draw USDC from escrow, swap the full amount using the V3 router, and subject the swapped fee portion to the buyback routine.
+- USDtoken payouts draw both fee and promoter portions from escrow; fees are streamed through `_handleRevenue`.
+- LONG payouts draw USDtoken from escrow, swap the full amount using the V3 router, and subject the swapped fee portion to the buyback routine.
 - Always burns promoter ERC1155 credits by the settled USD amount to prevent re-claims.
 
 #### Parameters
@@ -577,6 +679,19 @@ Settles promoter credits into an on-chain payout in either USDC or LONG.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | promoterInfo | struct PromoterInfo | Signed settlement parameters (promoter, venue, USD amount, payout currency flag). |
+| protection | struct SignatureVerifier.SignatureProtection |  |
+
+### distributePromoterPaymentsWithDeadline
+
+```solidity
+function distributePromoterPaymentsWithDeadline(struct PromoterInfo promoterInfo, struct SignatureVerifier.SignatureProtection protection, uint256 swapDeadline) external
+```
+
+### _distributePromoterPayments
+
+```solidity
+function _distributePromoterPayments(struct PromoterInfo promoterInfo, struct SignatureVerifier.SignatureProtection protection, uint256 swapDeadline) internal
+```
 
 ### emergencyCancelPayment
 
@@ -621,82 +736,42 @@ Returns platform fee configuration.
 | ---- | ---- | ----------- |
 | fees_ | struct BelongCheckIn.Fees | The persisted {Fees} struct. |
 
-### paymentsInfo
+### _swapUSDtokenToLONG
 
 ```solidity
-function paymentsInfo() external view returns (struct BelongCheckIn.PaymentsInfo paymentsInfo_)
+function _swapUSDtokenToLONG(address recipient, uint256 amount, uint256 deadline) internal returns (uint256 swapped)
 ```
 
-Returns Uniswap/asset configuration.
+Swaps an exact USDtoken amount to LONG, then delivers proceeds to `recipient`.
 
-#### Return Values
+_Emits `Swapped` to maintain downstream observability._
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| paymentsInfo_ | struct BelongCheckIn.PaymentsInfo | The persisted {PaymentsInfo} struct. |
-
-### _swapUSDCtoLONG
+### _swapLONGtoUSDtoken
 
 ```solidity
-function _swapUSDCtoLONG(address recipient, uint256 amount) internal virtual returns (uint256 swapped)
+function _swapLONGtoUSDtoken(address recipient, uint256 amount, uint256 deadline) internal returns (uint256 swapped)
 ```
 
-Swaps an exact USDC amount to LONG, then delivers proceeds to `recipient`.
-@dev
-- Builds a multi-hop path USDC → W_NATIVE_CURRENCY → LONG using the same fee tier.
-- Uses Quoter to set a conservative `amountOutMinimum`.
-- Approves router for the exact USDC amount before calling.
+Swaps an exact LONG amount to USDtoken, then delivers proceeds to `recipient`.
 
-#### Parameters
+_Emits `Swapped` to maintain downstream observability._
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| recipient | address | The recipient of LONG. If zero or `amount` is zero, returns 0 without swapping. |
-| amount | uint256 | The USDC input amount to swap (USDC native decimals). |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| swapped | uint256 | The amount of LONG received. |
-
-### _swapLONGtoUSDC
+### _quoteUSDtokenToLONG
 
 ```solidity
-function _swapLONGtoUSDC(address recipient, uint256 amount) internal virtual returns (uint256 swapped)
+function _quoteUSDtokenToLONG(uint256 amount) internal view returns (uint256)
 ```
 
-Swaps an exact LONG amount to USDC, then delivers proceeds to `recipient`.
-@dev
-- Builds a multi-hop path LONG → W_NATIVE_CURRENCY → USDC using the same fee tier.
-- Uses Quoter to set a conservative `amountOutMinimum`.
-- Approves router for the exact LONG amount before calling.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| recipient | address | The recipient of USDC. If zero or `amount` is zero, returns 0 without swapping. |
-| amount | uint256 | The LONG input amount to swap (LONG native decimals). |
-
-#### Return Values
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| swapped | uint256 | The amount of USDC received. |
-
-### _swapExact
+### _quoteLONGtoUSDtoken
 
 ```solidity
-function _swapExact(address tokenIn, address tokenOut, address recipient, uint256 amount) internal returns (uint256 swapped)
+function _quoteLONGtoUSDtoken(uint256 amount) internal view returns (uint256)
 ```
-
-_Common swap executor that builds the path, quotes slippage-aware minimums, and clears approvals on completion._
 
 ### _handleRevenue
 
 ```solidity
-function _handleRevenue(address token, uint256 amount) internal
+function _handleRevenue(address token, uint256 amount, uint256 swapDeadline) internal
 ```
 
 _Splits platform revenue: swaps a configurable portion for LONG and burns it, then forwards the remainder to the fee collector._
@@ -705,13 +780,19 @@ _Splits platform revenue: swaps a configurable portion for LONG and burns it, th
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| token | address | Revenue token address (USDC/LONG supported; unknown tokens are forwarded intact). |
+| token | address | Revenue token address (USDtoken/LONG supported; unknown tokens are forwarded intact). |
 | amount | uint256 | Revenue amount received by this contract. |
+| swapDeadline | uint256 |  |
 
-### _buildPath
+### _calculateRewards
 
 ```solidity
-function _buildPath(struct BelongCheckIn.PaymentsInfo _paymentsInfo, address tokenIn, address tokenOut) internal view returns (bytes path)
+function _calculateRewards(address to, address venue, uint256 venueId, bool paymentInUSDtoken, struct Bounties bounties, uint256 amount) internal
 ```
 
-_Builds the optimal encoded path for the configured V3 router, preferring a direct pool and otherwise routing through the configured wrapped native token._
+### _getUserStakingTier
+
+```solidity
+function _getUserStakingTier(address user) internal view returns (enum StakingTiers)
+```
+

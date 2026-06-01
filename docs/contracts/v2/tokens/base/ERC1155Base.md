@@ -146,6 +146,21 @@ Updates the collection-level URI.
 | ---- | ---- | ----------- |
 | uri_ | string | New collection URI. |
 
+### setTokenUri
+
+```solidity
+function setTokenUri(uint256 tokenId, string tokenUri) public
+```
+
+_Setter for token-specific URI._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| tokenId | uint256 | Token id. |
+| tokenUri | string | New token URI. |
+
 ### setTransferable
 
 ```solidity
@@ -163,7 +178,7 @@ Updates the global transferability switch.
 ### mint
 
 ```solidity
-function mint(address to, uint256 tokenId, uint256 amount, string tokenUri) public
+function mint(address to, uint256 tokenId, uint256 amount) public
 ```
 
 Mints `amount` of `tokenId` to `to` and sets its token URI.
@@ -175,7 +190,6 @@ Mints `amount` of `tokenId` to `to` and sets its token URI.
 | to | address | Recipient address. |
 | tokenId | uint256 | Token id to mint. |
 | amount | uint256 | Amount to mint. |
-| tokenUri | string | Token-specific URI to set (overrides collection URI). |
 
 ### burn
 
@@ -200,14 +214,6 @@ function _beforeTokenTransfer(address from, address to, uint256[] ids, uint256[]
 ```
 
 _Reverts with `TokenCanNotBeTransfered()` for user-to-user transfers when `transferable` is false._
-
-### uri
-
-```solidity
-function uri() public view returns (string)
-```
-
-Returns the collection-level URI.
 
 ### uri
 

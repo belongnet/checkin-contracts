@@ -196,21 +196,6 @@ Releases all pending payments for a currency to the payees.
 | ---- | ---- | ----------- |
 | token | address | The currency to release: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency. |
 
-### release
-
-```solidity
-function release(address token, address to) external
-```
-
-Releases pending payments for a currency to a specific payee.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| token | address | The currency to release: ERC20 token address or `NATIVE_CURRENCY_ADDRESS` for native NativeCurrency. |
-| to | address | The payee address to release to. |
-
 ### totalReleased
 
 ```solidity

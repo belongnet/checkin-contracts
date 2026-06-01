@@ -45,7 +45,7 @@ Thrown when a beneficiary already has a vesting wallet registered.
 error TotalRoyaltiesNot100Percent()
 ```
 
-Thrown when `amountToCreator + amountToPlatform != 10000` (i.e., does not equal 100% in BPS).
+Thrown when `amountToCreator + amountToPlatform != 10000`.
 
 ### RoyaltiesReceiverAddressMismatch
 
@@ -120,7 +120,7 @@ Invalid combination of `durationSeconds` and `cliffDurationSeconds`.
 ### AllocationMismatch
 
 ```solidity
-error AllocationMismatch(uint256 currentAllocation, uint256 total)
+error AllocationMismatch(uint256 total)
 ```
 
 Current allocation sum does not fit under `totalAllocation`.
@@ -129,7 +129,6 @@ Current allocation sum does not fit under `totalAllocation`.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| currentAllocation | uint256 | Sum of TGE and linear allocation. |
 | total | uint256 | Provided total allocation. |
 
 ### AccessTokenCreated
@@ -283,7 +282,7 @@ Disable initializers on the implementation.
 ### initialize
 
 ```solidity
-function initialize(struct Factory.FactoryParameters factoryParameters, struct Factory.RoyaltiesParameters _royalties, struct Factory.Implementations _implementations, uint16[5] percentages) external
+function initialize(struct Factory.FactoryParameters factoryParameters, struct Factory.RoyaltiesParameters _royalties, struct Factory.Implementations _implementations, uint16[5] percentages, uint16 maxArrayLength) external
 ```
 
 Initializes factory settings and referral parameters; sets the initial owner.
@@ -298,11 +297,12 @@ _Must be called exactly once on the proxy instance._
 | _royalties | struct Factory.RoyaltiesParameters | Royalties split (creator/platform) in BPS. |
 | _implementations | struct Factory.Implementations | Implementation addresses for deployments. |
 | percentages | uint16[5] | Referral percentages array forwarded to {ReferralSystemV2}. |
+| maxArrayLength | uint16 |  |
 
 ### upgradeToV2
 
 ```solidity
-function upgradeToV2(struct Factory.RoyaltiesParameters _royalties, struct Factory.Implementations _implementations) external
+function upgradeToV2(struct Factory.RoyaltiesParameters _royalties, struct Factory.Implementations _implementations, uint16[5] percentages, uint16 maxArrayLength) external
 ```
 
 Upgrades stored royalties parameters and implementation addresses (reinitializer v2).
@@ -313,16 +313,24 @@ Upgrades stored royalties parameters and implementation addresses (reinitializer
 | ---- | ---- | ----------- |
 | _royalties | struct Factory.RoyaltiesParameters | New royalties parameters (BPS). |
 | _implementations | struct Factory.Implementations | New implementation addresses. |
+| percentages | uint16[5] |  |
+| maxArrayLength | uint16 |  |
+
+### upgradeToV3
+
+```solidity
+function upgradeToV3(address vestingWalletImplementation) external
+```
 
 ### produce
 
 ```solidity
-function produce(struct AccessTokenInfo accessTokenInfo, bytes32 referralCode) external returns (address nftAddress)
+function produce(struct AccessTokenInfo accessTokenInfo, bytes32 referralCode, struct SignatureVerifier.SignatureProtection protection) external returns (address nftAddress, address receiver)
 ```
 
 Produces a new AccessToken collection (upgradeable proxy) and optional RoyaltiesReceiver.
 @dev
-- Validates `accessTokenInfo` via platform signer (keccak256(abi.encode(...)) inside `SignatureVerifier`).
+- Validates `accessTokenInfo` via platform signer (EIP-712/ECDSA inside `SignatureVerifier`).
 - Deterministic salt is `keccak256(name, symbol)`. Creation fails if the salt already exists.
 - If `feeNumerator > 0`, deploys a RoyaltiesReceiver and wires creator/platform/referral receivers.
 - Uses `deployDeterministicERC1967` for AccessToken proxy and `cloneDeterministic` for royalties receiver.
@@ -333,17 +341,19 @@ Produces a new AccessToken collection (upgradeable proxy) and optional Royalties
 | ---- | ---- | ----------- |
 | accessTokenInfo | struct AccessTokenInfo | Parameters used to initialize the AccessToken instance. |
 | referralCode | bytes32 | Optional referral code attributed to the creator. |
+| protection | struct SignatureVerifier.SignatureProtection |  |
 
 #### Return Values
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | nftAddress | address | The deployed AccessToken proxy address. |
+| receiver | address |  |
 
 ### produceCreditToken
 
 ```solidity
-function produceCreditToken(struct ERC1155Info creditTokenInfo, bytes signature) external returns (address creditToken)
+function produceCreditToken(struct ERC1155Info creditTokenInfo, struct SignatureVerifier.SignatureProtection protection) external returns (address creditToken)
 ```
 
 Produces a new CreditToken (ERC1155) collection as a minimal proxy clone.
@@ -357,7 +367,7 @@ Produces a new CreditToken (ERC1155) collection as a minimal proxy clone.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | creditTokenInfo | struct ERC1155Info | Parameters to initialize the CreditToken instance. |
-| signature | bytes | Authorization signature from the platform signer. |
+| protection | struct SignatureVerifier.SignatureProtection |  |
 
 #### Return Values
 
@@ -368,7 +378,7 @@ Produces a new CreditToken (ERC1155) collection as a minimal proxy clone.
 ### deployVestingWallet
 
 ```solidity
-function deployVestingWallet(address _owner, struct VestingWalletInfo vestingWalletInfo, bytes signature) external returns (address vestingWallet)
+function deployVestingWallet(address _owner, struct VestingWalletInfo vestingWalletInfo, struct SignatureVerifier.SignatureProtection protection) external returns (address vestingWallet)
 ```
 
 Deploys and fully funds a VestingWallet proxy with a validated schedule.
@@ -385,7 +395,33 @@ Deploys and fully funds a VestingWallet proxy with a validated schedule.
 | ---- | ---- | ----------- |
 | _owner | address | Owner address for the vesting wallet proxy. |
 | vestingWalletInfo | struct VestingWalletInfo | Full vesting configuration and description. |
-| signature | bytes | Signature from platform signer validating `_owner` and `vestingWalletInfo`. |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| vestingWallet | address | The deployed VestingWallet proxy address. |
+
+### deployVestingWalletWithoutInitialFunding
+
+```solidity
+function deployVestingWalletWithoutInitialFunding(address _owner, struct VestingWalletInfo vestingWalletInfo, struct SignatureVerifier.SignatureProtection protection) external returns (address vestingWallet)
+```
+
+Deploys a VestingWallet proxy without upfront funding.
+@dev
+- Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
+- Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
+- Does not transfer vesting tokens on deployment.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _owner | address | Owner address for the vesting wallet proxy. |
+| vestingWalletInfo | struct VestingWalletInfo | Full vesting configuration and description. |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
 
 #### Return Values
 
@@ -396,7 +432,7 @@ Deploys and fully funds a VestingWallet proxy with a validated schedule.
 ### deployVestingWalletWithInitialFunding
 
 ```solidity
-function deployVestingWalletWithInitialFunding(address _owner, struct VestingWalletInfo vestingWalletInfo, bytes signature, uint256 initialFunding) external returns (address vestingWallet)
+function deployVestingWalletWithInitialFunding(address _owner, struct VestingWalletInfo vestingWalletInfo, struct SignatureVerifier.SignatureProtection protection, uint256 initialFunding) external returns (address vestingWallet)
 ```
 
 Deploys a VestingWallet proxy with a custom initial funding amount.
@@ -412,7 +448,7 @@ Deploys a VestingWallet proxy with a custom initial funding amount.
 | ---- | ---- | ----------- |
 | _owner | address | Owner address for the vesting wallet proxy. |
 | vestingWalletInfo | struct VestingWalletInfo | Full vesting configuration and description. |
-| signature | bytes | Signature from platform signer validating `_owner` and `vestingWalletInfo`. |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
 | initialFunding | uint256 | Amount transferred to the wallet on deploy (must be `<= totalAllocation`). |
 
 #### Return Values
@@ -421,17 +457,17 @@ Deploys a VestingWallet proxy with a custom initial funding amount.
 | ---- | ---- | ----------- |
 | vestingWallet | address | The deployed VestingWallet proxy address. |
 
-### deployVestingWalletWithoutInitialFunding
+### _deployVestingWallet
 
 ```solidity
-function deployVestingWalletWithoutInitialFunding(address _owner, struct VestingWalletInfo vestingWalletInfo, bytes signature) external returns (address vestingWallet)
+function _deployVestingWallet(address _owner, struct VestingWalletInfo vestingWalletInfo, struct SignatureVerifier.SignatureProtection protection, uint256 initialFunding) internal returns (address vestingWallet)
 ```
 
-Deploys a VestingWallet proxy without upfront funding.
+Internal deployment routine shared by all vesting wallet deployment entrypoints.
 @dev
-- Validates signer authorization via {SignatureVerifier.checkVestingWalletInfo}.
-- Deterministic salt is `keccak256(beneficiary, walletIndex)` where `walletIndex` is the beneficiary's wallet count.
-- Does not transfer vesting tokens on deployment.
+- Validates initial funding bounds and signature authorization.
+- Allows partial or zero initial funding, with later top-ups handled externally.
+- Deploys deterministic ERC1967 proxy and records instance metadata by beneficiary.
 
 #### Parameters
 
@@ -439,18 +475,19 @@ Deploys a VestingWallet proxy without upfront funding.
 | ---- | ---- | ----------- |
 | _owner | address | Owner address for the vesting wallet proxy. |
 | vestingWalletInfo | struct VestingWalletInfo | Full vesting configuration and description. |
-| signature | bytes | Signature from platform signer validating `_owner` and `vestingWalletInfo`. |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
+| initialFunding | uint256 | Amount transferred to the wallet on deploy. |
 
 #### Return Values
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| vestingWallet | address | The deployed VestingWallet proxy address. |
+| vestingWallet | address | The deployed vesting wallet proxy address. |
 
 ### setFactoryParameters
 
 ```solidity
-function setFactoryParameters(struct Factory.FactoryParameters factoryParameters_, struct Factory.RoyaltiesParameters _royalties, struct Factory.Implementations _implementations, uint16[5] percentages) external
+function setFactoryParameters(struct Factory.FactoryParameters factoryParameters_, struct Factory.RoyaltiesParameters _royalties, struct Factory.Implementations _implementations, uint16[5] percentages, uint16 maxArrayLength) external
 ```
 
 Updates factory parameters, royalties, implementations, and referral percentages.
@@ -465,6 +502,7 @@ _Only callable by the owner (backend/admin)._
 | _royalties | struct Factory.RoyaltiesParameters | New royalties parameters (BPS). |
 | _implementations | struct Factory.Implementations | New implementation addresses. |
 | percentages | uint16[5] | Referral percentages propagated to {ReferralSystemV2}. |
+| maxArrayLength | uint16 |  |
 
 ### nftFactoryParameters
 
@@ -574,7 +612,7 @@ Returns a vesting wallet record for `beneficiary` at `index`.
 ### getVestingWalletInstanceInfos
 
 ```solidity
-function getVestingWalletInstanceInfos(address beneficiary, uint256 index) external view returns (struct Factory.VestingWalletInstanceInfo[])
+function getVestingWalletInstanceInfos(address beneficiary) external view returns (struct Factory.VestingWalletInstanceInfo[])
 ```
 
 Returns all vesting wallet records registered for `beneficiary`.
@@ -584,10 +622,10 @@ Returns all vesting wallet records registered for `beneficiary`.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | beneficiary | address | Wallet beneficiary supplied during deployment. |
-| index | uint256 | Legacy parameter kept for ABI compatibility (unused). |
 
 #### Return Values
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | struct Factory.VestingWalletInstanceInfo[] | Array of {VestingWalletInstanceInfo} records. |
+

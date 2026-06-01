@@ -127,7 +127,6 @@ _Populated by the factory at creation and stored immutably in `parameters`._
 ```solidity
 struct AccessTokenParameters {
   contract Factory factory;
-  address creator;
   address feeReceiver;
   bytes32 referralCode;
   struct AccessTokenInfo info;
@@ -233,7 +232,7 @@ Owner-only: updates paying token and mint prices; toggles auto-approval of valid
 ### mintStaticPrice
 
 ```solidity
-function mintStaticPrice(address receiver, struct StaticPriceParameters[] paramsArray, address expectedPayingToken, uint256 expectedMintPrice) external payable
+function mintStaticPrice(address expectedPayingToken, uint256 expectedMintPrice, address[] receivers, struct StaticPriceParameters[] staticPriceParameters, struct SignatureVerifier.SignatureProtection[] protections) external payable
 ```
 
 Signature-gated batch mint with static prices (public or whitelist).
@@ -242,19 +241,10 @@ Signature-gated batch mint with static prices (public or whitelist).
 - Computes total due based on whitelist flags and charges payer in NativeCurrency or ERC-20.
 - Reverts if `paramsArray.length` exceeds factory’s `maxArraySize`.
 
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| receiver | address | Address that will receive all minted tokens. |
-| paramsArray | struct StaticPriceParameters[] | Array of static price mint parameters (id, uri, whitelist flag). |
-| expectedPayingToken | address | Expected paying token for sanity check. |
-| expectedMintPrice | uint256 | Expected total price (reverts if mismatched). |
-
 ### mintDynamicPrice
 
 ```solidity
-function mintDynamicPrice(address receiver, struct DynamicPriceParameters[] paramsArray, address expectedPayingToken) external payable
+function mintDynamicPrice(address expectedPayingToken, address[] receivers, struct DynamicPriceParameters[] dynamicPriceParameters, struct SignatureVerifier.SignatureProtection[] protections) external payable
 ```
 
 Signature-gated batch mint with per-item dynamic prices.
@@ -262,14 +252,6 @@ Signature-gated batch mint with per-item dynamic prices.
 - Validates each entry via factory signer (`checkDynamicPriceParameters`).
 - Sums prices provided in the payload and charges payer accordingly.
 - Reverts if `paramsArray.length` exceeds factory’s `maxArraySize`.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| receiver | address | Address that will receive all minted tokens. |
-| paramsArray | struct DynamicPriceParameters[] | Array of dynamic price mint parameters (id, uri, price). |
-| expectedPayingToken | address | Expected paying token for sanity check. |
 
 ### tokenURI
 
@@ -290,6 +272,12 @@ Returns metadata URI for a given token ID.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | string | The token URI string. |
+
+### staticMintPrice
+
+```solidity
+function staticMintPrice(bool isWhitelisted) public view returns (uint256)
+```
 
 ### name
 

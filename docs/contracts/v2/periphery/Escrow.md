@@ -2,10 +2,10 @@
 
 ## Escrow
 
-Custodies venue deposits in USDC and LONG, and disburses funds on instructions
+Custodies venue deposits in USDtoken and LONG, and disburses funds on instructions
         from the BelongCheckIn platform.
 @dev
-- Tracks per-venue balances for USDC and LONG.
+- Tracks per-venue balances for USDtoken and LONG.
 - Only the BelongCheckIn contract may call mutating methods via {onlyBelongCheckIn}.
 - Uses SafeTransferLib for robust ERC20 transfers.
 - Designed for use behind an upgradeable proxy.
@@ -33,20 +33,20 @@ Reverts when a LONG disbursement exceeds the venue's LONG balance.
 | longDeposits | uint256 | Current LONG balance on record. |
 | amount | uint256 | Requested LONG amount. |
 
-### NotEnoughUSDCs
+### NotEnoughUSDTokens
 
 ```solidity
-error NotEnoughUSDCs(uint256 usdcDeposits, uint256 amount)
+error NotEnoughUSDTokens(uint256 usdTokenDeposits, uint256 amount)
 ```
 
-Reverts when a USDC disbursement exceeds the venue's USDC balance.
+Reverts when a USDtoken disbursement exceeds the venue's USDtoken balance.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| usdcDeposits | uint256 | Current USDC balance on record. |
-| amount | uint256 | Requested USDC amount. |
+| usdTokenDeposits | uint256 | Current USDtoken balance on record. |
+| amount | uint256 | Requested USDtoken amount. |
 
 ### VenueDepositsUpdated
 
@@ -61,7 +61,7 @@ Emitted whenever a venue's escrow balances are updated.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | venue | address | Venue address. |
-| deposits | struct Escrow.VenueDeposits | New USDC and LONG balances recorded for the venue. |
+| deposits | struct Escrow.VenueDeposits | New USDtoken and LONG balances recorded for the venue. |
 
 ### DistributedLONGDeposit
 
@@ -85,23 +85,23 @@ Emitted when LONG discount funds are disbursed to a venue.
 event DistributedVenueDeposit(address venue, address to, uint256 amount)
 ```
 
-Emitted when USDC deposit funds are disbursed from a venue's balance.
+Emitted when USDtoken deposit funds are disbursed from a venue's balance.
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| venue | address | Venue whose USDC balance decreased. |
-| to | address | Recipient of the USDC transfer. |
-| amount | uint256 | Amount of USDC transferred. |
+| venue | address | Venue whose USDtoken balance decreased. |
+| to | address | Recipient of the USDtoken transfer. |
+| amount | uint256 | Amount of USDtoken transferred. |
 
 ### VenueDeposits
 
-Per-venue escrowed amounts for USDC and LONG.
+Per-venue escrowed amounts for USDtoken and LONG.
 
 ```solidity
 struct VenueDeposits {
-  uint256 usdcDeposits;
+  uint256 usdTokenDeposits;
   uint256 longDeposits;
 }
 ```
@@ -155,7 +155,7 @@ Restricts function to only be callable by the BelongCheckIn contract.
 ### venueDeposit
 
 ```solidity
-function venueDeposit(address venue, uint256 depositedUSDCs, uint256 depositedLONGs) external
+function venueDeposit(address venue, uint256 depositedUSDtokens, uint256 depositedLONGs) external
 ```
 
 Records/overwrites a venue's deposit balances after a deposit operation.
@@ -167,7 +167,7 @@ _Called by BelongCheckIn when new funds are received and routed to escrow._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | venue | address | Venue whose balances are being updated. |
-| depositedUSDCs | uint256 | New USDC balance to record for `venue`. |
+| depositedUSDtokens | uint256 | New USDtoken balance to record for `venue`. |
 | depositedLONGs | uint256 | New LONG balance to record for `venue`. |
 
 ### distributeLONGDeposit
@@ -194,15 +194,15 @@ _Reverts if the venue does not have enough LONG recorded._
 function distributeVenueDeposit(address venue, address to, uint256 amount) external
 ```
 
-Disburses USDC funds from a venue's USDC balance to a recipient.
+Disburses USDtoken funds from a venue's USDtoken balance to a recipient.
 
-_Reverts if the venue does not have enough USDC recorded._
+_Reverts if the venue does not have enough USDtoken recorded._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| venue | address | Venue whose USDC balance will decrease. |
-| to | address | Recipient of the USDC transfer. |
-| amount | uint256 | Amount of USDC to transfer. |
+| venue | address | Venue whose USDtoken balance will decrease. |
+| to | address | Recipient of the USDtoken transfer. |
+| amount | uint256 | Amount of USDtoken to transfer. |
 
