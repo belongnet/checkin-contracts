@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 import { ethers } from 'hardhat';
 
 import { deployStaking } from '../../../helpers/deployFixtures';
-import { verifyContract } from '../../../helpers/verify';
 import { Staking } from '../../../typechain-types';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

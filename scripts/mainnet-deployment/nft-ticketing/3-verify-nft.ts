@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { ethers } from 'hardhat';
 
-import { verifyContract } from '../../../helpers/verify';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

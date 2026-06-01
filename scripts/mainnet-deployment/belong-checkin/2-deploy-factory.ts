@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 import { ethers, upgrades } from 'hardhat';
 
 import { deployFactory } from '../../../helpers/deployFixtures';
-import { verifyContract } from '../../../helpers/verify';
 import { waitForNextBlock } from '../../../helpers/wait';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 dotenv.config();

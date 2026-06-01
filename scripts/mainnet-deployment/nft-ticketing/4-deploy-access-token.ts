@@ -3,7 +3,7 @@ import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 
 import { deployAccessToken } from '../../../helpers/deployFixtures';
-import { verifyContract } from '../../../helpers/verify';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

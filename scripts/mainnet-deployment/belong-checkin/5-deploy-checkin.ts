@@ -4,9 +4,9 @@ import { ethers } from 'hardhat';
 
 import { deployBelongCheckIn } from '../../../helpers/deployFixtures';
 import { encodePcsPoolKey } from '../../../helpers/math';
-import { verifyContract } from '../../../helpers/verify';
 import { BelongCheckIn } from '../../../typechain-types';
 import { DualDexSwapV4Lib } from '../../../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

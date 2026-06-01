@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 import { ethers } from 'hardhat';
 
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
-import { verifyContract } from '../../../helpers/verify';
 import { SignatureVerifier } from '../../../typechain-types';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

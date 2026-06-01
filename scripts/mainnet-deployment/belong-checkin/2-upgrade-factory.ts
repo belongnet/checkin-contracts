@@ -1,7 +1,7 @@
 import { ethers, upgrades } from 'hardhat';
 
-import { verifyContract } from '../../../helpers/verify';
 import { waitForNextBlock } from '../../../helpers/wait';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

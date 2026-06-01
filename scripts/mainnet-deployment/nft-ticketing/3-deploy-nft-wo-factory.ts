@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import { ethers } from 'hardhat';
 
 import { deployNftWithoutFactory } from '../../../helpers/deployFixtures';
-import { verifyContract } from '../../../helpers/verify';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

@@ -3,8 +3,8 @@ import { ethers } from 'hardhat';
 
 import { deployDualDexSwapV4Lib } from '../../../helpers/deployFixtures';
 import { deployHelper, deploySignatureVerifier } from '../../../helpers/deployLibraries';
-import { verifyContract } from '../../../helpers/verify';
 import { DualDexSwapV4Lib, Helper, SignatureVerifier } from '../../../typechain-types';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

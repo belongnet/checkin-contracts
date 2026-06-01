@@ -7,7 +7,7 @@ import {
   deployRoyaltiesReceiverV2Implementation,
   deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
-import { verifyContract } from '../../../helpers/verify';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
 import { ethers } from 'hardhat';
 
-import { verifyContract } from '../../../helpers/verify';
 import { LONGPriceFeed } from '../../../typechain-types';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

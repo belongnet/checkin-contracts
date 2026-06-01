@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 import { BigNumber } from 'ethers';
 import { ethers, upgrades } from 'hardhat';
 
-import { verifyContract } from '../../../helpers/verify';
 import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 

@@ -3,8 +3,8 @@ import EthCrypto from 'eth-crypto';
 import { ethers } from 'hardhat';
 
 import { hashVestingInfo } from '../../../helpers/math';
-import { verifyContract } from '../../../helpers/verify';
 import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
+import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
