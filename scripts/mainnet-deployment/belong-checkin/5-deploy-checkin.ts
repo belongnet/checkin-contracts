@@ -19,10 +19,12 @@ enum DexType {
   UniV3,
 }
 
-const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
-const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
-const DEPLOY = ENV_DEPLOY ?? true; // <-- ENV_UPGRADE is `false` (not nullish), so UPGRADE=false
-const VERIFY = ENV_VERIFY ?? true; // same
+const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
+const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const DEFAULT_SLIPPAGE_BPS_1E27 = BigNumber.from('10000000000000000000000000'); // 1%
+const MAX_SLIPPAGE_BPS_1E27 = BigNumber.from(10).pow(27);
+const DEFAULT_MAX_PRICE_FEED_DELAY = 3600;
+const MAX_PRICE_FEED_DELAY = 86_400;
 
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -104,14 +106,30 @@ async function deploy() {
       throw new Error(`Invalid tick spacing provided: ${tickSpacingEnv}`);
     }
 
+    const slippageBps = process.env.SLIPPAGE_BPS_1E27
+      ? BigNumber.from(process.env.SLIPPAGE_BPS_1E27)
+      : DEFAULT_SLIPPAGE_BPS_1E27;
+    if (slippageBps.lt(0) || slippageBps.gte(MAX_SLIPPAGE_BPS_1E27)) {
+      throw new Error(`Invalid SLIPPAGE_BPS_1E27 provided: ${slippageBps.toString()}`);
+    }
+
+    const maxPriceFeedDelay = Number(process.env.MAX_PRICE_FEED_DELAY ?? DEFAULT_MAX_PRICE_FEED_DELAY);
+    if (
+      !Number.isSafeInteger(maxPriceFeedDelay) ||
+      maxPriceFeedDelay <= 0 ||
+      maxPriceFeedDelay > MAX_PRICE_FEED_DELAY
+    ) {
+      throw new Error(`Invalid MAX_PRICE_FEED_DELAY provided: ${process.env.MAX_PRICE_FEED_DELAY}`);
+    }
+
     // Construct paymentsInfo struct
     const paymentsInfo: DualDexSwapV4Lib.PaymentsInfoStruct = {
       dexType: DexType.PcsV4,
-      slippageBps: BigNumber.from(10).pow(27).sub(1),
+      slippageBps,
       router,
       usdToken: usdc,
       long: deployments.tokens.long,
-      maxPriceFeedDelay: 86_400,
+      maxPriceFeedDelay,
       poolKey: encodePcsPoolKey(usdc, deployments.tokens.long, poolManager, fee, tickSpacing, hooks),
       hookData: hookDataEnv,
     } as DualDexSwapV4Lib.PaymentsInfoStruct;

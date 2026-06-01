@@ -5,10 +5,8 @@ import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
-const ENV_UPGRADE = process.env.UPGRADE?.toLowerCase() === 'true';
-const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
-const UPGRADE = ENV_UPGRADE ?? true; // <-- ENV_UPGRADE is `false` (not nullish), so UPGRADE=false
-const VERIFY = ENV_VERIFY ?? true; // same
+const UPGRADE = process.env.UPGRADE?.trim().toLowerCase() !== 'false';
+const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
 
 async function main() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
