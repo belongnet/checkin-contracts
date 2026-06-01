@@ -60,7 +60,8 @@ interface IAllowanceTransferLike {
 library DualDexSwapV4Lib {
     using SafeTransferLib for address;
 
-    address private constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address private constant UNI_PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address private constant PCS_PERMIT2 = 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768;
     bytes1 private constant UNIVERSAL_ROUTER_V4_SWAP = 0x10;
 
     // ========== Shared Errors ==========
@@ -140,7 +141,7 @@ library DualDexSwapV4Lib {
     {
         require(params.amountIn > 0, ZeroAmountIn());
         require(params.recipient != address(0), InvalidRecipient());
-        require(params.tokens.length >= 2 || params.poolKeys.length == params.tokens.length - 1, PoolKeyMissing());
+        require(params.tokens.length >= 2 && params.poolKeys.length == params.tokens.length - 1, PoolKeyMissing());
         require(info.router != address(0), RouterNotConfigured(info.dexType));
 
         uint256 beforeBal = params.tokens[params.tokens.length - 1].balanceOf(params.recipient);
@@ -419,26 +420,36 @@ library DualDexSwapV4Lib {
 
     // ========== Validation & Utils ==========
 
-    function _usesUniversalRouter(DexType dexType) private pure returns (bool) {
-        return dexType == DexType.UniV4 || dexType == DexType.PcsV4;
-    }
-
     function _approveForSwap(PaymentsInfo memory info, address token, uint256 amount) private {
         token.safeApproveWithRetry(info.router, amount);
 
-        if (_usesUniversalRouter(info.dexType) && PERMIT2.code.length != 0) {
-            token.safeApproveWithRetry(PERMIT2, amount);
-            IAllowanceTransferLike(PERMIT2).approve(token, info.router, SafeCastLib.toUint160(amount), type(uint48).max);
+        address permit2 = _permit2ForDex(info.dexType);
+        if (permit2 != address(0) && permit2.code.length != 0) {
+            token.safeApproveWithRetry(permit2, amount);
+            IAllowanceTransferLike(permit2).approve(
+                token, info.router, SafeCastLib.toUint160(amount), type(uint48).max
+            );
         }
     }
 
     function _clearApprovalForSwap(PaymentsInfo memory info, address token) private {
         token.safeApprove(info.router, 0);
 
-        if (_usesUniversalRouter(info.dexType) && PERMIT2.code.length != 0) {
-            IAllowanceTransferLike(PERMIT2).approve(token, info.router, 0, 0);
-            token.safeApprove(PERMIT2, 0);
+        address permit2 = _permit2ForDex(info.dexType);
+        if (permit2 != address(0) && permit2.code.length != 0) {
+            IAllowanceTransferLike(permit2).approve(token, info.router, 0, 0);
+            token.safeApprove(permit2, 0);
         }
+    }
+
+    function _permit2ForDex(DexType dexType) private pure returns (address) {
+        if (dexType == DexType.UniV4) {
+            return UNI_PERMIT2;
+        }
+        if (dexType == DexType.PcsV4) {
+            return PCS_PERMIT2;
+        }
+        return address(0);
     }
 
     function _executeV4UniversalRouter(address router, bytes memory payload, uint256 deadline) private {
@@ -499,7 +510,9 @@ library DualDexSwapV4Lib {
     }
 
     function _buildV3Path(address[] memory tokens, bytes[] memory feeData) private pure returns (bytes memory path) {
-        require(tokens.length >= 2 || feeData.length == tokens.length - 1 || tokens[0] != address(0), PoolKeyMissing());
+        require(
+            tokens.length >= 2 && feeData.length == tokens.length - 1 && tokens[0] != address(0), PoolKeyMissing()
+        );
 
         path = abi.encodePacked(tokens[0]);
         for (uint256 i = 0; i < feeData.length; i++) {
