@@ -20,14 +20,10 @@ type ChainConfig = {
 };
 
 export function createConnect(chainId: ChainIds, accounts: string[], apiKey?: string): NetworkConfig {
-  if (accounts.length == 0) {
-    throw Error('Account private key is not found in environment variables.');
-  }
-
   return {
     url: chainRPCs(chainId, apiKey),
     chainId,
-    accounts,
+    accounts: accounts.length > 0 ? accounts : [],
     gasPrice: 2000000000,
   } as NetworkConfig;
 }

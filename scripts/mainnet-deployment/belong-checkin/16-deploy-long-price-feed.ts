@@ -8,10 +8,8 @@ import fs from 'fs';
 
 dotenv.config();
 
-const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
-const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
-const DEPLOY = ENV_DEPLOY ?? true;
-const VERIFY = ENV_VERIFY ?? true;
+const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
+const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
 
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;

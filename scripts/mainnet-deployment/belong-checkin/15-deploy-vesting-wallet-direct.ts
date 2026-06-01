@@ -9,12 +9,9 @@ import fs from 'fs';
 
 dotenv.config();
 
-const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
-const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
-const ENV_FUND = process.env.FUND?.toLowerCase() !== 'false'; // default true
-const DEPLOY = ENV_DEPLOY ?? true;
-const VERIFY = ENV_VERIFY ?? true;
-const FUND = ENV_FUND;
+const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
+const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const FUND = process.env.FUND?.toLowerCase() !== 'false';
 
 const ERC20_ABI = [
   'function decimals() view returns (uint8)',

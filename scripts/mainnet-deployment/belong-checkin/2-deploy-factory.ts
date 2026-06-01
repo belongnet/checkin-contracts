@@ -8,10 +8,8 @@ import { verifyContract } from '../../helpers/verify-contract';
 import fs from 'fs';
 dotenv.config();
 
-const ENV_DEPLOY = process.env.DEPLOY?.toLowerCase() === 'true';
-const ENV_VERIFY = process.env.VERIFY?.toLowerCase() === 'true';
-const DEPLOY = ENV_DEPLOY ?? true; // <-- ENV_DEPLOY is `false` (not nullish), so DEPLOY=false
-const VERIFY = ENV_VERIFY ?? true; // same
+const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
+const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
 
 async function main() {
   const [deployer] = await ethers.getSigners();
