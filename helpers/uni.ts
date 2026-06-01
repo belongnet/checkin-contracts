@@ -10,6 +10,7 @@ export const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 export const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 export const USDT_MAINNET_ADDRESS = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
 export const DAI_ADDRESS = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
+export const WETH_USDC_HOOK = '0xa44ff524f78858e015fcca322cb7d16aeb89a088';
 
 const IV4QuoterAbi = [
   'function quoteExactInputSingle(((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,bool zeroForOne,uint128 exactAmount,bytes hookData) params) external returns (uint256 amountOut,uint256 gasEstimate)',
@@ -60,7 +61,7 @@ export async function discoverUniPoolKeyOnFork(opts?: {
 
   const fees = opts?.fees ?? [100, 500, 3000, 10000];
   const tickSpacings = opts?.tickSpacings ?? [1, 10, 60, 200];
-  const hooksList = opts?.hooks ?? [ethers.constants.AddressZero];
+  const hooksList = opts?.hooks ?? [ethers.constants.AddressZero, WETH_USDC_HOOK];
 
   const quoterC = new ethers.Contract(quoter, IV4QuoterAbi, (await ethers.getSigners())[0]);
 
