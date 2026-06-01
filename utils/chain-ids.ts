@@ -19,7 +19,6 @@ export enum ChainIds {
   bsc_testnet = 97,
   skale_calypso_testnet = 974399131,
   amoy = 80002,
-  bsc_testnet = 97,
 }
 
 export const chainRPCs = (chainid: ChainIds, _apiKey?: string): string => {
@@ -43,7 +42,7 @@ export const chainRPCs = (chainid: ChainIds, _apiKey?: string): string => {
       }
       return process.env.INFURA_ID_PROJECT
         ? `https://bsc-mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
-        : `https://public-bsc-mainnet.fastnode.io`;
+        : `https://bsc-mainnet.public.blastapi.io`;
     case ChainIds.polygon:
       return `https://polygon.llamarpc.com`;
     case ChainIds.blast:

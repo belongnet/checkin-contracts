@@ -39,7 +39,7 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      hardfork: process.env.HARDHAT_HARDFORK || 'shanghai',
+      hardfork: process.env.HARDHAT_HARDFORK || 'cancun',
       forking: {
         url: process.env.INFURA_ID_PROJECT
           ? `https://mainnet.infura.io/v3/${process.env.INFURA_ID_PROJECT}`
