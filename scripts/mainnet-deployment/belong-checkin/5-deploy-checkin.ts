@@ -21,7 +21,7 @@ enum DexType {
 
 const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
 const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
-const DEFAULT_SLIPPAGE_BPS_1E27 = BigNumber.from('10000000000000000000000000'); // 1%
+const DEFAULT_SLIPPAGE_BPS_1E27 = BigNumber.from('50000000000000000000000000'); // 5%
 const MAX_SLIPPAGE_BPS_1E27 = BigNumber.from(10).pow(27);
 const DEFAULT_MAX_PRICE_FEED_DELAY = 3600;
 const MAX_PRICE_FEED_DELAY = 86_400;

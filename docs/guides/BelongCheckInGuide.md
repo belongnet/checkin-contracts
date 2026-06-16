@@ -155,22 +155,22 @@ Scripts persist data to `deployments/chainId-<id>.json`. Keep key names exactly 
   "checkIn": {
     "address": "0x...",
     "paymentsInfo": {
-      "swapPoolFees": 3000,
-      "swapV3Factory": "0x...",
-      "swapV3Router": "0x...",
-      "swapV3Quoter": "0x...",
-      "wNativeCurrency": "0x...",
-      "usdc": "0x...",
+      "dexType": 1,
+      "slippageBps": { "type": "BigNumber", "hex": "0x09ed194db19b238c000000" },
+      "router": "0x...",
+      "usdToken": "0x...",
       "long": "0x...",
-      "slippageBps": "999999999999999999999999999",
-      "maxPriceFeedDelay": 86400
+      "maxPriceFeedDelay": 3600,
+      "poolKey": "0x...",
+      "hookData": "0x"
     },
     "escrow": "0x..."
   }
 }
 ```
 
-> If you pre-fill the JSON manually, match these keys so later scripts can find them.
+> Treat `checkIn.paymentsInfo` in the JSON as a cached snapshot. Before editing live routing or slippage, prefer reading
+> `BelongCheckIn.paymentsInfo()` on-chain and then syncing this JSON from the result.
 
 ---
 
@@ -182,9 +182,38 @@ Scripts honour the following environment toggles. Pass them explicitly in produc
 DEPLOY=true   # perform the deployment logic
 VERIFY=true   # run explorer verification after deploying
 UPGRADE=true  # (only in upgrade scripts) execute the upgrade
+UPDATE=true   # (only in update scripts) execute the configuration transaction
+SYNC_DEPLOYMENT_JSON=true # sync deployment JSON from on-chain state after update/read
 ```
 
 Call each script with `yarn hardhat run <script> --network <network>`.
+
+For PancakeSwap Infinity deployments, `SLIPPAGE_BPS_1E27` is in the same 1e27 domain used by
+`Helper.BPS` where `1e27` is 100%. The default is now `50000000000000000000000000` (5%).
+
+### Updating BelongCheckIn payment slippage
+
+Use `scripts/mainnet-deployment/belong-checkin/17-update-payments-info.ts` to update the stored slippage without
+trusting stale deployment-file routing fields:
+
+```bash
+SLIPPAGE_BPS_1E27=50000000000000000000000000 \
+UPDATE=true \
+SYNC_DEPLOYMENT_JSON=true \
+yarn hardhat run scripts/mainnet-deployment/belong-checkin/17-update-payments-info.ts --network bsc
+```
+
+The script reads `paymentsInfo()` from the live BelongCheckIn contract, changes only `slippageBps`, and preserves the
+active on-chain router, tokens, `poolKey`, `hookData`, and price-feed delay. It uses `deployments/chainId-<id>.json`
+only to find the contract address unless `CHECKIN_ADDRESS` or `CHECK_IN_ADDRESS` is provided. If the JSON `poolKey` or
+slippage differs from on-chain state, the script warns and keeps the on-chain values as the baseline. After a successful
+update, or when no transaction is needed, `SYNC_DEPLOYMENT_JSON=true` writes the current on-chain `paymentsInfo` back to
+the deployment file. If a `CHECKIN_ADDRESS`/`CHECK_IN_ADDRESS` override differs from the address already recorded in the
+deployment file, the sync is skipped (with a warning) so a preview run against another contract cannot overwrite the
+canonical record.
+
+If the BelongCheckIn owner is a Safe, run the same script with `UPDATE=false`; it prints the target, value, and calldata
+for a Safe custom transaction.
 
 ---
 
@@ -396,10 +425,14 @@ Then run one low-value operational transaction, such as a small `venueDepositWit
 15. **Sanity Deposit (optional)** – `11-test-venueDeposit.ts`
     - Exercises `venueDeposit` against the deployed BelongCheckIn contract using the configured `SIGNER_PK`.
 
-16. **Uniswap Pool Setup (optional)** – `12-create-lp.ts`
+16. **PaymentsInfo update (optional)** – `17-update-payments-info.ts`
+    - Reads the live BelongCheckIn `paymentsInfo()`, updates only `slippageBps`, and can sync the deployment JSON from
+      on-chain state.
+
+17. **Uniswap Pool Setup (optional)** – `12-create-lp.ts`
     - Creates/initialises a LONG/USDC V3 pool using the provided price ratio.
 
-17. **Uniswap Liquidity Management (optional)** – `13-add-liqudity.ts`, `13-burn-liquidity.ts`, `list-positions.ts`
+18. **Uniswap Liquidity Management (optional)** – `13-add-liqudity.ts`, `13-burn-liquidity.ts`, `list-positions.ts`
     - Add, remove, or inspect positions once the pool exists. Refer to the in-script comments for the required env vars.
 
 All scripts write back to `deployments/chainId-<id>.json` after every successful action.
