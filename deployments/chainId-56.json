@@ -34,7 +34,8 @@
   "libraries": {
     "signatureVerifier": "0x08f7bb613F28fb8D7748f479ABea07EcFFDF026F",
     "helper": "0x5E3DB12280657F78E55E79507931662eEEe9E10E",
-    "dualDexSwapV4Lib": "0x483417ef62D5C47Af4592b2A039fFfcf36D84BbB"
+    "dualDexSwapV4Lib": "0x55B7b0eD7beB95c7F55B06F2Fb4E8128bf56315C",
+    "dualDexSwapV4LibPrevious": "0x483417ef62D5C47Af4592b2A039fFfcf36D84BbB"
   },
   "implementations": {
     "accessToken": "0x4F3575D5eA19BE3D7859E231B746238219c2f216",
@@ -48,7 +49,7 @@
   },
   "checkIn": {
     "address": "0x7c9B7Bd047A244aa9526106C687Cd39c593346fE",
-    "implementation": "0x65c50deb1db2eb0bf3ec164dbc2ed06871cd04a5",
+    "implementation": "0xdA73910a79819de94DF78bA01d294B61d8435b90",
     "paymentsInfo": {
       "dexType": 1,
       "slippageBps": {
