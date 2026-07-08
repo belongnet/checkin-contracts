@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.1.3] - 2026-07-08
+
+### Fixed
+
+- Reconciled `checkIn.paymentsInfo.poolKey` in `deployments/chainId-56.json` with live chain state. The recorded key was the January deploy-time value (fee `0x12c`, tickSpacing 500), whose pool was never initialized on the Infinity CL pool manager; the live key (set via Safe `setPaymentsInfo`, executed 2026-04-28) targets the real USDC/LONG pool `0x581f5d75…` (fee 0.3355%, tickSpacing 10) — the same pool the `long-price` feed service monitors.
+
+### Notes
+
+- Root cause of the post-upgrade `TooLittleReceived` reverts identified: the LONGPriceFeed answer and the Infinity pool's executable price diverged beyond the 5% slippage ceiling (pool traded up to ~9.6% above the Gate CEX price on 2026-07-06/07, while the feed published between the two or froze on source-quorum failure for up to 19.2h). Deposits also revert on feed staleness (`maxPriceFeedDelay` = 3600s) whenever the feed freezes for over an hour. Fix tracked in the `long-price` service and pool-liquidity operations, not in the contracts.
+
 ## [0.0.1.2] - 2026-07-08
 
 ### Fixed
