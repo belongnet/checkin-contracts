@@ -1,6 +1,17 @@
 # Changelog
 
-## [0.0.1.3] - 2026-07-08
+## [0.0.2.4] - 2026-11-16
+
+### Fixed
+
+- Landed the BSC mainnet deployment-record reconciliation on `main`. The 0.0.2.1–0.0.2.3 work below had been waiting on an unmerged branch since July, so `main` still pointed the CheckIn upgrade scripts at the pre-July `DualDexSwapV4Lib` (`0x483417ef…`); an implementation prepared from it would have relinked the library with the stale router selector.
+- Re-verified `deployments/chainId-56.json` field by field against live BSC state on 2026-11-16 (block 133,930,731): CheckIn and Factory implementations, linked libraries, Factory implementations, CheckIn `paymentsInfo`, and credit-token parameters all match.
+
+### Changed
+
+- Renumbered the three entries below from their draft numbers (0.0.1.1–0.0.1.3) so versions stay in date order after 0.0.2.0.
+
+## [0.0.2.3] - 2026-07-08
 
 ### Fixed
 
@@ -10,7 +21,7 @@
 
 - Root cause of the post-upgrade `TooLittleReceived` reverts identified: the LONGPriceFeed answer and the Infinity pool's executable price diverged beyond the 5% slippage ceiling (pool traded up to ~9.6% above the Gate CEX price on 2026-07-06/07, while the feed published between the two or froze on source-quorum failure for up to 19.2h). Deposits also revert on feed staleness (`maxPriceFeedDelay` = 3600s) whenever the feed freezes for over an hour. Fix tracked in the `long-price` service and pool-liquidity operations, not in the contracts.
 
-## [0.0.1.2] - 2026-07-08
+## [0.0.2.2] - 2026-07-08
 
 ### Fixed
 
@@ -22,7 +33,7 @@
 - A second `DualDexSwapV4Lib` instance (`0x966E0535…`) was deployed and verified during troubleshooting but is unused — the live implementation links against `0x55B7b0eD…`. No action needed; noted here so it isn't mistaken for the active library later.
 - Post-upgrade testing surfaced a separate, unresolved issue: `venueDeposit` now reaches the real swap path but can revert with Pancake `TooLittleReceived` when the oracle-vs-pool price divergence exceeds the configured 1% slippage tolerance. Tracked separately from this upgrade.
 
-## [0.0.1.1] - 2026-06-30
+## [0.0.2.1] - 2026-06-30
 
 ### Fixed
 
