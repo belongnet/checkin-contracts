@@ -1,4 +1,4 @@
-import { loadFixture, time } from '@nomicfoundation/hardhat-network-helpers';
+import { loadFixture, setStorageAt, time } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 
@@ -266,6 +266,132 @@ describe('Staking', () => {
         .withArgs(user2.address, user2.address, user2.address, amount, amount);
       expect(await long.balanceOf(user2.address)).to.eq(amount);
       await expect(staking.stakes(user1.address, 0)).to.be.reverted;
+    });
+
+    it('transfer to self keeps the stake entry and its lock', async () => {
+      const { staking, long, admin, treasury, user1 } = await loadFixture(fixture);
+
+      const amount = ethers.utils.parseEther('1000');
+
+      await long.connect(admin).transfer(user1.address, amount);
+      await long.connect(user1).approve(staking.address, amount);
+      await staking.connect(user1).deposit(amount, user1.address);
+
+      const stakeBefore = await staking.stakes(user1.address, 0);
+
+      // Moving the whole balance to oneself used to merge the stake entry into itself and then delete it,
+      // which left the shares without any lock record.
+      await staking.connect(user1).transfer(user1.address, amount);
+
+      expect(await staking.balanceOf(user1.address)).to.eq(amount);
+      const stakeAfter = await staking.stakes(user1.address, 0);
+      expect(stakeAfter.shares).to.eq(amount);
+      expect(stakeAfter.lockUntil).to.eq(stakeBefore.lockUntil);
+      expect(await staking.unlockedStakes(user1.address)).to.eq(0);
+
+      // The shares are still locked for the normal exit.
+      expect(await staking.maxRedeem(user1.address)).to.eq(0);
+      expect(await staking.maxWithdraw(user1.address)).to.eq(0);
+      await expect(staking.connect(user1).redeem(amount, user1.address, user1.address)).to.be.revertedWithCustomError(
+        staking,
+        'RedeemMoreThanMax',
+      );
+
+      // The emergency exit still charges the penalty on them.
+      const assets = await staking.previewRedeem(amount);
+      const penalty = ethers.BigNumber.from(getPercentage(assets, await staking.penaltyPercentage()));
+      const payout = assets.sub(penalty);
+      expect(penalty).to.be.gt(0);
+
+      const expectedPayout = await staking
+        .connect(user1)
+        .callStatic.emergencyRedeem(amount, user1.address, user1.address);
+      const tx = await staking.connect(user1).emergencyRedeem(amount, user1.address, user1.address);
+
+      expect(expectedPayout).to.eq(payout);
+      expect(payout).to.be.lt(assets);
+      await expect(tx)
+        .to.emit(staking, 'EmergencyWithdraw')
+        .withArgs(user1.address, user1.address, user1.address, payout, amount);
+      expect(await long.balanceOf(treasury.address)).to.eq(penalty);
+      expect(await long.balanceOf(user1.address)).to.eq(payout);
+      expect(await staking.balanceOf(user1.address)).to.eq(0);
+      await expect(staking.stakes(user1.address, 0)).to.be.reverted;
+    });
+
+    it('redeem() succeeds after the lock period for an account that transferred to itself', async () => {
+      const { staking, long, admin, treasury, user1 } = await loadFixture(fixture);
+
+      const amount = ethers.utils.parseEther('1000');
+
+      await long.connect(admin).transfer(user1.address, amount);
+      await long.connect(user1).approve(staking.address, amount);
+      await staking.connect(user1).deposit(amount, user1.address);
+
+      await staking.connect(user1).transfer(user1.address, amount);
+
+      // Still locked right after the self-transfer...
+      await expect(staking.connect(user1).redeem(amount, user1.address, user1.address)).to.be.revertedWithCustomError(
+        staking,
+        'RedeemMoreThanMax',
+      );
+
+      // ...and redeemable in full, without a penalty, once the stake period has passed.
+      const minPeriod = await staking.minStakePeriod();
+      await time.increase(minPeriod.add(1));
+
+      expect(await staking.maxRedeem(user1.address)).to.eq(amount);
+
+      const tx = await staking.connect(user1).redeem(amount, user1.address, user1.address);
+
+      await expect(tx)
+        .to.emit(staking, 'Withdraw')
+        .withArgs(user1.address, user1.address, user1.address, amount, amount);
+      expect(await staking.balanceOf(user1.address)).to.eq(0);
+      expect(await long.balanceOf(staking.address)).to.eq(0);
+      expect(await long.balanceOf(user1.address)).to.eq(amount);
+      expect(await long.balanceOf(treasury.address)).to.eq(0);
+      await expect(staking.stakes(user1.address, 0)).to.be.reverted;
+    });
+
+    it('emergency exit charges the penalty on shares that no stake record covers', async () => {
+      const { staking, long, admin, treasury, user1 } = await loadFixture(fixture);
+
+      const amount = ethers.utils.parseEther('1000');
+
+      await long.connect(admin).transfer(user1.address, amount);
+      await long.connect(user1).approve(staking.address, amount);
+      await staking.connect(user1).deposit(amount, user1.address);
+
+      // Recreate what a self-transfer left behind before the fix: the shares are still held, but the entry in
+      // `stakes[user1]` is gone. `stakes` is the first state variable (slot 0), so the array length of
+      // `stakes[user1]` lives at keccak256(abi.encode(user1, 0)).
+      const stakesLengthSlot = ethers.utils.keccak256(
+        ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [user1.address, 0]),
+      );
+      expect(await ethers.provider.getStorageAt(staking.address, stakesLengthSlot)).to.eq(
+        ethers.utils.hexZeroPad('0x01', 32),
+      );
+      await setStorageAt(staking.address, stakesLengthSlot, 0);
+
+      await expect(staking.stakes(user1.address, 0)).to.be.reverted;
+      expect(await staking.balanceOf(user1.address)).to.eq(amount);
+      expect(await staking.unlockedStakes(user1.address)).to.eq(0);
+      expect(await staking.maxRedeem(user1.address)).to.eq(0);
+
+      // Shares without a record cannot be shown to be unlocked, so they pay the penalty like locked shares.
+      const penalty = ethers.BigNumber.from(getPercentage(amount, await staking.penaltyPercentage()));
+      const payout = amount.sub(penalty);
+      expect(penalty).to.be.gt(0);
+
+      const tx = await staking.connect(user1).emergencyRedeem(amount, user1.address, user1.address);
+
+      await expect(tx)
+        .to.emit(staking, 'EmergencyWithdraw')
+        .withArgs(user1.address, user1.address, user1.address, payout, amount);
+      expect(await long.balanceOf(treasury.address)).to.eq(penalty);
+      expect(await long.balanceOf(user1.address)).to.eq(payout);
+      expect(await staking.balanceOf(user1.address)).to.eq(0);
     });
 
     it('emergency withdraw only penalizes locked portion', async () => {

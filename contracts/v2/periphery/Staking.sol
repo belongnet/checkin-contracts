@@ -486,7 +486,9 @@ contract Staking is Initializable, ERC4626, Ownable {
     // ============================== Hooks ==============================
 
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
-        if (amount == 0 || from == address(0) || to == address(0)) return;
+        // A transfer to oneself leaves the balance unchanged, so the lock records must stay unchanged too.
+        // Moving them would merge the entry into itself and then delete it, erasing the lock.
+        if (amount == 0 || from == address(0) || to == address(0) || from == to) return;
         _collectUnlockedStakes(from);
         _collectUnlockedStakes(to);
         _transferStakeRecord(from, to, amount);
@@ -613,6 +615,11 @@ contract Staking is Initializable, ERC4626, Ownable {
                     ++i;
                 }
             }
+        }
+
+        // Shares that no record covers cannot be shown to be unlocked, so they pay the penalty like locked shares.
+        if (remaining != 0) {
+            lockedConsumed += remaining;
         }
     }
 

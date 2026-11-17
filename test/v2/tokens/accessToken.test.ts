@@ -476,6 +476,75 @@ describe('AccessToken', () => {
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
     });
 
+    it('rejects a dynamic-price signature submitted as a static-price mint', async () => {
+      const { accessTokenEth, signer, charlie, signatureVerifier } = await loadFixture(fixture);
+
+      // Without the message kind in the digest, a dynamic price of 0 read as `whitelisted: false`
+      // and a dynamic price of 1 wei read as `whitelisted: true`.
+      const zeroPriceParams = buildDynamicParams(11, 0);
+      const zeroPriceProtection = await buildDynamicProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        zeroPriceParams,
+      );
+
+      await expect(
+        accessTokenEth
+          .connect(charlie)
+          .mintStaticPrice(
+            NATIVE_CURRENCY_ADDRESS,
+            ethPurchasePrice,
+            [charlie.address],
+            [buildStaticParams(11)],
+            [zeroPriceProtection],
+            { value: ethPurchasePrice },
+          ),
+      )
+        .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+        .withArgs(zeroPriceProtection.signature);
+
+      const oneWeiParams = buildDynamicParams(12, 1);
+      const oneWeiProtection = await buildDynamicProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        oneWeiParams,
+      );
+      const whitelistPrice = ethPurchasePrice.div(2);
+
+      await expect(
+        accessTokenEth
+          .connect(charlie)
+          .mintStaticPrice(
+            NATIVE_CURRENCY_ADDRESS,
+            whitelistPrice,
+            [charlie.address],
+            [buildStaticParams(12, { whitelisted: true })],
+            [oneWeiProtection],
+            { value: whitelistPrice },
+          ),
+      )
+        .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+        .withArgs(oneWeiProtection.signature);
+
+      expect(await accessTokenEth.totalSupply()).to.eq(0);
+
+      // Both signatures stay valid for the dynamic-price mint they were issued for.
+      await accessTokenEth
+        .connect(charlie)
+        .mintDynamicPrice(
+          NATIVE_CURRENCY_ADDRESS,
+          [charlie.address, charlie.address],
+          [zeroPriceParams, oneWeiParams],
+          [zeroPriceProtection, oneWeiProtection],
+          { value: 1 },
+        );
+
+      expect(await accessTokenEth.ownerOf(zeroPriceParams.tokenId)).to.eq(charlie.address);
+      expect(await accessTokenEth.ownerOf(oneWeiParams.tokenId)).to.eq(charlie.address);
+    });
+
     it('reverts when minting exceeds the collection supply', async () => {
       const { factory, signer, creator } = await loadFixture(fixture);
 
@@ -651,6 +720,73 @@ describe('AccessToken', () => {
             value: ethPurchasePrice,
           }),
       ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
+    });
+
+    it('rejects a static-price signature (whitelisted false) submitted as a dynamic price of 0', async () => {
+      const { accessTokenEth, signer, charlie, signatureVerifier } = await loadFixture(fixture);
+
+      // Without the message kind in the digest, `whitelisted: false` read as a dynamic price of 0: a free mint.
+      const staticParams = buildStaticParams(36);
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        staticParams,
+      );
+
+      // Same receiver, token id and token URI as signed; only the kind of mint differs.
+      await expect(
+        accessTokenEth
+          .connect(charlie)
+          .mintDynamicPrice(NATIVE_CURRENCY_ADDRESS, [charlie.address], [buildDynamicParams(36, 0)], [protection], {
+            value: 0,
+          }),
+      )
+        .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+        .withArgs(protection.signature);
+      expect(await accessTokenEth.totalSupply()).to.eq(0);
+
+      // The signature stays valid for the static-price mint it was issued for, at the full price.
+      await accessTokenEth
+        .connect(charlie)
+        .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, ethPurchasePrice, [charlie.address], [staticParams], [protection], {
+          value: ethPurchasePrice,
+        });
+      expect(await accessTokenEth.ownerOf(staticParams.tokenId)).to.eq(charlie.address);
+    });
+
+    it('rejects a static-price signature (whitelisted true) submitted as a dynamic price of 1 wei', async () => {
+      const { accessTokenEth, signer, charlie, signatureVerifier } = await loadFixture(fixture);
+
+      // Without the message kind in the digest, `whitelisted: true` read as a dynamic price of 1 wei.
+      const staticParams = buildStaticParams(37, { whitelisted: true });
+      const protection = await buildStaticProtection(
+        accessTokenEth.address,
+        signer.privateKey,
+        charlie.address,
+        staticParams,
+      );
+
+      // Same receiver, token id and token URI as signed; only the kind of mint differs.
+      await expect(
+        accessTokenEth
+          .connect(charlie)
+          .mintDynamicPrice(NATIVE_CURRENCY_ADDRESS, [charlie.address], [buildDynamicParams(37, 1)], [protection], {
+            value: 1,
+          }),
+      )
+        .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+        .withArgs(protection.signature);
+      expect(await accessTokenEth.totalSupply()).to.eq(0);
+
+      // The signature stays valid for the static-price mint it was issued for, at the whitelist price.
+      const whitelistPrice = ethPurchasePrice.div(2);
+      await accessTokenEth
+        .connect(charlie)
+        .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, whitelistPrice, [charlie.address], [staticParams], [protection], {
+          value: whitelistPrice,
+        });
+      expect(await accessTokenEth.ownerOf(staticParams.tokenId)).to.eq(charlie.address);
     });
   });
 

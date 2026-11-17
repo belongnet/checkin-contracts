@@ -19,11 +19,6 @@ abstract contract ReferralSystemV2 {
     error ReferralCreatorNotExists();
     error ReferralUserIsReferralCreator();
 
-    /// @notice Error thrown when a user attempts to get a referral rate for a code they haven't used.
-    /// @param referralUser The address of the user who did not use the code.
-    /// @param code The referral code the user has not used.
-    error ReferralCodeNotUsedByUser(address referralUser, bytes32 code);
-
     error PercentageExceedsMax(uint16 percentage);
     error MaxArrayLengthExceedsMax(uint16 maxArrayLength);
 
@@ -90,10 +85,16 @@ abstract contract ReferralSystemV2 {
 
     /**
      * @notice Returns the referral rate for a user and code, based on the number of times the code was used.
+     * @dev Returns zero when the user is not registered for the code.
      */
     function getReferralRate(address referralUser, bytes32 code, uint256 amount) public view returns (uint256 rate) {
         uint8 used = usedCode[referralUser][code];
-        require(used > 0, ReferralCodeNotUsedByUser(referralUser, code));
+        if (used == 0) {
+            // The user is not registered for this code, for example because the code's user list was already
+            // full when the collection was produced. No referral share is due. Returning zero instead of
+            // reverting keeps such a collection able to mint and to release royalties.
+            return 0;
+        }
 
         return calculateRate(amount, usedToPercentage[used]);
     }

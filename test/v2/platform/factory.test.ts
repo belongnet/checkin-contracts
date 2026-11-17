@@ -15,8 +15,9 @@ import {
 } from '../../../helpers/deployFixtures';
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { deployMockTransferValidatorV2, deployWETHMock } from '../../../helpers/deployMockFixtures';
-import { abiEncodeHash, getPercentage } from '../../../helpers/math';
+import { abiEncodeHash, calculatePlatformFee, getPercentage } from '../../../helpers/math';
 import {
+  buildStaticProtection,
   signAccessTokenInfo,
   SignatureOverrides,
   signCreditTokenInfo,
@@ -119,7 +120,7 @@ describe('Factory', () => {
     referralCode: BytesLike,
     overrides?: SignatureOverrides,
   ) {
-    const protection = await signAccessTokenInfo(factory.address, signerPk, info, overrides);
+    const protection = await signAccessTokenInfo(factory.address, signerPk, info, { referralCode, ...overrides });
     return factory.connect(caller).produce(info, referralCode, protection);
   }
 
@@ -207,6 +208,64 @@ describe('Factory', () => {
       await expect(
         factory.upgradeToV2(_royalties, _implementations, referralPercentages, REFERRAL_MAX_ARRAY_LENGTH),
       ).to.be.revertedWithCustomError(factory, 'InvalidInitialization');
+    });
+
+    it('upgradeToV2() and upgradeToV3() can only be called by the owner', async () => {
+      const { factory, owner, alice, bob } = await loadFixture(fixture);
+
+      const _implementations = {
+        accessToken: factory.address,
+        creditToken: factory.address,
+        royaltiesReceiver: factory.address,
+        vestingWallet: factory.address,
+      };
+      const _royalties = {
+        amountToCreator: 7000,
+        amountToPlatform: 3000,
+      };
+      const percentages: [number, number, number, number, number] = [0, 5000, 3000, 1500, 500];
+      const newVestingWalletImplementation = bob.address;
+
+      const implementationsBefore = await factory.implementations();
+      const royaltiesBefore = await factory.royaltiesParameters();
+
+      await expect(
+        factory.connect(alice).upgradeToV2(_royalties, _implementations, percentages, REFERRAL_MAX_ARRAY_LENGTH),
+      ).to.be.revertedWithCustomError(factory, 'Unauthorized');
+      await expect(factory.connect(alice).upgradeToV3(newVestingWalletImplementation)).to.be.revertedWithCustomError(
+        factory,
+        'Unauthorized',
+      );
+
+      // The rejected calls changed nothing...
+      expect((await factory.royaltiesParameters()).amountToCreator).to.eq(royaltiesBefore.amountToCreator);
+      expect((await factory.royaltiesParameters()).amountToPlatform).to.eq(royaltiesBefore.amountToPlatform);
+      expect((await factory.implementations()).accessToken).to.eq(implementationsBefore.accessToken);
+      expect((await factory.implementations()).vestingWallet).to.eq(implementationsBefore.vestingWallet);
+
+      // ...and did not use up the one-time reinitializers: the owner can still run both.
+      await expect(
+        factory.connect(owner).upgradeToV2(_royalties, _implementations, percentages, REFERRAL_MAX_ARRAY_LENGTH),
+      ).to.emit(factory, 'FactoryParametersSet');
+      expect((await factory.royaltiesParameters()).amountToCreator).to.eq(_royalties.amountToCreator);
+      expect((await factory.implementations()).vestingWallet).to.eq(_implementations.vestingWallet);
+
+      await expect(factory.connect(owner).upgradeToV3(newVestingWalletImplementation)).to.emit(
+        factory,
+        'FactoryParametersSet',
+      );
+      expect((await factory.implementations()).vestingWallet).to.eq(newVestingWalletImplementation);
+      expect((await factory.implementations()).accessToken).to.eq(_implementations.accessToken);
+
+      // The ownership check comes first: a stranger never reaches the reinitializer guard.
+      await expect(factory.connect(alice).upgradeToV3(newVestingWalletImplementation)).to.be.revertedWithCustomError(
+        factory,
+        'Unauthorized',
+      );
+      await expect(factory.connect(owner).upgradeToV3(newVestingWalletImplementation)).to.be.revertedWithCustomError(
+        factory,
+        'InvalidInitialization',
+      );
     });
   });
 
@@ -440,6 +499,115 @@ describe('Factory', () => {
       expect(infoReturned.creator).to.be.equal(charlie.address);
       expect(feeReceiver).not.to.be.equal(ZERO_ADDRESS);
     });
+
+    describe('signed AccessTokenInfo payload', () => {
+      const nftName = 'Signed AccessToken';
+      const nftSymbol = 'SAT';
+      const price = ethers.utils.parseEther('0.05');
+      const whitelistPrice = ethers.utils.parseEther('0.03');
+      const maxTotalSupply = BigNumber.from('1000');
+
+      function signedInfo(creator: string): AccessTokenInfoStruct {
+        return {
+          creator,
+          metadata: { name: nftName, symbol: nftSymbol },
+          contractURI: 'contractURI/SignedAccessToken',
+          paymentToken: NATIVE_CURRENCY_ADDRESS,
+          mintPrice: price,
+          whitelistMintPrice: whitelistPrice,
+          transferable: true,
+          maxTotalSupply,
+          feeNumerator: 500,
+        };
+      }
+
+      // Each of these fields used to be left out of the signed digest, so a caller could submit any value for it.
+      const changedAfterSigning: Array<{
+        field: string;
+        change: (erc20: string) => Partial<AccessTokenInfoStruct>;
+      }> = [
+        { field: 'paymentToken', change: erc20 => ({ paymentToken: erc20 }) },
+        { field: 'mintPrice', change: () => ({ mintPrice: 0 }) },
+        { field: 'whitelistMintPrice', change: () => ({ whitelistMintPrice: 0 }) },
+        { field: 'maxTotalSupply', change: () => ({ maxTotalSupply: maxTotalSupply.mul(1000) }) },
+        { field: 'transferable', change: () => ({ transferable: false }) },
+      ];
+
+      for (const { field, change } of changedAfterSigning) {
+        it(`produce() reverts with InvalidSignature when ${field} is changed after signing`, async () => {
+          const { signatureVerifier, factory, erc20Example, alice, signer } = await loadFixture(fixture);
+
+          const info = signedInfo(alice.address);
+          const protection = await signAccessTokenInfo(factory.address, signer.privateKey, info);
+
+          const changedInfo: AccessTokenInfoStruct = { ...info, ...change(erc20Example.address) };
+          await expect(factory.connect(alice).produce(changedInfo, ethers.constants.HashZero, protection))
+            .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+            .withArgs(protection.signature);
+          expect((await factory.nftInstanceInfo(nftName, nftSymbol)).nftAddress).to.eq(ZERO_ADDRESS);
+
+          // The very same signature is accepted for the payload it was issued for.
+          await expect(factory.connect(alice).produce(info, ethers.constants.HashZero, protection)).to.emit(
+            factory,
+            'AccessTokenCreated',
+          );
+
+          const nft = await ethers.getContractAt(
+            'AccessToken',
+            (await factory.nftInstanceInfo(nftName, nftSymbol)).nftAddress,
+          );
+          const [, , , infoReturned] = await nft.parameters();
+          expect(infoReturned.paymentToken).to.eq(NATIVE_CURRENCY_ADDRESS);
+          expect(infoReturned.mintPrice).to.eq(price);
+          expect(infoReturned.whitelistMintPrice).to.eq(whitelistPrice);
+          expect(infoReturned.maxTotalSupply).to.eq(maxTotalSupply);
+          expect(infoReturned.transferable).to.be.true;
+        });
+      }
+
+      it('produce() reverts with InvalidSignature when the referral code differs from the signed one', async () => {
+        const { signatureVerifier, factory, alice, bob, charlie, signer } = await loadFixture(fixture);
+
+        await factory.connect(bob).createReferralCode();
+        await factory.connect(charlie).createReferralCode();
+        const bobCode = await factory.getReferralCodeByCreator(bob.address);
+        const charlieCode = await factory.getReferralCodeByCreator(charlie.address);
+
+        const info = signedInfo(alice.address);
+
+        // Signed without a referral code, submitted with one.
+        const signedWithoutCode = await signAccessTokenInfo(factory.address, signer.privateKey, info);
+        await expect(factory.connect(alice).produce(info, bobCode, signedWithoutCode))
+          .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+          .withArgs(signedWithoutCode.signature);
+
+        // Signed with a referral code, submitted with another code or with none.
+        const signedWithBobCode = await signAccessTokenInfo(factory.address, signer.privateKey, info, {
+          referralCode: bobCode,
+        });
+        await expect(factory.connect(alice).produce(info, charlieCode, signedWithBobCode))
+          .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+          .withArgs(signedWithBobCode.signature);
+        await expect(factory.connect(alice).produce(info, ethers.constants.HashZero, signedWithBobCode))
+          .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+          .withArgs(signedWithBobCode.signature);
+
+        expect(await factory.getReferralUsers(bobCode)).to.deep.eq([]);
+        expect(await factory.getReferralUsers(charlieCode)).to.deep.eq([]);
+
+        // The signed code is accepted and is the one the collection is created with.
+        const tx = await factory.connect(alice).produce(info, bobCode, signedWithBobCode);
+        await expect(tx).to.emit(factory, 'ReferralCodeUsed').withArgs(bobCode, alice.address);
+
+        const nft = await ethers.getContractAt(
+          'AccessToken',
+          (await factory.nftInstanceInfo(nftName, nftSymbol)).nftAddress,
+        );
+        expect((await nft.parameters()).referralCode).to.eq(bobCode);
+        expect(await factory.getReferralUsers(bobCode)).to.deep.eq([alice.address]);
+        expect(await factory.getReferralUsers(charlieCode)).to.deep.eq([]);
+      });
+    });
   });
 
   describe('Deploy CreditToken', () => {
@@ -529,8 +697,14 @@ describe('Factory', () => {
       expect(await nft.hasRole(alice.address, await nft.MINTER_ROLE())).to.be.true;
       expect(await nft.hasRole(alice.address, await nft.BURNER_ROLE())).to.be.true;
 
+      // A signature can be executed once: submitting it again is rejected before the duplicate check.
       await expect(
         factory.connect(alice).produceCreditToken(creditTokenInfo, creditTokenInfoProtection),
+      ).to.be.revertedWithCustomError(factory, 'SignatureAlreadyUsed');
+
+      // A freshly signed request for the same name and symbol still reverts as a duplicate.
+      await expect(
+        produceCreditToken(factory, alice, signer.privateKey, creditTokenInfo),
       ).to.be.revertedWithCustomError(factory, 'TokenAlreadyExists');
     });
 
@@ -650,6 +824,70 @@ describe('Factory', () => {
       expect(await nft3.hasRole(charlie.address, await nft3.MANAGER_ROLE())).to.be.true;
       expect(await nft3.hasRole(charlie.address, await nft3.MINTER_ROLE())).to.be.true;
       expect(await nft3.hasRole(charlie.address, await nft3.BURNER_ROLE())).to.be.true;
+    });
+
+    describe('signed ERC1155Info payload', () => {
+      const nftName = 'Signed CreditToken';
+      const nftSymbol = 'SCT';
+
+      // Each of these fields used to be left out of the signed digest, so a caller could submit any value for it.
+      const changedAfterSigning: Array<{
+        field: string;
+        change: (other: string) => Partial<ERC1155InfoStruct>;
+      }> = [
+        { field: 'defaultAdmin', change: other => ({ defaultAdmin: other }) },
+        { field: 'manager', change: other => ({ manager: other }) },
+        { field: 'minter', change: other => ({ minter: other }) },
+        { field: 'burner', change: other => ({ burner: other }) },
+        { field: 'transferable', change: () => ({ transferable: false }) },
+      ];
+
+      for (const { field, change } of changedAfterSigning) {
+        it(`produceCreditToken() reverts with InvalidSignature when ${field} is changed after signing`, async () => {
+          const { signatureVerifier, factory, alice, bob, signer } = await loadFixture(fixture);
+
+          const info: ERC1155InfoStruct = {
+            name: nftName,
+            symbol: nftSymbol,
+            defaultAdmin: alice.address,
+            manager: alice.address,
+            minter: alice.address,
+            burner: alice.address,
+            uri: 'contractURI/SignedCreditToken',
+            transferable: true,
+          };
+          const protection = await signCreditTokenInfo(factory.address, signer.privateKey, info);
+
+          // bob submits the request signed for alice with one field replaced.
+          const changedInfo: ERC1155InfoStruct = { ...info, ...change(bob.address) };
+          await expect(factory.connect(bob).produceCreditToken(changedInfo, protection))
+            .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+            .withArgs(protection.signature);
+          expect((await factory.getCreditTokenInstanceInfo(nftName, nftSymbol)).creditToken).to.eq(ZERO_ADDRESS);
+
+          // The very same signature is accepted for the payload it was issued for.
+          await expect(factory.connect(bob).produceCreditToken(info, protection)).to.emit(
+            factory,
+            'CreditTokenCreated',
+          );
+
+          const nft: CreditToken = await ethers.getContractAt(
+            'CreditToken',
+            (await factory.getCreditTokenInstanceInfo(nftName, nftSymbol)).creditToken,
+          );
+          expect(await nft.transferable()).to.be.true;
+          const roles = [
+            await nft.DEFAULT_ADMIN_ROLE(),
+            await nft.MANAGER_ROLE(),
+            await nft.MINTER_ROLE(),
+            await nft.BURNER_ROLE(),
+          ];
+          for (const role of roles) {
+            expect(await nft.hasRole(alice.address, role)).to.be.true;
+            expect(await nft.hasRole(bob.address, role)).to.be.false;
+          }
+        });
+      }
     });
   });
 
@@ -785,11 +1023,13 @@ describe('Factory', () => {
         description,
       };
 
+      // The signature covers the funding amount: this one authorizes a deployment without initial funding.
       const vestingInfoProtection = await signVestingWalletInfo(
         factory.address,
         signer.privateKey,
         owner.address,
         vestingWalletInfo,
+        { initialFunding: 0 },
       );
 
       const invalidInitialFunding = vestingWalletInfo.totalAllocation.add(1);
@@ -829,13 +1069,14 @@ describe('Factory', () => {
         description: 'VestingWallet partial funding',
       };
 
+      const partialFundingAmount = ethers.utils.parseEther('25');
       const partialFundingProtection = await signVestingWalletInfo(
         factory.address,
         signer.privateKey,
         owner.address,
         partialFundingInfo,
+        { initialFunding: partialFundingAmount },
       );
-      const partialFundingAmount = ethers.utils.parseEther('25');
 
       await LONG.approve(factory.address, partialFundingAmount);
       await factory
@@ -987,6 +1228,121 @@ describe('Factory', () => {
       expect(await vestingWallet3.duration()).to.be.equal(durationSeconds3);
       expect(await vestingWallet3.end()).to.be.equal(startTimestamp3 + cliffDurationSeconds3 + durationSeconds3);
     });
+
+    it('should reject a VestingWallet signature that was already executed', async () => {
+      const { LONG, factory, owner, alice, signer } = await loadFixture(fixture);
+
+      const totalAllocation = ethers.utils.parseEther('100');
+      const vestingWalletInfo: VestingWalletInfoStruct = {
+        startTimestamp: (await time.latest()) + 5,
+        cliffDurationSeconds: 60,
+        durationSeconds: 360,
+        token: LONG.address,
+        beneficiary: alice.address,
+        totalAllocation,
+        tgeAmount: ethers.utils.parseEther('10'),
+        linearAllocation: ethers.utils.parseEther('60'),
+        description: 'VestingWallet signed once',
+      };
+      const protection = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        owner.address,
+        vestingWalletInfo,
+      );
+
+      // Allowance and balance cover two deployments, so only the signature check can stop the second one.
+      await LONG.approve(factory.address, totalAllocation.mul(2));
+      const ownerBalanceBefore = await LONG.balanceOf(owner.address);
+
+      await expect(factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo, protection)).to.emit(
+        factory,
+        'VestingWalletCreated',
+      );
+
+      await expect(
+        factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo, protection),
+      ).to.be.revertedWithCustomError(factory, 'SignatureAlreadyUsed');
+
+      // The entry point that takes an explicit amount verifies the same digest when the amount is the signed one.
+      await expect(
+        factory
+          .connect(owner)
+          .deployVestingWalletWithInitialFunding(owner.address, vestingWalletInfo, protection, totalAllocation),
+      ).to.be.revertedWithCustomError(factory, 'SignatureAlreadyUsed');
+
+      // What is recorded is the signed digest, not the signature bytes: the 64-byte (EIP-2098) encoding of the
+      // same signature is a valid signature too, and it is rejected as already used.
+      const compactProtection = {
+        ...protection,
+        signature: ethers.utils.splitSignature(protection.signature as string).compact,
+      };
+      expect(compactProtection.signature).to.not.eq(protection.signature);
+      await expect(
+        factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo, compactProtection),
+      ).to.be.revertedWithCustomError(factory, 'SignatureAlreadyUsed');
+
+      expect((await factory.getVestingWalletInstanceInfos(alice.address)).length).to.eq(1);
+      expect(await LONG.balanceOf(owner.address)).to.eq(ownerBalanceBefore.sub(totalAllocation));
+
+      // A new signature for the same schedule is a new request: it deploys a second wallet for the beneficiary.
+      await expect(
+        deployVestingWalletWithSignature(factory, owner, signer.privateKey, owner.address, vestingWalletInfo),
+      ).to.emit(factory, 'VestingWalletCreated');
+      expect((await factory.getVestingWalletInstanceInfos(alice.address)).length).to.eq(2);
+      expect(await LONG.balanceOf(owner.address)).to.eq(ownerBalanceBefore.sub(totalAllocation.mul(2)));
+    });
+
+    it('binds a VestingWallet signature to the funding amount and the description', async () => {
+      const { LONG, factory, owner, alice, signer, signatureVerifier } = await loadFixture(fixture);
+
+      const totalAllocation = ethers.utils.parseEther('100');
+      const vestingWalletInfo: VestingWalletInfoStruct = {
+        startTimestamp: (await time.latest()) + 5,
+        cliffDurationSeconds: 60,
+        durationSeconds: 360,
+        token: LONG.address,
+        beneficiary: alice.address,
+        totalAllocation,
+        tgeAmount: ethers.utils.parseEther('10'),
+        linearAllocation: ethers.utils.parseEther('60'),
+        description: 'VestingWallet fully funded',
+      };
+
+      // Signed for a fully funded deployment (the helper's default funding amount is `totalAllocation`).
+      const protection = await signVestingWalletInfo(
+        factory.address,
+        signer.privateKey,
+        owner.address,
+        vestingWalletInfo,
+      );
+      await LONG.approve(factory.address, totalAllocation);
+
+      // Nobody can spend it on an unfunded or partly funded wallet for the same beneficiary...
+      await expect(
+        factory.connect(alice).deployVestingWalletWithoutInitialFunding(owner.address, vestingWalletInfo, protection),
+      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
+      await expect(
+        factory
+          .connect(owner)
+          .deployVestingWalletWithInitialFunding(owner.address, vestingWalletInfo, protection, totalAllocation.sub(1)),
+      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
+
+      // ...or on a wallet that carries a different description.
+      await expect(
+        factory
+          .connect(owner)
+          .deployVestingWallet(owner.address, { ...vestingWalletInfo, description: 'relabelled' }, protection),
+      ).to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature');
+      expect((await factory.getVestingWalletInstanceInfos(alice.address)).length).to.eq(0);
+
+      // The request that was signed still goes through.
+      await expect(factory.connect(owner).deployVestingWallet(owner.address, vestingWalletInfo, protection)).to.emit(
+        factory,
+        'VestingWalletCreated',
+      );
+      expect((await factory.getVestingWalletInstanceInfos(alice.address)).length).to.eq(1);
+    });
   });
 
   describe('Referrals', () => {
@@ -1045,11 +1401,21 @@ describe('Factory', () => {
         feeNumerator: feeNumerator,
         collectionExpire: BigNumber.from('86400'),
       } as AccessTokenInfoStruct;
-      const accessTokenInfoProtection = await signAccessTokenInfo(factory.address, signer.privateKey, accessTokenInfo);
+      // The referral code is part of the signed payload, so every call signs the code it submits.
+      const accessTokenInfoProtectionFalseCode = await signAccessTokenInfo(
+        factory.address,
+        signer.privateKey,
+        accessTokenInfo,
+        { referralCode: hashedCodeFalse },
+      );
 
       await expect(
-        factory.connect(alice).produce(accessTokenInfo, hashedCodeFalse, accessTokenInfoProtection),
+        factory.connect(alice).produce(accessTokenInfo, hashedCodeFalse, accessTokenInfoProtectionFalseCode),
       ).to.be.revertedWithCustomError(factory, 'ReferralCreatorNotExists');
+
+      const accessTokenInfoProtection = await signAccessTokenInfo(factory.address, signer.privateKey, accessTokenInfo, {
+        referralCode: hashedCode,
+      });
 
       await expect(
         factory.connect(alice).produce(accessTokenInfo, hashedCode, accessTokenInfoProtection),
@@ -1060,6 +1426,7 @@ describe('Factory', () => {
         factory.address,
         signer.privateKey,
         accessTokenInfo,
+        { referralCode: hashedCode },
       );
 
       const tx = await factory.connect(bob).produce(accessTokenInfo, hashedCode, accessTokenInfoProtectionBob);
@@ -1068,9 +1435,8 @@ describe('Factory', () => {
       expect((await factory.getReferralUsers(hashedCode))[0]).to.eq(bob.address);
 
       const amount = 10000;
-      await expect(factory.getReferralRate(bob.address, hashedCodeFalse, amount))
-        .to.be.revertedWithCustomError(factory, 'ReferralCodeNotUsedByUser')
-        .withArgs(bob.address, hashedCodeFalse);
+      // A user who is not registered for a code is due no referral share: the rate is zero (it no longer reverts).
+      expect(await factory.getReferralRate(bob.address, hashedCodeFalse, amount)).to.eq(0);
       expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(amount / 2);
 
       nftName = 'Name2';
@@ -1092,6 +1458,7 @@ describe('Factory', () => {
         factory.address,
         signer.privateKey,
         accessTokenInfo2,
+        { referralCode: hashedCode },
       );
 
       await factory.connect(bob).produce(accessTokenInfo2, hashedCode, accessTokenInfoProtection2);
@@ -1119,6 +1486,7 @@ describe('Factory', () => {
         factory.address,
         signer.privateKey,
         accessTokenInfo3,
+        { referralCode: hashedCode },
       );
 
       await factory.connect(bob).produce(accessTokenInfo3, hashedCode, accessTokenInfoProtection3);
@@ -1146,6 +1514,7 @@ describe('Factory', () => {
         factory.address,
         signer.privateKey,
         accessTokenInfo4,
+        { referralCode: hashedCode },
       );
 
       await factory.connect(bob).produce(accessTokenInfo4, hashedCode, accessTokenInfoProtection4);
@@ -1173,6 +1542,7 @@ describe('Factory', () => {
         factory.address,
         signer.privateKey,
         accessTokenInfo5,
+        { referralCode: hashedCode },
       );
 
       await factory.connect(bob).produce(accessTokenInfo5, hashedCode, accessTokenInfoProtection5);
@@ -1200,6 +1570,7 @@ describe('Factory', () => {
         factory.address,
         signer.privateKey,
         accessTokenInfo6,
+        { referralCode: hashedCode },
       );
 
       await factory.connect(bob).produce(accessTokenInfo6, hashedCode, accessTokenInfoProtection6);
@@ -1207,6 +1578,96 @@ describe('Factory', () => {
       expect(await factory.getReferralRate(bob.address, hashedCode, amount)).to.eq(
         getPercentage(amount, referralPercentages[4]),
       );
+    });
+
+    it('keeps a collection usable when its referral code has no room for another user', async () => {
+      const { factory, owner, alice, bob, charlie, signer } = await loadFixture(fixture);
+
+      // Only the referral user list is shrunk; every other parameter stays as deployed.
+      // The list holds at most `maxArrayLength - 1` users, so with 2 a code can register a single user.
+      await factory.setFactoryParameters(
+        await factory.nftFactoryParameters(),
+        await factory.royaltiesParameters(),
+        await factory.implementations(),
+        [0, 5000, 3000, 1500, 500],
+        2,
+      );
+
+      await factory.connect(alice).createReferralCode();
+      const code = await factory.getReferralCodeByCreator(alice.address);
+
+      const price = ethers.utils.parseEther('0.01');
+      const collectionInfo = (creator: string, name: string, symbol: string): AccessTokenInfoStruct => ({
+        creator,
+        metadata: { name, symbol },
+        contractURI: 'contractURI/AccessToken123',
+        paymentToken: NATIVE_CURRENCY_ADDRESS,
+        mintPrice: price,
+        whitelistMintPrice: price,
+        transferable: true,
+        maxTotalSupply: BigNumber.from('1000'),
+        feeNumerator: 500,
+      });
+
+      // bob takes the only place in the code's user list.
+      await expect(
+        produceAccessToken(factory, bob, signer.privateKey, collectionInfo(bob.address, 'Listed', 'LST'), code),
+      )
+        .to.emit(factory, 'ReferralCodeUsed')
+        .withArgs(code, bob.address);
+      expect(await factory.getReferralUsers(code)).to.deep.eq([bob.address]);
+
+      // charlie produces a collection with the same code once the list is full.
+      const tx = await produceAccessToken(
+        factory,
+        charlie,
+        signer.privateKey,
+        collectionInfo(charlie.address, 'Unlisted', 'UNL'),
+        code,
+      );
+      await expect(tx).to.emit(factory, 'AccessTokenCreated');
+      await expect(tx).to.not.emit(factory, 'ReferralCodeUsed');
+      expect(await factory.getReferralUsers(code)).to.deep.eq([bob.address]);
+      expect(await factory.usedCode(charlie.address, code)).to.eq(0);
+
+      const amount = 10000;
+      expect(await factory.getReferralRate(charlie.address, code, amount)).to.eq(0);
+      expect(await factory.getReferralRate(bob.address, code, amount)).to.eq(amount / 2);
+
+      const instanceInfo = await factory.nftInstanceInfo('Unlisted', 'UNL');
+      const nft = await ethers.getContractAt('AccessToken', instanceInfo.nftAddress);
+      const royaltiesReceiver = await ethers.getContractAt('RoyaltiesReceiverV2', instanceInfo.royaltiesReceiver);
+      expect((await nft.parameters()).referralCode).to.eq(code);
+      expect((await royaltiesReceiver.royaltiesReceivers()).referral).to.eq(alice.address);
+
+      // The collection still carries the code, so a mint asks the factory for charlie's referral rate.
+      // That lookup used to revert for an unregistered creator; now the whole fee goes to the platform.
+      const mintParams = { tokenId: 1, tokenUri: 'tokenURI/1', whitelisted: false };
+      const mintProtection = await buildStaticProtection(nft.address, signer.privateKey, bob.address, mintParams);
+      const platformFee = calculatePlatformFee(price, (await factory.nftFactoryParameters()).platformCommission, 10000);
+      expect(platformFee).to.be.gt(0);
+
+      await expect(
+        nft
+          .connect(bob)
+          .mintStaticPrice(NATIVE_CURRENCY_ADDRESS, price, [bob.address], [mintParams], [mintProtection], {
+            value: price,
+          }),
+      ).to.changeEtherBalances([owner, alice, charlie], [platformFee, 0, price.sub(platformFee)]);
+      expect(await nft.ownerOf(mintParams.tokenId)).to.eq(bob.address);
+
+      // Releasing royalties does the same lookup for the referral payee's share.
+      const royaltiesAmount = ethers.utils.parseEther('1');
+      await bob.sendTransaction({ to: royaltiesReceiver.address, value: royaltiesAmount });
+      expect(await royaltiesReceiver.shares(charlie.address)).to.eq(8000);
+      expect(await royaltiesReceiver.shares(owner.address)).to.eq(2000);
+      expect(await royaltiesReceiver.shares(alice.address)).to.eq(0);
+
+      await expect(royaltiesReceiver.connect(bob).releaseAll(NATIVE_CURRENCY_ADDRESS)).to.changeEtherBalances(
+        [charlie, owner, alice],
+        [royaltiesAmount.mul(8000).div(10000), royaltiesAmount.mul(2000).div(10000), 0],
+      );
+      expect(await ethers.provider.getBalance(royaltiesReceiver.address)).to.eq(0);
     });
   });
 
@@ -1305,8 +1766,14 @@ describe('Factory', () => {
 
       await factory.connect(alice).produce(accessTokenInfo, ethers.constants.HashZero, accessTokenInfoProtection);
 
+      // A signature can be executed once: submitting it again is rejected before the duplicate check.
       await expect(
         factory.connect(alice).produce(accessTokenInfo, ethers.constants.HashZero, accessTokenInfoProtection),
+      ).to.be.revertedWithCustomError(factory, 'SignatureAlreadyUsed');
+
+      // A freshly signed request for the same name and symbol still reverts as a duplicate.
+      await expect(
+        produceAccessToken(factory, alice, signer.privateKey, accessTokenInfo, ethers.constants.HashZero),
       ).to.be.revertedWithCustomError(factory, 'TokenAlreadyExists');
     });
   });

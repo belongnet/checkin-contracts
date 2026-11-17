@@ -23,7 +23,39 @@ export type SignatureOverrides = {
   deadline?: BigNumberish;
   chainId?: BigNumberish;
   rules?: VenueRulesStruct;
+  /// Referral code passed to `Factory.produce` next to the AccessToken payload (signed with it).
+  referralCode?: BytesLike;
+  /// Amount the caller funds a vesting wallet with on deployment (signed with the vesting payload).
+  /// Defaults to `totalAllocation`, which is what `Factory.deployVestingWallet` transfers.
+  initialFunding?: BigNumberish;
 };
+
+/// First word of every signed digest: one constant per message kind (see `SignatureVerifier.sol`).
+export const SIGNATURE_TYPEHASH = {
+  accessTokenInfo: ethers.utils.id('Belong.SignatureVerifier.v2.AccessTokenInfo'),
+  creditTokenInfo: ethers.utils.id('Belong.SignatureVerifier.v2.CreditTokenInfo'),
+  vestingWalletInfo: ethers.utils.id('Belong.SignatureVerifier.v2.VestingWalletInfo'),
+  venueInfo: ethers.utils.id('Belong.SignatureVerifier.v2.VenueInfo'),
+  customerInfo: ethers.utils.id('Belong.SignatureVerifier.v2.CustomerInfo'),
+  promoterInfo: ethers.utils.id('Belong.SignatureVerifier.v2.PromoterInfo'),
+  staticPriceMint: ethers.utils.id('Belong.SignatureVerifier.v2.StaticPriceMint'),
+  dynamicPriceMint: ethers.utils.id('Belong.SignatureVerifier.v2.DynamicPriceMint'),
+} as const;
+
+/// ABI tuple types of the signed payload structs, in the field order of `contracts/v2/Structures.sol`.
+export const SIGNED_STRUCT_TYPE = {
+  accessTokenInfo:
+    'tuple(address creator, address paymentToken, uint96 feeNumerator, bool transferable, uint256 maxTotalSupply, uint256 mintPrice, uint256 whitelistMintPrice, tuple(string name, string symbol) metadata, string contractURI)',
+  creditTokenInfo:
+    'tuple(address defaultAdmin, bool transferable, address manager, address minter, address burner, string name, string symbol, string uri)',
+  venueInfo:
+    'tuple(tuple(uint8 paymentType, uint8 bountyType, uint8 bountyAllocationType, uint8 longPaymentType) rules, address venue, uint256 amount, bytes32 affiliateReferralCode, string uri)',
+  customerInfo:
+    'tuple(bool paymentInUSDtoken, tuple(uint24 spendBountyPercentage, uint128 visitBountyAmount) toCustomer, tuple(uint24 spendBountyPercentage, uint128 visitBountyAmount) toPromoter, address customer, address venueToPayFor, bytes32 promoterReferralCode, uint256 amount)',
+  promoterInfo: 'tuple(bool paymentInUSDtoken, bytes32 promoterReferralCode, address venue, uint256 amountInUSD)',
+  vestingWalletInfo:
+    'tuple(uint64 startTimestamp, uint64 cliffDurationSeconds, uint64 durationSeconds, address token, address beneficiary, uint256 totalAllocation, uint256 tgeAmount, uint256 linearAllocation, string description)',
+} as const;
 
 const DEFAULT_DEADLINE_WINDOW = 3600; // 1 hour
 let nonceCounter = BigNumber.from(1);
@@ -46,6 +78,14 @@ function normalizePrivateKey(pk: string): string {
   return trimmed.startsWith('0x') ? trimmed : `0x${trimmed}`;
 }
 
+function normalizeReferralCode(code: BytesLike | undefined): string {
+  if (code === undefined) {
+    return ethers.constants.HashZero;
+  }
+  const hex = ethers.utils.hexlify(code);
+  return ethers.utils.hexDataLength(hex) === 0 ? ethers.constants.HashZero : hex;
+}
+
 async function buildProtection(
   signerPrivateKey: string,
   encode: (opts: { nonce: BigNumber; deadline: BigNumber; chainId: BigNumber }) => BytesLike,
@@ -65,51 +105,45 @@ async function buildProtection(
   return { nonce, deadline, signature };
 }
 
+/// Signs the whole `AccessTokenInfo` struct plus the referral code (`overrides.referralCode`, zero by default).
 export async function signAccessTokenInfo(
   verifyingContract: string,
   signerPrivateKey: string,
   info: AccessTokenInfoStruct,
   overrides?: SignatureOverrides,
 ): Promise<SignatureProtectionStruct> {
+  const referralCode = normalizeReferralCode(overrides?.referralCode);
   return buildProtection(
     signerPrivateKey,
     ({ nonce, deadline, chainId }) =>
       ethers.utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'address', 'string', 'string', 'string', 'uint96'],
-        [
-          verifyingContract,
-          nonce,
-          deadline,
-          chainId,
-          info.creator,
-          info.metadata.name,
-          info.metadata.symbol,
-          info.contractURI,
-          info.feeNumerator,
-        ],
+        ['bytes32', 'address', 'uint256', 'uint256', 'uint256', SIGNED_STRUCT_TYPE.accessTokenInfo, 'bytes32'],
+        [SIGNATURE_TYPEHASH.accessTokenInfo, verifyingContract, nonce, deadline, chainId, info, referralCode],
       ),
     overrides,
   );
 }
 
+/// Signs the whole `ERC1155Info` struct, including the admin, manager, minter and burner addresses.
 export async function signCreditTokenInfo(
   verifyingContract: string,
   signerPrivateKey: string,
-  info: Pick<ERC1155InfoStruct, 'name' | 'symbol' | 'uri'>,
+  info: ERC1155InfoStruct,
   overrides?: SignatureOverrides,
 ): Promise<SignatureProtectionStruct> {
-  const protection = await buildProtection(
+  return buildProtection(
     signerPrivateKey,
     ({ nonce, deadline, chainId }) =>
       ethers.utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'string', 'string', 'string'],
-        [verifyingContract, nonce, deadline, chainId, info.name, info.symbol, info.uri],
+        ['bytes32', 'address', 'uint256', 'uint256', 'uint256', SIGNED_STRUCT_TYPE.creditTokenInfo],
+        [SIGNATURE_TYPEHASH.creditTokenInfo, verifyingContract, nonce, deadline, chainId, info],
       ),
     overrides,
   );
-  return protection;
 }
 
+/// Signs the owner, the whole `VestingWalletInfo` struct and the initial funding
+/// (`overrides.initialFunding`, which defaults to `totalAllocation` as in `Factory.deployVestingWallet`).
 export async function signVestingWalletInfo(
   verifyingContract: string,
   signerPrivateKey: string,
@@ -117,45 +151,37 @@ export async function signVestingWalletInfo(
   info: VestingWalletInfoStruct,
   overrides?: SignatureOverrides,
 ): Promise<SignatureProtectionStruct> {
+  const initialFunding = overrides?.initialFunding ?? (await info.totalAllocation);
   return buildProtection(
     signerPrivateKey,
     ({ nonce, deadline, chainId }) =>
       ethers.utils.defaultAbiCoder.encode(
         [
+          'bytes32',
           'address',
           'uint256',
           'uint256',
           'uint256',
           'address',
-          'uint64',
-          'uint64',
-          'uint64',
-          'address',
-          'address',
-          'uint256',
-          'uint256',
+          SIGNED_STRUCT_TYPE.vestingWalletInfo,
           'uint256',
         ],
         [
+          SIGNATURE_TYPEHASH.vestingWalletInfo,
           verifyingContract,
           nonce,
           deadline,
           chainId,
           owner,
-          info.startTimestamp,
-          info.cliffDurationSeconds,
-          info.durationSeconds,
-          info.token,
-          info.beneficiary,
-          info.totalAllocation,
-          info.tgeAmount,
-          info.linearAllocation,
+          info,
+          initialFunding,
         ],
       ),
     overrides,
   );
 }
 
+/// Signs the whole `VenueInfo` struct, including the deposit amount and the venue rules.
 export async function signVenueInfo(
   verifyingContract: string,
   signerPrivateKey: string,
@@ -166,13 +192,14 @@ export async function signVenueInfo(
     signerPrivateKey,
     ({ nonce, deadline, chainId }) =>
       ethers.utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'address', 'bytes32', 'string'],
-        [verifyingContract, nonce, deadline, chainId, info.venue, info.affiliateReferralCode, info.uri],
+        ['bytes32', 'address', 'uint256', 'uint256', 'uint256', SIGNED_STRUCT_TYPE.venueInfo],
+        [SIGNATURE_TYPEHASH.venueInfo, verifyingContract, nonce, deadline, chainId, info],
       ),
     overrides,
   );
 }
 
+/// Signs the whole `CustomerInfo` struct together with the venue's current bounty rules.
 export async function signCustomerInfo(
   verifyingContract: string,
   signerPrivateKey: string,
@@ -187,54 +214,27 @@ export async function signCustomerInfo(
       )
     ).rules;
 
-  const customerBounties = ethers.utils.defaultAbiCoder.encode(
-    ['uint128', 'uint24'],
-    [info.toCustomer.visitBountyAmount, info.toCustomer.spendBountyPercentage],
-  );
-  const promoterBounties = ethers.utils.defaultAbiCoder.encode(
-    ['uint128', 'uint24'],
-    [info.toPromoter.visitBountyAmount, info.toPromoter.spendBountyPercentage],
-  );
-
   return buildProtection(
     signerPrivateKey,
     ({ nonce, deadline, chainId }) =>
       ethers.utils.defaultAbiCoder.encode(
+        ['bytes32', 'address', 'uint256', 'uint256', 'uint256', 'uint8', 'uint8', SIGNED_STRUCT_TYPE.customerInfo],
         [
-          'address',
-          'uint256',
-          'uint256',
-          'uint256',
-          'uint8',
-          'uint8',
-          'bool',
-          'bytes',
-          'bytes',
-          'address',
-          'address',
-          'bytes32',
-          'uint256',
-        ],
-        [
+          SIGNATURE_TYPEHASH.customerInfo,
           verifyingContract,
           nonce,
           deadline,
           chainId,
           rules.bountyType,
           rules.bountyAllocationType,
-          info.paymentInUSDtoken,
-          customerBounties,
-          promoterBounties,
-          info.customer,
-          info.venueToPayFor,
-          info.promoterReferralCode,
-          info.amount,
+          info,
         ],
       ),
     overrides,
   );
 }
 
+/// Signs the whole `PromoterInfo` struct, including the payout currency flag.
 export async function signPromoterInfo(
   verifyingContract: string,
   signerPrivateKey: string,
@@ -245,8 +245,8 @@ export async function signPromoterInfo(
     signerPrivateKey,
     ({ nonce, deadline, chainId }) =>
       ethers.utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'bytes32', 'address', 'uint256'],
-        [verifyingContract, nonce, deadline, chainId, info.promoterReferralCode, info.venue, info.amountInUSD],
+        ['bytes32', 'address', 'uint256', 'uint256', 'uint256', SIGNED_STRUCT_TYPE.promoterInfo],
+        [SIGNATURE_TYPEHASH.promoterInfo, verifyingContract, nonce, deadline, chainId, info],
       ),
     overrides,
   );
@@ -263,8 +263,18 @@ export async function buildStaticProtection(
     signerPrivateKey,
     ({ nonce, deadline, chainId }) =>
       ethers.utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'address', 'uint256', 'string', 'bool'],
-        [verifyingContract, nonce, deadline, chainId, receiver, params.tokenId, params.tokenUri, params.whitelisted],
+        ['bytes32', 'address', 'uint256', 'uint256', 'uint256', 'address', 'uint256', 'string', 'bool'],
+        [
+          SIGNATURE_TYPEHASH.staticPriceMint,
+          verifyingContract,
+          nonce,
+          deadline,
+          chainId,
+          receiver,
+          params.tokenId,
+          params.tokenUri,
+          params.whitelisted,
+        ],
       ),
     overrides,
   );
@@ -281,8 +291,18 @@ export async function buildDynamicProtection(
     signerPrivateKey,
     ({ nonce, deadline, chainId }) =>
       ethers.utils.defaultAbiCoder.encode(
-        ['address', 'uint256', 'uint256', 'uint256', 'address', 'uint256', 'string', 'uint256'],
-        [verifyingContract, nonce, deadline, chainId, receiver, params.tokenId, params.tokenUri, params.price],
+        ['bytes32', 'address', 'uint256', 'uint256', 'uint256', 'address', 'uint256', 'string', 'uint256'],
+        [
+          SIGNATURE_TYPEHASH.dynamicPriceMint,
+          verifyingContract,
+          nonce,
+          deadline,
+          chainId,
+          receiver,
+          params.tokenId,
+          params.tokenUri,
+          params.price,
+        ],
       ),
     overrides,
   );

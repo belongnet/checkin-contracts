@@ -134,7 +134,9 @@ export async function deployAccessToken(
     collectionExpire,
   };
 
-  const protection = await signAccessTokenInfo(factoryContract.address, signer.privateKey, instanceInfo);
+  const protection = await signAccessTokenInfo(factoryContract.address, signer.privateKey, instanceInfo, {
+    referralCode,
+  });
 
   await factoryContract.connect(creator).produce(instanceInfo, referralCode, protection);
 
@@ -147,6 +149,59 @@ export async function deployAccessToken(
     accessToken: await ethers.getContractAt('AccessToken', getNftInstanceInfo.nftAddress),
     royaltiesReceiver: await ethers.getContractAt('RoyaltiesReceiverV2', getNftInstanceInfo.royaltiesReceiver),
   };
+}
+
+type ExpectedCreditToken = {
+  admin: string;
+  manager: string;
+  minter: string;
+  burner: string;
+  transferable: boolean;
+};
+
+/**
+ * Refuses to adopt a credit token that already exists in the factory unless it has the intended owner,
+ * roles and transferability. The factory keys credit tokens by name + symbol only, so an existing
+ * token is no proof that it was created with the parameters this deployment asked for.
+ */
+async function assertExistingCreditToken(
+  metadata: TokenMetadata,
+  address: string,
+  expected: ExpectedCreditToken,
+): Promise<void> {
+  const token: CreditToken = await ethers.getContractAt('CreditToken', address);
+  const [owner, transferable, adminRole, managerRole, minterRole, burnerRole] = await Promise.all([
+    token.owner(),
+    token.transferable(),
+    token.DEFAULT_ADMIN_ROLE(),
+    token.MANAGER_ROLE(),
+    token.MINTER_ROLE(),
+    token.BURNER_ROLE(),
+  ]);
+  const [adminHasRole, managerHasRole, minterHasRole, burnerHasRole] = await Promise.all([
+    token.hasRole(expected.admin, adminRole),
+    token.hasRole(expected.manager, managerRole),
+    token.hasRole(expected.minter, minterRole),
+    token.hasRole(expected.burner, burnerRole),
+  ]);
+
+  const mismatches: string[] = [];
+  if (owner.toLowerCase() !== expected.admin.toLowerCase()) {
+    mismatches.push(`owner() is ${owner}, expected ${expected.admin}`);
+  }
+  if (!adminHasRole) mismatches.push(`${expected.admin} does not hold DEFAULT_ADMIN_ROLE`);
+  if (!managerHasRole) mismatches.push(`${expected.manager} does not hold MANAGER_ROLE`);
+  if (!minterHasRole) mismatches.push(`${expected.minter} does not hold MINTER_ROLE`);
+  if (!burnerHasRole) mismatches.push(`${expected.burner} does not hold BURNER_ROLE`);
+  if (transferable !== expected.transferable) {
+    mismatches.push(`transferable() is ${transferable}, expected ${expected.transferable}`);
+  }
+
+  if (mismatches.length > 0) {
+    throw new Error(
+      `${metadata.name} (${metadata.symbol}) already exists at ${address}, but it was not created with the intended roles and must not be adopted:\n- ${mismatches.join('\n- ')}`,
+    );
+  }
 }
 
 export async function deployCreditTokens(
@@ -181,12 +236,27 @@ export async function deployCreditTokens(
     promoterTokenMetadata.symbol,
   );
 
+  // Both pre-existing tokens are verified here, before anything is produced or returned.
   if (existingVenue.creditToken !== ethers.constants.AddressZero) {
     console.log(`VenueToken already exists at ${existingVenue.creditToken}, skipping deployment`);
+    await assertExistingCreditToken(venueTokenMetadata, existingVenue.creditToken, {
+      admin: admin.address,
+      manager,
+      minter,
+      burner,
+      transferable: transferableVenue,
+    });
   }
 
   if (existingPromoter.creditToken !== ethers.constants.AddressZero) {
     console.log(`PromoterToken already exists at ${existingPromoter.creditToken}, skipping deployment`);
+    await assertExistingCreditToken(promoterTokenMetadata, existingPromoter.creditToken, {
+      admin: admin.address,
+      manager,
+      minter,
+      burner,
+      transferable: transferablePromoter,
+    });
   }
 
   const vtInfo: ERC1155InfoStruct = {
@@ -261,7 +331,9 @@ export async function deployVestingWallet(
     await LONG.approve(factory.address, initialFundingBN);
   }
 
-  const protection = await signVestingWalletInfo(factoryAddress, signerPk, owner.address, vestingWalletInfo);
+  const protection = await signVestingWalletInfo(factoryAddress, signerPk, owner.address, vestingWalletInfo, {
+    initialFunding: initialFundingBN,
+  });
 
   const deployVestingWallet = initialFundingBN.eq(0)
     ? await factory

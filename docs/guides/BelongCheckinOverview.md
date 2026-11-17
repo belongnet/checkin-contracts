@@ -5,7 +5,7 @@ Belong CheckIn (contracts under `contracts/v2`) powers venue-based referral mark
 ## Core Concepts
 
 - **Credit token accounting** – Venues pre-fund USDtoken deposits (typically USDC) that mint ERC‑1155 “venue credits”. Promoter credits are minted on visits and burned on settlement, preventing double spending.
-- **Signature-gated actions** – All external flows are authorized off-chain by the platform signer. Signatures carry a `SignatureProtection` prefix (`verifyingContract`, `nonce`, `deadline`, `chainId`) and are verified on-chain by `SignatureVerifier`.
+- **Signature-gated actions** – All external flows are authorized off-chain by the platform signer. Every digest starts with a per-message type hash followed by `verifyingContract`, `nonce`, `deadline` and `chainId`, and is verified on-chain by `SignatureVerifier`. Factory and BelongCheckIn execute each signature once; a mint signature is limited by its token id.
 - **Escrow & swaps** – Funds remain in `Escrow` until released; DEX swaps handle LONG↔USDtoken conversions for customer subsidies, promoter payouts, and buyback/burn routines.
 - **Tiered economics** – Staking balances determine deposit fees, convenience charges, and promoter payout haircuts, aligning incentives for heavy LONG holders.
 - **Composable payment options** – Venues can accept USDtoken and/or LONG, choose how LONG payments are routed (auto-stake/auto-convert/direct), and optionally enable promoter bounty types (visit/spend/both).
@@ -32,16 +32,17 @@ Belong CheckIn (contracts under `contracts/v2`) powers venue-based referral mark
 
 ## Signature Matrix
 
-Every state-changing action is signature gated. All digests include the shared prefix
-`(verifyingContract, nonce, deadline, chainId)`. The table below lists the payload
-fields that follow that prefix. Full hashing recipes and client examples live in
+Every state-changing action is signature gated. All digests start with a per-message type hash and
+the shared prefix `(verifyingContract, nonce, deadline, chainId)`, and each signature in this table
+can be executed once. The table below lists the payload that follows that prefix. Full hashing recipes and client
+examples live in
 [`docs/guides/BelongCheckinSignatures.md`](./BelongCheckinSignatures.md).
 
 | Payload | Signed Fields (after prefix) | Consumed By | Notes |
 |---------|------------------------------|-------------|-------|
-| `VenueInfo` | `venue`, `affiliateReferralCode`, `uri` | `BelongCheckIn.venueDeposit` | Authorizes referral attribution and metadata URI; `rules` and `amount` are validated on-chain but unsigned. |
-| `CustomerInfo` | `rules.bountyType`, `rules.bountyAllocationType`, `paymentInUSDtoken`, `toCustomer`, `toPromoter`, `customer`, `venueToPayFor`, `promoterReferralCode`, `amount` | `BelongCheckIn.payToVenue` | Bounties are signed as `abi.encode(visitBountyAmount, spendBountyPercentage)` for each side. |
-| `PromoterInfo` | `promoterReferralCode`, `venue`, `amountInUSD` | `BelongCheckIn.distributePromoterPayments` | Payout currency flag (`paymentInUSDtoken`) is unsigned and must be enforced by the backend. |
+| `VenueInfo` | the whole struct: `rules`, `venue`, `amount`, `affiliateReferralCode`, `uri` | `BelongCheckIn.venueDeposit` | Authorizes the deposit amount, the venue rules, referral attribution and metadata URI. |
+| `CustomerInfo` | `rules.bountyType`, `rules.bountyAllocationType`, then the whole struct: `paymentInUSDtoken`, `toCustomer`, `toPromoter`, `customer`, `venueToPayFor`, `promoterReferralCode`, `amount` | `BelongCheckIn.payToVenue` | The venue's stored bounty rules are part of the digest, so a rule change invalidates outstanding signatures. |
+| `PromoterInfo` | the whole struct: `paymentInUSDtoken`, `promoterReferralCode`, `venue`, `amountInUSD` | `BelongCheckIn.distributePromoterPayments` | The payout currency flag is signed. |
 
 ## Lifecycle Overview
 

@@ -117,6 +117,34 @@ error ZeroAmountProvided()
 
 Thrown when a zero amount is supplied where a positive value is required.
 
+### SignatureAlreadyUsed
+
+```solidity
+error SignatureAlreadyUsed(bytes32 digest)
+```
+
+Thrown when a backend signature that was already executed is submitted again.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| digest | bytes32 | The signed digest that was already used. |
+
+### PercentageTooHigh
+
+```solidity
+error PercentageTooHigh(uint256 percentage)
+```
+
+Thrown when a fee or reward percentage exceeds 100% (10_000).
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| percentage | uint256 | The offending value. |
+
 ### FeesSet
 
 ```solidity
@@ -447,6 +475,17 @@ mapping(enum StakingTiers => struct BelongCheckIn.RewardsInfo) stakingRewards
 Staking-tier-indexed rewards configuration.
 
 _Indexed by `StakingTiers` enum value [0..4]._
+
+### usedSignatures
+
+```solidity
+mapping(bytes32 => bool) usedSignatures
+```
+
+Digests of backend signatures that were already executed.
+
+_Every signed venue deposit, customer payment and promoter payout can be executed once.
+     Appended after the existing variables to keep the proxy storage layout compatible._
 
 ### onlyEOA
 

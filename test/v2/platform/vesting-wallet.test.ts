@@ -192,6 +192,7 @@ describe('VestingWalletExtended', () => {
         signer.privateKey,
         ethers.constants.AddressZero,
         info,
+        { initialFunding: 0 },
       );
 
       await expect(

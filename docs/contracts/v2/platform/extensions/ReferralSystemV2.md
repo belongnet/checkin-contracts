@@ -36,21 +36,6 @@ thrown when a referral code is used that does not have an owner.
 error ReferralUserIsReferralCreator()
 ```
 
-### ReferralCodeNotUsedByUser
-
-```solidity
-error ReferralCodeNotUsedByUser(address referralUser, bytes32 code)
-```
-
-Error thrown when a user attempts to get a referral rate for a code they haven't used.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| referralUser | address | The address of the user who did not use the code. |
-| code | bytes32 | The referral code the user has not used. |
-
 ### PercentageExceedsMax
 
 ```solidity
@@ -180,6 +165,8 @@ function getReferralRate(address referralUser, bytes32 code, uint256 amount) pub
 ```
 
 Returns the referral rate for a user and code, based on the number of times the code was used.
+
+_Returns zero when the user is not registered for the code._
 
 ### calculateRate
 

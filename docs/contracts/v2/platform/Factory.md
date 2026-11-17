@@ -31,6 +31,20 @@ error TokenAlreadyExists()
 
 Thrown when a collection with the same `(name, symbol)` already exists.
 
+### SignatureAlreadyUsed
+
+```solidity
+error SignatureAlreadyUsed(bytes32 digest)
+```
+
+Thrown when a backend signature that was already executed is submitted again.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| digest | bytes32 | The signed digest that was already used. |
+
 ### VestingWalletAlreadyExists
 
 ```solidity
@@ -271,6 +285,17 @@ mapping(bytes32 => struct NftInstanceInfo) getNftInstanceInfo
 
 Mapping `(name, symbol)` hash → AccessToken collection info.
 
+### usedSignatures
+
+```solidity
+mapping(bytes32 => bool) usedSignatures
+```
+
+Digests of backend signatures that were already executed.
+
+_Every signed creation or deployment request can be executed once.
+     Appended after the existing variables to keep the proxy storage layout compatible._
+
 ### constructor
 
 ```solidity
@@ -321,6 +346,17 @@ Upgrades stored royalties parameters and implementation addresses (reinitializer
 ```solidity
 function upgradeToV3(address vestingWalletImplementation) external
 ```
+
+Sets the vesting wallet implementation (reinitializer v3).
+
+_Owner-only, like {upgradeToV2}: a versioned reinitializer can run once, so it must not be callable by
+     whoever reaches the proxy first after an upgrade._
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| vestingWalletImplementation | address | Implementation used for vesting wallet deployments. |
 
 ### produce
 

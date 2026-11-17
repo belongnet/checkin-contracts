@@ -84,6 +84,14 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Thrown when a zero amount is supplied where a positive value is required.
     error ZeroAmountProvided();
 
+    /// @notice Thrown when a backend signature that was already executed is submitted again.
+    /// @param digest The signed digest that was already used.
+    error SignatureAlreadyUsed(bytes32 digest);
+
+    /// @notice Thrown when a fee or reward percentage exceeds 100% (10_000).
+    /// @param percentage The offending value.
+    error PercentageTooHigh(uint256 percentage);
+
     // ========== Events ==========
 
     /// @notice Emitted when platform fee settings are updated.
@@ -249,6 +257,11 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Staking-tier-indexed rewards configuration.
     /// @dev Indexed by `StakingTiers` enum value [0..4].
     mapping(StakingTiers tier => RewardsInfo rewardInfo) public stakingRewards;
+
+    /// @notice Digests of backend signatures that were already executed.
+    /// @dev Every signed venue deposit, customer payment and promoter payout can be executed once.
+    ///      Appended after the existing variables to keep the proxy storage layout compatible.
+    mapping(bytes32 digest => bool used) public usedSignatures;
 
     modifier onlyEOA() {
         require(msg.sender.code.length == 0, OnlyEOA());
@@ -489,7 +502,10 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         Contracts storage _contracts = belongCheckInStorage.contracts;
         address usdToken = _paymentsInfo.usdToken;
 
-        _contracts.factory.nftFactoryParameters().signerAddress.checkVenueInfo(address(this), protection, venueInfo);
+        _useSignature(
+            _contracts.factory.nftFactoryParameters().signerAddress
+                .checkVenueInfo(address(this), protection, venueInfo)
+        );
 
         VenueDepositFeesInfo memory feesInfo =
             _venueDepositFees(venueInfo.venue, venueInfo.amount, venueInfo.affiliateReferralCode);
@@ -558,8 +574,10 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         Fees storage fees_ = _storage.fees;
         VenueRules storage rules = generalVenueInfo[customerInfo.venueToPayFor].rules;
 
-        _contracts.factory.nftFactoryParameters().signerAddress
-            .checkCustomerInfo(address(this), protection, customerInfo, rules);
+        _useSignature(
+            _contracts.factory.nftFactoryParameters().signerAddress
+                .checkCustomerInfo(address(this), protection, customerInfo, rules)
+        );
 
         uint256 venueId = customerInfo.venueToPayFor.getVenueId();
 
@@ -632,8 +650,10 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
         Contracts storage _contracts = belongCheckInStorage.contracts;
         DualDexSwapV4Lib.PaymentsInfo storage payments = _paymentsInfo;
 
-        _contracts.factory.nftFactoryParameters().signerAddress
-            .checkPromoterPaymentDistribution(address(this), protection, promoterInfo);
+        _useSignature(
+            _contracts.factory.nftFactoryParameters().signerAddress
+                .checkPromoterPaymentDistribution(address(this), protection, promoterInfo)
+        );
 
         uint256 venueId = promoterInfo.venue.getVenueId();
         address promoter = _contracts.factory.getReferralCreator(promoterInfo.promoterReferralCode);
@@ -717,6 +737,10 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     }
 
     function _setFees(Fees memory _fees) private {
+        _requireValidPercentage(_fees.affiliatePercentage);
+        _requireValidPercentage(_fees.longCustomerDiscountPercentage);
+        _requireValidPercentage(_fees.platformSubsidyPercentage);
+        _requireValidPercentage(_fees.buybackBurnPercentage);
         require(_fees.processingFeePercentage <= _fees.platformSubsidyPercentage, ProcessingFeeExceedsSubsidy());
 
         belongCheckInStorage.fees = _fees;
@@ -725,6 +749,9 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
     function _setRewards(RewardsInfo[5] memory _stakingRewards) private {
         for (uint8 i = 0; i < 5; ++i) {
+            _requireValidPercentage(_stakingRewards[i].promoterStakingInfo.usdTokenPercentage);
+            _requireValidPercentage(_stakingRewards[i].promoterStakingInfo.longPercentage);
+            _requireValidPercentage(_stakingRewards[i].venueStakingInfo.depositFeePercentage);
             stakingRewards[StakingTiers(i)] = _stakingRewards[i];
         }
         emit RewardsSet(_stakingRewards);
@@ -915,6 +942,17 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
 
         contracts_.venueToken.burn(venue, venueId, rewards);
         contracts_.promoterToken.mint(to, venueId, rewards);
+    }
+
+    /// @dev Marks a verified signature digest as executed; reverts if it was executed before.
+    function _useSignature(bytes32 digest) private {
+        require(!usedSignatures[digest], SignatureAlreadyUsed(digest));
+        usedSignatures[digest] = true;
+    }
+
+    /// @dev Percentages are scaled by 1e4; anything above 100% would underflow the fee arithmetic.
+    function _requireValidPercentage(uint256 percentage) private pure {
+        require(percentage <= 10_000, PercentageTooHigh(percentage));
     }
 
     function _getUserStakingTier(address user) internal view returns (StakingTiers) {

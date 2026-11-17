@@ -684,6 +684,128 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       };
       expect(contractsFromStorage).to.deep.eq(contractsNew);
     });
+
+    it('setFees() rejects percentages above 100%', async () => {
+      const { belongCheckIn, minter } = await loadFixture(fixture);
+
+      // Built from the fees stored on chain, because other tests change the shared `fees` object.
+      const feesBefore = await belongCheckIn.fees();
+      const validFees: BelongCheckIn.FeesStruct = {
+        referralCreditsAmount: feesBefore.referralCreditsAmount,
+        affiliatePercentage: feesBefore.affiliatePercentage,
+        longCustomerDiscountPercentage: feesBefore.longCustomerDiscountPercentage,
+        platformSubsidyPercentage: feesBefore.platformSubsidyPercentage,
+        processingFeePercentage: feesBefore.processingFeePercentage,
+        buybackBurnPercentage: feesBefore.buybackBurnPercentage,
+      };
+
+      await expect(belongCheckIn.connect(minter).setFees(validFees)).to.be.revertedWithCustomError(
+        belongCheckIn,
+        'Unauthorized',
+      );
+
+      await expect(belongCheckIn.setFees({ ...validFees, affiliatePercentage: 10001 }))
+        .to.be.revertedWithCustomError(belongCheckIn, 'PercentageTooHigh')
+        .withArgs(10001);
+      await expect(belongCheckIn.setFees({ ...validFees, longCustomerDiscountPercentage: 10002 }))
+        .to.be.revertedWithCustomError(belongCheckIn, 'PercentageTooHigh')
+        .withArgs(10002);
+      await expect(belongCheckIn.setFees({ ...validFees, platformSubsidyPercentage: 10003 }))
+        .to.be.revertedWithCustomError(belongCheckIn, 'PercentageTooHigh')
+        .withArgs(10003);
+      await expect(belongCheckIn.setFees({ ...validFees, buybackBurnPercentage: 10004 }))
+        .to.be.revertedWithCustomError(belongCheckIn, 'PercentageTooHigh')
+        .withArgs(10004);
+
+      expect(await belongCheckIn.fees()).to.deep.eq(feesBefore);
+
+      // Exactly 100% is still accepted.
+      const maxFees: BelongCheckIn.FeesStruct = {
+        ...validFees,
+        affiliatePercentage: 10000,
+        longCustomerDiscountPercentage: 10000,
+        platformSubsidyPercentage: 10000,
+        buybackBurnPercentage: 10000,
+      };
+      await expect(belongCheckIn.setFees(maxFees)).to.emit(belongCheckIn, 'FeesSet');
+
+      const feesAfter = await belongCheckIn.fees();
+      expect(feesAfter.affiliatePercentage).to.eq(10000);
+      expect(feesAfter.longCustomerDiscountPercentage).to.eq(10000);
+      expect(feesAfter.platformSubsidyPercentage).to.eq(10000);
+      expect(feesAfter.buybackBurnPercentage).to.eq(10000);
+    });
+
+    it('setRewards() and setParameters() reject percentages above 100%', async () => {
+      const { belongCheckIn } = await loadFixture(fixture);
+
+      type RewardsTable = typeof stakingRewards;
+      const withTier = (
+        tier: number,
+        change: (info: BelongCheckIn.RewardsInfoStruct) => BelongCheckIn.RewardsInfoStruct,
+      ): RewardsTable => stakingRewards.map((info, index) => (index === tier ? change(info) : info)) as RewardsTable;
+
+      const tooHigh = 10001;
+      for (let tier = 0; tier < stakingRewards.length; tier++) {
+        const usdTokenPercentageTooHigh = withTier(tier, info => ({
+          ...info,
+          promoterStakingInfo: { ...info.promoterStakingInfo, usdTokenPercentage: tooHigh },
+        }));
+        const longPercentageTooHigh = withTier(tier, info => ({
+          ...info,
+          promoterStakingInfo: { ...info.promoterStakingInfo, longPercentage: tooHigh },
+        }));
+        const depositFeePercentageTooHigh = withTier(tier, info => ({
+          ...info,
+          venueStakingInfo: { ...info.venueStakingInfo, depositFeePercentage: tooHigh },
+        }));
+
+        await expect(belongCheckIn.setRewards(usdTokenPercentageTooHigh))
+          .to.be.revertedWithCustomError(belongCheckIn, 'PercentageTooHigh')
+          .withArgs(tooHigh);
+        await expect(belongCheckIn.setRewards(longPercentageTooHigh))
+          .to.be.revertedWithCustomError(belongCheckIn, 'PercentageTooHigh')
+          .withArgs(tooHigh);
+        await expect(belongCheckIn.setRewards(depositFeePercentageTooHigh))
+          .to.be.revertedWithCustomError(belongCheckIn, 'PercentageTooHigh')
+          .withArgs(tooHigh);
+      }
+
+      // setParameters() applies the same limits to the rewards table and to the fees.
+      const feesBefore = await belongCheckIn.fees();
+      const validFees: BelongCheckIn.FeesStruct = {
+        referralCreditsAmount: feesBefore.referralCreditsAmount,
+        affiliatePercentage: feesBefore.affiliatePercentage,
+        longCustomerDiscountPercentage: feesBefore.longCustomerDiscountPercentage,
+        platformSubsidyPercentage: feesBefore.platformSubsidyPercentage,
+        processingFeePercentage: feesBefore.processingFeePercentage,
+        buybackBurnPercentage: feesBefore.buybackBurnPercentage,
+      };
+      const rewardsTooHigh = withTier(4, info => ({
+        ...info,
+        venueStakingInfo: { ...info.venueStakingInfo, depositFeePercentage: tooHigh },
+      }));
+
+      await expect(belongCheckIn.setParameters(paymentsInfo, validFees, rewardsTooHigh))
+        .to.be.revertedWithCustomError(belongCheckIn, 'PercentageTooHigh')
+        .withArgs(tooHigh);
+      await expect(
+        belongCheckIn.setParameters(paymentsInfo, { ...validFees, buybackBurnPercentage: tooHigh }, stakingRewards),
+      )
+        .to.be.revertedWithCustomError(belongCheckIn, 'PercentageTooHigh')
+        .withArgs(tooHigh);
+
+      // Nothing was stored by the rejected calls, and the valid table and fees are still accepted.
+      expect(await belongCheckIn.fees()).to.deep.eq(feesBefore);
+      expect((await belongCheckIn.stakingRewards(4)).venueStakingInfo.depositFeePercentage).to.eq(
+        stakingRewards[4].venueStakingInfo.depositFeePercentage,
+      );
+      await expect(belongCheckIn.setRewards(stakingRewards)).to.emit(belongCheckIn, 'RewardsSet');
+      await expect(belongCheckIn.setParameters(paymentsInfo, validFees, stakingRewards)).to.emit(
+        belongCheckIn,
+        'FeesSet',
+      );
+    });
   });
 
   describe('Venue flow', () => {
@@ -776,6 +898,113 @@ describe('BelongCheckIn ETH UniswapV4', () => {
 
       const USDC_balance_after = await USDC.balanceOf(USDC_whale.address);
       expect(USDC_balance_before.sub(willBeTaken)).to.eq(USDC_balance_after);
+    });
+
+    it('venueDeposit() rejects a signature that was already executed', async () => {
+      const { belongCheckIn, escrow, signer, USDC, USDC_whale, ENA_whale } = await loadFixture(fixture);
+
+      const amount = await u(100, USDC);
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        venue: USDC_whale.address,
+        amount,
+        affiliateReferralCode: ethers.constants.HashZero,
+        uri: 'uriuri',
+      };
+      const venueInfoTuple = toVenueInfoTuple(venueInfo);
+      const protection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
+
+      // The venue's allowance covers two deposits, so only the signature check can stop the second one.
+      const willBeTaken = convenienceFeeAmount.add(amount);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken.mul(2));
+      const venueBalanceBefore = await USDC.balanceOf(USDC_whale.address);
+
+      await expect(belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoTuple, protection)).to.emit(
+        belongCheckIn,
+        'VenuePaidDeposit',
+      );
+
+      // The deposit is pulled from the venue whoever submits it, so a replay would charge the venue again.
+      await expect(
+        belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoTuple, protection),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
+      await expect(
+        belongCheckIn.connect(ENA_whale).venueDeposit(venueInfoTuple, protection),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
+
+      const swapDeadline = (await ethers.provider.getBlock('latest'))!.timestamp + 3600;
+      await expect(
+        belongCheckIn.connect(USDC_whale).venueDepositWithDeadline(venueInfoTuple, protection, swapDeadline),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
+
+      // What is recorded is the signed digest, not the signature bytes: the 64-byte (EIP-2098) encoding of the
+      // same signature is a valid signature too, and it is rejected as already used.
+      const compactProtection = {
+        ...protection,
+        signature: ethers.utils.splitSignature(protection.signature as string).compact,
+      };
+      expect(compactProtection.signature).to.not.eq(protection.signature);
+      await expect(
+        belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoTuple, compactProtection),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
+
+      expect((await escrow.venueDeposits(USDC_whale.address)).usdTokenDeposits).to.eq(amount);
+      expect(await USDC.balanceOf(USDC_whale.address)).to.eq(venueBalanceBefore.sub(willBeTaken));
+
+      // A newly signed deposit of the same amount goes through.
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
+      expect((await escrow.venueDeposits(USDC_whale.address)).usdTokenDeposits).to.eq(amount.mul(2));
+      expect(await USDC.balanceOf(USDC_whale.address)).to.eq(venueBalanceBefore.sub(willBeTaken.mul(2)));
+    });
+
+    it('venueDeposit() reverts with InvalidSignature when the amount or the rules differ from the signed ones', async () => {
+      const { belongCheckIn, escrow, signatureVerifier, signer, USDC, USDC_whale } = await loadFixture(fixture);
+
+      const amount = await u(100, USDC);
+      const signedRules: VenueRulesStruct = {
+        paymentType: 1,
+        bountyType: 1,
+        bountyAllocationType: 1,
+        longPaymentType: 0,
+      };
+      const venueInfo: VenueInfoStruct = {
+        rules: signedRules,
+        venue: USDC_whale.address,
+        amount,
+        affiliateReferralCode: ethers.constants.HashZero,
+        uri: 'uriuri',
+      };
+      const protection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
+
+      // The allowance covers every changed deposit below, so only the signature check stands in their way.
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, convenienceFeeAmount.add(amount.mul(2)));
+
+      const expectInvalidSignature = (changedInfo: VenueInfoStruct) =>
+        expect(belongCheckIn.connect(USDC_whale).venueDeposit(toVenueInfoTuple(changedInfo), protection))
+          .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+          .withArgs(protection.signature);
+
+      await expectInvalidSignature({ ...venueInfo, amount: amount.mul(2) });
+      await expectInvalidSignature({ ...venueInfo, amount: amount.sub(1) });
+      await expectInvalidSignature({ ...venueInfo, rules: { ...signedRules, paymentType: 3 } });
+      await expectInvalidSignature({ ...venueInfo, rules: { ...signedRules, bountyType: 3 } });
+      await expectInvalidSignature({ ...venueInfo, rules: { ...signedRules, bountyAllocationType: 3 } });
+      await expectInvalidSignature({ ...venueInfo, rules: { ...signedRules, longPaymentType: 1 } });
+
+      expect((await escrow.venueDeposits(USDC_whale.address)).usdTokenDeposits).to.eq(0);
+
+      // The very same signature is accepted for the payload it was issued for.
+      await expect(belongCheckIn.connect(USDC_whale).venueDeposit(toVenueInfoTuple(venueInfo), protection)).to.emit(
+        belongCheckIn,
+        'VenuePaidDeposit',
+      );
+
+      expect((await escrow.venueDeposits(USDC_whale.address)).usdTokenDeposits).to.eq(amount);
+      const storedRules = (await belongCheckIn.generalVenueInfo(USDC_whale.address)).rules;
+      expect(storedRules.paymentType).to.eq(signedRules.paymentType);
+      expect(storedRules.bountyType).to.eq(signedRules.bountyType);
+      expect(storedRules.bountyAllocationType).to.eq(signedRules.bountyAllocationType);
+      expect(storedRules.longPaymentType).to.eq(signedRules.longPaymentType);
     });
 
     it('venueDeposit() (free deposits exceed) (w/o referral) (no stakes)', async () => {
@@ -1672,6 +1901,68 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         );
       expect(customerBalance_before.sub(customerAmount)).to.eq(customerBalance_after);
       expect(venueBalance_before.add(customerAmount)).to.eq(venueBalance_after);
+    });
+
+    it('payToVenue() rejects a signature that was already executed', async () => {
+      const { belongCheckIn, signer, USDC, USDC_whale, ENA_whale } = await loadFixture(fixture);
+
+      const venueAmount = await u(100, USDC);
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 1, bountyType: 0, bountyAllocationType: 0, longPaymentType: 0 } as VenueRulesStruct,
+        venue: USDC_whale.address,
+        amount: venueAmount,
+        affiliateReferralCode: ethers.constants.HashZero,
+        uri: 'uriuri',
+      };
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, convenienceFeeAmount.add(venueAmount));
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
+
+      const customerAmount = await u(5, USDC);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDtoken: true,
+        toCustomer: { visitBountyAmount: 0, spendBountyPercentage: 0 },
+        toPromoter: { visitBountyAmount: 0, spendBountyPercentage: 0 },
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoterReferralCode: ethers.constants.HashZero,
+        amount: customerAmount,
+      };
+      const customerInfoTuple = toCustomerInfoTuple(customerInfo);
+      const protection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
+
+      // The customer's allowance covers two payments, so only the signature check can stop the second one.
+      await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount.mul(2));
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount.mul(2));
+
+      const customerBalanceBefore = await USDC.balanceOf(ENA_whale.address);
+      const venueBalanceBefore = await USDC.balanceOf(USDC_whale.address);
+
+      await expect(belongCheckIn.connect(ENA_whale).payToVenue(customerInfoTuple, protection)).to.emit(
+        belongCheckIn,
+        'CustomerPaid',
+      );
+
+      // The payment is pulled from the customer whoever submits it, so a replay (here by the venue) would charge
+      // the customer again.
+      await expect(
+        belongCheckIn.connect(USDC_whale).payToVenue(customerInfoTuple, protection),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
+      await expect(
+        belongCheckIn.connect(ENA_whale).payToVenue(customerInfoTuple, protection),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
+
+      const swapDeadline = (await ethers.provider.getBlock('latest'))!.timestamp + 3600;
+      await expect(
+        belongCheckIn.connect(USDC_whale).payToVenueWithDeadline(customerInfoTuple, protection, swapDeadline),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
+
+      expect(await USDC.balanceOf(ENA_whale.address)).to.eq(customerBalanceBefore.sub(customerAmount));
+      expect(await USDC.balanceOf(USDC_whale.address)).to.eq(venueBalanceBefore.add(customerAmount));
+
+      // A newly signed payment of the same amount goes through.
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
+      expect(await USDC.balanceOf(ENA_whale.address)).to.eq(customerBalanceBefore.sub(customerAmount.mul(2)));
+      expect(await USDC.balanceOf(USDC_whale.address)).to.eq(venueBalanceBefore.add(customerAmount.mul(2)));
     });
 
     it('payToVenue() (both payment) (w/o promoter)', async () => {
@@ -4257,6 +4548,159 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       expect(promoterBalance_promoterToken_before.sub(promoterBalance_promoterToken_before.div(2))).to.eq(
         promoterBalance_promoterToken_after,
       );
+    });
+
+    // Venue deposit plus one customer payment that credits the promoter (`referral`) with promoter tokens.
+    async function promoterWithCredits() {
+      const context = await loadFixture(fixture);
+      const { belongCheckIn, helper, promoterToken, referral, signer, referralCode, USDC, USDC_whale, ENA_whale } =
+        context;
+
+      const venueAmount = await u(100, USDC);
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 3, bountyType: 3, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        venue: USDC_whale.address,
+        amount: venueAmount,
+        affiliateReferralCode: ethers.constants.HashZero,
+        uri: 'uriuri',
+      };
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, convenienceFeeAmount.add(venueAmount));
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
+
+      const customerAmount = await u(5, USDC);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDtoken: true,
+        toCustomer: { visitBountyAmount: 0, spendBountyPercentage: 0 },
+        toPromoter: { visitBountyAmount: await u(1, USDC), spendBountyPercentage: 1000 },
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoterReferralCode: referralCode,
+        amount: customerAmount,
+      };
+      await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
+      await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
+
+      const venueId = await helper.getVenueId(USDC_whale.address);
+      const promoterCredits = await promoterToken.balanceOf(referral.address, venueId);
+
+      return { ...context, venueId, promoterCredits };
+    }
+
+    it('distributePromoterPayments() rejects a signature that was already executed', async () => {
+      const {
+        belongCheckIn,
+        promoterToken,
+        referral,
+        signer,
+        referralCode,
+        USDC,
+        USDC_whale,
+        venueId,
+        promoterCredits,
+      } = await promoterWithCredits();
+
+      // Half of the credits per payout, so the promoter can afford the same payout twice.
+      const payout = promoterCredits.div(2);
+      expect(payout).to.be.gt(0);
+
+      const promoterInfo: PromoterInfoStruct = {
+        paymentInUSDtoken: true,
+        promoterReferralCode: referralCode,
+        venue: USDC_whale.address,
+        amountInUSD: payout,
+      };
+      const promoterInfoTuple = toPromoterInfoTuple(promoterInfo);
+      const protection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, promoterInfo);
+
+      await expect(belongCheckIn.connect(referral).distributePromoterPayments(promoterInfoTuple, protection))
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
+        .withArgs(referral.address, USDC_whale.address, payout, true);
+
+      expect(await promoterToken.balanceOf(referral.address, venueId)).to.eq(promoterCredits.sub(payout));
+      const promoterBalanceAfterPayout = await USDC.balanceOf(referral.address);
+
+      // The promoter still holds credits for a second payout of the same size, so only the signature check
+      // can stop it.
+      await expect(
+        belongCheckIn.connect(referral).distributePromoterPayments(promoterInfoTuple, protection),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
+
+      const swapDeadline = (await ethers.provider.getBlock('latest'))!.timestamp + 3600;
+      await expect(
+        belongCheckIn
+          .connect(referral)
+          .distributePromoterPaymentsWithDeadline(promoterInfoTuple, protection, swapDeadline),
+      ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
+
+      expect(await promoterToken.balanceOf(referral.address, venueId)).to.eq(promoterCredits.sub(payout));
+      expect(await USDC.balanceOf(referral.address)).to.eq(promoterBalanceAfterPayout);
+
+      // A newly signed payout of the same size goes through.
+      await executeDistributePromoterPayments(belongCheckIn, signer, referral, promoterInfo);
+      expect(await promoterToken.balanceOf(referral.address, venueId)).to.eq(promoterCredits.sub(payout.mul(2)));
+    });
+
+    it('distributePromoterPayments() reverts with InvalidSignature when paymentInUSDtoken is flipped after signing', async () => {
+      const {
+        belongCheckIn,
+        signatureVerifier,
+        promoterToken,
+        referral,
+        signer,
+        referralCode,
+        USDC_whale,
+        venueId,
+        promoterCredits,
+      } = await promoterWithCredits();
+
+      const payout = promoterCredits.div(2);
+      expect(payout).to.be.gt(0);
+
+      // Signed as a USDtoken payout, submitted as a LONG payout.
+      const usdPayout: PromoterInfoStruct = {
+        paymentInUSDtoken: true,
+        promoterReferralCode: referralCode,
+        venue: USDC_whale.address,
+        amountInUSD: payout,
+      };
+      const usdProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, usdPayout);
+
+      await expect(
+        belongCheckIn
+          .connect(referral)
+          .distributePromoterPayments(toPromoterInfoTuple({ ...usdPayout, paymentInUSDtoken: false }), usdProtection),
+      )
+        .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+        .withArgs(usdProtection.signature);
+
+      // Signed as a LONG payout, submitted as a USDtoken payout.
+      const longPayout: PromoterInfoStruct = { ...usdPayout, paymentInUSDtoken: false };
+      const longProtection = await signPromoterInfo(belongCheckIn.address, signer.privateKey, longPayout);
+
+      await expect(
+        belongCheckIn
+          .connect(referral)
+          .distributePromoterPayments(toPromoterInfoTuple({ ...longPayout, paymentInUSDtoken: true }), longProtection),
+      )
+        .to.be.revertedWithCustomError(signatureVerifier, 'InvalidSignature')
+        .withArgs(longProtection.signature);
+
+      expect(await promoterToken.balanceOf(referral.address, venueId)).to.eq(promoterCredits);
+
+      // Each signature is accepted for the payout currency it was issued for.
+      await expect(
+        belongCheckIn.connect(referral).distributePromoterPayments(toPromoterInfoTuple(usdPayout), usdProtection),
+      )
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
+        .withArgs(referral.address, USDC_whale.address, payout, true);
+      await expect(
+        belongCheckIn.connect(referral).distributePromoterPayments(toPromoterInfoTuple(longPayout), longProtection),
+      )
+        .to.emit(belongCheckIn, 'PromoterPaymentsDistributed')
+        .withArgs(referral.address, USDC_whale.address, payout, false);
+
+      expect(await promoterToken.balanceOf(referral.address, venueId)).to.eq(promoterCredits.sub(payout.mul(2)));
     });
 
     // Use .only for test

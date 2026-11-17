@@ -9,10 +9,12 @@ Stateless helpers to verify backend-signed payloads for collection creation,
 - Uses `SignatureCheckerLib.isValidSignatureNow` for EOA or ERC1271 signatures.
 - All hashes include `block.chainid` to bind signatures to a specific chain.
 - Uses `abi.encode` for collision-safe hashing of multiple dynamic fields.
-- Mint digests are bound to the specific verifying contract, include `nonce` and `deadline`,
-  and hash dynamic strings with `keccak256(bytes(...))` to avoid ambiguity.
-- `nonce` is part of the signed digest, but this library does not store/consume nonces;
-  replay protection must be enforced by the integrating contract and/or backend policy.
+- Every digest starts with a message-kind type hash, so a signature issued for one kind of action
+  can never be accepted for another (for example a static-price mint as a dynamic-price mint).
+- Every digest is bound to the verifying contract and includes `nonce` and `deadline`.
+- Payload structs are encoded whole (`abi.encode(struct)`), so every field of the payload is signed.
+- This library is stateless. The Factory and BelongCheckIn verifiers return the verified digest so that
+  the integrating contract can record it and reject a second use (`usedSignatures`).
 
 ### SignatureProtection
 
@@ -23,6 +25,70 @@ struct SignatureProtection {
   bytes signature;
 }
 ```
+
+### ACCESS_TOKEN_INFO_TYPEHASH
+
+```solidity
+bytes32 ACCESS_TOKEN_INFO_TYPEHASH
+```
+
+First word of an AccessToken creation digest.
+
+### CREDIT_TOKEN_INFO_TYPEHASH
+
+```solidity
+bytes32 CREDIT_TOKEN_INFO_TYPEHASH
+```
+
+First word of a CreditToken creation digest.
+
+### VESTING_WALLET_INFO_TYPEHASH
+
+```solidity
+bytes32 VESTING_WALLET_INFO_TYPEHASH
+```
+
+First word of a VestingWallet deployment digest.
+
+### VENUE_INFO_TYPEHASH
+
+```solidity
+bytes32 VENUE_INFO_TYPEHASH
+```
+
+First word of a venue deposit digest.
+
+### CUSTOMER_INFO_TYPEHASH
+
+```solidity
+bytes32 CUSTOMER_INFO_TYPEHASH
+```
+
+First word of a customer payment digest.
+
+### PROMOTER_INFO_TYPEHASH
+
+```solidity
+bytes32 PROMOTER_INFO_TYPEHASH
+```
+
+First word of a promoter payout digest.
+
+### STATIC_PRICE_MINT_TYPEHASH
+
+```solidity
+bytes32 STATIC_PRICE_MINT_TYPEHASH
+```
+
+First word of a static-price mint digest.
+
+### DYNAMIC_PRICE_MINT_TYPEHASH
+
+```solidity
+bytes32 DYNAMIC_PRICE_MINT_TYPEHASH
+```
+
+First word of a dynamic-price mint digest.
 
 ### InvalidSignature
 
@@ -92,130 +158,180 @@ Thrown when a signed payload is past its deadline.
 ### checkAccessTokenInfo
 
 ```solidity
-function checkAccessTokenInfo(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, struct AccessTokenInfo accessTokenInfo) external view
+function checkAccessTokenInfo(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, struct AccessTokenInfo accessTokenInfo, bytes32 referralCode) external view returns (bytes32 digest)
 ```
 
-Verifies AccessToken collection creation payload.
+Verifies an AccessToken collection creation payload.
 
-_Hash covers: `name`, `symbol`, `contractURI`, `feeNumerator`, and `chainId`.
-     Uses `abi.encode` to prevent collisions on multiple dynamic fields._
+_Signed digest:
+     `keccak256(abi.encode(ACCESS_TOKEN_INFO_TYPEHASH, verifyingContract, nonce, deadline, block.chainid,
+     accessTokenInfo, referralCode))`.
+     The whole `AccessTokenInfo` struct is encoded, so the creator, payment token, royalty, transferability,
+     supply cap, prices, metadata and contract URI are all bound, together with the referral code._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
-| verifyingContract | address |  |
-| protection | struct SignatureVerifier.SignatureProtection |  |
-| accessTokenInfo | struct AccessTokenInfo | Payload to verify. Only the fields listed above are signed. |
+| verifyingContract | address | The contract address the signature is bound to (typically `address(this)`). |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
+| accessTokenInfo | struct AccessTokenInfo | Payload to verify, exactly as supplied by the caller. |
+| referralCode | bytes32 | Referral code the collection is created with (zero when none). |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| digest | bytes32 | The verified digest, so the caller can record it as used. |
 
 ### checkCreditTokenInfo
 
 ```solidity
-function checkCreditTokenInfo(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, struct ERC1155Info creditTokenInfo) external view
+function checkCreditTokenInfo(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, struct ERC1155Info creditTokenInfo) external view returns (bytes32 digest)
 ```
 
-Verifies CreditToken (ERC1155) collection creation payload.
+Verifies a CreditToken (ERC1155) collection creation payload.
 
-_Hash covers: `name`, `symbol`, `uri`, and `chainId`.
-     Uses `abi.encode` to avoid packed collisions._
+_Signed digest:
+     `keccak256(abi.encode(CREDIT_TOKEN_INFO_TYPEHASH, verifyingContract, nonce, deadline, block.chainid,
+     creditTokenInfo))`.
+     The whole `ERC1155Info` struct is encoded, so the admin, manager, minter and burner addresses and the
+     transferability flag are bound together with the name, symbol and URI._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
-| verifyingContract | address |  |
-| protection | struct SignatureVerifier.SignatureProtection |  |
-| creditTokenInfo | struct ERC1155Info | Payload. Only the fields listed above are signed. |
+| verifyingContract | address | The contract address the signature is bound to (typically `address(this)`). |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
+| creditTokenInfo | struct ERC1155Info | Payload to verify, exactly as supplied by the caller. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| digest | bytes32 | The verified digest, so the caller can record it as used. |
 
 ### checkVestingWalletInfo
 
 ```solidity
-function checkVestingWalletInfo(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, address owner, struct VestingWalletInfo vestingWalletInfo) external view
+function checkVestingWalletInfo(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, address owner, struct VestingWalletInfo vestingWalletInfo, uint256 initialFunding) external view returns (bytes32 digest)
 ```
 
-Verifies VestingWallet deployment payload including owner and schedule parameters.
+Verifies a VestingWallet deployment payload including owner, schedule and initial funding.
 
-_Hash covers: `owner`, `startTimestamp`, `cliffDurationSeconds`, `durationSeconds`,
-     `token`, `beneficiary`, `totalAllocation`, `tgeAmount`, `linearAllocation`, and `chainId`.
-     Uses `abi.encode` (not packed).
-     `vestingWalletInfo.description` is intentionally not part of the signed digest._
+_Signed digest:
+     `keccak256(abi.encode(VESTING_WALLET_INFO_TYPEHASH, verifyingContract, nonce, deadline, block.chainid,
+     owner, vestingWalletInfo, initialFunding))`.
+     The whole `VestingWalletInfo` struct is encoded (description included), together with the amount the
+     caller funds the wallet with on deployment. A signature therefore authorizes one exact deployment and
+     cannot be spent by a third party on an unfunded or relabelled wallet._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
-| verifyingContract | address | Address expected in the signed payload. |
+| verifyingContract | address | The contract address the signature is bound to (typically `address(this)`). |
 | protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
 | owner | address | Intended vesting wallet owner. |
-| vestingWalletInfo | struct VestingWalletInfo | Full vesting schedule configuration and metadata. |
+| vestingWalletInfo | struct VestingWalletInfo | Full vesting schedule configuration and metadata, exactly as supplied by the caller. |
+| initialFunding | uint256 | Amount transferred from the caller to the wallet on deployment. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| digest | bytes32 | The verified digest, so the caller can record it as used. |
 
 ### checkVenueInfo
 
 ```solidity
-function checkVenueInfo(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, struct VenueInfo venueInfo) external view
+function checkVenueInfo(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, struct VenueInfo venueInfo) external view returns (bytes32 digest)
 ```
 
-Verifies venue deposit intent and metadata.
+Verifies a venue deposit payload.
 
-_Hash covers: `venue`, `referralCode`, `uri`, and `chainId`. Uses `abi.encode`._
+_Signed digest:
+     `keccak256(abi.encode(VENUE_INFO_TYPEHASH, verifyingContract, nonce, deadline, block.chainid, venueInfo))`.
+     The whole `VenueInfo` struct is encoded, so the venue, deposit amount, venue rules, affiliate referral
+     code and URI are all bound._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
-| verifyingContract | address |  |
-| protection | struct SignatureVerifier.SignatureProtection |  |
-| venueInfo | struct VenueInfo | Venue payload. Only the fields listed above are signed. |
+| verifyingContract | address | The contract address the signature is bound to (typically `address(this)`). |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
+| venueInfo | struct VenueInfo | Venue payload, exactly as supplied by the caller. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| digest | bytes32 | The verified digest, so the caller can record it as used. |
 
 ### checkCustomerInfo
 
 ```solidity
-function checkCustomerInfo(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, struct CustomerInfo customerInfo, struct VenueRules rules) external view
+function checkCustomerInfo(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, struct CustomerInfo customerInfo, struct VenueRules rules) external view returns (bytes32 digest)
 ```
 
-Verifies customer payment payload and enforces venue rule compatibility.
+Verifies a customer payment payload and enforces venue rule compatibility.
 
-_Hash covers: `paymentInUSDtoken`, `visitBountyAmount`, `spendBountyPercentage`,
-     `customer`, `venueToPayFor`, `promoter`, `amount`, and `chainId`. Uses `abi.encode`._
+_Signed digest:
+     `keccak256(abi.encode(CUSTOMER_INFO_TYPEHASH, verifyingContract, nonce, deadline, block.chainid,
+     rules.bountyType, rules.bountyAllocationType, customerInfo))`.
+     The whole `CustomerInfo` struct is encoded, and the venue's current bounty rules are bound as well, so a
+     signature stops being valid when the venue changes those rules._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
-| verifyingContract | address |  |
-| protection | struct SignatureVerifier.SignatureProtection |  |
-| customerInfo | struct CustomerInfo | Customer payment data. Only the fields listed above are signed. |
+| verifyingContract | address | The contract address the signature is bound to (typically `address(this)`). |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
+| customerInfo | struct CustomerInfo | Customer payment data, exactly as supplied by the caller. |
 | rules | struct VenueRules | Venue rules against which to validate payment and bounty types. |
 
-### _encodeBounties
+#### Return Values
 
-```solidity
-function _encodeBounties(struct Bounties bounties) internal view returns (bytes)
-```
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| digest | bytes32 | The verified digest, so the caller can record it as used. |
 
 ### checkPromoterPaymentDistribution
 
 ```solidity
-function checkPromoterPaymentDistribution(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, struct PromoterInfo promoterInfo) external view
+function checkPromoterPaymentDistribution(address signer, address verifyingContract, struct SignatureVerifier.SignatureProtection protection, struct PromoterInfo promoterInfo) external view returns (bytes32 digest)
 ```
 
-Verifies promoter payout distribution payload.
+Verifies a promoter payout distribution payload.
 
-_Hash covers: `promoter`, `venue`, `amountInUSD`, and `chainId`. Uses `abi.encode`._
+_Signed digest:
+     `keccak256(abi.encode(PROMOTER_INFO_TYPEHASH, verifyingContract, nonce, deadline, block.chainid,
+     promoterInfo))`.
+     The whole `PromoterInfo` struct is encoded, so the payout currency flag is bound together with the
+     promoter referral code, venue and amount._
 
 #### Parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
-| verifyingContract | address |  |
-| protection | struct SignatureVerifier.SignatureProtection |  |
-| promoterInfo | struct PromoterInfo | Payout details. Only the fields listed above are signed. |
+| verifyingContract | address | The contract address the signature is bound to (typically `address(this)`). |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
+| promoterInfo | struct PromoterInfo | Payout details, exactly as supplied by the caller. |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| digest | bytes32 | The verified digest, so the caller can record it as used. |
 
 ### checkDynamicPriceParameters
 
@@ -225,7 +341,10 @@ function checkDynamicPriceParameters(address signer, address verifyingContract, 
 
 Verifies dynamic price mint parameters for a given receiver.
 
-_Requires `block.timestamp <= params.deadline`._
+_Signed digest:
+     `keccak256(abi.encode(DYNAMIC_PRICE_MINT_TYPEHASH, verifyingContract, nonce, deadline, block.chainid,
+     receiver, tokenId, tokenUri, price))`.
+     The type hash keeps this digest distinct from a static-price mint digest, whose last word is a boolean._
 
 #### Parameters
 
@@ -233,7 +352,7 @@ _Requires `block.timestamp <= params.deadline`._
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
 | verifyingContract | address | The contract address the signature is bound to (typically `address(this)`). |
-| protection | struct SignatureVerifier.SignatureProtection |  |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
 | receiver | address | Address that will receive the minted token(s). |
 | params | struct DynamicPriceParameters | Dynamic price payload. |
 
@@ -245,7 +364,9 @@ function checkStaticPriceParameters(address signer, address verifyingContract, s
 
 Verifies static price mint parameters for a given receiver.
 
-_Requires `block.timestamp <= params.deadline`._
+_Signed digest:
+     `keccak256(abi.encode(STATIC_PRICE_MINT_TYPEHASH, verifyingContract, nonce, deadline, block.chainid,
+     receiver, tokenId, tokenUri, whitelisted))`._
 
 #### Parameters
 
@@ -253,7 +374,7 @@ _Requires `block.timestamp <= params.deadline`._
 | ---- | ---- | ----------- |
 | signer | address | Authorized signer address. |
 | verifyingContract | address | The contract address the signature is bound to (typically `address(this)`). |
-| protection | struct SignatureVerifier.SignatureProtection |  |
+| protection | struct SignatureVerifier.SignatureProtection | Signature payload with `nonce`, `deadline`, and signer signature. |
 | receiver | address | Address that will receive the minted token(s). |
 | params | struct StaticPriceParameters | Static price payload. |
 

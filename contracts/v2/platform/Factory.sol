@@ -44,6 +44,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Thrown when a collection with the same `(name, symbol)` already exists.
     error TokenAlreadyExists();
 
+    /// @notice Thrown when a backend signature that was already executed is submitted again.
+    /// @param digest The signed digest that was already used.
+    error SignatureAlreadyUsed(bytes32 digest);
+
     /// @notice Thrown when a beneficiary already has a vesting wallet registered.
     error VestingWalletAlreadyExists();
 
@@ -185,6 +189,11 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     /// @notice Current implementation addresses used by the factory.
     Implementations private _currentImplementations;
 
+    /// @notice Digests of backend signatures that were already executed.
+    /// @dev Every signed creation or deployment request can be executed once.
+    ///      Appended after the existing variables to keep the proxy storage layout compatible.
+    mapping(bytes32 digest => bool used) public usedSignatures;
+
     // ========== Initialization ==========
 
     /// @notice Disable initializers on the implementation.
@@ -219,12 +228,16 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         Implementations calldata _implementations,
         uint16[5] calldata percentages,
         uint16 maxArrayLength
-    ) external reinitializer(2) {
+    ) external onlyOwner reinitializer(2) {
         _setFactoryParameters(_nftFactoryParameters, _royalties, _implementations);
         _setReferralParameters(percentages, maxArrayLength);
     }
 
-    function upgradeToV3(address vestingWalletImplementation) external reinitializer(3) {
+    /// @notice Sets the vesting wallet implementation (reinitializer v3).
+    /// @dev Owner-only, like {upgradeToV2}: a versioned reinitializer can run once, so it must not be callable by
+    ///      whoever reaches the proxy first after an upgrade.
+    /// @param vestingWalletImplementation Implementation used for vesting wallet deployments.
+    function upgradeToV3(address vestingWalletImplementation) external onlyOwner reinitializer(3) {
         Implementations memory impls = _currentImplementations;
         impls.vestingWallet = vestingWalletImplementation;
         _setFactoryParameters(_nftFactoryParameters, _royaltiesParameters, impls);
@@ -248,7 +261,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
     ) external returns (address nftAddress, address receiver) {
         FactoryParameters storage factoryParameters = _nftFactoryParameters;
 
-        factoryParameters.signerAddress.checkAccessTokenInfo(address(this), protection, accessTokenInfo);
+        _useSignature(
+            factoryParameters.signerAddress.checkAccessTokenInfo(address(this), protection, accessTokenInfo, referralCode)
+        );
 
         bytes32 hashedSalt =
             _getHash(abi.encode(accessTokenInfo.metadata.name), abi.encode(accessTokenInfo.metadata.symbol));
@@ -313,7 +328,9 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         ERC1155Info calldata creditTokenInfo,
         SignatureVerifier.SignatureProtection calldata protection
     ) external returns (address creditToken) {
-        _nftFactoryParameters.signerAddress.checkCreditTokenInfo(address(this), protection, creditTokenInfo);
+        _useSignature(
+            _nftFactoryParameters.signerAddress.checkCreditTokenInfo(address(this), protection, creditTokenInfo)
+        );
 
         bytes32 hashedSalt = _getHash(abi.encode(creditTokenInfo.name), abi.encode(creditTokenInfo.symbol));
 
@@ -424,7 +441,10 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
             AllocationMismatch(vestingWalletInfo.totalAllocation)
         );
 
-        _nftFactoryParameters.signerAddress.checkVestingWalletInfo(address(this), protection, _owner, vestingWalletInfo);
+        _useSignature(
+            _nftFactoryParameters.signerAddress
+                .checkVestingWalletInfo(address(this), protection, _owner, vestingWalletInfo, initialFunding)
+        );
 
         VestingWalletInstanceInfo[] storage vwInfo = _vestingWalletInstanceInfos[vestingWalletInfo.beneficiary];
 
@@ -561,6 +581,12 @@ contract Factory is Initializable, Ownable, ReferralSystemV2 {
         _currentImplementations = _implementations;
 
         emit FactoryParametersSet(factoryParameters_, _royalties, _implementations);
+    }
+
+    /// @dev Marks a verified signature digest as executed; reverts if it was executed before.
+    function _useSignature(bytes32 digest) private {
+        require(!usedSignatures[digest], SignatureAlreadyUsed(digest));
+        usedSignatures[digest] = true;
     }
 
     /// @notice Computes a deterministic salt for a collection metadata pair.
