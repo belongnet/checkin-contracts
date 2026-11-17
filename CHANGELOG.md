@@ -1,5 +1,77 @@
 # Changelog
 
+## [0.0.3.0] - 2026-11-17
+
+Contract changes from the November 2026 security review. Nothing here is deployed yet: the new format takes effect
+when the proxies are upgraded, and the backend must switch to the new signature format at the same moment. See
+`docs/guides/BelongCheckinSignatures.md` for the format and the rollout order.
+
+### Fixed
+
+- A static-price mint signature can no longer be used as a dynamic-price mint signature. Both digests had the same
+  shape, so a signature for a paid whitelist mint was also valid for a mint at price 0 or 1. Every `SignatureVerifier`
+  digest now starts with its own type hash. This applies to AccessToken collections created from a new AccessToken
+  implementation; existing collections keep the code they were created with.
+- Backend signatures now cover everything they authorize. Venue deposits sign `amount` and `rules`, promoter payouts
+  sign `paymentInUSDtoken`, AccessToken creation signs the full economics and the referral code, CreditToken creation
+  signs the admin, manager, minter and burner roles, and vesting-wallet creation signs the description and the funding
+  amount. Before, a caller could change these fields under a valid signature.
+- Venue, customer, promoter and creation signatures work once. `Factory` and `BelongCheckIn` record each executed
+  digest in `usedSignatures` and reject a second use with `SignatureAlreadyUsed`. Before, the same signature could be
+  submitted again until its deadline.
+- `Factory.upgradeToV2` and `Factory.upgradeToV3` are now `onlyOwner`. Before, anyone could call them on a proxy that
+  had not been reinitialized yet.
+- `BelongCheckIn` rejects fee and reward percentages above 100% with `PercentageTooHigh`.
+- `getReferralRate` returns 0 for a user who is not registered for a referral code instead of reverting. A collection
+  produced with a code whose user list was already full could not mint or release royalties.
+- A Staking share transfer to oneself no longer erases the lock records of those shares. Before, the holder could then
+  leave through the emergency exit without the penalty, and a normal redeem after the lock period failed. Emergency
+  withdrawals now also apply the penalty to shares that no lock record covers.
+
+### Changed
+
+- **Breaking for the backend:** all `SignatureVerifier` digests changed. Each one is
+  `keccak256(abi.encode(TYPEHASH, verifyingContract, nonce, deadline, chainId, ...payload))` with the payload struct
+  encoded as an ABI tuple. `helpers/signature.ts` is the reference implementation.
+- `getReferralRate` no longer reverts with `ReferralCodeNotUsedByUser`; the error was removed.
+- Deploy, upgrade and update scripts under `scripts/mainnet-deployment/belong-checkin` read their toggles strictly:
+  `true`/`1`/`yes`/`on` or `false`/`0`/`no`/`off`, and any other value stops the script. An empty toggle now means the
+  script's default; in `1-deploy-implementations.ts`, `2-upgrade-factory.ts` and `3-upgrade-factory-v3.ts` an empty
+  value used to mean false.
+- Deploy scripts stop when the deployment file already records the contract they deploy; `FORCE_REDEPLOY=true`
+  overrides. `0-deploy-libraries.ts` takes `LIBRARIES` to deploy a single library and keeps the replaced address.
+- Upgrade scripts stop when a recorded library was not built from the current checkout, and the Factory upgrade scripts
+  write the new implementation to the deployment file before they call the reinitializer.
+- `13-add-liqudity.ts` reads token decimals from the chain (BSC USDC has 18, not 6), approves the exact amount instead
+  of an unlimited allowance, and sets minimum amounts from `SLIPPAGE_BPS`. `13-burn-liquidity.ts` sets minimum amounts
+  the same way. `12-create-lp.ts` stops when the pool already exists unless `ALLOW_EXISTING_POOL=true`.
+- `14-deploy-vesting-wallet.ts` signs through `helpers/signature.ts` and passes the arguments the current Factory
+  expects. The unused old-format digest helpers were removed from `helpers/math.ts`.
+- Pinned `@openzeppelin/contracts`, `@openzeppelin/contracts-upgradeable`, `@uniswap/v4-core`, `@uniswap/v4-periphery`,
+  `solady` and `solmate` to exact versions (the ones already installed) and regenerated `yarn.lock`, which had no
+  entries for the two Uniswap packages and `solmate` and an outdated range for `solady`.
+
+### Added
+
+- `6b-prepare-upgrade-safe.ts`: prepares the Safe transaction that upgrades `Factory`, `Staking` or `BelongCheckIn`.
+  It checks the record against the live linkage, the libraries against the local build and the storage layout against
+  the live implementation before it deploys anything.
+- `18-prepare-ownership-handover-safe.ts`: read-only; prints the transactions that move `Factory`, `VenueToken` and
+  `PromoterToken` to a Safe with Solady's two-step handover.
+- `.openzeppelin/bsc.json`: the OpenZeppelin upgrade manifest for BSC mainnet, imported from the deployed source.
+  `6a-force-import-checkin.ts` now takes `TARGET` and refuses to import a build whose bytecode differs from the live
+  implementation.
+- `deployCreditTokens` checks the owner, roles and transferability of a credit token that already exists before
+  adopting it.
+- Tests for each fix above (253 passing, up from 225).
+
+### Notes
+
+- Storage layouts are append-only: `usedSignatures` is the last variable of `BelongCheckIn` and of `Factory`. Checked
+  with `upgrades.validateUpgrade` against the three live BSC proxies.
+- `11-test-venueDeposit.ts` was already out of date with the deployed contracts and still is.
+- `docs/src` (forge doc output) was not regenerated; `docs/contracts` was.
+
 ## [0.0.2.4] - 2026-11-16
 
 ### Fixed
