@@ -19,6 +19,8 @@
 import type { Contract } from 'ethers';
 import { ethers } from 'hardhat';
 
+import { envFlag } from '../../helpers/env';
+
 const IF_FACTORY = ['function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address)'];
 
 const IF_POOL = [
@@ -69,6 +71,7 @@ async function main() {
   const PRICE_NUM = BigInt(process.env.PRICE_NUM ?? '2');
   const PRICE_DEN = BigInt(process.env.PRICE_DEN ?? '1');
   if (PRICE_DEN === 0n) throw new Error('PRICE_DEN cannot be zero');
+  const ALLOW_EXISTING_POOL = envFlag('ALLOW_EXISTING_POOL', false);
 
   const factory: Contract = new ethers.Contract(FACTORY_ADDR, IF_FACTORY, signer);
   const npm: Contract = new ethers.Contract(NPM_ADDR, IF_NPM, signer);
@@ -116,10 +119,16 @@ async function main() {
   console.log(`Desired token1/token0 = ${num.toString()}/${den.toString()} (human units)`);
   console.log(`sqrtPriceX96 = ${sqrtPriceX96.toString()}`);
 
-  // If a pool already exists for (A,B,FEE), this just returns it and does NOT reinitialize
+  // If a pool already exists for (A,B,FEE), the call below just returns it and does NOT reinitialize,
+  // so the price computed above would not be the pool's price: stop unless explicitly allowed.
   const existing: string = await factory.getPool(A, B, FEE);
   if (existing !== ethers.constants.AddressZero) {
     console.log('Pool already exists at:', existing);
+    if (!ALLOW_EXISTING_POOL) {
+      throw new Error(
+        `Pool already exists at ${existing} and its price was not set by this script. Set ALLOW_EXISTING_POOL=true only if continuing with the existing pool is intended.`,
+      );
+    }
   }
 
   // Create & initialize (idempotent): uses EXACT token0/token1 order (A,B)

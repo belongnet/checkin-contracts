@@ -3,15 +3,16 @@ import { BigNumber } from 'ethers';
 import { ethers, upgrades } from 'hardhat';
 
 import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
+import { envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
 dotenv.config();
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
-const FUND = process.env.FUND?.toLowerCase() !== 'false';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
+const FUND = envFlag('FUND', true);
 
 const ERC20_ABI = [
   'function decimals() view returns (uint8)',

@@ -1,19 +1,14 @@
 import { ethers, upgrades } from 'hardhat';
 
 import { waitForNextBlock } from '../../../helpers/wait';
+import { assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
+import { envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
-function parseBoolEnv(value: string | undefined, defaultValue: boolean): boolean {
-  if (value === undefined) {
-    return defaultValue;
-  }
-  return value.toLowerCase() === 'true';
-}
-
-const UPGRADE = parseBoolEnv(process.env.UPGRADE, true);
-const VERIFY = parseBoolEnv(process.env.VERIFY, true);
+const UPGRADE = envFlag('UPGRADE', true);
+const VERIFY = envFlag('VERIFY', true);
 
 async function main() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -52,6 +47,9 @@ async function main() {
       }
     }
 
+    // The new implementation is linked to this library, so it must be this checkout's build.
+    await assertLibraryMatchesLocalBuild('SignatureVerifier', deployments.libraries.signatureVerifier);
+
     const FactoryV3 = await ethers.getContractFactory('Factory', {
       libraries: { SignatureVerifier: deployments.libraries.signatureVerifier },
     });
@@ -70,10 +68,20 @@ async function main() {
     });
     await waitForNextBlock();
 
+    // Record the new implementation right away: a failure below must not leave the record stale.
+    const newImplementation = await upgrades.erc1967.getImplementationAddress(factory.address);
+
+    deployments.factory.proxy = factory.address;
+    deployments.factory.implementation = newImplementation;
+    fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
+
+    console.log('Factory proxy: ', factory.address);
+    console.log('Factory implementation: ', newImplementation);
+
     const upgradedFactory = await ethers.getContractAt('Factory', factory.address);
     const vestingWalletImplementation = deployments.implementations.vestingWallet;
 
-    // `upgradeToV3` is a one-time reinitializer.
+    // `upgradeToV3` is a one-time reinitializer and is onlyOwner.
     try {
       await upgradedFactory.callStatic.upgradeToV3(vestingWalletImplementation);
       const upgradeToV3Tx = await upgradedFactory.upgradeToV3(vestingWalletImplementation);
@@ -84,18 +92,13 @@ async function main() {
       if (message.includes('InvalidInitialization')) {
         console.log('Factory already initialized to v3; skipping upgradeToV3().');
       } else {
-        throw error;
+        throw new Error(
+          `The Factory proxy ${factory.address} WAS upgraded to implementation ${newImplementation} and ${deploymentFile} was updated, but upgradeToV3() failed. It is onlyOwner and must be sent by the Factory owner.`,
+          { cause: error },
+        );
       }
     }
 
-    const newImplementation = await upgrades.erc1967.getImplementationAddress(factory.address);
-
-    deployments.factory.proxy = factory.address;
-    deployments.factory.implementation = newImplementation;
-    fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
-
-    console.log('Factory proxy: ', factory.address);
-    console.log('Factory implementation: ', newImplementation);
     console.log('Done.');
   }
 

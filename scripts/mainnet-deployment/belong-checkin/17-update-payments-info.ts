@@ -4,6 +4,7 @@ import { ethers } from 'hardhat';
 
 import { BelongCheckIn } from '../../../typechain-types';
 import { DualDexSwapV4Lib } from '../../../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
+import { envFlag } from '../../helpers/env';
 
 import fs from 'fs';
 
@@ -11,13 +12,14 @@ dotenv.config();
 
 const DEFAULT_SLIPPAGE_BPS_1E27 = BigNumber.from('50000000000000000000000000'); // 5%
 const MAX_SLIPPAGE_BPS_1E27 = BigNumber.from(10).pow(27);
-const UPDATE = process.env.UPDATE?.trim().toLowerCase() !== 'false';
-const SYNC_DEPLOYMENT_JSON = process.env.SYNC_DEPLOYMENT_JSON?.trim().toLowerCase() !== 'false';
+const UPDATE = envFlag('UPDATE', true);
+const SYNC_DEPLOYMENT_JSON = envFlag('SYNC_DEPLOYMENT_JSON', true);
 
 type DeploymentJson = {
   checkIn?: {
     address?: string;
-    paymentsInfo?: {
+    // The record carries every PaymentsInfo field; only these two are read back by this script.
+    paymentsInfo?: Record<string, unknown> & {
       slippageBps?: unknown;
       poolKey?: string;
     };
@@ -50,7 +52,8 @@ function formatSlippage(slippageBps: BigNumber): string {
   return `${bps.toString()} bps`;
 }
 
-function paymentsInfoForJson(info: DualDexSwapV4Lib.PaymentsInfoStruct) {
+// Takes the on-chain read type (concrete strings/BigNumbers), not the PromiseOrValue input struct.
+function paymentsInfoForJson(info: DualDexSwapV4Lib.PaymentsInfoStructOutput) {
   const dexType = BigNumber.from(info.dexType);
   const maxPriceFeedDelay = BigNumber.from(info.maxPriceFeedDelay);
   return {

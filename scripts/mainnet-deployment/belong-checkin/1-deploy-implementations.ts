@@ -7,6 +7,8 @@ import {
   deployRoyaltiesReceiverV2Implementation,
   deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
+import { assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
+import { assertNotRecorded, envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
@@ -17,10 +19,12 @@ type ImplementationTarget = 'accessToken' | 'creditToken' | 'royaltiesReceiver' 
 
 const ALL_TARGETS: ImplementationTarget[] = ['accessToken', 'creditToken', 'royaltiesReceiver', 'vestingWallet'];
 
-function parseBoolEnv(value: string | undefined, defaultValue: boolean): boolean {
-  if (value === undefined) return defaultValue;
-  return value.toLowerCase() === 'true';
-}
+const TARGET_LABELS: Record<ImplementationTarget, string> = {
+  accessToken: 'AccessTokenImplementation',
+  creditToken: 'CreditTokenImplementation',
+  royaltiesReceiver: 'RoyaltiesReceiverV2Implementation',
+  vestingWallet: 'VestingWalletImplementation',
+};
 
 function normalizeTarget(value: string): ImplementationTarget {
   const normalized = value.trim().toLowerCase();
@@ -44,8 +48,8 @@ function parseTargets(value: string | undefined): Set<ImplementationTarget> {
   return new Set<ImplementationTarget>(parsed);
 }
 
-const DEPLOY = parseBoolEnv(process.env.DEPLOY, true);
-const VERIFY = parseBoolEnv(process.env.VERIFY, true);
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
 const TARGETS = parseTargets(process.env.IMPLEMENTATIONS);
 
 async function deploy() {
@@ -70,6 +74,11 @@ async function deploy() {
 
   if (DEPLOY) {
     console.log('Deploy Implementations: ');
+    // Checked up front, so the run never stops half-way after deploying some of the targets.
+    for (const target of TARGETS) {
+      assertNotRecorded(deployments.implementations[target], TARGET_LABELS[target]);
+    }
+
     // Validate environment variables
     if (TARGETS.has('accessToken') && !deployments.libraries.signatureVerifier) {
       throw new Error('Missing required environment variables: SignatureVerifier');
@@ -84,6 +93,12 @@ async function deploy() {
       if (!ethers.utils.isAddress(addr)) {
         throw new Error(`Invalid address: ${addr}`);
       }
+    }
+
+    // AccessToken calls into the linked SignatureVerifier, so the recorded library must be this
+    // checkout's build: linked to an older one, mints would verify that library's digests instead.
+    if (TARGETS.has('accessToken')) {
+      await assertLibraryMatchesLocalBuild('SignatureVerifier', deployments.libraries.signatureVerifier);
     }
 
     console.log(`Targets: ${Array.from(TARGETS).join(', ')}`);

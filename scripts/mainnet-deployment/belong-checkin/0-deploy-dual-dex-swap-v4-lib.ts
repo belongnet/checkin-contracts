@@ -3,14 +3,15 @@ import { ethers } from 'hardhat';
 
 import { deployDualDexSwapV4Lib } from '../../../helpers/deployFixtures';
 import { DualDexSwapV4Lib } from '../../../typechain-types';
+import { envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
 dotenv.config();
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
 
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -38,7 +39,12 @@ async function deploy() {
     console.log('Deploying DualDexSwapV4Lib contract...');
     const dualDexSwapV4Lib: DualDexSwapV4Lib = await deployDualDexSwapV4Lib();
 
-    if (previousDualDexSwapV4Lib && previousDualDexSwapV4Lib !== dualDexSwapV4Lib.address) {
+    // This script deploys a replacement, so it does not refuse to run: it keeps the replaced address instead.
+    if (
+      typeof previousDualDexSwapV4Lib === 'string' &&
+      previousDualDexSwapV4Lib !== '' &&
+      previousDualDexSwapV4Lib.toLowerCase() !== dualDexSwapV4Lib.address.toLowerCase()
+    ) {
       deployments.libraries.dualDexSwapV4LibPrevious = previousDualDexSwapV4Lib;
     }
     deployments.libraries.dualDexSwapV4Lib = dualDexSwapV4Lib.address;

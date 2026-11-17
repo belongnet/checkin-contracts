@@ -15,6 +15,8 @@ export default [
       'scripts/testnet-deployment/**',
       'scripts/mocks/**',
       'test/v1/**',
+      '.context/**',
+      '.gstack/**',
     ],
   },
 

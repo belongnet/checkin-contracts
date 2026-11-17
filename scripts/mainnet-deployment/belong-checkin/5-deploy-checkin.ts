@@ -6,6 +6,7 @@ import { deployBelongCheckIn } from '../../../helpers/deployFixtures';
 import { encodePcsPoolKey } from '../../../helpers/math';
 import { BelongCheckIn } from '../../../typechain-types';
 import { DualDexSwapV4Lib } from '../../../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
+import { assertNotRecorded, envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
@@ -19,8 +20,8 @@ enum DexType {
   UniV3,
 }
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
 const DEFAULT_SLIPPAGE_BPS_1E27 = BigNumber.from('50000000000000000000000000'); // 5%
 const MAX_SLIPPAGE_BPS_1E27 = BigNumber.from(10).pow(27);
 const DEFAULT_MAX_PRICE_FEED_DELAY = 3600;
@@ -48,6 +49,7 @@ async function deploy() {
 
   if (DEPLOY) {
     console.log('Deploy BelongCheckIn: ');
+    assertNotRecorded(deployments.checkIn?.address, 'BelongCheckIn');
 
     const owner = process.env.ADMIN_ADDRESS;
     const router = process.env.PCS_ROUTER_ADDRESS ?? process.env.ROUTER_ADDRESS;

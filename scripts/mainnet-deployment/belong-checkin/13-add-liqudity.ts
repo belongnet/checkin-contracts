@@ -5,7 +5,11 @@
 //   UNISWAPV3_FACTORY_ADDRESS=0x1F98431c8aD98523631AE4a59f267346ea31F984 \
 //   LONG=0x... USDC=0x... \
 //   LONG_AMOUNT=2200 USDC_AMOUNT=1100 BAND=1200 \
+//   SLIPPAGE_BPS=100 \
 //   npx hardhat run scripts/add_liquidity_v3.ts --network <net>
+//
+// LONG_AMOUNT / USDC_AMOUNT are human units, scaled with each token's on-chain decimals().
+// SLIPPAGE_BPS (0..5000, default 100 = 1%) bounds how far the real mint may fall below the preview.
 
 import type { BigNumber, Contract } from 'ethers';
 import { ethers } from 'hardhat';
@@ -40,6 +44,21 @@ function nearestUsableTick(tick: number, tickSpacing: number): number {
 
 const toChecksum = (a: string) => ethers.utils.getAddress(a);
 
+// Slippage tolerance for the real mint, in basis points (default 100 = 1%).
+function parseSlippageBps(value: string | undefined): number {
+  const raw = value?.trim() ?? '';
+  if (raw === '') return 100;
+  if (!/^\d+$/.test(raw) || Number(raw) > 5000) {
+    throw new Error('SLIPPAGE_BPS must be an integer between 0 and 5000 (basis points, 100 = 1%).');
+  }
+  return Number(raw);
+}
+
+// min = amount * (10000 - slippageBps) / 10000
+function withSlippage(amount: BigNumber, slippageBps: number): BigNumber {
+  return amount.mul(10_000 - slippageBps).div(10_000);
+}
+
 async function safeApprove(spender: string, erc20: Contract, owner: string, need: BigNumber) {
   const [sym, allow] = await Promise.all([erc20.symbol().catch(() => 'TOKEN'), erc20.allowance(owner, spender)]);
   console.log(`[allowance] ${sym} -> ${spender}: ${allow.toString()}`);
@@ -48,8 +67,9 @@ async function safeApprove(spender: string, erc20: Contract, owner: string, need
       console.log(`[approve] reset ${sym} to 0`);
       await (await erc20.approve(spender, 0)).wait();
     }
-    console.log(`[approve] set ${sym} allowance to MAX`);
-    await (await erc20.approve(spender, ethers.constants.MaxUint256)).wait();
+    // Approve exactly what this run needs, never an unlimited allowance.
+    console.log(`[approve] set ${sym} allowance to ${need.toString()}`);
+    await (await erc20.approve(spender, need)).wait();
   }
 }
 
@@ -66,11 +86,20 @@ async function main() {
   const BAND = Number(process.env.BAND ?? '1200');
   const TICK_LOWER_ENV = process.env.TICK_LOWER;
   const TICK_UPPER_ENV = process.env.TICK_UPPER;
+  const SLIPPAGE_BPS = parseSlippageBps(process.env.SLIPPAGE_BPS);
+
+  // Scale human amounts with the tokens' own decimals: the USD token is not 6 decimals on every chain.
+  const [longDecimals, usdcDecimals]: [number, number] = await Promise.all([
+    new ethers.Contract(LONG, IF_ERC20, signer).decimals(),
+    new ethers.Contract(USDC, IF_ERC20, signer).decimals(),
+  ]);
 
   const LONG_AMOUNT_RAW =
-    process.env.AMOUNT_LONG_RAW ?? ethers.utils.parseEther(String(process.env.LONG_AMOUNT ?? '0')).toString();
+    process.env.AMOUNT_LONG_RAW ??
+    ethers.utils.parseUnits(String(process.env.LONG_AMOUNT ?? '0'), longDecimals).toString();
   const USDC_AMOUNT_RAW =
-    process.env.AMOUNT_USDC_RAW ?? ethers.utils.parseUnits(String(process.env.USDC_AMOUNT ?? '0'), 6).toString();
+    process.env.AMOUNT_USDC_RAW ??
+    ethers.utils.parseUnits(String(process.env.USDC_AMOUNT ?? '0'), usdcDecimals).toString();
 
   const factory: Contract = new ethers.Contract(FACTORY, IF_FACTORY, signer);
   const [tA, tB] = LONG.toLowerCase() < USDC.toLowerCase() ? [LONG, USDC] : [USDC, LONG];
@@ -150,6 +179,12 @@ async function main() {
   console.log('preview.amount0 =', preview.amount0.toString());
   console.log('preview.amount1 =', preview.amount1.toString());
 
+  // The real mint reverts if the pool would take less than the preview minus SLIPPAGE_BPS.
+  const amount0Min: BigNumber = withSlippage(preview.amount0, SLIPPAGE_BPS);
+  const amount1Min: BigNumber = withSlippage(preview.amount1, SLIPPAGE_BPS);
+  console.log(`amount0Min = ${amount0Min.toString()} (SLIPPAGE_BPS=${SLIPPAGE_BPS})`);
+  console.log(`amount1Min = ${amount1Min.toString()} (SLIPPAGE_BPS=${SLIPPAGE_BPS})`);
+
   // mint exactly what pool will take
   const tx = await npm.mint({
     token0,
@@ -159,8 +194,8 @@ async function main() {
     tickUpper,
     amount0Desired: preview.amount0,
     amount1Desired: preview.amount1,
-    amount0Min: 0,
-    amount1Min: 0,
+    amount0Min,
+    amount1Min,
     recipient: me,
     deadline: Math.floor(Date.now() / 1000) + 3600,
   });

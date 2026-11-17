@@ -1,11 +1,20 @@
 import { ethers, upgrades } from 'hardhat';
 
+import { assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
+import { envFlag } from '../../helpers/env';
+import {
+  assertImplementationUsable,
+  assertRecordMatchesLiveLinkage,
+  LibraryAddresses,
+  readLiveImplementation,
+  readProxyAdmin,
+} from '../../helpers/upgrade-preflight';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() === 'true';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', false);
 
 async function main() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -26,6 +35,36 @@ async function main() {
     throw new Error(
       `Missing required deployment data:\nBelongCheckIn proxy: ${proxy}\nSignatureVerifier: ${signatureVerifier}\nHelper: ${helper}\nDualDexSwapV4Lib: ${dualDexSwapV4Lib}`,
     );
+  }
+
+  // Preflight (read-only, runs before anything is deployed): the record must describe what is live.
+  const recordedLibraries: LibraryAddresses = {
+    SignatureVerifier: signatureVerifier,
+    Helper: helper,
+    DualDexSwapV4Lib: dualDexSwapV4Lib,
+  };
+  for (const [name, address] of Object.entries(recordedLibraries)) {
+    if (!ethers.utils.isAddress(address)) {
+      throw new Error(`Recorded ${name} library address is invalid: ${address}`);
+    }
+    if ((await ethers.provider.getCode(address)) === '0x') {
+      throw new Error(`Recorded ${name} library ${address} has no contract code on chain ${chainId}.`);
+    }
+  }
+
+  const { liveImplementation, liveCode } = await readLiveImplementation(proxy, 'CheckIn', chainId);
+  assertRecordMatchesLiveLinkage({
+    label: 'CheckIn',
+    liveImplementation,
+    liveCode,
+    libraries: recordedLibraries,
+    deploymentFile,
+  });
+  const { proxyAdmin, proxyAdminOwner, proxyAdminOwnerHasCode } = await readProxyAdmin(proxy);
+
+  // The new implementation is linked to the recorded libraries, so they must be this checkout's builds.
+  for (const [name, address] of Object.entries(recordedLibraries)) {
+    await assertLibraryMatchesLocalBuild(name, address);
   }
 
   const BelongCheckIn = await ethers.getContractFactory('BelongCheckIn', {
@@ -52,19 +91,23 @@ async function main() {
     const implementationContract = await BelongCheckIn.deploy();
     await implementationContract.deployed();
     implementation = implementationContract.address;
+    console.log('Deployed BelongCheckIn implementation to: ', implementation);
   }
 
   if (!implementation || !ethers.utils.isAddress(implementation)) {
     throw new Error(`Invalid CheckIn implementation address: ${implementation}`);
   }
 
-  const proxyAdmin = await upgrades.erc1967.getAdminAddress(proxy);
-  const proxyAdminContract = new ethers.Contract(
-    proxyAdmin,
-    ['function owner() view returns (address)'],
-    ethers.provider,
-  );
-  const proxyAdminOwner = await proxyAdminContract.owner();
+  // The chosen implementation must exist, change something, and be linked to the recorded libraries.
+  await assertImplementationUsable({
+    label: 'CheckIn',
+    implementation,
+    liveImplementation,
+    proxy,
+    libraries: recordedLibraries,
+    chainId,
+  });
+
   const proxyAdminInterface = new ethers.utils.Interface(['function upgrade(address proxy, address implementation)']);
   const data = proxyAdminInterface.encodeFunctionData('upgrade', [proxy, implementation]);
 
@@ -85,8 +128,15 @@ async function main() {
   console.log('');
   console.log('Proxy:              ', proxy);
   console.log('ProxyAdmin owner:   ', proxyAdminOwner);
+  console.log('Owner has code:     ', proxyAdminOwnerHasCode ? 'yes' : 'no');
+  console.log('Live implementation:', liveImplementation);
   console.log('New implementation: ', implementation);
   console.log('DualDexSwapV4Lib:   ', dualDexSwapV4Lib);
+  if (!proxyAdminOwnerHasCode) {
+    console.warn(
+      `WARNING: ProxyAdmin owner ${proxyAdminOwner} has no contract code, so it is not a Safe: only that key can send the transaction above.`,
+    );
+  }
 
   if (VERIFY) {
     await verifyContract(implementation);

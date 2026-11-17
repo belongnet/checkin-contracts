@@ -3,13 +3,14 @@ import { ethers, upgrades } from 'hardhat';
 
 import { deployFactory } from '../../../helpers/deployFixtures';
 import { waitForNextBlock } from '../../../helpers/wait';
+import { assertNotRecorded, envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 dotenv.config();
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -34,6 +35,9 @@ async function main() {
 
   if (DEPLOY) {
     console.log('Deploy Factory: ');
+
+    // Must run before the record is reset below.
+    assertNotRecorded(deployments.factory?.proxy, 'Factory proxy');
 
     deployments.factory.proxy = {};
     deployments.factory.implementation = {};

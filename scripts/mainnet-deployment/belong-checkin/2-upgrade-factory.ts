@@ -1,19 +1,14 @@
 import { ethers, upgrades } from 'hardhat';
 
 import { waitForNextBlock } from '../../../helpers/wait';
+import { assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
+import { envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
-function parseBoolEnv(value: string | undefined, defaultValue: boolean): boolean {
-  if (value === undefined) {
-    return defaultValue;
-  }
-  return value.toLowerCase() === 'true';
-}
-
-const UPGRADE = parseBoolEnv(process.env.UPGRADE, true);
-const VERIFY = parseBoolEnv(process.env.VERIFY, true);
+const UPGRADE = envFlag('UPGRADE', true);
+const VERIFY = envFlag('VERIFY', true);
 const REFERRAL_MAX_ARRAY_LENGTH = Number(process.env.REFERRAL_MAX_ARRAY_LENGTH ?? '20');
 
 async function main() {
@@ -62,6 +57,9 @@ async function main() {
       }
     }
 
+    // The new implementation is linked to this library, so it must be this checkout's build.
+    await assertLibraryMatchesLocalBuild('SignatureVerifier', deployments.libraries.signatureVerifier);
+
     const FactoryV2 = await ethers.getContractFactory('Factory', {
       libraries: { SignatureVerifier: deployments.libraries.signatureVerifier },
     });
@@ -88,7 +86,18 @@ async function main() {
     });
     await waitForNextBlock();
 
-    // `upgradeToV2` is only needed once (reinitializer(2)).
+    // Record the new implementation right away: a failure below must not leave the record stale.
+    const newImplementation = await upgrades.erc1967.getImplementationAddress(factory.address);
+
+    // Update deployments object
+    deployments.factory.proxy = factory.address;
+    deployments.factory.implementation = newImplementation;
+    // Write to file
+    fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
+    console.log('Upgraded Factory proxy still at: ', factory.address);
+    console.log('New Factory implementation at: ', newImplementation);
+
+    // `upgradeToV2` is only needed once (reinitializer(2)) and is onlyOwner.
     // For already-initialized proxies, this call reverts with `InvalidInitialization`.
     const upgradedFactory = await ethers.getContractAt('Factory', factory.address);
     try {
@@ -111,19 +120,12 @@ async function main() {
       if (message.includes('InvalidInitialization')) {
         console.log('Factory already initialized to v2; skipping upgradeToV2().');
       } else {
-        throw error;
+        throw new Error(
+          `The Factory proxy ${factory.address} WAS upgraded to implementation ${newImplementation} and ${deploymentFile} was updated, but upgradeToV2() failed. It is onlyOwner and must be sent by the Factory owner.`,
+          { cause: error },
+        );
       }
     }
-
-    const newImplementation = await upgrades.erc1967.getImplementationAddress(factory.address);
-
-    // Update deployments object
-    deployments.factory.proxy = factory.address;
-    deployments.factory.implementation = newImplementation;
-    // Write to file
-    fs.writeFileSync(deploymentFile, JSON.stringify(deployments, null, 2));
-    console.log('Upgraded Factory proxy still at: ', factory.address);
-    console.log('New Factory implementation at: ', newImplementation);
 
     console.log('Done.');
   }

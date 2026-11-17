@@ -1,12 +1,14 @@
 import { ethers, upgrades } from 'hardhat';
 
 import { waitForNextBlock } from '../../../helpers/wait';
+import { assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
+import { envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
-const UPGRADE = process.env.UPGRADE?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const UPGRADE = envFlag('UPGRADE', true);
+const VERIFY = envFlag('VERIFY', true);
 
 async function main() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -26,6 +28,11 @@ async function main() {
 
   if (UPGRADE && deployments.checkIn) {
     console.log('Upgrade CheckIn: ');
+
+    // The new implementation is linked to these libraries, so they must be this checkout's builds.
+    await assertLibraryMatchesLocalBuild('SignatureVerifier', deployments.libraries.signatureVerifier);
+    await assertLibraryMatchesLocalBuild('Helper', deployments.libraries.helper);
+    await assertLibraryMatchesLocalBuild('DualDexSwapV4Lib', deployments.libraries.dualDexSwapV4Lib);
 
     const BelongCheckIn = await ethers.getContractFactory('BelongCheckIn', {
       libraries: {

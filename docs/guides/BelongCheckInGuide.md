@@ -188,6 +188,13 @@ SYNC_DEPLOYMENT_JSON=true # sync deployment JSON from on-chain state after updat
 
 Call each script with `yarn hardhat run <script> --network <network>`.
 
+Each toggle accepts `true`/`1`/`yes`/`on` or `false`/`0`/`no`/`off` (case-insensitive). An unset or empty toggle means
+the script's default, and any other value stops the script instead of being read as true or false.
+
+The deploy scripts for the libraries, implementations, Factory, LONG, Staking, BelongCheckIn, Escrow and the LONG price
+feed stop when `deployments/chainId-<id>.json` already records the contract they deploy, because a second run would
+deploy another copy and overwrite the record. Set `FORCE_REDEPLOY=true` when replacing it is intended.
+
 For PancakeSwap Infinity deployments, `SLIPPAGE_BPS_1E27` is in the same 1e27 domain used by
 `Helper.BPS` where `1e27` is 100%. The default is now `50000000000000000000000000` (5%).
 
@@ -285,23 +292,19 @@ await c.fees();
 
 ### 3. Deploy the new library
 
-Preferred production approach: deploy only the changed `DualDexSwapV4Lib`, then update only
-`deployments.libraries.dualDexSwapV4Lib` in `deployments/chainId-<id>.json`.
-
-If you use the existing `0-deploy-libraries.ts` helper, be aware it deploys all three libraries
-(`SignatureVerifier`, `Helper`, and `DualDexSwapV4Lib`) and overwrites all three addresses in the deployments file:
+Deploy only the library that changed. `0-deploy-libraries.ts` takes the record keys to deploy in `LIBRARIES`
+(`signatureVerifier`, `helper`, `dualDexSwapV4Lib`); without it the script deploys all three. Replacing a library that
+is already recorded needs `FORCE_REDEPLOY=true`, and the replaced address is kept as `libraries.<key>Previous`:
 
 ```bash
-DEPLOY=true VERIFY=true yarn hardhat run scripts/mainnet-deployment/belong-checkin/0-deploy-libraries.ts --network bsc
+LIBRARIES=dualDexSwapV4Lib FORCE_REDEPLOY=true DEPLOY=true VERIFY=true \
+yarn hardhat run scripts/mainnet-deployment/belong-checkin/0-deploy-libraries.ts --network bsc
 ```
 
-If only `DualDexSwapV4Lib` changed, either:
-
-- keep the newly deployed `SignatureVerifier` and `Helper` addresses intentionally, or
-- restore the previous `signatureVerifier` and `helper` values from the snapshot JSON before upgrading.
-
 The final deployment JSON used for the upgrade must point to the library addresses you intentionally want linked into
-the new implementation.
+the new implementation. The upgrade scripts check this: they stop if a recorded library was not built from the current
+checkout. The Safe preparation scripts also stop if the live implementation is not linked to a recorded library,
+unless that library is named in `EXPECT_LIBRARY_CHANGES`.
 
 ### 4. Upgrade the BelongCheckIn proxy
 
@@ -361,6 +364,51 @@ Then run one low-value operational transaction, such as a small `venueDepositWit
   updated before running `6-upgrade-checkin.ts`.
 - Reinitializing `BelongCheckIn`. Upgrades must not call `initialize` again.
 - Changing `PaymentsInfo` storage layout as part of a library-only fix.
+
+### When the ProxyAdmin is owned by a Safe
+
+On BSC mainnet the ProxyAdmin of `BelongCheckIn`, `Factory` and `Staking` is owned by a Safe, so `6-upgrade-checkin.ts`
+and the Factory upgrade scripts cannot send the upgrade. Use `6b-prepare-upgrade-safe.ts`: it deploys the new
+implementation and prints the `ProxyAdmin.upgrade(proxy, implementation)` transaction for the Safe. It never calls the
+proxy or the ProxyAdmin.
+
+```bash
+TARGET=BelongCheckIn \
+EXPECT_LIBRARY_CHANGES=SignatureVerifier \
+EXPECTED_PROXY_ADMIN_OWNER=0x<safe> \
+yarn hardhat run scripts/mainnet-deployment/belong-checkin/6b-prepare-upgrade-safe.ts --network bsc
+```
+
+- `TARGET` is `Factory`, `Staking` or `BelongCheckIn`.
+- `EXPECT_LIBRARY_CHANGES` lists the recorded libraries that the live implementation is not linked to yet, which are
+  the ones this upgrade replaces. The script stops if the list does not match what it finds on chain. Leave it unset
+  when no library changes.
+- `EXPECTED_PROXY_ADMIN_OWNER` (optional) stops the run if the ProxyAdmin has a different owner.
+- `DEPLOY=false` with `IMPLEMENTATION_ADDRESS=0x...` prints the transaction for an implementation that is already
+  deployed.
+- The storage layout of the new build is checked against the live implementation using the OpenZeppelin manifest in
+  `.openzeppelin/<network>.json`. If the proxy is not registered there, run `6a-force-import-checkin.ts` with the same
+  `TARGET` from the commit that is live. It refuses to import a build whose bytecode differs from the live
+  implementation.
+- The proposed implementation is written to the deployment file as `pendingUpgrade` (`stakingPendingUpgrade` for
+  Staking). After the Safe executes the transaction, record the new implementation and remove the pending block.
+
+---
+
+## Moving Ownership to a Safe
+
+`18-prepare-ownership-handover-safe.ts` prints the transactions that move `Factory`, `VenueToken` and `PromoterToken` to
+a Safe. It is read-only: it sends nothing, writes no file and needs no private key.
+
+```bash
+SAFE_ADDRESS=0x<safe> \
+yarn hardhat run scripts/mainnet-deployment/belong-checkin/18-prepare-ownership-handover-safe.ts --network bsc
+```
+
+The contracts use Solady's two-step handover. The Safe calls `requestOwnershipHandover()` on each contract, and the
+current owner completes it with `completeOwnershipHandover(<safe>)` within 48 hours. Once `owner()` returns the Safe,
+the Safe gives itself `DEFAULT_ADMIN_ROLE` and `MANAGER_ROLE` on both credit tokens and removes them from the old owner.
+Never call `renounceOwnership()`: it leaves the contract without an owner, permanently.
 
 ---
 

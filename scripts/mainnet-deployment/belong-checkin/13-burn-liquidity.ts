@@ -20,6 +20,21 @@ function env(name: string, fallback?: string) {
   return v;
 }
 
+// Slippage tolerance for decreaseLiquidity, in basis points (default 100 = 1%).
+function parseSlippageBps(value: string | undefined): number {
+  const raw = value?.trim() ?? '';
+  if (raw === '') return 100;
+  if (!/^\d+$/.test(raw) || Number(raw) > 5000) {
+    throw new Error('SLIPPAGE_BPS must be an integer between 0 and 5000 (basis points, 100 = 1%).');
+  }
+  return Number(raw);
+}
+
+// min = amount * (10000 - slippageBps) / 10000
+function withSlippage(amount: BigNumber, slippageBps: number): BigNumber {
+  return amount.mul(10_000 - slippageBps).div(10_000);
+}
+
 async function main() {
   const [signer] = await ethers.getSigners();
   const me = await signer.getAddress();
@@ -28,6 +43,7 @@ async function main() {
   const TOKEN_ID = BigInt(env('TOKEN_ID'));
   const PERCENT = Number(process.env.PERCENT ?? '100'); // 1..100
   const BURN_IF_EMPTY = process.env.BURN_IF_EMPTY === '1';
+  const SLIPPAGE_BPS = parseSlippageBps(process.env.SLIPPAGE_BPS);
 
   if (PERCENT <= 0 || PERCENT > 100) throw new Error('PERCENT must be 1..100');
 
@@ -68,11 +84,25 @@ async function main() {
   if (!liqToRemove.isZero()) {
     const deadline = Math.floor(Date.now() / 1000) + 3600;
     console.log(`Decreasing liquidity by ${PERCENT}% -> ${liqToRemove.toString()}`);
-    const dec = await npm.decreaseLiquidity({
+
+    // Preview the withdrawal; the real call reverts if it would return less than the preview minus SLIPPAGE_BPS.
+    const preview = await npm.callStatic.decreaseLiquidity({
       tokenId: TOKEN_ID,
       liquidity: liqToRemove,
       amount0Min: 0,
       amount1Min: 0,
+      deadline,
+    });
+    const amount0Min: BigNumber = withSlippage(preview.amount0, SLIPPAGE_BPS);
+    const amount1Min: BigNumber = withSlippage(preview.amount1, SLIPPAGE_BPS);
+    console.log(`preview.amount0 = ${preview.amount0.toString()}, amount0Min = ${amount0Min.toString()}`);
+    console.log(`preview.amount1 = ${preview.amount1.toString()}, amount1Min = ${amount1Min.toString()}`);
+
+    const dec = await npm.decreaseLiquidity({
+      tokenId: TOKEN_ID,
+      liquidity: liqToRemove,
+      amount0Min,
+      amount1Min,
       deadline,
     });
     const decRc = await dec.wait();

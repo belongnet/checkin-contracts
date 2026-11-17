@@ -1,17 +1,17 @@
 import dotenv from 'dotenv';
-import EthCrypto from 'eth-crypto';
 import { ethers } from 'hardhat';
 
-import { hashVestingInfo } from '../../../helpers/math';
+import { signVestingWalletInfo } from '../../../helpers/signature';
 import { VestingWalletInfoStruct } from '../../../typechain-types/contracts/v2/periphery/VestingWalletExtended';
+import { envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
 dotenv.config();
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
 
 const ERC20_ABI = [
   'function decimals() view returns (uint8)',
@@ -159,14 +159,18 @@ async function deploy() {
     };
 
     const factory = await ethers.getContractAt('Factory', factoryAddress);
-    const existingWallets = await factory.getVestingWalletInstanceInfos(beneficiary, 0);
+    const existingWallets = await factory.getVestingWalletInstanceInfos(beneficiary);
     const nextIndex = existingWallets.length;
 
-    const message = hashVestingInfo(ownerAddress, vestingWalletInfo, chainId);
-    const signature = EthCrypto.sign(signerPk, message);
+    // deployVestingWallet funds the wallet with the whole allocation, so that is the funding amount the
+    // signature covers. A fresh nonce gives a repeated identical deployment its own digest.
+    const protection = await signVestingWalletInfo(factoryAddress, signerPk, ownerAddress, vestingWalletInfo, {
+      initialFunding: totalAllocation,
+      nonce: Date.now(),
+    });
 
     console.log('Deploying VestingWallet contract...');
-    const tx = await factory.connect(signer).deployVestingWallet(ownerAddress, vestingWalletInfo, signature);
+    const tx = await factory.connect(signer).deployVestingWallet(ownerAddress, vestingWalletInfo, protection);
     const receipt = await tx.wait();
 
     const deployedInfo = await factory.getVestingWalletInstanceInfo(beneficiary, nextIndex);

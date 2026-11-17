@@ -3,14 +3,15 @@ import { ethers } from 'hardhat';
 
 import { deployEscrow } from '../../../helpers/deployFixtures';
 import { Escrow } from '../../../typechain-types';
+import { assertNotRecorded, envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
 dotenv.config();
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
 
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -34,6 +35,7 @@ async function deploy() {
 
   if (DEPLOY) {
     console.log('Deploy Escrow: ');
+    assertNotRecorded(deployments.checkIn?.escrow, 'Escrow');
 
     // Validate environment variables
     if (!deployments.checkIn.address) {
