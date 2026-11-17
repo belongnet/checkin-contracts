@@ -3,6 +3,7 @@ import { ethers, upgrades } from 'hardhat';
 
 import { deployFactory } from '../../../helpers/deployFixtures';
 import { waitForNextBlock } from '../../../helpers/wait';
+import { assertContractMatchesLocalBuild, assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
 import { assertNotRecorded, envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
@@ -70,6 +71,16 @@ async function main() {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
+
+    // The Factory is linked to this library and clones these implementations: all of them must be this
+    // checkout's builds, not just addresses that happen to be in the record.
+    await assertLibraryMatchesLocalBuild('SignatureVerifier', deployments.libraries.signatureVerifier);
+    await assertContractMatchesLocalBuild('AccessToken', deployments.implementations.accessToken, {
+      SignatureVerifier: deployments.libraries.signatureVerifier,
+    });
+    await assertContractMatchesLocalBuild('RoyaltiesReceiverV2', deployments.implementations.royaltiesReceiver);
+    await assertContractMatchesLocalBuild('CreditToken', deployments.implementations.creditToken);
+    await assertContractMatchesLocalBuild('VestingWalletExtended', deployments.implementations.vestingWallet);
 
     console.log('Deploying Factory contract...');
     const factory = await deployFactory(

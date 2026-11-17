@@ -77,3 +77,63 @@ export async function assertLibraryMatchesLocalBuild(libraryName: string, addres
   }
   console.warn(`WARNING: ${mismatch} Continuing because ALLOW_LIBRARY_BYTECODE_MISMATCH=true.`);
 }
+
+type ByteRange = { start: number; length: number };
+
+// Byte ranges of the immutables in the artifact's runtime code, read from the compiler output.
+async function immutableRanges(artifact: Artifact): Promise<ByteRange[]> {
+  const buildInfo = await artifacts.getBuildInfo(`${artifact.sourceName}:${artifact.contractName}`);
+  const references =
+    buildInfo?.output.contracts[artifact.sourceName]?.[artifact.contractName]?.evm.deployedBytecode
+      .immutableReferences ?? {};
+  return Object.values(references).flat();
+}
+
+// Replaces the given byte ranges of `code` with zeros.
+function maskRanges(code: string, ranges: ByteRange[]): string {
+  const prefixLength = code.startsWith('0x') ? 2 : 0;
+  let masked = code;
+  for (const { start, length } of ranges) {
+    const from = prefixLength + start * 2;
+    masked = masked.slice(0, from) + '0'.repeat(length * 2) + masked.slice(from + length * 2);
+  }
+  return masked;
+}
+
+/**
+ * Throws unless the code at `address` is this checkout's build of `contractName`, linked with
+ * `libraries`. Metadata and immutable values are ignored in the comparison.
+ * Code built from other source has not been compiled, tested or layout-checked in this checkout.
+ * `ALLOW_IMPLEMENTATION_BYTECODE_MISMATCH=true` overrides the comparison, but an address without any
+ * code is always refused.
+ */
+export async function assertContractMatchesLocalBuild(
+  contractName: string,
+  address: string,
+  libraries: Record<string, string> = {},
+): Promise<void> {
+  if (!ethers.utils.isAddress(address)) {
+    throw new Error(`The ${contractName} address is missing or invalid: ${address}`);
+  }
+  const liveCode = await ethers.provider.getCode(address);
+  if (liveCode === '0x') {
+    throw new Error(`${contractName} at ${address} has no contract code on this chain.`);
+  }
+
+  // Immutables (for example the self address of a UUPS implementation) are zero in the artifact and
+  // set on chain, so those bytes are blanked on both sides before comparing.
+  const artifact = await artifacts.readArtifact(contractName);
+  const immutables = await immutableRanges(artifact);
+  const localCode = maskRanges(linkedRuntimeBytecode(artifact, libraries), immutables);
+  if (stripMetadata(localCode) === stripMetadata(maskRanges(liveCode, immutables))) {
+    return;
+  }
+
+  const mismatch = `The code at ${address} was not built from this checkout's ${contractName} source with the recorded libraries.`;
+  if (!envFlag('ALLOW_IMPLEMENTATION_BYTECODE_MISMATCH', false)) {
+    throw new Error(
+      `${mismatch} Deploy ${contractName} from this checkout first (or set ALLOW_IMPLEMENTATION_BYTECODE_MISMATCH=true to override).`,
+    );
+  }
+  console.warn(`WARNING: ${mismatch} Continuing because ALLOW_IMPLEMENTATION_BYTECODE_MISMATCH=true.`);
+}

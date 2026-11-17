@@ -1,7 +1,7 @@
 import { ethers, upgrades } from 'hardhat';
 
 import { waitForNextBlock } from '../../../helpers/wait';
-import { assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
+import { assertContractMatchesLocalBuild, assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
 import { envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
@@ -47,8 +47,10 @@ async function main() {
       }
     }
 
-    // The new implementation is linked to this library, so it must be this checkout's build.
+    // The new implementation is linked to this library, so it must be this checkout's build. The same
+    // goes for the vesting implementation that upgradeToV3() registers in the Factory.
     await assertLibraryMatchesLocalBuild('SignatureVerifier', deployments.libraries.signatureVerifier);
+    await assertContractMatchesLocalBuild('VestingWalletExtended', deployments.implementations.vestingWallet);
 
     const FactoryV3 = await ethers.getContractFactory('Factory', {
       libraries: { SignatureVerifier: deployments.libraries.signatureVerifier },

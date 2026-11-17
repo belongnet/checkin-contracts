@@ -3,14 +3,15 @@ import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 
 import { deployAccessToken } from '../../../helpers/deployFixtures';
+import { envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
 dotenv.config();
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
 
 interface DeploymentRecord {
   nftFactory?: {
@@ -67,7 +68,7 @@ async function main() {
   const feeNumerator = Number(process.env.ACCESS_TOKEN_FEE_NUMERATOR ?? '600');
   const maxTotalSupplyRaw = process.env.ACCESS_TOKEN_MAX_TOTAL_SUPPLY ?? '0';
   const collectionExpireRaw = process.env.ACCESS_TOKEN_COLLECTION_EXPIRE ?? '0';
-  const transferable = process.env.ACCESS_TOKEN_TRANSFERABLE?.toLowerCase() !== 'false';
+  const transferable = envFlag('ACCESS_TOKEN_TRANSFERABLE', true);
 
   if (DEPLOY) {
     console.log('Deploy AccessToken via NFTFactory:');

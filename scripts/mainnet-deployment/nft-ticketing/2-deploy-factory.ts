@@ -3,13 +3,15 @@ import { ethers, upgrades } from 'hardhat';
 
 import { deployFactory } from '../../../helpers/deployFixtures';
 import { waitForNextBlock } from '../../../helpers/wait';
+import { assertContractMatchesLocalBuild, assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
+import { assertNotRecorded, envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 dotenv.config();
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -34,6 +36,9 @@ async function main() {
 
   if (DEPLOY) {
     console.log('Deploy Factory: ');
+
+    // Must run before the record is reset below.
+    assertNotRecorded(deployments.factory?.proxy, 'Factory proxy');
 
     deployments.factory.proxy = {};
     deployments.factory.implementation = {};
@@ -66,6 +71,16 @@ async function main() {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
+
+    // The Factory is linked to this library and clones these implementations: all of them must be this
+    // checkout's builds, not just addresses that happen to be in the record.
+    await assertLibraryMatchesLocalBuild('SignatureVerifier', deployments.libraries.signatureVerifier);
+    await assertContractMatchesLocalBuild('AccessToken', deployments.implementations.accessToken, {
+      SignatureVerifier: deployments.libraries.signatureVerifier,
+    });
+    await assertContractMatchesLocalBuild('RoyaltiesReceiverV2', deployments.implementations.royaltiesReceiver);
+    await assertContractMatchesLocalBuild('CreditToken', deployments.implementations.creditToken);
+    await assertContractMatchesLocalBuild('VestingWalletExtended', deployments.implementations.vestingWallet);
 
     console.log('Deploying Factory contract...');
     const factory = await deployFactory(

@@ -302,9 +302,10 @@ yarn hardhat run scripts/mainnet-deployment/belong-checkin/0-deploy-libraries.ts
 ```
 
 The final deployment JSON used for the upgrade must point to the library addresses you intentionally want linked into
-the new implementation. The upgrade scripts check this: they stop if a recorded library was not built from the current
-checkout. The Safe preparation scripts also stop if the live implementation is not linked to a recorded library,
-unless that library is named in `EXPECT_LIBRARY_CHANGES`.
+the new implementation. The deploy and upgrade scripts check this: they stop if a recorded library, or a recorded
+implementation that the Factory clones, was not built from the current checkout. The Safe preparation scripts also stop
+if the live implementation is not linked to a recorded library, unless that library is named in
+`EXPECT_LIBRARY_CHANGES`.
 
 ### 4. Upgrade the BelongCheckIn proxy
 
@@ -385,7 +386,9 @@ yarn hardhat run scripts/mainnet-deployment/belong-checkin/6b-prepare-upgrade-sa
   when no library changes.
 - `EXPECTED_PROXY_ADMIN_OWNER` (optional) stops the run if the ProxyAdmin has a different owner.
 - `DEPLOY=false` with `IMPLEMENTATION_ADDRESS=0x...` prints the transaction for an implementation that is already
-  deployed.
+  deployed. Without `IMPLEMENTATION_ADDRESS` the script reuses the pending implementation from the deployment file.
+- Whichever implementation is proposed, its on-chain code must be this checkout's build linked to the recorded
+  libraries. The script stops otherwise, because the storage-layout check runs on the local build.
 - The storage layout of the new build is checked against the live implementation using the OpenZeppelin manifest in
   `.openzeppelin/<network>.json`. If the proxy is not registered there, run `6a-force-import-checkin.ts` with the same
   `TARGET` from the commit that is live. It refuses to import a build whose bytecode differs from the live

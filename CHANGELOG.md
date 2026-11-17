@@ -34,14 +34,15 @@ when the proxies are upgraded, and the backend must switch to the new signature 
   `keccak256(abi.encode(TYPEHASH, verifyingContract, nonce, deadline, chainId, ...payload))` with the payload struct
   encoded as an ABI tuple. `helpers/signature.ts` is the reference implementation.
 - `getReferralRate` no longer reverts with `ReferralCodeNotUsedByUser`; the error was removed.
-- Deploy, upgrade and update scripts under `scripts/mainnet-deployment/belong-checkin` read their toggles strictly:
+- Deploy, upgrade and update scripts under `scripts/mainnet-deployment` read their toggles strictly:
   `true`/`1`/`yes`/`on` or `false`/`0`/`no`/`off`, and any other value stops the script. An empty toggle now means the
   script's default; in `1-deploy-implementations.ts`, `2-upgrade-factory.ts` and `3-upgrade-factory-v3.ts` an empty
   value used to mean false.
 - Deploy scripts stop when the deployment file already records the contract they deploy; `FORCE_REDEPLOY=true`
   overrides. `0-deploy-libraries.ts` takes `LIBRARIES` to deploy a single library and keeps the replaced address.
-- Upgrade scripts stop when a recorded library was not built from the current checkout, and the Factory upgrade scripts
-  write the new implementation to the deployment file before they call the reinitializer.
+- Deploy and upgrade scripts stop when a recorded library, or a recorded implementation that the Factory clones, was
+  not built from the current checkout. The Factory upgrade scripts write the new implementation to the deployment file
+  before they call the reinitializer.
 - `13-add-liqudity.ts` reads token decimals from the chain (BSC USDC has 18, not 6), approves the exact amount instead
   of an unlimited allowance, and sets minimum amounts from `SLIPPAGE_BPS`. `13-burn-liquidity.ts` sets minimum amounts
   the same way. `12-create-lp.ts` stops when the pool already exists unless `ALLOW_EXISTING_POOL=true`.
@@ -55,7 +56,8 @@ when the proxies are upgraded, and the backend must switch to the new signature 
 
 - `6b-prepare-upgrade-safe.ts`: prepares the Safe transaction that upgrades `Factory`, `Staking` or `BelongCheckIn`.
   It checks the record against the live linkage, the libraries against the local build and the storage layout against
-  the live implementation before it deploys anything.
+  the live implementation before it deploys anything, and it only proposes an implementation whose on-chain code is the
+  local build.
 - `18-prepare-ownership-handover-safe.ts`: read-only; prints the transactions that move `Factory`, `VenueToken` and
   `PromoterToken` to a Safe with Solady's two-step handover.
 - `.openzeppelin/bsc.json`: the OpenZeppelin upgrade manifest for BSC mainnet, imported from the deployed source.

@@ -7,14 +7,16 @@ import {
   deployRoyaltiesReceiverV2Implementation,
   deployVestingWalletImplementation,
 } from '../../../helpers/deployFixtures';
+import { assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
+import { assertNotRecorded, envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
 dotenv.config();
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
 
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -38,6 +40,12 @@ async function deploy() {
 
   if (DEPLOY) {
     console.log('Deploy Implementations: ');
+    // Checked up front, so the run never stops half-way after deploying some of the implementations.
+    assertNotRecorded(deployments.implementations.accessToken, 'AccessTokenImplementation');
+    assertNotRecorded(deployments.implementations.creditToken, 'CreditTokenImplementation');
+    assertNotRecorded(deployments.implementations.royaltiesReceiver, 'RoyaltiesReceiverV2Implementation');
+    assertNotRecorded(deployments.implementations.vestingWallet, 'VestingWalletImplementation');
+
     // Validate environment variables
     if (!deployments.libraries.signatureVerifier) {
       throw new Error('Missing required environment variables: SignatureVerifier');
@@ -49,6 +57,9 @@ async function deploy() {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
+
+    // AccessToken calls into the linked SignatureVerifier, so the library must be this checkout's build.
+    await assertLibraryMatchesLocalBuild('SignatureVerifier', deployments.libraries.signatureVerifier);
 
     console.log('Deploying AccessTokenImplementation contract...');
     const accessTokenImpl = await deployAccessTokenImplementation(deployments.libraries.signatureVerifier);

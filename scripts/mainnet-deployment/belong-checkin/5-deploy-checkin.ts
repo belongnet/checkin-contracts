@@ -6,6 +6,7 @@ import { deployBelongCheckIn } from '../../../helpers/deployFixtures';
 import { encodePcsPoolKey } from '../../../helpers/math';
 import { BelongCheckIn } from '../../../typechain-types';
 import { DualDexSwapV4Lib } from '../../../typechain-types/contracts/v2/platform/extensions/DualDexSwapV4';
+import { assertLibraryMatchesLocalBuild } from '../../helpers/bytecode';
 import { assertNotRecorded, envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
@@ -93,6 +94,11 @@ async function deploy() {
         throw new Error(`Invalid address: ${addr}`);
       }
     }
+
+    // BelongCheckIn is linked to these libraries, so they must be this checkout's builds.
+    await assertLibraryMatchesLocalBuild('SignatureVerifier', deployments.libraries.signatureVerifier);
+    await assertLibraryMatchesLocalBuild('Helper', deployments.libraries.helper);
+    await assertLibraryMatchesLocalBuild('DualDexSwapV4Lib', deployments.libraries.dualDexSwapV4Lib);
 
     if (hooks !== ethers.constants.AddressZero && !ethers.utils.isAddress(hooks)) {
       throw new Error(`Invalid hooks address: ${hooks}`);

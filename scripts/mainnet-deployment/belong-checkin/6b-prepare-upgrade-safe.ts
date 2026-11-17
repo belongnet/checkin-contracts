@@ -5,7 +5,9 @@
 // TARGET (required): Factory | Staking | BelongCheckIn
 // Optional: DEPLOY (default true), IMPLEMENTATION_ADDRESS (reuse an implementation that is already
 //   deployed), VERIFY (default false), SKIP_LAYOUT_VALIDATION, EXPECT_LIBRARY_CHANGES,
-//   EXPECTED_PROXY_ADMIN_OWNER, ALLOW_LIBRARY_BYTECODE_MISMATCH.
+//   EXPECTED_PROXY_ADMIN_OWNER, ALLOW_LIBRARY_BYTECODE_MISMATCH, ALLOW_IMPLEMENTATION_BYTECODE_MISMATCH.
+// The implementation that is proposed must be this checkout's build, whether it is deployed now, given
+// in IMPLEMENTATION_ADDRESS or read back from the deployment file.
 //
 // Usage:
 //   TARGET=Factory npx hardhat run \
@@ -134,7 +136,7 @@ async function main() {
       }
       throw error;
     }
-    console.log('Storage layout:      compatible with the live implementation');
+    console.log('Storage layout:      the local build is compatible with the live implementation');
   }
 
   // The implementation to propose: an explicit override, a fresh deployment, or the one already recorded.
@@ -156,6 +158,7 @@ async function main() {
 
   await assertImplementationUsable({
     label: contractName,
+    contractName,
     implementation,
     liveImplementation,
     proxy,

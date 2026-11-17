@@ -1,6 +1,8 @@
 import type { BigNumber, Contract } from 'ethers';
 import { ethers } from 'hardhat';
 
+import { envFlag } from '../../helpers/env';
+
 const IF_NPM = [
   // view
   'function positions(uint256 tokenId) view returns (' +
@@ -42,7 +44,7 @@ async function main() {
   const NPM_ADDR = env('UNISWAPV3_NPM_ADDRESS');
   const TOKEN_ID = BigInt(env('TOKEN_ID'));
   const PERCENT = Number(process.env.PERCENT ?? '100'); // 1..100
-  const BURN_IF_EMPTY = process.env.BURN_IF_EMPTY === '1';
+  const BURN_IF_EMPTY = envFlag('BURN_IF_EMPTY', false);
   const SLIPPAGE_BPS = parseSlippageBps(process.env.SLIPPAGE_BPS);
 
   if (PERCENT <= 0 || PERCENT > 100) throw new Error('PERCENT must be 1..100');

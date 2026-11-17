@@ -1,5 +1,7 @@
 import { ethers, upgrades } from 'hardhat';
 
+import { assertContractMatchesLocalBuild } from './bytecode';
+
 /** Library name -> recorded address, in the order the libraries are reported. */
 export type LibraryAddresses = Record<string, string>;
 
@@ -165,16 +167,21 @@ export async function readProxyAdmin(proxy: string): Promise<ProxyAdminInfo> {
   return { proxyAdmin, proxyAdminOwner, proxyAdminOwnerHasCode };
 }
 
-/** The implementation to propose must exist, change something, and be linked to the recorded libraries. */
+/**
+ * The implementation to propose must exist, change something, be linked to the recorded libraries and
+ * be this checkout's build of `contractName`: the storage-layout check runs on the local build, so any
+ * other code would be proposed without having been validated.
+ */
 export async function assertImplementationUsable(options: {
   label: string;
+  contractName: string;
   implementation: string;
   liveImplementation: string;
   proxy: string;
   libraries: LibraryAddresses;
   chainId: number;
 }): Promise<void> {
-  const { label, implementation, liveImplementation, proxy, libraries, chainId } = options;
+  const { label, contractName, implementation, liveImplementation, proxy, libraries, chainId } = options;
   const implementationCode = await ethers.provider.getCode(implementation);
   if (implementationCode === '0x') {
     throw new Error(`${label} implementation ${implementation} has no contract code on chain ${chainId}.`);
@@ -190,4 +197,5 @@ export async function assertImplementationUsable(options: {
       `${label} implementation ${implementation} is not linked to the recorded libraries: ${describeLibraries(unlinked, libraries)}.`,
     );
   }
+  await assertContractMatchesLocalBuild(contractName, implementation, libraries);
 }

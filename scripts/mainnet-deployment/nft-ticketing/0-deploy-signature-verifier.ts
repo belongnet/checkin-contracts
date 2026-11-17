@@ -3,14 +3,15 @@ import { ethers } from 'hardhat';
 
 import { deploySignatureVerifier } from '../../../helpers/deployLibraries';
 import { SignatureVerifier } from '../../../typechain-types';
+import { assertNotRecorded, envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
 
 dotenv.config();
 
-const DEPLOY = process.env.DEPLOY?.trim().toLowerCase() !== 'false';
-const VERIFY = process.env.VERIFY?.trim().toLowerCase() !== 'false';
+const DEPLOY = envFlag('DEPLOY', true);
+const VERIFY = envFlag('VERIFY', true);
 
 async function deploy() {
   const chainId = (await ethers.provider.getNetwork()).chainId;
@@ -32,8 +33,9 @@ async function deploy() {
     deployments.libraries = {};
   }
 
-  if (DEPLOY && !deployments.libraries.SigantureVerifier) {
+  if (DEPLOY) {
     console.log('Deploy SignatureVerifier: ');
+    assertNotRecorded(deployments.libraries.signatureVerifier, 'SignatureVerifier');
 
     console.log('Deploying SignatureVerifier contract...');
     const signatureVerifier: SignatureVerifier = await deploySignatureVerifier();

@@ -101,6 +101,7 @@ async function main() {
   // The chosen implementation must exist, change something, and be linked to the recorded libraries.
   await assertImplementationUsable({
     label: 'CheckIn',
+    contractName: 'BelongCheckIn',
     implementation,
     liveImplementation,
     proxy,
