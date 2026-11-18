@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import { ethers } from 'hardhat';
 
 import { deployNftWithoutFactory } from '../../../helpers/deployFixtures';
-import { envFlag } from '../../helpers/env';
+import { assertNotRecorded, envFlag } from '../../helpers/env';
 import { verifyContract } from '../../helpers/verify-contract';
 
 import fs from 'fs';
@@ -56,6 +56,7 @@ async function main() {
 
   if (DEPLOY) {
     console.log('Deploy NFT contract:');
+    assertNotRecorded(deployments.nft.address, 'NFT');
 
     const nft = await deployNftWithoutFactory(NFT_ARGS[0]);
 
