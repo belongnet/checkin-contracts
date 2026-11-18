@@ -49,7 +49,8 @@ examples live in
 ### 1. Venue Deposit & Rule Configuration
 1. Venue shares desired `VenueRules` (payment types, bounty types, LONG settlement mode) and deposit amount with the backend.
 2. Backend validates referral code ownership, checks venue staking tier, and issues a signed `VenueInfo`.
-3. Venue calls `venueDeposit(venueInfo)` (EOA-only):
+3. Venue calls `venueDeposit(venueInfo)` (EOA-only, and only from the venue's own address; any other sender reverts
+   with `CallerNotPayer`):
    - Applies free-deposit counter (`fees.referralCreditsAmount`) before charging deposit fees.
    - Charges a flat convenience fee (converted to LONG and delivered to escrow) plus optional affiliate fee (`fees.affiliatePercentage`).
    - Mints venue ERC‑1155 credits mirroring the USD balance and forwards principal to `Escrow`.
@@ -57,7 +58,8 @@ examples live in
 ### 2. Customer Check-In & Payment
 1. App collects visit context (venue, promoter attribution, spend amount, currency) and forwards it to backend.
 2. Backend confirms rules allow the requested payment method and bounty combination; signs `CustomerInfo`.
-3. Customer calls `payToVenue(customerInfo)` (EOA-only):
+3. Customer calls `payToVenue(customerInfo)` (EOA-only, and only from the customer's own address; any other sender
+   reverts with `CallerNotPayer`):
    - If a promoter is set, burns venue credits equal to visit bounty + spend percentage, minting promoter credits instead.
    - For USDtoken payments: transfers full amount from customer to venue wallet.
    - For LONG payments: pulls platform subsidy from escrow, applies processing fee, collects discounted payment from customer, and routes LONG per venue rule (auto-stake, auto-convert to USDtoken, or direct transfer).

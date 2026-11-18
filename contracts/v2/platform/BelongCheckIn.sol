@@ -92,6 +92,11 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @param percentage The offending value.
     error PercentageTooHigh(uint256 percentage);
 
+    /// @notice Thrown when a signed deposit or payment is submitted by an account other than the one it charges.
+    /// @param caller The account that submitted the transaction.
+    /// @param payer The venue or customer named in the signed payload.
+    error CallerNotPayer(address caller, address payer);
+
     // ========== Events ==========
 
     /// @notice Emitted when platform fee settings are updated.
@@ -426,6 +431,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Handles a venue USDtoken deposit, accounting for fee exemptions, affiliate rewards, and escrow funding.
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
+    /// - Must be submitted by `venueInfo.venue`: the deposit and its fees are pulled from that account.
     /// - Tracks “free deposit” credits; the platform fee is skipped until the configured allowance is exhausted.
     /// - Charges convenience plus affiliate fees in USDtoken, swaps them to LONG where applicable, and records the resulting LONG in escrow.
     /// - Applies the buyback/burn split to the platform fee portion before forwarding the remainder to the fee collector.
@@ -506,6 +512,8 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             _contracts.factory.nftFactoryParameters().signerAddress
                 .checkVenueInfo(address(this), protection, venueInfo)
         );
+        // The deposit and its fees are pulled from the venue's allowance, so only the venue may submit it.
+        require(msg.sender == venueInfo.venue, CallerNotPayer(msg.sender, venueInfo.venue));
 
         VenueDepositFeesInfo memory feesInfo =
             _venueDepositFees(venueInfo.venue, venueInfo.amount, venueInfo.affiliateReferralCode);
@@ -545,6 +553,7 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
     /// @notice Processes a customer payment to a venue, optionally attributing promoter rewards.
     /// @dev
     /// - Signature-validated via platform signer from `Factory`.
+    /// - Must be submitted by `customerInfo.customer`: the payment is pulled from that account.
     /// - Burns venue credits / mints promoter credits when a promoter participates in the visit.
     /// - USDtoken payments move USDtoken directly from customer to venue.
     /// - LONG payments pull the platform subsidy from escrow, collect the customer’s discounted LONG, then deliver/route LONG per venue rules.
@@ -578,6 +587,8 @@ contract BelongCheckIn is Initializable, Ownable, DualDexSwapV4 {
             _contracts.factory.nftFactoryParameters().signerAddress
                 .checkCustomerInfo(address(this), protection, customerInfo, rules)
         );
+        // The payment is pulled from the customer's allowance, so only the customer may submit it.
+        require(msg.sender == customerInfo.customer, CallerNotPayer(msg.sender, customerInfo.customer));
 
         uint256 venueId = customerInfo.venueToPayFor.getVenueId();
 

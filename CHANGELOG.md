@@ -19,6 +19,9 @@ when the proxies are upgraded, and the backend must switch to the new signature 
 - Venue, customer, promoter and creation signatures work once. `Factory` and `BelongCheckIn` record each executed
   digest in `usedSignatures` and reject a second use with `SignatureAlreadyUsed`. Before, the same signature could be
   submitted again until its deadline.
+- Only the venue named in a signed deposit, or the customer named in a signed payment, can submit it; any other
+  sender reverts with `CallerNotPayer`. Before, any EOA that held a signed payload could execute it against that
+  account's allowance, for example after the original transaction reverted and the backend issued a new signature.
 - `Factory.upgradeToV2` and `Factory.upgradeToV3` are now `onlyOwner`. Before, anyone could call them on a proxy that
   had not been reinitialized yet.
 - `BelongCheckIn` rejects fee and reward percentages above 100% with `PercentageTooHigh`.
@@ -65,7 +68,7 @@ when the proxies are upgraded, and the backend must switch to the new signature 
   implementation.
 - `deployCreditTokens` checks the owner, roles and transferability of a credit token that already exists before
   adopting it.
-- Tests for each fix above (253 passing, up from 225).
+- Tests for each fix above (255 passing, up from 225).
 
 ### Notes
 

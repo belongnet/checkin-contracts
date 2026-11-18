@@ -924,7 +924,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         'VenuePaidDeposit',
       );
 
-      // The deposit is pulled from the venue whoever submits it, so a replay would charge the venue again.
+      // A second submission is rejected, whether the venue or another account sends it.
       await expect(
         belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoTuple, protection),
       ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
@@ -955,6 +955,45 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
       expect((await escrow.venueDeposits(USDC_whale.address)).usdTokenDeposits).to.eq(amount.mul(2));
       expect(await USDC.balanceOf(USDC_whale.address)).to.eq(venueBalanceBefore.sub(willBeTaken.mul(2)));
+    });
+
+    it('venueDeposit() can only be submitted by the venue that pays', async () => {
+      const { belongCheckIn, escrow, signer, USDC, USDC_whale, ENA_whale } = await loadFixture(fixture);
+
+      const amount = await u(100, USDC);
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 1, bountyType: 1, bountyAllocationType: 1, longPaymentType: 0 } as VenueRulesStruct,
+        venue: USDC_whale.address,
+        amount,
+        affiliateReferralCode: ethers.constants.HashZero,
+        uri: 'uriuri',
+      };
+      const venueInfoTuple = toVenueInfoTuple(venueInfo);
+      const protection = await signVenueInfo(belongCheckIn.address, signer.privateKey, venueInfo);
+
+      const willBeTaken = convenienceFeeAmount.add(amount);
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, willBeTaken);
+      const venueBalanceBefore = await USDC.balanceOf(USDC_whale.address);
+
+      // The payload is valid and unused and the venue's allowance covers it, but another account submits it.
+      await expect(belongCheckIn.connect(ENA_whale).venueDeposit(venueInfoTuple, protection))
+        .to.be.revertedWithCustomError(belongCheckIn, 'CallerNotPayer')
+        .withArgs(ENA_whale.address, USDC_whale.address);
+      const swapDeadline = (await ethers.provider.getBlock('latest'))!.timestamp + 3600;
+      await expect(belongCheckIn.connect(ENA_whale).venueDepositWithDeadline(venueInfoTuple, protection, swapDeadline))
+        .to.be.revertedWithCustomError(belongCheckIn, 'CallerNotPayer')
+        .withArgs(ENA_whale.address, USDC_whale.address);
+
+      expect(await USDC.balanceOf(USDC_whale.address)).to.eq(venueBalanceBefore);
+      expect((await escrow.venueDeposits(USDC_whale.address)).usdTokenDeposits).to.eq(0);
+
+      // The rejected attempts did not consume the signature: the venue itself can still use it.
+      await expect(belongCheckIn.connect(USDC_whale).venueDeposit(venueInfoTuple, protection)).to.emit(
+        belongCheckIn,
+        'VenuePaidDeposit',
+      );
+      expect((await escrow.venueDeposits(USDC_whale.address)).usdTokenDeposits).to.eq(amount);
+      expect(await USDC.balanceOf(USDC_whale.address)).to.eq(venueBalanceBefore.sub(willBeTaken));
     });
 
     it('venueDeposit() reverts with InvalidSignature when the amount or the rules differ from the signed ones', async () => {
@@ -1942,8 +1981,7 @@ describe('BelongCheckIn ETH UniswapV4', () => {
         'CustomerPaid',
       );
 
-      // The payment is pulled from the customer whoever submits it, so a replay (here by the venue) would charge
-      // the customer again.
+      // A second submission is rejected, whether the venue or the customer sends it.
       await expect(
         belongCheckIn.connect(USDC_whale).payToVenue(customerInfoTuple, protection),
       ).to.be.revertedWithCustomError(belongCheckIn, 'SignatureAlreadyUsed');
@@ -1963,6 +2001,61 @@ describe('BelongCheckIn ETH UniswapV4', () => {
       await executePayToVenue(belongCheckIn, signer, ENA_whale, customerInfo);
       expect(await USDC.balanceOf(ENA_whale.address)).to.eq(customerBalanceBefore.sub(customerAmount.mul(2)));
       expect(await USDC.balanceOf(USDC_whale.address)).to.eq(venueBalanceBefore.add(customerAmount.mul(2)));
+    });
+
+    it('payToVenue() can only be submitted by the customer who pays', async () => {
+      const { belongCheckIn, signer, USDC, USDC_whale, ENA_whale } = await loadFixture(fixture);
+
+      const venueAmount = await u(100, USDC);
+      const venueInfo: VenueInfoStruct = {
+        rules: { paymentType: 1, bountyType: 0, bountyAllocationType: 0, longPaymentType: 0 } as VenueRulesStruct,
+        venue: USDC_whale.address,
+        amount: venueAmount,
+        affiliateReferralCode: ethers.constants.HashZero,
+        uri: 'uriuri',
+      };
+      await USDC.connect(USDC_whale).approve(belongCheckIn.address, convenienceFeeAmount.add(venueAmount));
+      await executeVenueDeposit(belongCheckIn, signer, USDC_whale, venueInfo);
+
+      const customerAmount = await u(5, USDC);
+      const customerInfo: CustomerInfoStruct = {
+        paymentInUSDtoken: true,
+        toCustomer: { visitBountyAmount: 0, spendBountyPercentage: 0 },
+        toPromoter: { visitBountyAmount: 0, spendBountyPercentage: 0 },
+        customer: ENA_whale.address,
+        venueToPayFor: USDC_whale.address,
+        promoterReferralCode: ethers.constants.HashZero,
+        amount: customerAmount,
+      };
+      const customerInfoTuple = toCustomerInfoTuple(customerInfo);
+      const protection = await signCustomerInfo(belongCheckIn.address, signer.privateKey, customerInfo);
+
+      await USDC.connect(USDC_whale).transfer(ENA_whale.address, customerAmount);
+      await USDC.connect(ENA_whale).approve(belongCheckIn.address, customerAmount);
+      const customerBalanceBefore = await USDC.balanceOf(ENA_whale.address);
+      const venueBalanceBefore = await USDC.balanceOf(USDC_whale.address);
+
+      // The payload is valid and unused and the customer's allowance covers it, but the venue submits it.
+      await expect(belongCheckIn.connect(USDC_whale).payToVenue(customerInfoTuple, protection))
+        .to.be.revertedWithCustomError(belongCheckIn, 'CallerNotPayer')
+        .withArgs(USDC_whale.address, ENA_whale.address);
+      const swapDeadline = (await ethers.provider.getBlock('latest'))!.timestamp + 3600;
+      await expect(
+        belongCheckIn.connect(USDC_whale).payToVenueWithDeadline(customerInfoTuple, protection, swapDeadline),
+      )
+        .to.be.revertedWithCustomError(belongCheckIn, 'CallerNotPayer')
+        .withArgs(USDC_whale.address, ENA_whale.address);
+
+      expect(await USDC.balanceOf(ENA_whale.address)).to.eq(customerBalanceBefore);
+      expect(await USDC.balanceOf(USDC_whale.address)).to.eq(venueBalanceBefore);
+
+      // The rejected attempts did not consume the signature: the customer can still use it.
+      await expect(belongCheckIn.connect(ENA_whale).payToVenue(customerInfoTuple, protection)).to.emit(
+        belongCheckIn,
+        'CustomerPaid',
+      );
+      expect(await USDC.balanceOf(ENA_whale.address)).to.eq(customerBalanceBefore.sub(customerAmount));
+      expect(await USDC.balanceOf(USDC_whale.address)).to.eq(venueBalanceBefore.add(customerAmount));
     });
 
     it('payToVenue() (both payment) (w/o promoter)', async () => {

@@ -29,6 +29,10 @@ digest = keccak256(abi.encode(
   `usedSignatures(digest)` and revert with `SignatureAlreadyUsed(digest)` on a second submission.
   Mint signatures are the exception: AccessToken does not record them, and a token id can only be
   minted once.
+- **The payer submits.** `venueDeposit*` must be sent by `venueInfo.venue` and `payToVenue*` by
+  `customerInfo.customer`, the accounts the funds are pulled from. Any other sender reverts with
+  `CallerNotPayer(caller, payer)`. Before, any EOA that held a signed payload could execute it against
+  that account's allowance.
 
 ## Rolling out this format
 
@@ -60,6 +64,8 @@ struct SignatureProtection {
 ## Shared Rules
 
 - **Signer**: `Factory.nftFactoryParameters().signerAddress`.
+- **Sender**: venue deposits and customer payments must be sent by the venue or customer named in the
+  payload. The other signed calls do not restrict the sender.
 - **verifyingContract**: the contract performing verification (`BelongCheckIn`, `Factory`, or an
   `AccessToken` instance).
 - **deadline**: unix seconds; reverts with `SignatureExpired` if `deadline < block.timestamp`.
